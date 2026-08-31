@@ -357,7 +357,19 @@ function turnoActual(){
   if(h >= 14 && h < 22) return "2";
   return "3";
 }
-function hoyISO(){ return new Date().toISOString().slice(0,10); }
+// Manejo de fechas SIEMPRE en hora local (nunca new Date(isoString) ni toISOString(),
+// que interpretan/formatean en UTC y desfasan el día en zonas horarias negativas).
+function parseISOLocal(dateStr){
+  const [y,m,d] = dateStr.split("-").map(Number);
+  return new Date(y, m-1, d);
+}
+function formatISOLocal(date){
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,"0");
+  const d = String(date.getDate()).padStart(2,"0");
+  return `${y}-${m}-${d}`;
+}
+function hoyISO(){ return formatISOLocal(new Date()); }
 function toast(msg){
   const t = document.getElementById("toast");
   t.textContent = msg;
@@ -631,16 +643,16 @@ function renderDashboard(){
 
 /* ---------- Resumen global (semana en curso) ---------- */
 function lunesDeSemana(d){
-  const date = new Date(d);
+  const date = parseISOLocal(d);
   const day = date.getDay(); // 0=domingo
   const diff = day === 0 ? -6 : 1 - day;
   date.setDate(date.getDate() + diff);
-  return date.toISOString().slice(0,10);
+  return formatISOLocal(date);
 }
 function domingoDeSemana(d){
-  const lunes = new Date(lunesDeSemana(d));
+  const lunes = parseISOLocal(lunesDeSemana(d));
   lunes.setDate(lunes.getDate() + 6);
-  return lunes.toISOString().slice(0,10);
+  return formatISOLocal(lunes);
 }
 
 function renderResumenGlobal(){
@@ -707,8 +719,8 @@ document.getElementById("detRango").addEventListener("change", () => {
     document.getElementById("detHasta").value = domingoDeSemana(hoy);
     renderDetalle();
   } else if(v === "mes"){
-    const d = new Date(hoy);
-    const primerDia = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
+    const d = parseISOLocal(hoy);
+    const primerDia = formatISOLocal(new Date(d.getFullYear(), d.getMonth(), 1));
     document.getElementById("detDesde").value = primerDia;
     document.getElementById("detHasta").value = hoy;
     renderDetalle();
@@ -848,7 +860,10 @@ document.getElementById("tabDashboard").addEventListener("click", () => {
 });
 
 /* ---------- Sincronización remota ---------- */
+const enviosEnCurso = new Set();
 async function enviarRemoto(reg){
+  if(enviosEnCurso.has(reg.id)) return; // ya hay un envío de este mismo registro en camino
+  enviosEnCurso.add(reg.id);
   try{
     const res = await fetch(S.syncUrl, { method:"POST", body: JSON.stringify({ action:"create", registro: reg }) });
     const data = await res.json();
@@ -859,6 +874,8 @@ async function enviarRemoto(reg){
     marcarSincronizado(reg.id, false);
     toast("⚠ No se pudo guardar en el servidor — reintentando...");
     actualizarEstadoSync();
+  }finally{
+    enviosEnCurso.delete(reg.id);
   }
 }
 function marcarSincronizado(id, ok){
