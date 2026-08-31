@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Registro de inspección de químicos — Bellota</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
   :root{
     --red: #E2001A;
@@ -142,6 +143,24 @@
     opacity:0; pointer-events:none; transition:opacity .2s; z-index:30;
   }
   .toast.show{ opacity:1; }
+
+  /* ---- Vista de detalle / gráfica de control ---- */
+  .pcard{ cursor:pointer; transition:transform .1s; }
+  .pcard:hover{ transform:translateY(-1px); box-shadow:0 2px 6px rgba(0,0,0,.06); }
+  .detalle-bar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+  .detalle-bar .link{ color:var(--red); font-weight:600; cursor:pointer; text-decoration:underline; font-size:.85rem; }
+  .detalle-bar h2{ margin:0; font-size:1.05rem; }
+  .detalle-bar .meta{ font-size:.78rem; color:var(--text-dim); }
+  .filtros-fecha{ display:flex; gap:10px; align-items:end; flex-wrap:wrap; margin-bottom:16px; }
+  .filtros-fecha > div{ min-width:130px; }
+  .filtros-fecha button{ padding:10px 16px; border-radius:7px; border:1px solid var(--border); background:#fff; font-size:.85rem; font-weight:600; cursor:pointer; height:41px; }
+  .filtros-fecha button.primary{ background:var(--red); border-color:var(--red); color:#fff; }
+  .chart-box{ position:relative; height:280px; margin-bottom:6px; }
+  .chart-box.small{ height:220px; }
+  .stats-row{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
+  .stats-row .card{ flex:1; min-width:150px; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; }
+  .stats-row .card .n{ font-size:1.5rem; font-weight:800; }
+  .stats-row .card .l{ font-size:.76rem; color:var(--text-dim); font-weight:600; }
 </style>
 </head>
 <body>
@@ -229,10 +248,53 @@
 
 <!-- VISTA: DASHBOARD -->
 <section id="viewDashboard" style="display:none;">
+  <div class="panel" id="resumenGlobalPanel"></div>
   <div class="summary" id="summaryCards"></div>
   <div class="panel">
     <div class="lineas" id="lineaTabsDash"></div>
     <div class="grid" id="dashGrid"></div>
+  </div>
+</section>
+
+<!-- VISTA: DETALLE DE PARÁMETRO (gráfica de control) -->
+<section id="viewDetalle" style="display:none;">
+  <div class="panel">
+    <div class="detalle-bar">
+      <div>
+        <h2 id="detTitulo">—</h2>
+        <div class="meta" id="detMeta">—</div>
+      </div>
+      <span class="link" id="volverDashboard">← Volver al Dashboard</span>
+    </div>
+
+    <div class="filtros-fecha">
+      <div>
+        <label for="detRango">Rango</label>
+        <select id="detRango">
+          <option value="semana">Semana en curso</option>
+          <option value="mes">Mes en curso</option>
+          <option value="personalizado">Personalizado</option>
+        </select>
+      </div>
+      <div>
+        <label for="detDesde">Desde</label>
+        <input type="date" id="detDesde">
+      </div>
+      <div>
+        <label for="detHasta">Hasta</label>
+        <input type="date" id="detHasta">
+      </div>
+      <button class="primary" id="detAplicar">Aplicar</button>
+    </div>
+
+    <div class="stats-row" id="detStats"></div>
+
+    <div class="section-title"><h2>GRÁFICA DE CONTROL</h2></div>
+    <div class="chart-box"><canvas id="chartControl"></canvas></div>
+
+    <div class="section-title" style="margin-top:26px;"><h2>CONSUMO DE QUÍMICO / AGUA</h2></div>
+    <div class="chart-box small"><canvas id="chartConsumo"></canvas></div>
+    <div class="stats-row" id="detConsumoStats" style="margin-top:14px;"></div>
   </div>
 </section>
 
@@ -504,7 +566,7 @@ function renderFilas(){
 function estadoDeRonda(titulo){
   const regs = S.registros
     .filter(r => r.inspeccionId === S.inspeccionId && r.titulo === titulo)
-    .sort((a,b) => a.hora.localeCompare(b.hora));
+    .sort((a,b) => a.id.localeCompare(b.id));
   if(regs.length === 0) return { estado:"pending", label:"Pendiente por registrar" };
   const ultimo = regs[regs.length - 1];
   const tuvoFalla = regs.some(r => r.resultado === "No conforme");
@@ -531,6 +593,7 @@ function renderLineaTabsDash(){
 }
 
 function renderDashboard(){
+  renderResumenGlobal();
   if(!S.inspeccionId){
     document.getElementById("summaryCards").innerHTML = "";
     document.getElementById("dashGrid").innerHTML = `<div class="empty-state">Inicia una ronda en la pestaña Registro para ver el estado aquí.</div>`;
@@ -547,7 +610,7 @@ function renderDashboard(){
     const dotClass = st.estado==="ok" ? "ok" : st.estado==="bad" ? "warn" : "bad";
     const valorTxt = st.reg ? ` — último valor: ${st.reg.valorMedido} ${item.unidad} (${st.reg.hora})` : "";
     return `
-      <div class="pcard ${st.estado}">
+      <div class="pcard ${st.estado}" data-titulo="${item.titulo}">
         <div class="title">${item.titulo}</div>
         <div class="meta">${item.lineas.join(", ")} · rango ${item.min}-${item.max} ${item.unidad}</div>
         <div class="status"><span class="dot ${dotClass}"></span>${st.label}${valorTxt}</div>
@@ -559,6 +622,208 @@ function renderDashboard(){
     <div class="card warn"><div class="n">${bad}</div><div class="l">Requieren segunda lectura</div></div>
     <div class="card bad"><div class="n">${pending}</div><div class="l">Pendientes por registrar</div></div>
   `;
+
+  grid.querySelectorAll(".pcard").forEach(card => {
+    card.addEventListener("click", () => abrirDetalle(card.dataset.titulo));
+  });
+}
+
+/* ---------- Resumen global (semana en curso) ---------- */
+function lunesDeSemana(d){
+  const date = new Date(d);
+  const day = date.getDay(); // 0=domingo
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  return date.toISOString().slice(0,10);
+}
+function domingoDeSemana(d){
+  const lunes = new Date(lunesDeSemana(d));
+  lunes.setDate(lunes.getDate() + 6);
+  return lunes.toISOString().slice(0,10);
+}
+
+function renderResumenGlobal(){
+  const hoy = hoyISO();
+  const desde = lunesDeSemana(hoy);
+  const hasta = domingoDeSemana(hoy);
+  const regs = S.registros.filter(r => r.fecha >= desde && r.fecha <= hasta &&
+    CATALOGO.some(c => c.titulo === r.titulo && (S.lineaActivaDash === "Todas" || c.lineas.includes(S.lineaActivaDash))));
+
+  const totalLecturas = regs.length;
+  const conformes = regs.filter(r => r.resultado === "Conforme").length;
+  const noConformes = totalLecturas - conformes;
+  const correccionesQuimico = regs.filter(r => r.tipoCorreccion === "Químico").length;
+  const correccionesAgua = regs.filter(r => r.tipoCorreccion === "Agua").length;
+  const pct = totalLecturas ? Math.round((conformes/totalLecturas)*100) : 0;
+
+  document.getElementById("resumenGlobalPanel").innerHTML = `
+    <div class="section-title"><h2>RESUMEN — SEMANA EN CURSO (${desde} a ${hasta})</h2></div>
+    <div class="stats-row" style="margin-bottom:0;">
+      <div class="card"><div class="n">${totalLecturas}</div><div class="l">Lecturas registradas</div></div>
+      <div class="card"><div class="n">${conformes} (${pct}%)</div><div class="l">Conformes</div></div>
+      <div class="card"><div class="n">${noConformes}</div><div class="l">No conformes / segunda lectura</div></div>
+      <div class="card"><div class="n">${correccionesQuimico}</div><div class="l">Correcciones con químico</div></div>
+      <div class="card"><div class="n">${correccionesAgua}</div><div class="l">Correcciones con agua</div></div>
+    </div>
+  `;
+}
+
+/* ---------- Vista de detalle (gráfica de control) ---------- */
+let chartControlInst = null;
+let chartConsumoInst = null;
+
+function abrirDetalle(titulo){
+  S.detTitulo = titulo;
+  document.getElementById("tabDashboard").classList.remove("active");
+  document.getElementById("viewDashboard").style.display = "none";
+  document.getElementById("viewRegistro").style.display = "none";
+  document.getElementById("viewDetalle").style.display = "block";
+
+  const item = CATALOGO.find(c => c.titulo === titulo);
+  document.getElementById("detTitulo").textContent = titulo;
+  document.getElementById("detMeta").textContent =
+    `${item.lineas.join(", ")} · rango ${item.min}-${item.max} ${item.unidad}${item.insumo ? " · insumo: " + item.insumo : ""}`;
+
+  const hoy = hoyISO();
+  document.getElementById("detRango").value = "semana";
+  document.getElementById("detDesde").value = lunesDeSemana(hoy);
+  document.getElementById("detHasta").value = domingoDeSemana(hoy);
+
+  renderDetalle();
+}
+
+function volverDeDetalle(){
+  document.getElementById("viewDetalle").style.display = "none";
+  document.getElementById("viewDashboard").style.display = "block";
+  document.getElementById("tabDashboard").classList.add("active");
+}
+
+document.getElementById("detRango").addEventListener("change", () => {
+  const v = document.getElementById("detRango").value;
+  const hoy = hoyISO();
+  if(v === "semana"){
+    document.getElementById("detDesde").value = lunesDeSemana(hoy);
+    document.getElementById("detHasta").value = domingoDeSemana(hoy);
+    renderDetalle();
+  } else if(v === "mes"){
+    const d = new Date(hoy);
+    const primerDia = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10);
+    document.getElementById("detDesde").value = primerDia;
+    document.getElementById("detHasta").value = hoy;
+    renderDetalle();
+  }
+  // "personalizado" espera a que el usuario elija fechas y presione Aplicar
+});
+document.getElementById("detAplicar").addEventListener("click", renderDetalle);
+document.getElementById("volverDashboard").addEventListener("click", volverDeDetalle);
+
+function renderDetalle(){
+  const titulo = S.detTitulo;
+  const item = CATALOGO.find(c => c.titulo === titulo);
+  const desde = document.getElementById("detDesde").value;
+  const hasta = document.getElementById("detHasta").value;
+
+  const regs = S.registros
+    .filter(r => r.titulo === titulo && r.fecha >= desde && r.fecha <= hasta)
+    .sort((a,b) => a.id.localeCompare(b.id));
+
+  // ---- Stats de lecturas ----
+  const total = regs.length;
+  const conformes = regs.filter(r => r.resultado === "Conforme").length;
+  const segundasLecturas = regs.filter(r => r.resultado === "No conforme").length;
+  const pct = total ? Math.round((conformes/total)*100) : 0;
+
+  document.getElementById("detStats").innerHTML = `
+    <div class="card"><div class="n">${total}</div><div class="l">Lecturas en el rango</div></div>
+    <div class="card"><div class="n">${conformes} (${pct}%)</div><div class="l">Correctas (conformes)</div></div>
+    <div class="card"><div class="n">${segundasLecturas}</div><div class="l">Segunda lectura / fuera de estándar</div></div>
+  `;
+
+  // ---- Gráfica de control ----
+  const labels = regs.map(r => `${r.fecha} ${r.hora}`);
+  const valores = regs.map(r => r.valorMedido);
+  const colores = regs.map(r => r.resultado === "Conforme" ? "#22c55e" : "#e53e3e");
+
+  if(chartControlInst) chartControlInst.destroy();
+  const ctx1 = document.getElementById("chartControl").getContext("2d");
+  chartControlInst = new Chart(ctx1, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: `Valor medido (${item.unidad})`,
+          data: valores,
+          borderColor: "#1c1f24",
+          backgroundColor: colores,
+          pointBackgroundColor: colores,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          tension: 0.15,
+          spanGaps: true
+        },
+        {
+          label: "Límite mínimo",
+          data: labels.map(() => item.min),
+          borderColor: "#c81d2e",
+          borderDash: [6,4],
+          pointRadius: 0,
+          borderWidth: 1.5
+        },
+        {
+          label: "Límite máximo",
+          data: labels.map(() => item.max),
+          borderColor: "#c81d2e",
+          borderDash: [6,4],
+          pointRadius: 0,
+          borderWidth: 1.5
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom", labels:{ boxWidth:12, font:{size:11} } } },
+      scales: { x: { ticks: { maxRotation: 60, minRotation: 40, font:{size:10} } } }
+    }
+  });
+
+  // ---- Gráfica de consumo (por día) ----
+  const porDia = {};
+  regs.forEach(r => {
+    if(!r.cantidadAplicada) return;
+    if(!porDia[r.fecha]) porDia[r.fecha] = { quimico:0, agua:0 };
+    const cant = parseFloat(r.cantidadAplicada) || 0;
+    if(r.tipoCorreccion === "Químico") porDia[r.fecha].quimico += cant;
+    if(r.tipoCorreccion === "Agua") porDia[r.fecha].agua += cant;
+  });
+  const diasOrdenados = Object.keys(porDia).sort();
+  const consumoQuimico = diasOrdenados.map(d => porDia[d].quimico);
+  const consumoAgua = diasOrdenados.map(d => porDia[d].agua);
+
+  if(chartConsumoInst) chartConsumoInst.destroy();
+  const ctx2 = document.getElementById("chartConsumo").getContext("2d");
+  chartConsumoInst = new Chart(ctx2, {
+    type: "bar",
+    data: {
+      labels: diasOrdenados,
+      datasets: [
+        { label: `Químico aplicado (${item.unidadDosif})`, data: consumoQuimico, backgroundColor: "#E2001A" },
+        { label: "Agua aplicada (litros)", data: consumoAgua, backgroundColor: "#3b82f6" }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom", labels:{ boxWidth:12, font:{size:11} } } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  const totalQuimico = regs.filter(r => r.tipoCorreccion === "Químico").reduce((s,r) => s + (parseFloat(r.cantidadAplicada)||0), 0);
+  const totalAgua = regs.filter(r => r.tipoCorreccion === "Agua").reduce((s,r) => s + (parseFloat(r.cantidadAplicada)||0), 0);
+  document.getElementById("detConsumoStats").innerHTML = `
+    <div class="card"><div class="n">${totalQuimico.toFixed(2)}</div><div class="l">Total químico aplicado (${item.unidadDosif})</div></div>
+    <div class="card"><div class="n">${totalAgua.toFixed(2)}</div><div class="l">Total agua aplicada (litros)</div></div>
+  `;
 }
 
 /* ---------- Navegación de pestañas ---------- */
@@ -567,12 +832,14 @@ document.getElementById("tabRegistro").addEventListener("click", () => {
   document.getElementById("tabDashboard").classList.remove("active");
   document.getElementById("viewRegistro").style.display = "block";
   document.getElementById("viewDashboard").style.display = "none";
+  document.getElementById("viewDetalle").style.display = "none";
 });
 document.getElementById("tabDashboard").addEventListener("click", () => {
   document.getElementById("tabDashboard").classList.add("active");
   document.getElementById("tabRegistro").classList.remove("active");
   document.getElementById("viewDashboard").style.display = "block";
   document.getElementById("viewRegistro").style.display = "none";
+  document.getElementById("viewDetalle").style.display = "none";
   renderLineaTabsDash();
   renderDashboard();
   if(S.syncUrl) cargarRemoto();
@@ -590,7 +857,12 @@ async function cargarRemoto(){
     const res = await fetch(S.syncUrl);
     const data = await res.json();
     if(Array.isArray(data)){
-      S.registros = data;
+      // combinar en vez de reemplazar: evita perder un guardado local que aún
+      // no había llegado al servidor cuando se hizo esta consulta
+      const mapa = new Map();
+      S.registros.forEach(r => mapa.set(r.id, r));
+      data.forEach(r => mapa.set(r.id, r));
+      S.registros = Array.from(mapa.values()).sort((a,b) => b.id.localeCompare(a.id));
       localStorage.setItem("cq_registros", JSON.stringify(S.registros));
       if(S.iniciada) renderFilas();
       renderDashboard();
