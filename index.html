@@ -548,7 +548,8 @@ function renderFilas(){
         valorMin: item.min, valorMax: item.max, valorMedido: val,
         resultado: ok ? "Conforme" : "No conforme",
         cantidadAplicada: cantAplicada,
-        tipoCorreccion: tipoCorreccion
+        tipoCorreccion: tipoCorreccion,
+        pendienteSync: !!S.syncUrl
       };
 
       S.registros.unshift(registro);
@@ -833,6 +834,7 @@ document.getElementById("tabRegistro").addEventListener("click", () => {
   document.getElementById("viewRegistro").style.display = "block";
   document.getElementById("viewDashboard").style.display = "none";
   document.getElementById("viewDetalle").style.display = "none";
+  if(S.syncUrl) cargarRemoto();
 });
 document.getElementById("tabDashboard").addEventListener("click", () => {
   document.getElementById("tabDashboard").classList.add("active");
@@ -848,8 +850,26 @@ document.getElementById("tabDashboard").addEventListener("click", () => {
 /* ---------- Sincronización remota ---------- */
 async function enviarRemoto(reg){
   try{
-    await fetch(S.syncUrl, { method:"POST", body: JSON.stringify({ action:"create", registro: reg }) });
-  }catch(e){ console.error("Error al sincronizar:", e); }
+    const res = await fetch(S.syncUrl, { method:"POST", body: JSON.stringify({ action:"create", registro: reg }) });
+    const data = await res.json();
+    if(!data || data.ok !== true) throw new Error("respuesta no ok");
+    marcarSincronizado(reg.id, true);
+  }catch(e){
+    console.error("Error al sincronizar:", e);
+    marcarSincronizado(reg.id, false);
+    toast("⚠ No se pudo guardar en el servidor — reintentando...");
+    actualizarEstadoSync();
+  }
+}
+function marcarSincronizado(id, ok){
+  const r = S.registros.find(r => r.id === id);
+  if(r){ r.pendienteSync = !ok; localStorage.setItem("cq_registros", JSON.stringify(S.registros)); }
+  actualizarEstadoSync();
+}
+function reintentarPendientes(){
+  if(!S.syncUrl) return;
+  const pendientesSync = S.registros.filter(r => r.pendienteSync);
+  pendientesSync.forEach(r => enviarRemoto(r));
 }
 async function cargarRemoto(){
   if(!S.syncUrl) return;
@@ -864,16 +884,28 @@ async function cargarRemoto(){
       data.forEach(r => mapa.set(r.id, r));
       S.registros = Array.from(mapa.values()).sort((a,b) => b.id.localeCompare(a.id));
       localStorage.setItem("cq_registros", JSON.stringify(S.registros));
-      if(S.iniciada) renderFilas();
+      // solo redibujamos la tabla de pendientes si no hay nada sin guardar en pantalla,
+      // para no borrarle al inspector una lectura que está escribiendo en ese momento
+      const hayAlgoSinGuardar = S.iniciada &&
+        Array.from(document.querySelectorAll(".valor-input")).some(inp => inp.value !== "");
+      if(S.iniciada && !hayAlgoSinGuardar) renderFilas();
       renderDashboard();
+      reintentarPendientes();
     }
   }catch(e){ console.error("Error al leer remoto:", e); }
 }
 function actualizarEstadoSync(){
   const dot = document.getElementById("syncDot");
   const label = document.getElementById("syncLabel");
-  if(S.syncUrl){ dot.style.background = "#7fe0a4"; label.textContent = "Sincronizado"; }
-  else{ dot.style.background = "rgba(255,255,255,.5)"; label.textContent = "Modo local"; }
+  if(!S.syncUrl){ dot.style.background = "rgba(255,255,255,.5)"; label.textContent = "Modo local"; return; }
+  const pendientes = S.registros.filter(r => r.pendienteSync).length;
+  if(pendientes > 0){
+    dot.style.background = "#f2b90b";
+    label.textContent = `Sincronizando... (${pendientes} pendiente${pendientes>1?"s":""})`;
+  } else {
+    dot.style.background = "#7fe0a4";
+    label.textContent = "Sincronizado";
+  }
 }
 document.getElementById("openSync").addEventListener("click", () => {
   document.getElementById("syncUrl").value = S.syncUrl;
@@ -901,7 +933,7 @@ document.getElementById("cambiarInspector").addEventListener("click", volverABie
 
 actualizarEstadoSync();
 renderDashboard();
-if(S.syncUrl){ cargarRemoto(); setInterval(cargarRemoto, 8000); }
+if(S.syncUrl){ cargarRemoto(); reintentarPendientes(); setInterval(cargarRemoto, 8000); }
 </script>
 
 </body>
