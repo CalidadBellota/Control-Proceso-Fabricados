@@ -309,6 +309,9 @@
       <button id="btnDesconectar">Modo local</button>
       <button class="primary" id="btnConectar">Conectar</button>
     </div>
+    <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
+      <span class="footer-link" id="btnBorrarLocal" style="margin:0;">Borrar datos locales de este dispositivo</span>
+    </div>
   </div>
 </div>
 
@@ -370,6 +373,7 @@ function formatISOLocal(date){
   return `${y}-${m}-${d}`;
 }
 function hoyISO(){ return formatISOLocal(new Date()); }
+function feStr(r){ return String(r.fecha).slice(0,10); } // normaliza por si el backend devuelve fecha con hora pegada
 function toast(msg){
   const t = document.getElementById("toast");
   t.textContent = msg;
@@ -659,7 +663,7 @@ function renderResumenGlobal(){
   const hoy = hoyISO();
   const desde = lunesDeSemana(hoy);
   const hasta = domingoDeSemana(hoy);
-  const regs = S.registros.filter(r => r.fecha >= desde && r.fecha <= hasta &&
+  const regs = S.registros.filter(r => feStr(r) >= desde && feStr(r) <= hasta &&
     CATALOGO.some(c => c.titulo === r.titulo && (S.lineaActivaDash === "Todas" || c.lineas.includes(S.lineaActivaDash))));
 
   const totalLecturas = regs.length;
@@ -737,7 +741,7 @@ function renderDetalle(){
   const hasta = document.getElementById("detHasta").value;
 
   const regs = S.registros
-    .filter(r => r.titulo === titulo && r.fecha >= desde && r.fecha <= hasta)
+    .filter(r => r.titulo === titulo && feStr(r) >= desde && feStr(r) <= hasta)
     .sort((a,b) => a.id.localeCompare(b.id));
 
   // ---- Stats de lecturas ----
@@ -753,7 +757,7 @@ function renderDetalle(){
   `;
 
   // ---- Gráfica de control ----
-  const labels = regs.map(r => `${r.fecha} T${r.turno}`);
+  const labels = regs.map(r => `${feStr(r)} T${r.turno}`);
   const horas = regs.map(r => r.hora);
   const valores = regs.map(r => r.valorMedido);
   const colores = regs.map(r => r.resultado === "Conforme" ? "#22c55e" : "#e53e3e");
@@ -812,10 +816,11 @@ function renderDetalle(){
   const porDia = {};
   regs.forEach(r => {
     if(!r.cantidadAplicada) return;
-    if(!porDia[r.fecha]) porDia[r.fecha] = { quimico:0, agua:0 };
+    const f = feStr(r);
+    if(!porDia[f]) porDia[f] = { quimico:0, agua:0 };
     const cant = parseFloat(r.cantidadAplicada) || 0;
-    if(r.tipoCorreccion === "Químico") porDia[r.fecha].quimico += cant;
-    if(r.tipoCorreccion === "Agua") porDia[r.fecha].agua += cant;
+    if(r.tipoCorreccion === "Químico") porDia[f].quimico += cant;
+    if(r.tipoCorreccion === "Agua") porDia[f].agua += cant;
   });
   const diasOrdenados = Object.keys(porDia).sort();
   const consumoQuimico = diasOrdenados.map(d => porDia[d].quimico);
@@ -948,6 +953,12 @@ document.getElementById("btnDesconectar").addEventListener("click", () => {
   localStorage.removeItem("cq_sync_url");
   actualizarEstadoSync();
   document.getElementById("syncModal").classList.remove("show");
+});
+document.getElementById("btnBorrarLocal").addEventListener("click", () => {
+  if(confirm("Esto borra todos los registros guardados en este dispositivo (no toca la Sheet). ¿Continuar?")){
+    localStorage.removeItem("cq_registros");
+    location.reload();
+  }
 });
 
 /* ---------- Init ---------- */
