@@ -270,11 +270,11 @@ const CATALOGO = [
   { titulo:"Enjuague Pequeño de Limas",           insumo:"Neutralizante",unidad:"PH",     min:13,  max:14,  orden:8,  lineas:["Limas"],                unidadDosif:"Litros",  tasaCambio:null },
   { titulo:"Enjuague Chorreado",                  insumo:"Proquin 8",    unidad:"brix",   min:10,  max:12,  orden:9,  lineas:["Limas"],                unidadDosif:"Litros",  tasaCambio:null },
   { titulo:"Enjuague Pintura Palas",              insumo:"F.TRI 21W",    unidad:"%",      min:5,   max:6,   orden:10, lineas:["Palas"],                unidadDosif:"Galones", tasaCambio:null },
-  { titulo:"Viscosidad de Lacado de Machetes y Cuchillas", insumo:"",        unidad:"seg",  min:11,  max:12,  orden:11, lineas:["Machetes","Cuchillas"], unidadDosif:"Galones", tasaCambio:null },
+  { titulo:"Viscosidad de Lacado de Machetes y Cuchillas", insumo:"Laca",     unidad:"seg",  min:11,  max:12,  orden:11, lineas:["Machetes","Cuchillas"], unidadDosif:"Galones", tasaCambio:null },
   { titulo:"Enjuague Tren de Lacado",             insumo:"Kleanex",      unidad:"brix",   min:2.5, max:3.5, orden:12, lineas:["Machetes","Cuchillas"], unidadDosif:"Litros",  tasaCambio:null },
-  { titulo:"Espesor de Pintura de Cuchillas",     insumo:"",             unidad:"micras", min:50,  max:70,  orden:13, lineas:["Cuchillas"],            unidadDosif:"Galones", tasaCambio:null },
-  { titulo:"Espesor de Pintura de Palas",         insumo:"",             unidad:"micras", min:40,  max:60,  orden:14, lineas:["Palas"],                unidadDosif:"Galones", tasaCambio:null },
-  { titulo:"Hidro Temple de Palas",               insumo:"",             unidad:"brix",   min:6.5, max:7,   orden:15, lineas:["Palas"],                unidadDosif:"Litros",  tasaCambio:null }
+  { titulo:"Espesor de Pintura de Cuchillas",     insumo:"Pintura",      unidad:"micras", min:50,  max:70,  orden:13, lineas:["Cuchillas"],            unidadDosif:"Galones", tasaCambio:null },
+  { titulo:"Espesor de Pintura de Palas",         insumo:"Pintura",      unidad:"micras", min:40,  max:60,  orden:14, lineas:["Palas"],                unidadDosif:"Galones", tasaCambio:null },
+  { titulo:"Hidro Temple de Palas",               insumo:"Hidrotemple",  unidad:"brix",   min:6.5, max:7,   orden:15, lineas:["Palas"],                unidadDosif:"Litros",  tasaCambio:null }
 ];
 const LINEAS = ["Machetes","Cuchillas","Limas","Palas"];
 const INSPECTORES = ["Andrés Henao", "Turno A", "Turno B", "Turno C"];
@@ -304,12 +304,15 @@ function toast(msg){
 }
 
 /* ---------- Pendientes de la ronda activa ---------- */
-function tituloYaGuardadoEnRonda(titulo){
-  return S.registros.some(r => r.inspeccionId === S.inspeccionId && r.titulo === titulo);
+function tituloResueltoEnRonda(titulo){
+  return S.registros.some(r => r.inspeccionId === S.inspeccionId && r.titulo === titulo && r.resultado === "Conforme");
+}
+function intentosPrevios(titulo){
+  return S.registros.filter(r => r.inspeccionId === S.inspeccionId && r.titulo === titulo && r.resultado === "No conforme").length;
 }
 function pendientes(){
   return CATALOGO
-    .filter(c => !tituloYaGuardadoEnRonda(c.titulo))
+    .filter(c => !tituloResueltoEnRonda(c.titulo))
     .filter(c => S.lineaActiva === "Todas" || c.lineas.includes(S.lineaActiva))
     .sort((a,b) => a.orden - b.orden);
 }
@@ -390,11 +393,14 @@ function renderFilas(){
   }
   empty.style.display = "none";
 
-  body.innerHTML = items.map(item => `
+  body.innerHTML = items.map(item => {
+    const nIntentos = intentosPrevios(item.titulo);
+    return `
     <div class="fila" data-titulo="${item.titulo}">
       <div data-label="Químico / Parámetro">
         <div class="param-name">${item.titulo}</div>
         ${item.insumo ? `<div class="param-insumo">Insumo: ${item.insumo}</div>` : ""}
+        ${nIntentos > 0 ? `<div class="param-insumo" style="color:var(--warn-text);font-weight:600;">⚠ ${nIntentos} lectura(s) fuera de estándar en este turno — repetir medición</div>` : ""}
       </div>
       <div data-label="Unidad">(${item.unidad})</div>
       <div data-label="Estándar">${item.min} - ${item.max}</div>
@@ -403,13 +409,14 @@ function renderFilas(){
       <div data-label="Sugerencia / Cant. aplicada">
         <div class="sugerencia"></div>
         <div class="cant-aplicada">
-          <label>Cantidad realmente aplicada (${item.unidadDosif})</label>
+          <label class="cant-label">Cantidad aplicada *</label>
           <input type="number" step="0.01" class="cant-input" placeholder="0.00">
         </div>
       </div>
       <div><button class="btn-guardar-fila" title="Guardar fila">💾</button></div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 
   body.querySelectorAll(".fila").forEach(fila => {
     const titulo = fila.dataset.titulo;
@@ -420,6 +427,9 @@ function renderFilas(){
     const cantBox = fila.querySelector(".cant-aplicada");
     const btnGuardar = fila.querySelector(".btn-guardar-fila");
 
+    let casoActual = null; // "bajo" | "alto" | null
+    const cantLabel = fila.querySelector(".cant-label");
+
     valorInput.addEventListener("input", () => {
       const val = parseFloat(valorInput.value);
       const ok = evalResultado(item, val);
@@ -428,8 +438,23 @@ function renderFilas(){
         : ok
           ? `<span class="badge ok"><span class="dot ok"></span>Dentro de estándar</span>`
           : `<span class="badge bad"><span class="dot bad"></span>Fuera de estándar</span>`;
-      sugDiv.textContent = ok === false ? sugerenciaTexto(item, val) : "";
-      cantBox.style.display = ok === false ? "block" : "none";
+
+      if(ok === false && val < item.min){
+        casoActual = "bajo";
+        sugDiv.textContent = sugerenciaTexto(item, val);
+        cantLabel.textContent = `Cantidad de químico aplicada (${item.unidadDosif}) *`;
+        cantBox.style.display = "block";
+      } else if(ok === false && val > item.max){
+        casoActual = "alto";
+        sugDiv.textContent = "Diluir - agregar agua y volver a medir";
+        cantLabel.textContent = "Cantidad de agua aplicada (litros) *";
+        cantBox.style.display = "block";
+      } else {
+        casoActual = null;
+        sugDiv.textContent = "";
+        cantBox.style.display = "none";
+        fila.querySelector(".cant-input").value = "";
+      }
     });
 
     btnGuardar.addEventListener("click", () => {
@@ -440,7 +465,18 @@ function renderFilas(){
       }
       const val = parseFloat(raw);
       const ok = evalResultado(item, val);
-      const cantAplicada = cantBox.style.display === "block" ? fila.querySelector(".cant-input").value : "";
+
+      if(ok === false){
+        const cant = fila.querySelector(".cant-input").value;
+        if(cant === "" || isNaN(parseFloat(cant))){
+          toast(casoActual === "bajo"
+            ? "Indica la cantidad de químico aplicada antes de guardar"
+            : "Indica la cantidad de agua aplicada antes de guardar");
+          return;
+        }
+      }
+      const cantAplicada = ok === false ? fila.querySelector(".cant-input").value : "";
+      const tipoCorreccion = ok === false ? (casoActual === "bajo" ? "Químico" : "Agua") : "";
 
       const registro = {
         id: "CQ-" + Date.now() + "-" + Math.floor(Math.random()*1000),
@@ -449,15 +485,16 @@ function renderFilas(){
         titulo: item.titulo, insumo: item.insumo, unidad: item.unidad,
         valorMin: item.min, valorMax: item.max, valorMedido: val,
         resultado: ok ? "Conforme" : "No conforme",
-        cantidadAplicada: cantAplicada
+        cantidadAplicada: cantAplicada,
+        tipoCorreccion: tipoCorreccion
       };
 
       S.registros.unshift(registro);
       localStorage.setItem("cq_registros", JSON.stringify(S.registros));
       if(S.syncUrl) enviarRemoto(registro);
 
-      toast("Fila guardada");
-      renderFilas();     // la fila desaparece porque ya no está pendiente
+      toast(ok ? "Fila guardada" : "Lectura fuera de estándar guardada — vuelve a medir tras corregir");
+      renderFilas();     // si quedó conforme desaparece; si no, sigue pendiente para repetir
       renderDashboard();
     });
   });
@@ -465,11 +502,20 @@ function renderFilas(){
 
 /* ---------- Dashboard ---------- */
 function estadoDeRonda(titulo){
-  const reg = S.registros.find(r => r.inspeccionId === S.inspeccionId && r.titulo === titulo);
-  if(!reg) return { estado:"pending", label:"Pendiente por registrar" };
-  return reg.resultado === "Conforme"
-    ? { estado:"ok", label:"Cargado — dentro de estándar", reg }
-    : { estado:"bad", label:"Requiere segunda lectura", reg };
+  const regs = S.registros
+    .filter(r => r.inspeccionId === S.inspeccionId && r.titulo === titulo)
+    .sort((a,b) => a.hora.localeCompare(b.hora));
+  if(regs.length === 0) return { estado:"pending", label:"Pendiente por registrar" };
+  const ultimo = regs[regs.length - 1];
+  const tuvoFalla = regs.some(r => r.resultado === "No conforme");
+  if(ultimo.resultado === "Conforme"){
+    return {
+      estado:"ok",
+      label: tuvoFalla ? "Cargado — corregido tras lectura fuera de estándar" : "Cargado — dentro de estándar",
+      reg: ultimo
+    };
+  }
+  return { estado:"bad", label:`Requiere segunda lectura (intento ${regs.length})`, reg: ultimo };
 }
 
 function renderLineaTabsDash(){
