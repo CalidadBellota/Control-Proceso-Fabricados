@@ -297,6 +297,10 @@
         <button id="tabRegistro" class="active">Registro</button>
         <button id="tabDashboard">Dashboard</button>
       </nav>
+      <span style="display:flex;align-items:center;gap:6px;">
+        <span id="syncDot" style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5);display:inline-block;"></span>
+        <span id="syncLabel" style="font-size:.78rem;">Modo local</span>
+      </span>
       <span id="userLabel">Andrés Henao</span>
     </div>
   </div>
@@ -474,21 +478,32 @@ function renderTabla(){
         <td>(${item.unidad})</td>
         <td>${item.min} - ${item.max}</td>
         <td><input type="number" step="0.01" class="valor-input" data-titulo="${item.titulo}" value="${val}"></td>
-        <td>${badge}</td>
+        <td class="resultado-cell" data-titulo="${item.titulo}">${badge}</td>
       </tr>`;
   }).join("");
 
   body.querySelectorAll(".valor-input").forEach(inp => {
     inp.addEventListener("input", () => {
-      S.valores[inp.dataset.titulo] = inp.value;
+      const titulo = inp.dataset.titulo;
+      S.valores[titulo] = inp.value;
+      actualizarBadgeFila(titulo, inp.value);
       actualizarBotonGuardar();
-      renderTabla(); // refresca badges preservando foco no es crítico aquí
-      // reenfocar el input tras el re-render
-      const again = body.querySelector(`.valor-input[data-titulo="${CSS.escape(inp.dataset.titulo)}"]`);
-      if(again){ again.focus(); const p=again.value.length; again.setSelectionRange(p,p); }
     });
   });
   actualizarBotonGuardar();
+}
+
+function actualizarBadgeFila(titulo, rawVal){
+  const item = CATALOGO.find(c => c.titulo === titulo);
+  if(!item) return;
+  const ok = evalResultado(item, parseFloat(rawVal));
+  const badge = ok === null
+    ? `<span class="badge neutral">—</span>`
+    : ok
+      ? `<span class="badge ok"><span class="dot ok"></span>Dentro de estándar</span>`
+      : `<span class="badge bad"><span class="dot bad"></span>Fuera de estándar</span>`;
+  const cell = document.querySelector(`.resultado-cell[data-titulo="${CSS.escape(titulo)}"]`);
+  if(cell) cell.innerHTML = badge;
 }
 
 function actualizarBotonGuardar(){
@@ -603,9 +618,22 @@ document.getElementById("tabDashboard").addEventListener("click", () => {
   document.getElementById("viewDashboard").style.display = "block";
   document.getElementById("viewRegistro").style.display = "none";
   renderDashboard();
+  if(S.syncUrl) cargarRemoto();
 });
 
 /* ---------- Sincronización remota ---------- */
+function actualizarEstadoSync(){
+  const dot = document.getElementById("syncDot");
+  const label = document.getElementById("syncLabel");
+  if(S.syncUrl){
+    dot.style.background = "#7fe0a4";
+    label.textContent = "Sincronizado";
+  } else {
+    dot.style.background = "rgba(255,255,255,.5)";
+    label.textContent = "Modo local";
+  }
+}
+
 async function enviarRemoto(reg){
   try{
     await fetch(S.syncUrl, { method:"POST", body: JSON.stringify({ action:"create", registro: reg }) });
@@ -630,12 +658,14 @@ document.getElementById("openSync").addEventListener("click", () => {
 document.getElementById("btnConectar").addEventListener("click", () => {
   S.syncUrl = document.getElementById("syncUrl").value.trim();
   localStorage.setItem("cq_sync_url", S.syncUrl);
+  actualizarEstadoSync();
   document.getElementById("syncModal").classList.remove("show");
   cargarRemoto();
 });
 document.getElementById("btnDesconectar").addEventListener("click", () => {
   S.syncUrl = "";
   localStorage.removeItem("cq_sync_url");
+  actualizarEstadoSync();
   document.getElementById("syncModal").classList.remove("show");
 });
 
@@ -652,6 +682,7 @@ document.getElementById("btnCancelar").addEventListener("click", limpiarFormular
 renderLineaTabs();
 renderLineaTabsDash();
 renderTabla();
+actualizarEstadoSync();
 if(S.syncUrl){ cargarRemoto(); setInterval(cargarRemoto, 8000); }
 </script>
 
