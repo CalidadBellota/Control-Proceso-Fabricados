@@ -753,7 +753,8 @@ function renderDetalle(){
   `;
 
   // ---- Gráfica de control ----
-  const labels = regs.map(r => `${r.fecha} ${r.hora}`);
+  const labels = regs.map(r => `${r.fecha} T${r.turno}`);
+  const horas = regs.map(r => r.hora);
   const valores = regs.map(r => r.valorMedido);
   const colores = regs.map(r => r.resultado === "Conforme" ? "#22c55e" : "#e53e3e");
 
@@ -795,8 +796,15 @@ function renderDetalle(){
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: "bottom", labels:{ boxWidth:12, font:{size:11} } } },
-      scales: { x: { ticks: { maxRotation: 60, minRotation: 40, font:{size:10} } } }
+      plugins: {
+        legend: { position: "bottom", labels:{ boxWidth:12, font:{size:11} } },
+        tooltip: {
+          callbacks: {
+            afterLabel: (ctx) => ctx.datasetIndex === 0 ? `Hora: ${horas[ctx.dataIndex]}` : ""
+          }
+        }
+      },
+      scales: { x: { ticks: { maxRotation: 45, minRotation: 0, font:{size:10} } } }
     }
   });
 
