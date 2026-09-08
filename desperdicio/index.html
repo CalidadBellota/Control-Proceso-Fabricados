@@ -667,6 +667,19 @@ function leerEmpacadas(fam, clave){
   return (v==null||v==="")?null:Number(v);
 }
 function empTurno(fam,turno,fecha){ return leerEmpacadas(fam, `T${turno}-${fecha}`); }
+// Desperdicio recogido por el patinador al cierre del turno (solo para el % del dashboard)
+function recTurno(fam,turno,fecha){ return leerEmpacadas(fam, `REC-T${turno}-${fecha}`); }
+function recDia(fam,fecha){
+  let tot=null;
+  ["1","2","3"].forEach(t=>{ const v=recTurno(fam,t,fecha); if(v!=null) tot=(tot||0)+v; });
+  return tot;
+}
+function recSemana(fam,lunes){
+  let tot=null;
+  for(let i=0;i<7;i++){ const f=sumarDias(lunes,i);
+    ["1","2","3"].forEach(t=>{ const v=recTurno(fam,t,f); if(v!=null) tot=(tot||0)+v; }); }
+  return tot;
+}
 function empDia(fam,fecha){
   let tot=null, faltan=[];
   ["1","2","3"].forEach(t=>{
@@ -692,52 +705,6 @@ function fechaDeTurno(r){
   return k.length>3 ? k.slice(3) : feStr(r);
 }
 
-function renderEmpBox(fam, periodo, fecha, turno, rango){
-  const box=document.getElementById("empBox");
-  if(!fam){ box.innerHTML=""; return null; }
-
-  if(periodo==="turno"){
-    const v=empTurno(fam,turno,fecha);
-    if(v==null){
-      box.innerHTML=`<div class="emp-box">
-        <span class="et">Unidades empacadas · Turno ${turno} · ${fecha}</span>
-        <input type="number" id="empIn" min="0" placeholder="0">
-        <button id="empSave">Guardar</button>
-        <span class="emp-falta">Sin registrar — el % de desperdicio no se puede calcular</span></div>`;
-      document.getElementById("empSave").onclick=()=>{
-        const n=parseInt(document.getElementById("empIn").value);
-        if(isNaN(n)||n<0){ toast("Escribe las unidades empacadas"); return; }
-        guardarEmpacadas(fam, `T${turno}-${fecha}`, n);
-        toast(`Guardado: ${n.toLocaleString("es-CO")} unidades`);
-        renderDashboardTurno();
-      };
-      document.getElementById("empIn").onkeydown=e=>{ if(e.key==="Enter") document.getElementById("empSave").click(); };
-    } else {
-      box.innerHTML=`<div class="emp-box">
-        <span class="et">Unidades empacadas · Turno ${turno} · ${fecha}</span>
-        <span class="emp-guardado">${v.toLocaleString("es-CO")} unidades</span>
-        <button class="lite" id="empEdit">Editar</button></div>`;
-      document.getElementById("empEdit").onclick=()=>{
-        const all=JSON.parse(localStorage.getItem("cd_empacadas")||"{}");
-        delete all[fam+"|"+`T${turno}-${fecha}`];
-        localStorage.setItem("cd_empacadas",JSON.stringify(all));
-        renderDashboardTurno();
-      };
-    }
-    return v;
-  }
-
-  const res = periodo==="dia" ? empDia(fam,fecha) : empSemana(fam,rango.desde);
-  const cuantos = periodo==="dia" ? 3 : 21;
-  const cargados = cuantos - res.faltan.length;
-  box.innerHTML=`<div class="emp-box">
-    <span class="et">Unidades empacadas · ${rango.etiqueta}</span>
-    <span class="emp-guardado">${res.total==null?"—":res.total.toLocaleString("es-CO")+" unidades"}</span>
-    <span class="emp-detalle">suma de ${cargados} de ${cuantos} turnos${res.faltan.length?` · faltan: ${res.faltan.slice(0,6).join(", ")}${res.faltan.length>6?"…":""}`:""}</span>
-    </div>
-    <div style="font-size:.74rem;color:var(--text-dim);margin-top:6px;">Para registrar unidades empacadas, cambia el período a "Un turno".</div>`;
-  return res.total;
-}
 async function enviarEmpacadas(fam, clave, valor){
   try{
     await fetch(S.syncUrl,{method:"POST",body:JSON.stringify({action:"empacadas",familia:fam,clave,unidades:valor})});
@@ -754,6 +721,81 @@ async function cargarEmpacadas(){
       localStorage.setItem("cd_empacadas",JSON.stringify(all));
     }
   }catch(e){ console.error("empacadas get:",e); }
+}
+
+function renderEmpBox(fam, periodo, fecha, turno, rango){
+  const box=document.getElementById("empBox");
+  if(!fam){ box.innerHTML=""; return {empacadas:null, recogidas:null}; }
+
+  if(periodo==="turno"){
+    const emp=empTurno(fam,turno,fecha), rec=recTurno(fam,turno,fecha);
+
+    const filaEmp = emp==null
+      ? `<div class="emp-box" style="margin-bottom:10px;">
+          <span class="et" style="width:290px;">Unidades empacadas · Turno ${turno} · ${fecha}</span>
+          <input type="number" id="empIn" min="0" placeholder="0">
+          <button id="empSave">Guardar</button>
+          <span class="emp-falta">Sin registrar</span></div>`
+      : `<div class="emp-box" style="margin-bottom:10px;">
+          <span class="et" style="width:290px;">Unidades empacadas · Turno ${turno} · ${fecha}</span>
+          <span class="emp-guardado">${emp.toLocaleString("es-CO")} unidades</span>
+          <button class="lite" id="empEdit">Editar</button></div>`;
+
+    const filaRec = rec==null
+      ? `<div class="emp-box">
+          <span class="et" style="width:290px;">Desperdicio recogido por el patinador (cierre de turno)</span>
+          <input type="number" id="recIn" min="0" placeholder="0">
+          <button id="recSave">Guardar</button>
+          <span class="emp-falta">Sin registrar — se usará el conteo de las rondas</span></div>`
+      : `<div class="emp-box">
+          <span class="et" style="width:290px;">Desperdicio recogido por el patinador (cierre de turno)</span>
+          <span class="emp-guardado">${rec.toLocaleString("es-CO")} unidades</span>
+          <button class="lite" id="recEdit">Editar</button></div>`;
+
+    box.innerHTML = filaEmp + filaRec;
+
+    function enganchar(idIn, idSave, idEdit, clave, etiqueta){
+      const inp=document.getElementById(idIn), btn=document.getElementById(idSave), ed=document.getElementById(idEdit);
+      if(btn){
+        btn.onclick=()=>{
+          const n=parseInt(inp.value);
+          if(isNaN(n)||n<0){ toast(`Escribe ${etiqueta}`); return; }
+          guardarEmpacadas(fam, clave, n);
+          toast(`Guardado: ${n.toLocaleString("es-CO")} unidades`);
+          renderDashboardTurno();
+        };
+        inp.onkeydown=e=>{ if(e.key==="Enter") btn.click(); };
+      }
+      if(ed){
+        ed.onclick=()=>{
+          const all=JSON.parse(localStorage.getItem("cd_empacadas")||"{}");
+          delete all[fam+"|"+clave];
+          localStorage.setItem("cd_empacadas",JSON.stringify(all));
+          renderDashboardTurno();
+        };
+      }
+    }
+    enganchar("empIn","empSave","empEdit",`T${turno}-${fecha}`,"las unidades empacadas");
+    enganchar("recIn","recSave","recEdit",`REC-T${turno}-${fecha}`,"las unidades recogidas");
+
+    return {empacadas:emp, recogidas:rec};
+  }
+
+  const resE = periodo==="dia" ? empDia(fam,fecha) : empSemana(fam,rango.desde);
+  const resR = periodo==="dia" ? recDia(fam,fecha) : recSemana(fam,rango.desde);
+  const cuantos = periodo==="dia" ? 3 : 21;
+  const cargados = cuantos - resE.faltan.length;
+  box.innerHTML=`<div class="emp-box" style="margin-bottom:8px;">
+      <span class="et" style="width:290px;">Unidades empacadas · ${rango.etiqueta}</span>
+      <span class="emp-guardado">${resE.total==null?"—":resE.total.toLocaleString("es-CO")+" unidades"}</span>
+      <span class="emp-detalle">suma de ${cargados} de ${cuantos} turnos${resE.faltan.length?` · faltan: ${resE.faltan.slice(0,5).join(", ")}${resE.faltan.length>5?"…":""}`:""}</span>
+    </div>
+    <div class="emp-box">
+      <span class="et" style="width:290px;">Desperdicio recogido por el patinador</span>
+      <span class="emp-guardado">${resR==null?"—":resR.toLocaleString("es-CO")+" unidades"}</span>
+    </div>
+    <div style="font-size:.74rem;color:var(--text-dim);margin-top:8px;">Ambos datos se capturan por turno: cambia el período a "Un turno".</div>`;
+  return {empacadas:resE.total, recogidas:resR};
 }
 
 /* ---------- Dashboard ejecutivo ---------- */
@@ -781,7 +823,9 @@ function renderDashboardTurno(){
   const periodo = document.getElementById("dPeriodo").value;
   const rango = rangoPeriodo(periodo, fecha, turno);
 
-  const empacadas = renderEmpBox(fam, periodo, fecha, turno, rango);
+  const datosEmp = renderEmpBox(fam, periodo, fecha, turno, rango);
+  const empacadas = datosEmp.empacadas;
+  const recogidas = datosEmp.recogidas;
 
   const regs = S.registros.filter(r=>{
     if(r.familia!==fam) return false;
@@ -791,7 +835,10 @@ function renderDashboardTurno(){
   }).sort((a,b)=> (fechaDeTurno(a)+a.hora).localeCompare(fechaDeTurno(b)+b.hora));
 
   const ncTotal = regs.reduce((s,r)=>s+r.cantidad,0);
-  const pct = (empacadas && empacadas>0) ? ncTotal/empacadas*100 : null;
+  // El % se calcula con lo recogido por el patinador; si aún no está, con lo de las rondas
+  const ncParaPct = recogidas!=null ? recogidas : ncTotal;
+  const fuentePct = recogidas!=null ? "recogido por patinador" : "conteo de rondas";
+  const pct = (empacadas && empacadas>0) ? ncParaPct/empacadas*100 : null;
   const estado = pct==null?"":estadoPorMeta(pct,meta);
 
   const f0=n=>Math.round(n).toLocaleString("es-CO");
@@ -817,15 +864,18 @@ function renderDashboardTurno(){
   const maxFlu=Math.max(...flujo.map(([,v])=>v),1);
 
   box.innerHTML = `
-  <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);">
+  <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);">
     <div class="kc"><div class="h"><span class="ic">📦</span>Unidades empacadas</div>
       <div class="v">${empacadas!=null?f0(empacadas):"—"}</div>
-      <div class="s">${empacadas!=null?"unidades · "+rango.etiqueta:"escribe el dato arriba"}</div></div>
-    <div class="kc"><div class="h"><span class="ic">✖️</span>Piezas No Conformes</div>
-      <div class="v">${ncTotal}</div><div class="s">unidades</div></div>
+      <div class="s">${empacadas!=null?"unidades · "+rango.etiqueta:"falta capturar el dato"}</div></div>
+    <div class="kc"><div class="h"><span class="ic">✖️</span>NC registradas en rondas</div>
+      <div class="v">${ncTotal}</div><div class="s">unidades inspeccionadas</div></div>
+    <div class="kc"><div class="h"><span class="ic">🛒</span>Desperdicio recogido</div>
+      <div class="v">${recogidas!=null?f0(recogidas):"—"}</div>
+      <div class="s">${recogidas!=null?"unidades · patinador":"falta capturar el dato"}</div></div>
     <div class="kc ${estado}"><div class="h"><span class="ic">％</span>% Desperdicio</div>
       <div class="v">${pct==null?"—":f2(pct)+"%"}</div>
-      <div class="s">${pct==null?"falta el dato de empacadas":`(${ncTotal} / ${f0(empacadas)}) · Meta ≤ ${meta}%`}</div></div>
+      <div class="s">${pct==null?"falta el dato de empacadas":`(${f0(ncParaPct)} / ${f0(empacadas)}) · ${fuentePct} · Meta ≤ ${meta}%`}</div></div>
   </div>
 
   <div class="dash-grid">
@@ -1054,10 +1104,16 @@ function horasTranscurridas(turno, fecha){
   return Math.max(0, Math.min(HORAS_TURNO, h));
 }
 
+// Verde: <= 80% de la meta · Amarillo: entre 80% y 100% de la meta · Rojo: sobre la meta
+const UMBRAL_VERDE = 0.8;
 function estadoPorMeta(pct, meta){
-  if(pct <= meta) return "ok";
-  if(pct <= meta*1.5) return "warn";
+  if(pct <= meta*UMBRAL_VERDE) return "ok";
+  if(pct <= meta) return "warn";
   return "bad";
+}
+function textoSemaforo(meta){
+  const v=(meta*UMBRAL_VERDE);
+  return `🟢 ≤${v.toFixed(2)}%  🟡 ${v.toFixed(2)}–${meta.toFixed(2)}%  🔴 >${meta.toFixed(2)}%`;
 }
 
 function renderControl(){
@@ -1081,7 +1137,7 @@ function renderControl(){
 
   document.getElementById("kInfoTurno").textContent =
     `Turno ${turno} · ${horas.toFixed(1)} h transcurridas de ${HORAS_TURNO} · Meta de desperdicio ${fam}: ${meta}%`;
-  document.getElementById("kLeyenda").textContent = `🟢 ≤${meta}%  🟡 hasta ${(meta*1.5).toFixed(2)}%  🔴 mayor`;
+  document.getElementById("kLeyenda").textContent = textoSemaforo(meta);
 
   // NC por máquina
   const ncPorMaq = {};
