@@ -14,7 +14,8 @@
 const SHEET_NAME = "Desperdicios";
 const HEADERS = [
   "id", "fecha", "hora", "familia", "proceso", "puesto",
-  "defectoCodigo", "defectoLabel", "cantidad", "observacion", "turno", "turnoKey"
+  "defectoCodigo", "defectoLabel", "origenDefecto", "defectoAjeno",
+  "cantidad", "observacion", "turno", "turnoKey"
 ];
 
 function getSheet_() {
@@ -89,3 +90,4 @@ function appendRegistro_(sheet, r) {
 function jsonOutput_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
+
