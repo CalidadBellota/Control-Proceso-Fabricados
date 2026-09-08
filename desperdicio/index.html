@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Desperdicio — Bellota</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
   :root{--red:#E2001A;--bg:#f3f4f6;--panel:#fff;--border:#e3e5e9;--text:#1c1f24;--text-dim:#6b7280;--radius:10px;}
   *{box-sizing:border-box;}
@@ -386,6 +387,7 @@
         </select>
       </div>
       <button id="dActualizar">Actualizar</button>
+      <button id="dPdf" style="background:#fff;color:var(--text);border:1px solid var(--border);">📄 Reporte PDF</button>
     </div>
     <div id="empBox" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);"></div>
   </div>
@@ -976,16 +978,16 @@ function renderDashboardTurno(){
   <div class="dash-grid">
     <div class="card"><div class="ch"><span class="ic">🏭</span>Desperdicio por Proceso <span style="font-weight:400;font-size:.72rem;color:var(--text-dim);">· solo lo clasificado en rondas</span></div><div class="cb">
       ${porProc.length?`<table><thead><tr><th>Proceso</th><th class="num">NC</th><th class="num">% de lo clasificado</th><th></th></tr></thead><tbody>
-      ${porProc.map(([k,v])=>{const p=ncTotal>0?v/ncTotal*100:null;
-        return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${p==null?"—":f2(p)+"%"}</td><td style="width:70px;">${barra(v,maxProc)}</td></tr>`;}).join("")}
+      ${porProc.map(([k,v])=>{const p=ncTotal>0?Math.round(v/ncTotal*100):null;
+        return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${p==null?"—":p+"%"}</td><td style="width:70px;">${barra(v,maxProc)}</td></tr>`;}).join("")}
       <tr class="tot"><td>TOTAL</td><td class="num">${ncTotal}</td><td class="num">100%</td><td></td></tr>
       </tbody></table>`:'<div class="empty-mini">Sin registros.</div>'}
     </div></div>
 
     <div class="card"><div class="ch"><span class="ic">📍</span>Desperdicio por Puesto <span style="font-weight:400;font-size:.72rem;color:var(--text-dim);">· solo lo clasificado en rondas</span></div><div class="cb">
       ${porPuesto.length?`<table><thead><tr><th>Puesto</th><th class="num">NC</th><th class="num">% de lo clasificado</th><th></th></tr></thead><tbody>
-      ${porPuesto.map(([k,v])=>{const pc=ncTotal>0?v/ncTotal*100:null;
-        return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${pc==null?"—":f2(pc)+"%"}</td><td style="width:70px;">${barra(v,maxPue)}</td></tr>`;}).join("")}
+      ${porPuesto.map(([k,v])=>{const pc=ncTotal>0?Math.round(v/ncTotal*100):null;
+        return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${pc==null?"—":pc+"%"}</td><td style="width:70px;">${barra(v,maxPue)}</td></tr>`;}).join("")}
       <tr class="tot"><td>TOTAL</td><td class="num">${ncTotal}</td><td class="num">100%</td><td></td></tr>
       </tbody></table>`:'<div class="empty-mini">Sin registros.</div>'}
     </div></div>
@@ -1035,7 +1037,12 @@ function renderDashboardTurno(){
   dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango, fam);
   dibujarDonut(porProc, ncTotal, recogidas);
   dibujarPareto(ordDef, ncTotal);
+
+  ULTIMO = {fam, meta, rango, periodo, fecha, turno, empacadas, recogidas, ncTotal, pct, estado,
+            cobertura:(recogidas!=null&&recogidas>0)?ncTotal/recogidas*100:null,
+            porProc, porPuesto, ordDef, flujo, regs};
 }
+let ULTIMO=null;
 
 let chartPareto=null;
 function dibujarPareto(ordDef, ncTotal){
@@ -1383,6 +1390,148 @@ document.getElementById("tabControl").addEventListener("click",()=>{
   if(S.syncUrl) cargarRemoto();
   renderControl();
 });
+
+
+/* ---------- Reporte PDF ---------- */
+document.getElementById("dPdf").addEventListener("click", ()=>{
+  if(!ULTIMO){ toast("Primero selecciona una línea y presiona Actualizar"); return; }
+  generarReportePDF(ULTIMO);
+});
+
+function generarReportePDF(D){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:"mm", format:"a4"});
+  const W=210, M=14;
+  let y=14;
+  const f0=n=>n==null?"—":Math.round(n).toLocaleString("es-CO");
+  const f2=n=>n==null?"—":n.toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1});
+
+  // cabecera roja
+  doc.setFillColor(226,0,26); doc.rect(0,0,W,24,"F");
+  doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(14);
+  doc.text("BELLOTA", M, 11);
+  doc.setFontSize(11); doc.text("Control de Desperdicio", M, 18);
+  doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
+  doc.text(D.fam.toUpperCase(), W-M, 11, {align:"right"});
+  doc.text(D.rango.etiqueta, W-M, 17, {align:"right"});
+  doc.setTextColor(28,31,36);
+  y=32;
+
+  // KPIs
+  const kpis=[
+    ["Unidades empacadas", f0(D.empacadas), "unidades"],
+    ["Desperdicio recolectado", f0(D.recogidas), "patinador"],
+    ["% Desperdicio", D.pct==null?"—":f2(D.pct)+"%", `Meta <= ${D.meta}%`],
+    ["Cobertura clasificación", D.cobertura==null?"—":f2(D.cobertura)+"%", `${f0(D.ncTotal)} de ${f0(D.recogidas)}`]
+  ];
+  const kw=(W-2*M-9)/4;
+  kpis.forEach((k,i)=>{
+    const x=M+i*(kw+3);
+    if(i===2 && D.pct!=null){
+      const col = D.estado==="ok"?[232,248,239]:D.estado==="warn"?[255,248,225]:[253,234,234];
+      doc.setFillColor(...col);
+    } else doc.setFillColor(250,251,252);
+    doc.setDrawColor(225,228,233);
+    doc.roundedRect(x,y,kw,22,2,2,"FD");
+    doc.setFontSize(6.6); doc.setTextColor(110,118,129);
+    doc.text(k[0], x+3, y+5.5);
+    doc.setFontSize(14); doc.setFont("helvetica","bold");
+    if(i===2 && D.pct!=null){
+      const col2 = D.estado==="ok"?[31,157,85]:D.estado==="warn"?[146,102,10]:[200,29,46];
+      doc.setTextColor(...col2);
+    } else doc.setTextColor(28,31,36);
+    doc.text(String(k[1]), x+3, y+14);
+    doc.setFont("helvetica","normal"); doc.setFontSize(6.4); doc.setTextColor(110,118,129);
+    doc.text(String(k[2]), x+3, y+19);
+  });
+  doc.setTextColor(28,31,36);
+  y+=29;
+
+  // nota de alcance
+  const sinClas = (D.recogidas!=null && D.recogidas>D.ncTotal) ? D.recogidas-D.ncTotal : 0;
+  doc.setFillColor(255,248,225); doc.setDrawColor(243,227,174);
+  doc.roundedRect(M,y,W-2*M,11,2,2,"FD");
+  doc.setFontSize(7.2); doc.setTextColor(146,102,10);
+  doc.text(sinClas>0
+    ? `El % de desperdicio se calcula sobre lo recolectado por el patinador. De ${f0(D.recogidas)} piezas, ${f0(D.ncTotal)} se identificaron en rondas y ${f0(sinClas)} quedaron sin clasificar.`
+    : `El % de desperdicio se calcula sobre lo recolectado por el patinador. Los desgloses corresponden a las ${f0(D.ncTotal)} piezas identificadas en rondas.`,
+    M+3, y+6.8, {maxWidth:W-2*M-6});
+  doc.setTextColor(28,31,36);
+  y+=17;
+
+  function tabla(titulo, cols, filas, anchos, nota){
+    if(y > 250){ doc.addPage(); y=16; }
+    doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(226,0,26);
+    doc.text(titulo, M, y);
+    if(nota){ doc.setFont("helvetica","normal"); doc.setFontSize(6.4); doc.setTextColor(110,118,129);
+      doc.text(nota, M+doc.getTextWidth(titulo)+3, y); }
+    doc.setTextColor(28,31,36); y+=4;
+    doc.setFillColor(245,246,250); doc.setDrawColor(225,228,233); doc.setLineWidth(0.2);
+    let x=M; doc.setFontSize(6.8); doc.setFont("helvetica","bold");
+    cols.forEach((cN,i)=>{ doc.rect(x,y,anchos[i],5.5,"FD"); doc.text(cN, x+1.5, y+3.7); x+=anchos[i]; });
+    y+=5.5; doc.setFont("helvetica","normal"); doc.setFontSize(7);
+    filas.forEach(f=>{
+      if(y>276){ doc.addPage(); y=16; }
+      x=M;
+      const esTot = String(f[0]).toUpperCase()==="TOTAL";
+      doc.setFillColor(esTot?248:255, esTot?249:255, esTot?251:255);
+      if(esTot) doc.setFont("helvetica","bold");
+      f.forEach((cell,i)=>{ doc.rect(x,y,anchos[i],5,"FD");
+        doc.text(String(cell).slice(0,42), x+1.5, y+3.4); x+=anchos[i]; });
+      if(esTot) doc.setFont("helvetica","normal");
+      y+=5;
+    });
+    y+=6;
+  }
+
+  const totNC=D.ncTotal;
+  const pctDe=v=>totNC>0?Math.round(v/totNC*100)+"%":"—";
+
+  tabla("DESPERDICIO POR PROCESO", ["Proceso","NC","% de lo clasificado"],
+    [...D.porProc.map(([k,v])=>[k,v,pctDe(v)]), ["TOTAL",totNC,"100%"]],
+    [W-2*M-46,20,26], "· solo lo clasificado en rondas");
+
+  tabla("DESPERDICIO POR PUESTO DE TRABAJO", ["Puesto","NC","% de lo clasificado"],
+    [...D.porPuesto.map(([k,v])=>[k,v,pctDe(v)]), ["TOTAL",totNC,"100%"]],
+    [W-2*M-46,20,26], "· solo lo clasificado en rondas");
+
+  tabla("PARETO DE DEFECTOS", ["Defecto","NC","% NC","% acum."],
+    (()=>{ let a=0; return D.ordDef.map(([k,v])=>{ a+=v;
+      return [k,v,pctDe(v), totNC>0?Math.round(a/totNC*100)+"%":"—"]; }); })(),
+    [W-2*M-62,18,22,22]);
+
+  if(D.flujo.length){
+    tabla("FLUJO DE DEFECTOS ENTRE PROCESOS", ["Origen","Detectado en","NC"],
+      D.flujo.map(([k,v])=>{ const [o,d]=k.split("|"); return [o,d,v]; }),
+      [(W-2*M-20)/2,(W-2*M-20)/2,20]);
+  }
+
+  if(sinClas>0){
+    tabla("COMPOSICIÓN DEL DESPERDICIO RECOLECTADO", ["Concepto","Piezas","%"],
+      [["Clasificado en rondas", D.ncTotal, Math.round(D.ncTotal/D.recogidas*100)+"%"],
+       ["Sin clasificar", sinClas, Math.round(sinClas/D.recogidas*100)+"%"],
+       ["TOTAL", D.recogidas, "100%"]],
+      [W-2*M-46,20,26]);
+  }
+
+  if(D.regs.length){
+    tabla("DETALLE DE REGISTROS", ["Fecha","Hora","Proceso","Puesto","Defecto","NC"],
+      D.regs.map(r=>[fechaDeTurno(r), r.hora, r.proceso, r.puesto,
+                     `${r.defectoCodigo} - ${r.defectoLabel}`+(r.defectoAjeno==="Sí"?` (de ${r.origenDefecto})`:""), r.cantidad]),
+      [20,13,26,32,W-2*M-108,17]);
+  }
+
+  // pie de página
+  const total=doc.internal.getNumberOfPages();
+  for(let p=1;p<=total;p++){
+    doc.setPage(p);
+    doc.setFontSize(6.4); doc.setTextColor(140,148,158);
+    doc.text(`Generado ${new Date().toLocaleString("es-CO")} · Control de Desperdicio · Bellota`, M, 290);
+    doc.text(`Página ${p} de ${total}`, W-M, 290, {align:"right"});
+  }
+
+  doc.save(`Desperdicio_${D.fam}_${D.rango.clave}.pdf`);
+}
 
 /* ---------- Pestañas ---------- */
 document.getElementById("tabRegistro").addEventListener("click",()=>{
