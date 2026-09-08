@@ -13,7 +13,7 @@
 
 const SHEET_NAME = "Desperdicios";
 const HEADERS = [
-  "id", "fecha", "hora", "familia", "proceso", "puesto", "referencia",
+  "id", "fecha", "hora", "familia", "proceso", "puesto",
   "defectoCodigo", "defectoLabel", "cantidad", "observacion", "turno", "turnoKey"
 ];
 
