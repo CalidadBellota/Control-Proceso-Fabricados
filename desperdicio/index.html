@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Desperdicio — Bellota</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
   :root{--red:#E2001A;--bg:#f3f4f6;--panel:#fff;--border:#e3e5e9;--text:#1c1f24;--text-dim:#6b7280;--radius:10px;}
   *{box-sizing:border-box;}
@@ -115,6 +116,44 @@
   .pareto .bar{background:#f1f2f4;border-radius:4px;height:14px;overflow:hidden;}
   .pareto .bar i{display:block;height:100%;background:var(--red);}
   .pareto .pc{text-align:right;color:var(--text-dim);font-size:.78rem;}
+
+  /* ---- Dashboard ejecutivo ---- */
+  .dash-filtros{display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:16px;}
+  .dash-filtros > div{min-width:150px;}
+  .dash-filtros button{padding:11px 20px;border:none;border-radius:8px;background:var(--red);color:#fff;font-weight:700;cursor:pointer;height:41px;}
+  .kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px;}
+  @media(max-width:1100px){.kpi-row{grid-template-columns:repeat(3,1fr);}}
+  @media(max-width:640px){.kpi-row{grid-template-columns:repeat(2,1fr);}}
+  .kc{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 15px;}
+  .kc .h{display:flex;align-items:center;gap:8px;font-size:.74rem;color:var(--text-dim);font-weight:700;line-height:1.2;margin-bottom:8px;}
+  .kc .ic{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex:none;background:#fdeceb;}
+  .kc .v{font-size:1.75rem;font-weight:800;line-height:1;}
+  .kc .s{font-size:.72rem;color:var(--text-dim);margin-top:4px;}
+  .kc.ok .v{color:#1f9d55;} .kc.warn .v{color:#92660a;} .kc.bad .v{color:#c81d2e;}
+  .kc .prog{height:7px;background:#eceef1;border-radius:5px;overflow:hidden;margin-top:7px;}
+  .kc .prog i{display:block;height:100%;background:#22c55e;}
+
+  .dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px;}
+  @media(max-width:1000px){.dash-grid{grid-template-columns:1fr;}}
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .card .ch{display:flex;align-items:center;gap:9px;padding:12px 15px;border-bottom:1px solid var(--border);font-weight:700;font-size:.88rem;}
+  .card .ch .ic{width:26px;height:26px;border-radius:7px;background:#fdeceb;display:flex;align-items:center;justify-content:center;font-size:.85rem;}
+  .card .cb{padding:6px 15px 14px 15px;}
+  .card table{width:100%;border-collapse:collapse;font-size:.82rem;}
+  .card th{text-align:left;color:var(--text-dim);font-weight:600;font-size:.72rem;padding:8px 4px;border-bottom:1px solid var(--border);}
+  .card td{padding:7px 4px;border-bottom:1px solid #f1f2f4;}
+  .card tr.tot td{font-weight:700;border-bottom:none;border-top:1px solid var(--border);}
+  .card td.num,.card th.num{text-align:right;}
+  .minibar{background:#f7d7d7;border-radius:3px;height:11px;display:block;}
+  .chart-wrap{position:relative;height:210px;padding:8px 4px;}
+  .donut-wrap{display:flex;align-items:center;gap:14px;padding:6px 0;}
+  .donut-wrap .cv{position:relative;width:150px;height:150px;flex:none;}
+  .donut-leg{font-size:.8rem;}
+  .donut-leg div{display:flex;align-items:center;gap:7px;margin-bottom:9px;}
+  .donut-leg .dot{width:11px;height:11px;border-radius:50%;flex:none;}
+  .donut-leg b{display:block;} .donut-leg span{color:var(--text-dim);font-size:.76rem;}
+  .donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+  .donut-center b{font-size:1.4rem;} .donut-center span{font-size:.68rem;color:var(--text-dim);}
   .aviso{background:#fff8e1;border:1px solid #f3e3ae;border-radius:8px;padding:10px 12px;font-size:.78rem;color:#92660a;margin-bottom:16px;}
 
   .barra-fija{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);
@@ -266,7 +305,7 @@
 <!-- ============ DASHBOARD ============ -->
 <section id="viewDashboard" style="display:none;">
   <div class="panel">
-    <div class="filtros-row">
+    <div class="dash-filtros">
       <div>
         <label for="dFamilia">Línea de producto *</label>
         <select id="dFamilia">
@@ -292,7 +331,10 @@
       <button id="dActualizar">Actualizar</button>
     </div>
   </div>
-  <div class="tablas-grid" id="tablasGrid"></div>
+
+  <div id="dashContenido">
+    <div class="panel"><div class="empty-mini">Selecciona una línea de producto y presiona Actualizar.</div></div>
+  </div>
 </section>
 
 </main>
@@ -533,43 +575,206 @@ function registrarDesperdicio(){
 }
 document.getElementById("btnRegistrar").addEventListener("click",registrarDesperdicio);
 
-/* ---------- Dashboard ---------- */
+/* ---------- Dashboard ejecutivo ---------- */
+let chartEvol=null, chartDonut=null;
+
+function prodMaquina(fam, maq, horasTurno){
+  const cfg = getCfg(fam, maq);
+  if(!cfg.activa || !cfg.ratio) return null;
+  const h = cfg.horas!=null ? cfg.horas : horasTurno;
+  return {teorico: cfg.ratio * h / HORAS_TURNO, ratio: cfg.ratio, horas: h};
+}
+
 function renderDashboardTurno(){
-  const familia=document.getElementById("dFamilia").value;
+  const fam=document.getElementById("dFamilia").value;
   const fecha=document.getElementById("dFecha").value||hoyISO();
   const turno=document.getElementById("dTurno").value;
-  const grid=document.getElementById("tablasGrid");
-  if(!familia){
-    grid.innerHTML=`<div class="panel" style="grid-column:1/-1;"><div class="empty-mini">Selecciona una línea de producto y presiona Actualizar.</div></div>`;
+  const box=document.getElementById("dashContenido");
+
+  if(!fam){
+    box.innerHTML=`<div class="panel"><div class="empty-mini">Selecciona una línea de producto y presiona Actualizar.</div></div>`;
     return;
   }
-  const llave=llaveTurno(turno,fecha);
-  const regs=S.registros.filter(r=>r.turnoKey===llave&&r.familia===familia);
-  function agrupar(fn){
-    const m={};
-    regs.forEach(r=>{const k=fn(r); if(k===null||k===undefined) return; m[k]=(m[k]||0)+r.cantidad;});
-    const filas=Object.entries(m).sort((a,b)=>b[1]-a[1]);
-    return {top:filas.slice(0,6),total:filas.reduce((s,[,v])=>s+v,0)};
+
+  const meta = METAS[fam] ?? 1;
+  const horas = horasTranscurridas(turno, fecha);
+  const llave = llaveTurno(turno, fecha);
+  const regs = S.registros.filter(r=>r.turnoKey===llave && r.familia===fam)
+                          .sort((a,b)=>String(a.hora).localeCompare(String(b.hora)));
+
+  // producción teórica por proceso y total
+  const prodProc={}, ratioHora={};
+  let prodTotal=0, capHora=0, sinRatio=0, horasSuma=0, maqMedidas=0, maqTotal=0;
+  Object.entries(ESTRUCTURA[fam]||{}).forEach(([proc,lista])=>{
+    lista.forEach(maq=>{
+      maqTotal++;
+      const p=prodMaquina(fam,maq,horas);
+      if(!p){ sinRatio++; return; }
+      maqMedidas++;
+      prodProc[proc]=(prodProc[proc]||0)+p.teorico;
+      prodTotal+=p.teorico;
+      capHora+=p.ratio/HORAS_TURNO;
+      horasSuma+=p.horas;
+    });
+  });
+  const horasEfec = maqMedidas? horasSuma/maqMedidas : 0;
+  const ncTotal = regs.reduce((s,r)=>s+r.cantidad,0);
+  const pct = prodTotal>0 ? ncTotal/prodTotal*100 : null;
+  const estado = pct==null?"":estadoPorMeta(pct,meta);
+  const utilizacion = HORAS_TURNO? horasEfec/HORAS_TURNO*100 : 0;
+
+  const f0=n=>Math.round(n).toLocaleString("es-CO");
+  const f2=n=>n.toLocaleString("es-CO",{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  function agrupa(fn){
+    const m={}; regs.forEach(r=>{const k=fn(r); if(k==null) return; m[k]=(m[k]||0)+r.cantidad;});
+    return Object.entries(m).sort((a,b)=>b[1]-a[1]);
   }
-  const tablas=[
-    ["Por Proceso","⚙️",agrupar(r=>r.proceso)],
-    ["Por Puesto de Trabajo","📍",agrupar(r=>r.puesto)],
-    ["Por Defecto","⚠️",agrupar(r=>`${r.defectoCodigo} - ${r.defectoLabel}`)],
-    ["Defectos de otro proceso","↪️",agrupar(r=> r.defectoAjeno==="Sí" ? `${r.origenDefecto||"?"} → ${r.puesto}` : null, true)]
-  ];
-  grid.innerHTML=tablas.map(([t,ic,d])=>{
-    if(d.total===0) return `<div class="tabla-card"><div class="cabecera">${ic} ${t}</div><div class="empty-mini">Sin registros en este turno.</div></div>`;
-    return `<div class="tabla-card"><div class="cabecera">${ic} ${t}</div>
-      <table><thead><tr><th>Nombre</th><th>Cant.</th></tr></thead><tbody>
-      ${d.top.map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join("")}
-      <tr class="total"><td>TOTAL</td><td>${d.total}</td></tr>
-      </tbody></table></div>`;
-  }).join("");
+  const porProc=agrupa(r=>r.proceso), porPuesto=agrupa(r=>r.puesto);
+  const porDef=agrupa(r=>`${r.defectoCodigo} - ${r.defectoLabel}`);
+  const flujo=agrupa(r=> r.defectoAjeno==="Sí" ? `${r.origenDefecto||"?"}|${r.puesto}` : null);
+
+  // top5 + otros
+  const top5=porDef.slice(0,5), resto=porDef.slice(5).reduce((s,[,v])=>s+v,0);
+  const defsMostrar = resto>0 ? [...porDef.slice(0,4), ["Otros",resto]] : top5;
+
+  const barra=(v,max)=>`<span class="minibar" style="width:${max?Math.max(6,v/max*100):0}%"></span>`;
+  const maxProc=Math.max(...porProc.map(([,v])=>v),1);
+  const maxDef=Math.max(...defsMostrar.map(([,v])=>v),1);
+  const maxPue=Math.max(...porPuesto.map(([,v])=>v),1);
+  const maxFlu=Math.max(...flujo.map(([,v])=>v),1);
+
+  box.innerHTML = `
+  <div class="kpi-row">
+    <div class="kc"><div class="h"><span class="ic">📦</span>Producción teórica</div>
+      <div class="v">${f0(prodTotal)}</div><div class="s">unidades</div></div>
+    <div class="kc"><div class="h"><span class="ic">✖️</span>Piezas No Conformes</div>
+      <div class="v">${ncTotal}</div><div class="s">unidades</div></div>
+    <div class="kc ${estado}"><div class="h"><span class="ic">％</span>% Desperdicio</div>
+      <div class="v">${pct==null?"—":f2(pct)+"%"}</div>
+      <div class="s">${pct==null?"sin ratios":`(${ncTotal} / ${f0(prodTotal)}) · Meta ≤ ${meta}%`}</div></div>
+    <div class="kc"><div class="h"><span class="ic">⚙️</span>Capacidad teórica</div>
+      <div class="v">${f0(capHora)}</div><div class="s">und/hora · ${maqMedidas} máquina(s)</div></div>
+    <div class="kc"><div class="h"><span class="ic">🕐</span>Horas efectivas</div>
+      <div class="v">${f2(horasEfec)} h</div><div class="s">promedio por máquina</div></div>
+    <div class="kc"><div class="h"><span class="ic">✅</span>Horas disponibles</div>
+      <div class="v">${HORAS_TURNO},0 h</div>
+      <div class="prog"><i style="width:${Math.min(100,utilizacion)}%"></i></div>
+      <div class="s">Utilización: ${Math.round(utilizacion)}%${sinRatio?` · ${sinRatio} sin ratio`:""}</div></div>
+  </div>
+
+  <div class="dash-grid">
+    <div class="card"><div class="ch"><span class="ic">🏭</span>Desperdicio por Proceso</div><div class="cb">
+      ${porProc.length?`<table><thead><tr><th>Proceso</th><th class="num">NC</th><th class="num">% prod.</th><th></th></tr></thead><tbody>
+      ${porProc.map(([k,v])=>{const p=prodProc[k]?v/prodProc[k]*100:null;
+        return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${p==null?"—":f2(p)+"%"}</td><td style="width:70px;">${barra(v,maxProc)}</td></tr>`;}).join("")}
+      <tr class="tot"><td>TOTAL</td><td class="num">${ncTotal}</td><td class="num">${pct==null?"—":f2(pct)+"%"}</td><td></td></tr>
+      </tbody></table>`:'<div class="empty-mini">Sin registros.</div>'}
+    </div></div>
+
+    <div class="card"><div class="ch"><span class="ic">📍</span>Desperdicio por Puesto</div><div class="cb">
+      ${porPuesto.length?`<table><thead><tr><th>Puesto</th><th class="num">NC</th><th class="num">% prod.</th><th></th></tr></thead><tbody>
+      ${porPuesto.map(([k,v])=>{const p=prodMaquina(fam,k,horas);
+        const pc=p&&p.teorico>0?v/p.teorico*100:null;
+        return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${pc==null?"—":f2(pc)+"%"}</td><td style="width:70px;">${barra(v,maxPue)}</td></tr>`;}).join("")}
+      <tr class="tot"><td>TOTAL</td><td class="num">${ncTotal}</td><td class="num">${pct==null?"—":f2(pct)+"%"}</td><td></td></tr>
+      </tbody></table>`:'<div class="empty-mini">Sin registros.</div>'}
+    </div></div>
+
+    <div class="card"><div class="ch"><span class="ic">📊</span>Top 5 Defectos</div><div class="cb">
+      ${defsMostrar.length?`<table><thead><tr><th>Defecto</th><th class="num">NC</th><th class="num">% NC</th><th></th></tr></thead><tbody>
+      ${defsMostrar.map(([k,v])=>`<tr><td>${k}</td><td class="num">${v}</td><td class="num">${ncTotal?Math.round(v/ncTotal*100):0}%</td><td style="width:70px;">${barra(v,maxDef)}</td></tr>`).join("")}
+      <tr class="tot"><td>TOTAL</td><td class="num">${ncTotal}</td><td class="num">100%</td><td></td></tr>
+      </tbody></table>`:'<div class="empty-mini">Sin registros.</div>'}
+    </div></div>
+  </div>
+
+  <div class="dash-grid">
+    <div class="card"><div class="ch"><span class="ic">🔀</span>Flujo de defectos entre procesos</div><div class="cb">
+      ${flujo.length?`<table><thead><tr><th>Origen</th><th>Detectado en</th><th class="num">NC</th><th class="num">%</th></tr></thead><tbody>
+      ${flujo.map(([k,v])=>{const [o,d]=k.split("|");
+        return `<tr><td>${o}</td><td>${d}</td><td class="num">${v}</td><td class="num">${ncTotal?Math.round(v/ncTotal*100):0}%</td></tr>`;}).join("")}
+      <tr class="tot"><td colspan="2">TOTAL</td><td class="num">${flujo.reduce((s,[,v])=>s+v,0)}</td>
+        <td class="num">${ncTotal?Math.round(flujo.reduce((s,[,v])=>s+v,0)/ncTotal*100):0}%</td></tr>
+      </tbody></table>`:'<div class="empty-mini">Ningún defecto llegó desde otro proceso.</div>'}
+    </div></div>
+
+    <div class="card"><div class="ch"><span class="ic">📈</span>Evolución del % de desperdicio</div>
+      <div class="chart-wrap"><canvas id="cvEvol"></canvas></div></div>
+
+    <div class="card"><div class="ch"><span class="ic">🥧</span>Distribución del desperdicio</div><div class="cb">
+      <div class="donut-wrap">
+        <div class="cv"><canvas id="cvDonut"></canvas>
+          <div class="donut-center"><b>${ncTotal}</b><span>piezas NC</span></div></div>
+        <div class="donut-leg" id="donutLeg"></div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="card"><div class="ch"><span class="ic">📋</span>Detalle del registro</div><div class="cb">
+    ${regs.length?`<div style="overflow-x:auto;"><table><thead><tr>
+      <th>Hora</th><th>Proceso</th><th>Puesto</th><th>Defecto</th><th class="num">NC</th><th>Observación</th></tr></thead><tbody>
+      ${regs.map(r=>`<tr><td>${r.hora}</td><td>${r.proceso}</td><td>${r.puesto}</td>
+        <td>${r.defectoCodigo} - ${r.defectoLabel}${r.defectoAjeno==="Sí"?` <span style="color:#92660a;font-size:.7rem;">⚠ de ${r.origenDefecto}</span>`:""}</td>
+        <td class="num">${r.cantidad}</td><td>${r.observacion||"—"}</td></tr>`).join("")}
+      </tbody></table></div>`:'<div class="empty-mini">Sin registros en este turno.</div>'}
+  </div></div>`;
+
+  dibujarEvolucion(regs, prodTotal, horas, turno, meta);
+  dibujarDonut(porProc, ncTotal);
 }
+
+function dibujarEvolucion(regs, prodTotal, horas, turno, meta){
+  const cv=document.getElementById("cvEvol"); if(!cv) return;
+  const ini=INICIO_TURNO[turno];
+  const labels=[], datos=[];
+  const hastaH=Math.max(1,Math.ceil(horas));
+  for(let h=1; h<=hastaH; h++){
+    const hh=(ini+h)%24;
+    labels.push(pad(hh)+":00");
+    const acumNC=regs.filter(r=>{
+      const [rh,rm]=String(r.hora).split(":").map(Number);
+      let t=rh+(rm||0)/60-ini; if(t<0) t+=24;
+      return t<=h;
+    }).reduce((s,r)=>s+r.cantidad,0);
+    const prodAcum= horas>0 ? prodTotal*Math.min(h,horas)/horas : 0;
+    datos.push(prodAcum>0 ? +(acumNC/prodAcum*100).toFixed(2) : 0);
+  }
+  if(chartEvol) chartEvol.destroy();
+  chartEvol=new Chart(cv.getContext("2d"),{
+    type:"line",
+    data:{labels,datasets:[
+      {label:"% desperdicio",data:datos,borderColor:"#E2001A",backgroundColor:"#E2001A",
+       tension:.3,pointRadius:4,fill:false},
+      {label:`Meta ${meta}%`,data:labels.map(()=>meta),borderColor:"#9aa5b1",borderDash:[6,4],pointRadius:0,borderWidth:1.5}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:10}}}},
+      scales:{y:{beginAtZero:true,ticks:{callback:v=>v+"%",font:{size:10}}},x:{ticks:{font:{size:10}}}}}
+  });
+}
+
+function dibujarDonut(porProc, ncTotal){
+  const cv=document.getElementById("cvDonut"); if(!cv) return;
+  const colores=["#E2001A","#374151","#f2b90b","#3b82f6","#22c55e","#a855f7","#f97316","#0891b2"];
+  const labels=porProc.map(([k])=>k), datos=porProc.map(([,v])=>v);
+  if(chartDonut) chartDonut.destroy();
+  if(!datos.length){ document.getElementById("donutLeg").innerHTML='<span style="color:var(--text-dim);font-size:.8rem;">Sin registros.</span>'; return; }
+  chartDonut=new Chart(cv.getContext("2d"),{
+    type:"doughnut",
+    data:{labels,datasets:[{data:datos,backgroundColor:colores,borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:"66%",plugins:{legend:{display:false}}}
+  });
+  document.getElementById("donutLeg").innerHTML=porProc.map(([k,v],i)=>
+    `<div><span class="dot" style="background:${colores[i%colores.length]}"></span>
+     <span><b>${k}</b><span>${v} piezas (${ncTotal?Math.round(v/ncTotal*100):0}%)</span></span></div>`).join("");
+}
+
 document.getElementById("dActualizar").addEventListener("click",()=>{
   if(!document.getElementById("dFamilia").value){toast("Selecciona una línea de producto");return;}
   renderDashboardTurno();
 });
+document.getElementById("dFamilia").addEventListener("change",renderDashboardTurno);
 
 
 /* ==========================================================================
