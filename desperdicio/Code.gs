@@ -29,7 +29,39 @@ function getSheet_() {
   return sheet;
 }
 
+const SHEET_RAT = "Ratios";
+const H_RAT = ["familia", "maquina", "ratio", "activa", "actualizado"];
+
+function getSheetRat_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(SHEET_RAT);
+  if (!sh) { sh = ss.insertSheet(SHEET_RAT); sh.appendRow(H_RAT); sh.setFrozenRows(1); }
+  return sh;
+}
+
+const SHEET_EMP = "Empacadas";
+const H_EMP = ["familia", "clave", "unidades", "actualizado"];
+
+function getSheetEmp_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(SHEET_EMP);
+  if (!sh) { sh = ss.insertSheet(SHEET_EMP); sh.appendRow(H_EMP); sh.setFrozenRows(1); }
+  return sh;
+}
+
 function doGet(e) {
+  if (e && e.parameter && e.parameter.tipo === "ratios") {
+    const sh = getSheetRat_();
+    const d = sh.getDataRange().getValues();
+    if (d.length <= 1) return jsonOutput_([]);
+    return jsonOutput_(d.slice(1).map(r => ({familia: r[0], maquina: r[1], ratio: r[2], activa: r[3]})));
+  }
+  if (e && e.parameter && e.parameter.tipo === "empacadas") {
+    const sh = getSheetEmp_();
+    const d = sh.getDataRange().getValues();
+    if (d.length <= 1) return jsonOutput_([]);
+    return jsonOutput_(d.slice(1).map(r => ({familia: r[0], clave: r[1], unidades: r[2]})));
+  }
   const sheet = getSheet_();
   const data = sheet.getDataRange().getValues();
   if (data.length <= 1) return jsonOutput_([]);
@@ -62,6 +94,43 @@ function doPost(e) {
       appendRegistro_(sheet, payload.registro);
       return jsonOutput_({ ok: true });
     }
+    if (payload.action === "ratio") {
+      const sh = getSheetRat_();
+      const lock = LockService.getScriptLock();
+      lock.waitLock(10000);
+      try {
+        const d = sh.getDataRange().getValues();
+        const stamp = Utilities.formatDate(new Date(), "America/Bogota", "yyyy-MM-dd HH:mm:ss");
+        for (let i = 1; i < d.length; i++) {
+          if (d[i][0] === payload.familia && d[i][1] === payload.maquina) {
+            sh.getRange(i + 1, 3, 1, 3).setValues([[payload.ratio, payload.activa, stamp]]);
+            return jsonOutput_({ ok: true, actualizado: true });
+          }
+        }
+        sh.appendRow([payload.familia, payload.maquina, payload.ratio, payload.activa, stamp]);
+      } finally { lock.releaseLock(); }
+      return jsonOutput_({ ok: true });
+    }
+
+    if (payload.action === "empacadas") {
+      const sh = getSheetEmp_();
+      const lock = LockService.getScriptLock();
+      lock.waitLock(10000);
+      try {
+        const d = sh.getDataRange().getValues();
+        const stamp = Utilities.formatDate(new Date(), "America/Bogota", "yyyy-MM-dd HH:mm:ss");
+        for (let i = 1; i < d.length; i++) {
+          if (d[i][0] === payload.familia && d[i][1] === payload.clave) {
+            sh.getRange(i + 1, 3).setValue(payload.unidades);
+            sh.getRange(i + 1, 4).setValue(stamp);
+            return jsonOutput_({ ok: true, actualizado: true });
+          }
+        }
+        sh.appendRow([payload.familia, payload.clave, payload.unidades, stamp]);
+      } finally { lock.releaseLock(); }
+      return jsonOutput_({ ok: true });
+    }
+
     if (payload.action === "createBatch") {
       (payload.registros || []).forEach(r => appendRegistro_(sheet, r));
       return jsonOutput_({ ok: true, count: (payload.registros || []).length });
@@ -90,4 +159,3 @@ function appendRegistro_(sheet, r) {
 function jsonOutput_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
-
