@@ -72,6 +72,49 @@
   .ajeno{background:#fff8e1;border:1px solid #f3e3ae;border-radius:6px;padding:5px 8px;
     font-size:.7rem;color:#92660a;font-weight:600;margin-top:8px;}
   .origen{font-size:.7rem;color:var(--text-dim);margin-top:8px;}
+
+  /* ---- Control de máquinas ---- */
+  .ctrl-top{display:grid;grid-template-columns:1.2fr 1fr 1fr auto auto;gap:12px;align-items:end;}
+  @media(max-width:900px){.ctrl-top{grid-template-columns:1fr 1fr;}}
+  .ctrl-top button{padding:11px 18px;border:none;border-radius:8px;background:var(--red);color:#fff;font-weight:700;cursor:pointer;height:41px;}
+  .ctrl-top button.sec{background:#fff;color:var(--text);border:1px solid var(--border);}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+  @media(max-width:900px){.kpis{grid-template-columns:1fr 1fr;}}
+  .kpi{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;}
+  .kpi .v{font-size:1.7rem;font-weight:800;line-height:1.1;}
+  .kpi .l{font-size:.74rem;color:var(--text-dim);font-weight:600;margin-top:4px;}
+  .kpi .m{font-size:.72rem;color:var(--text-dim);margin-top:2px;}
+  .kpi.ok .v{color:#1f9d55;} .kpi.warn .v{color:#92660a;} .kpi.bad .v{color:#c81d2e;}
+
+  .maq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
+  .maq{background:#fff;border:2px solid var(--border);border-radius:12px;padding:14px 16px;}
+  .maq.ok{border-color:#22c55e;background:#f2fcf6;}
+  .maq.warn{border-color:#f2b90b;background:#fffdf3;}
+  .maq.bad{border-color:#e53e3e;background:#fef6f6;}
+  .maq.off{opacity:.55;background:#f7f8fa;border-style:dashed;}
+  .maq.sin{border-style:dashed;}
+  .maq .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .maq .nom{font-weight:700;font-size:.92rem;}
+  .maq .proc{font-size:.72rem;color:var(--text-dim);}
+  .maq .pct{font-size:1.6rem;font-weight:800;margin:8px 0 2px 0;}
+  .maq.ok .pct{color:#1f9d55;} .maq.warn .pct{color:#92660a;} .maq.bad .pct{color:#c81d2e;}
+  .maq .det{font-size:.75rem;color:var(--text-dim);line-height:1.5;}
+  .maq .fila{display:flex;justify-content:space-between;gap:8px;}
+  .maq .cfg{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .maq .cfg label{font-size:.66rem;margin-bottom:3px;}
+  .maq .cfg input{padding:6px 8px;font-size:.8rem;}
+  .sw{position:relative;display:inline-block;width:40px;height:22px;flex:none;}
+  .sw input{opacity:0;width:0;height:0;}
+  .sw span{position:absolute;inset:0;background:#cbd2da;border-radius:22px;cursor:pointer;transition:.2s;}
+  .sw span:before{content:"";position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;}
+  .sw input:checked + span{background:#22c55e;}
+  .sw input:checked + span:before{transform:translateX(18px);}
+
+  .pareto{margin-top:4px;}
+  .pareto .row{display:grid;grid-template-columns:minmax(130px,1.2fr) 1fr 62px;gap:10px;align-items:center;padding:5px 0;font-size:.82rem;}
+  .pareto .bar{background:#f1f2f4;border-radius:4px;height:14px;overflow:hidden;}
+  .pareto .bar i{display:block;height:100%;background:var(--red);}
+  .pareto .pc{text-align:right;color:var(--text-dim);font-size:.78rem;}
   .aviso{background:#fff8e1;border:1px solid #f3e3ae;border-radius:8px;padding:10px 12px;font-size:.78rem;color:#92660a;margin-bottom:16px;}
 
   .barra-fija{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);
@@ -123,6 +166,7 @@
     <div class="header-right">
       <nav class="tabs">
         <button id="tabRegistro" class="active">Registro</button>
+        <button id="tabControl">Control</button>
         <button id="tabDashboard">Dashboard</button>
       </nav>
       <span style="display:flex;align-items:center;gap:6px;">
@@ -171,6 +215,52 @@
   </div>
 
   <span class="footer-link" id="openSync">Sincronización en tiempo real</span>
+</section>
+
+
+<!-- ============ CONTROL ============ -->
+<section id="viewControl" style="display:none;">
+  <div class="panel">
+    <div class="ctrl-top">
+      <div>
+        <label for="kFamilia">Línea de producto *</label>
+        <select id="kFamilia">
+          <option value="">Selecciona una línea</option>
+          <option value="Machetes">Machetes</option>
+          <option value="Cuchillas">Cuchillas</option>
+          <option value="Limas">Limas</option>
+          <option value="Palas">Palas</option>
+        </select>
+      </div>
+      <div>
+        <label for="kFecha">Fecha</label>
+        <input type="date" id="kFecha">
+      </div>
+      <div>
+        <label for="kTurno">Turno</label>
+        <select id="kTurno">
+          <option value="1">Turno 1 (6:00–14:00)</option>
+          <option value="2">Turno 2 (14:00–22:00)</option>
+          <option value="3">Turno 3 (22:00–6:00)</option>
+        </select>
+      </div>
+      <button id="kActualizar">Actualizar</button>
+      <button class="sec" id="kConfig">Configurar ratios</button>
+    </div>
+    <div style="font-size:.76rem;color:var(--text-dim);margin-top:10px;" id="kInfoTurno"></div>
+  </div>
+
+  <div class="kpis" id="kKpis"></div>
+
+  <div class="panel">
+    <div class="section-title"><h2>ESTADO POR MÁQUINA</h2><span style="font-size:.78rem;color:var(--text-dim);" id="kLeyenda"></span></div>
+    <div class="maq-grid" id="kMaquinas"></div>
+  </div>
+
+  <div class="panel">
+    <div class="section-title"><h2>PARETO DE DEFECTOS</h2></div>
+    <div class="pareto" id="kPareto"></div>
+  </div>
 </section>
 
 <!-- ============ DASHBOARD ============ -->
@@ -481,10 +571,192 @@ document.getElementById("dActualizar").addEventListener("click",()=>{
   renderDashboardTurno();
 });
 
+
+/* ==========================================================================
+   CONTROL — producción teórica por máquina y % de desperdicio vs meta
+   ========================================================================== */
+const METAS = {"Machetes":1.6,"Limas":6.6,"Cuchillas":1.0,"Palas":0.45};
+const INICIO_TURNO = {"1":6,"2":14,"3":22};
+const HORAS_TURNO = 8;
+
+// config por máquina: { "Cuchillas|Biselado 3": {ratio:800, activa:true, horas:null} }
+function cfgKey(fam,maq){ return fam+"|"+maq; }
+function getCfg(fam,maq){
+  const all = JSON.parse(localStorage.getItem("cd_maquinas")||"{}");
+  return all[cfgKey(fam,maq)] || {ratio:null, activa:true, horas:null};
+}
+function setCfg(fam,maq,val){
+  const all = JSON.parse(localStorage.getItem("cd_maquinas")||"{}");
+  all[cfgKey(fam,maq)] = Object.assign(getCfg(fam,maq), val);
+  localStorage.setItem("cd_maquinas", JSON.stringify(all));
+}
+
+/* horas transcurridas del turno hasta ahora (o 8 si el turno ya terminó) */
+function horasTranscurridas(turno, fecha){
+  const ini = INICIO_TURNO[turno];
+  const ahora = new Date();
+  const esHoy = fecha === (turno==="3" ? fechaTurnoActual() : hoyISO());
+  if(!esHoy) return HORAS_TURNO;              // turno pasado: completo
+  if(turno !== turnoActual()) return HORAS_TURNO; // otro turno del mismo día: completo
+  let h = ahora.getHours() + ahora.getMinutes()/60 - ini;
+  if(h < 0) h += 24;                          // turno 3 cruzando medianoche
+  return Math.max(0, Math.min(HORAS_TURNO, h));
+}
+
+function estadoPorMeta(pct, meta){
+  if(pct <= meta) return "ok";
+  if(pct <= meta*1.5) return "warn";
+  return "bad";
+}
+
+function renderControl(){
+  const fam = document.getElementById("kFamilia").value;
+  const fecha = document.getElementById("kFecha").value || hoyISO();
+  const turno = document.getElementById("kTurno").value;
+  const cont = document.getElementById("kMaquinas");
+  const kpis = document.getElementById("kKpis");
+  const pareto = document.getElementById("kPareto");
+
+  if(!fam){
+    kpis.innerHTML = "";
+    cont.innerHTML = `<div class="empty-mini" style="grid-column:1/-1;">Selecciona una línea de producto y presiona Actualizar.</div>`;
+    pareto.innerHTML = `<div class="empty-mini">—</div>`;
+    document.getElementById("kInfoTurno").textContent = "";
+    return;
+  }
+
+  const horas = horasTranscurridas(turno, fecha);
+  const meta = METAS[fam] ?? 1;
+  const llave = llaveTurno(turno, fecha);
+  const regs = S.registros.filter(r => r.turnoKey===llave && r.familia===fam);
+
+  document.getElementById("kInfoTurno").textContent =
+    `Turno ${turno} · ${horas.toFixed(1)} h transcurridas de ${HORAS_TURNO} · Meta de desperdicio ${fam}: ${meta}%`;
+  document.getElementById("kLeyenda").textContent = `🟢 ≤${meta}%  🟡 hasta ${(meta*1.5).toFixed(2)}%  🔴 mayor`;
+
+  // NC por máquina
+  const ncPorMaq = {};
+  regs.forEach(r => ncPorMaq[r.puesto] = (ncPorMaq[r.puesto]||0) + r.cantidad);
+
+  // todas las máquinas de la línea con su proceso
+  const maquinas = [];
+  Object.entries(ESTRUCTURA[fam]||{}).forEach(([proc, lista])=>{
+    lista.forEach(m => maquinas.push({maq:m, proc}));
+  });
+
+  let prodTotal=0, ncTotal=0, sinRatio=0, inactivas=0;
+
+  cont.innerHTML = maquinas.map(({maq, proc})=>{
+    const cfg = getCfg(fam, maq);
+    const nc = ncPorMaq[maq]||0;
+    const hEfec = cfg.horas!=null ? cfg.horas : horas;
+    const teorico = (cfg.activa && cfg.ratio) ? Math.round(cfg.ratio * hEfec / HORAS_TURNO) : null;
+    const pct = (teorico && teorico>0) ? (nc/teorico*100) : null;
+
+    let clase, cuerpo;
+    if(!cfg.activa){
+      inactivas++;
+      clase = "off";
+      cuerpo = `<div class="pct" style="font-size:1rem;color:var(--text-dim);">Fuera de servicio</div>
+                <div class="det">NC registradas: <b>${nc}</b></div>`;
+    } else if(!cfg.ratio){
+      sinRatio++;
+      clase = "sin";
+      cuerpo = `<div class="pct" style="font-size:1rem;color:var(--text-dim);">Sin ratio</div>
+                <div class="det">NC registradas: <b>${nc}</b><br>Configura el ratio para ver el %</div>`;
+    } else {
+      prodTotal += teorico; ncTotal += nc;
+      clase = estadoPorMeta(pct, meta);
+      cuerpo = `<div class="pct">${pct.toFixed(2)}%</div>
+        <div class="det">
+          <div class="fila"><span>Producción teórica</span><b>${teorico}</b></div>
+          <div class="fila"><span>Piezas NC</span><b>${nc}</b></div>
+          <div class="fila"><span>Meta</span><b>≤ ${meta}%</b></div>
+        </div>`;
+    }
+
+    return `<div class="maq ${clase}" data-maq="${maq}">
+      <div class="top">
+        <div><div class="nom">${maq}</div><div class="proc">${proc}</div></div>
+        <label class="sw"><input type="checkbox" class="sw-activa" ${cfg.activa?"checked":""}><span></span></label>
+      </div>
+      ${cuerpo}
+      <div class="cfg">
+        <div><label>Ratio (uds/turno)</label><input type="number" class="in-ratio" min="0" value="${cfg.ratio??""}" placeholder="—"></div>
+        <div><label>Horas efectivas</label><input type="number" class="in-horas" min="0" max="8" step="0.5" value="${cfg.horas??""}" placeholder="${horas.toFixed(1)}"></div>
+      </div>
+    </div>`;
+  }).join("");
+
+  cont.querySelectorAll(".maq").forEach(card=>{
+    const maq = card.dataset.maq;
+    card.querySelector(".sw-activa").addEventListener("change", e=>{
+      setCfg(fam, maq, {activa:e.target.checked}); renderControl();
+    });
+    card.querySelector(".in-ratio").addEventListener("change", e=>{
+      const v = e.target.value==="" ? null : Math.max(0, parseInt(e.target.value)||0);
+      setCfg(fam, maq, {ratio:v}); renderControl();
+    });
+    card.querySelector(".in-horas").addEventListener("change", e=>{
+      const v = e.target.value==="" ? null : Math.max(0, Math.min(8, parseFloat(e.target.value)||0));
+      setCfg(fam, maq, {horas:v}); renderControl();
+    });
+  });
+
+  // KPIs de la línea
+  const pctLinea = prodTotal>0 ? (ncTotal/prodTotal*100) : null;
+  const estado = pctLinea==null ? "" : estadoPorMeta(pctLinea, meta);
+  const ncSinMedir = regs.reduce((s,r)=>s+r.cantidad,0) - ncTotal;
+  kpis.innerHTML = `
+    <div class="kpi ${estado}">
+      <div class="v">${pctLinea==null?"—":pctLinea.toFixed(2)+"%"}</div>
+      <div class="l">% DESPERDICIO</div><div class="m">Meta ≤ ${meta}%</div></div>
+    <div class="kpi"><div class="v">${regs.reduce((s,r)=>s+r.cantidad,0)}</div>
+      <div class="l">PIEZAS NC</div><div class="m">${ncSinMedir>0?ncSinMedir+" en máquinas sin ratio":"&nbsp;"}</div></div>
+    <div class="kpi"><div class="v">${prodTotal.toLocaleString("es-CO")}</div>
+      <div class="l">PRODUCCIÓN TEÓRICA</div><div class="m">${horas.toFixed(1)} h de ${HORAS_TURNO}</div></div>
+    <div class="kpi"><div class="v">${maquinas.length-sinRatio-inactivas}<span style="font-size:1rem;color:var(--text-dim);">/${maquinas.length}</span></div>
+      <div class="l">MÁQUINAS MEDIDAS</div><div class="m">${sinRatio} sin ratio · ${inactivas} fuera de servicio</div></div>`;
+
+  // Pareto de defectos
+  const porDef = {};
+  regs.forEach(r=>{ const k=`${r.defectoCodigo} - ${r.defectoLabel}`; porDef[k]=(porDef[k]||0)+r.cantidad; });
+  const filas = Object.entries(porDef).sort((a,b)=>b[1]-a[1]);
+  const tot = filas.reduce((s,[,v])=>s+v,0);
+  pareto.innerHTML = filas.length
+    ? filas.slice(0,10).map(([k,v])=>{
+        const p = tot?v/tot*100:0;
+        return `<div class="row"><span>${k}</span>
+          <span class="bar"><i style="width:${p.toFixed(1)}%"></i></span>
+          <span class="pc">${v} · ${p.toFixed(0)}%</span></div>`;
+      }).join("")
+    : `<div class="empty-mini">Sin registros en este turno.</div>`;
+}
+
+document.getElementById("kActualizar").addEventListener("click", renderControl);
+document.getElementById("kFamilia").addEventListener("change", renderControl);
+document.getElementById("kConfig").addEventListener("click", ()=>{
+  document.querySelectorAll("#kMaquinas .cfg").forEach(el=>{
+    el.style.display = el.style.display==="none" ? "grid" : "none";
+  });
+});
+
+document.getElementById("tabControl").addEventListener("click",()=>{
+  ["tabRegistro","tabDashboard"].forEach(t=>document.getElementById(t).classList.remove("active"));
+  document.getElementById("tabControl").classList.add("active");
+  document.getElementById("viewControl").style.display="block";
+  document.getElementById("viewRegistro").style.display="none";
+  document.getElementById("viewDashboard").style.display="none";
+  document.getElementById("barraFija").style.display="none";
+  if(S.syncUrl) cargarRemoto();
+  renderControl();
+});
+
 /* ---------- Pestañas ---------- */
 document.getElementById("tabRegistro").addEventListener("click",()=>{
   document.getElementById("tabRegistro").classList.add("active");
-  document.getElementById("tabDashboard").classList.remove("active");
+  ["tabDashboard","tabControl"].forEach(t=>document.getElementById(t).classList.remove("active"));
+  document.getElementById("viewControl").style.display="none";
   document.getElementById("viewRegistro").style.display="block";
   document.getElementById("viewDashboard").style.display="none";
   document.getElementById("barraFija").style.display=S.familia?"flex":"none";
@@ -492,7 +764,8 @@ document.getElementById("tabRegistro").addEventListener("click",()=>{
 });
 document.getElementById("tabDashboard").addEventListener("click",()=>{
   document.getElementById("tabDashboard").classList.add("active");
-  document.getElementById("tabRegistro").classList.remove("active");
+  ["tabRegistro","tabControl"].forEach(t=>document.getElementById(t).classList.remove("active"));
+  document.getElementById("viewControl").style.display="none";
   document.getElementById("viewDashboard").style.display="block";
   document.getElementById("viewRegistro").style.display="none";
   document.getElementById("barraFija").style.display="none";
@@ -576,6 +849,8 @@ document.getElementById("btnBorrarLocal").addEventListener("click",()=>{
 renderFamilias();
 document.getElementById("dFecha").value=hoyISO();
 document.getElementById("dTurno").value=turnoActual();
+document.getElementById("kFecha").value=hoyISO();
+document.getElementById("kTurno").value=turnoActual();
 actualizarEstadoSync();
 if(S.syncUrl){cargarRemoto();reintentarPendientes();setInterval(cargarRemoto,8000);}
 </script>
