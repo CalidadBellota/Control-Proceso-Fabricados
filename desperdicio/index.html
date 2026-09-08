@@ -115,37 +115,45 @@
   .rat-row .pr{color:var(--text-dim);font-size:.76rem;}
   .rat-row input{padding:7px 8px;font-size:.85rem;}
   .rat-head{font-size:.7rem;color:var(--text-dim);font-weight:700;border-bottom:2px solid var(--border);}
-  .prod-panel{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:16px;}
-  .prod-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
-  .prod-head .ic{width:38px;height:38px;border-radius:10px;background:#fdeceb;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex:none;}
-  .prod-head h3{margin:0;font-size:1.02rem;}
-  .prod-head p{margin:2px 0 0 0;font-size:.8rem;color:var(--text-dim);}
-  .prod-grid{display:grid;grid-template-columns:1fr 1fr 1.5fr 1fr;gap:14px;}
-  @media(max-width:1050px){.prod-grid{grid-template-columns:1fr 1fr;}}
-  @media(max-width:640px){.prod-grid{grid-template-columns:1fr;}}
-  .pcard2{border:1px solid var(--border);border-radius:12px;padding:14px 16px;background:#fbfcfd;}
-  .pcard2.verde{border-color:#c7ecd6;background:#f5fdf8;}
-  .pcard2.roja{border-color:#f6c9cd;background:#fef7f7;}
-  .pcard2 .ph{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
-  .pcard2 .pi{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.95rem;flex:none;}
-  .pcard2.verde .pi{background:#e0f5e9;} .pcard2.roja .pi{background:#fdeaea;} .pcard2 .pi{background:#eef0f3;}
-  .pcard2 .pt{font-weight:700;font-size:.9rem;line-height:1.2;}
-  .pcard2 .ps{font-size:.74rem;color:var(--text-dim);margin-top:2px;}
-  .pcard2 .valbox{display:flex;align-items:center;gap:10px;}
-  .pcard2 .val{font-size:1.55rem;font-weight:800;padding:9px 16px;border-radius:8px;background:#eef0f3;min-width:96px;text-align:center;}
-  .pcard2.verde .val{background:#e0f5e9;color:#1f9d55;}
-  .pcard2.roja .val{background:#fdeaea;color:#c81d2e;}
-  .pcard2 .uds{font-size:.82rem;color:var(--text-dim);}
-  .pcard2 input{width:110px;padding:9px 10px;font-size:1rem;font-weight:700;text-align:center;}
-  .pcard2 .acc{margin-top:10px;display:flex;gap:8px;align-items:center;}
-  .pcard2 .acc button{padding:7px 14px;border-radius:7px;font-size:.8rem;font-weight:700;cursor:pointer;border:1px solid var(--border);background:#fff;}
-  .pcard2 .acc button.pri{background:var(--red);border-color:var(--red);color:#fff;}
-  .pct-big{font-size:2.3rem;font-weight:800;padding:10px 18px;border-radius:8px;}
-  .pct-big.ok{background:#e8f8ef;color:#1f9d55;} .pct-big.warn{background:#fff8e1;color:#92660a;} .pct-big.bad{background:#fdeaea;color:#c81d2e;}
-  .badge-meta{padding:9px 16px;border-radius:8px;font-weight:700;font-size:.84rem;white-space:nowrap;}
-  .badge-meta.ok{background:#1f9d55;color:#fff;} .badge-meta.warn{background:#f2b90b;color:#3d2f00;} .badge-meta.bad{background:#c81d2e;color:#fff;}
-  .pinfo{background:#f7f8fa;border:1px solid var(--border);border-radius:12px;padding:14px 16px;font-size:.78rem;color:var(--text-dim);line-height:1.5;}
-  .pinfo b{color:var(--text);display:flex;align-items:center;gap:7px;margin-bottom:7px;font-size:.84rem;}
+  .prod-panel{background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px 22px;margin-bottom:16px;}
+  .prod-head{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
+  .prod-head .ic{width:36px;height:36px;border-radius:10px;background:#fdeceb;display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex:none;}
+  .prod-head h3{margin:0;font-size:1rem;}
+  .prod-head p{margin:2px 0 0 0;font-size:.79rem;color:var(--text-dim);}
+  .prod-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:stretch;}
+  @media(max-width:1000px){.prod-grid{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:560px){.prod-grid{grid-template-columns:1fr;}}
+
+  .pc3{border:1px solid var(--border);border-radius:12px;background:#fff;overflow:hidden;
+       display:flex;flex-direction:column;min-height:158px;}
+  .pc3 .accent{height:4px;background:#d5d9df;}
+  .pc3.verde .accent{background:#22c55e;} .pc3.roja .accent{background:#E2001A;}
+  .pc3.ok .accent{background:#22c55e;} .pc3.warn .accent{background:#f2b90b;} .pc3.bad .accent{background:#c81d2e;}
+  .pc3 .body{padding:14px 16px;display:flex;flex-direction:column;flex:1;}
+  .pc3 .tit{display:flex;align-items:center;gap:9px;margin-bottom:auto;}
+  .pc3 .tit .ci{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex:none;background:#f2f4f7;}
+  .pc3.verde .ci{background:#e6f7ee;} .pc3.roja .ci{background:#fdecec;}
+  .pc3.ok .ci{background:#e6f7ee;} .pc3.warn .ci{background:#fff6dd;} .pc3.bad .ci{background:#fdecec;}
+  .pc3 .tit b{display:block;font-size:.85rem;line-height:1.25;}
+  .pc3 .tit span{display:block;font-size:.72rem;color:var(--text-dim);margin-top:1px;}
+  .pc3 .num{display:flex;align-items:baseline;gap:6px;margin:14px 0 6px 0;}
+  .pc3 .num em{font-style:normal;font-size:2rem;font-weight:800;letter-spacing:-.5px;line-height:1;}
+  .pc3.verde .num em{color:#1f9d55;} .pc3.roja .num em{color:#c81d2e;}
+  .pc3.ok .num em{color:#1f9d55;} .pc3.warn .num em{color:#92660a;} .pc3.bad .num em{color:#c81d2e;}
+  .pc3 .num i{font-style:normal;font-size:.76rem;color:var(--text-dim);}
+  .pc3 .pie{font-size:.72rem;color:var(--text-dim);display:flex;justify-content:space-between;gap:8px;
+            border-top:1px solid #f1f2f4;padding-top:9px;margin-top:auto;}
+  .pc3 .pie b{color:var(--text);font-weight:700;}
+  .pc3 .estado{display:inline-block;padding:3px 9px;border-radius:20px;font-size:.68rem;font-weight:700;}
+  .pc3 .estado.ok{background:#e8f8ef;color:#1f9d55;}
+  .pc3 .estado.warn{background:#fff8e1;color:#92660a;}
+  .pc3 .estado.bad{background:#fdeaea;color:#c81d2e;}
+  .pc3 input{width:100%;padding:9px 11px;font-size:1.05rem;font-weight:700;margin:12px 0 8px 0;}
+  .pc3 .btn{padding:8px 14px;border-radius:7px;font-size:.78rem;font-weight:700;cursor:pointer;
+            border:1px solid var(--border);background:#fff;color:var(--text);}
+  .pc3 .btn.pri{background:var(--red);border-color:var(--red);color:#fff;width:100%;}
+  .pc3 .edit{background:none;border:none;color:var(--text-dim);font-size:.72rem;cursor:pointer;
+             text-decoration:underline;padding:0;}
   .emp-box{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:.86rem;}
   .emp-box .et{font-size:.78rem;font-weight:600;color:var(--text-dim);}
   .emp-box input{width:150px;padding:9px 10px;}
@@ -771,10 +779,13 @@ function renderEmpBox(fam, periodo, fecha, turno, rango){
   }
 
   const meta = METAS[fam] ?? 1;
+  const ncRondas = ncClasificadas(fam, periodo, fecha, turno, rango);
+  const cobertura = (rec!=null && rec>0) ? ncRondas/rec*100 : null;
+  const cobEstado = cobertura==null ? "" : cobertura>=50 ? "ok" : cobertura>=20 ? "warn" : "bad";
   const base = rec!=null ? rec : null;
   const pct = (emp && emp>0 && base!=null) ? base/emp*100 : null;
   const est = pct==null ? "" : estadoPorMeta(pct, meta);
-  const etqEstado = est==="ok" ? "✅ En meta" : est==="warn" ? "⚠ Cerca del límite" : "⚠ Fuera de meta";
+  const etqEstado = est==="ok" ? "En meta" : est==="warn" ? "Cerca del límite" : "Fuera de meta";
   const f0=n=>Math.round(n).toLocaleString("es-CO");
 
   function tarjetaDato(id, titulo, sub, valor, clase, icono, editable){
@@ -798,32 +809,55 @@ function renderEmpBox(fam, periodo, fecha, turno, rango){
       <div class="acc"><button class="pri" id="${id}Save">Guardar</button></div></div>`;
   }
 
+  const f2b=n=>n.toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1});
+
+  function tarjeta({clase, icono, titulo, sub, valor, unidad, pie, editable, id}){
+    if(valor==null && editable){
+      return `<div class="pc3"><div class="accent"></div><div class="body">
+        <div class="tit"><span class="ci">${icono}</span><div><b>${titulo}</b><span>${sub}</span></div></div>
+        <input type="number" id="${id}In" min="0" placeholder="0">
+        <button class="btn pri" id="${id}Save">Guardar</button>
+      </div></div>`;
+    }
+    return `<div class="pc3 ${clase}"><div class="accent"></div><div class="body">
+      <div class="tit"><span class="ci">${icono}</span><div><b>${titulo}</b><span>${sub}</span></div></div>
+      <div class="num"><em>${valor==null?"—":valor}</em><i>${unidad||""}</i></div>
+      <div class="pie">${pie||"&nbsp;"}${editable?`<button class="edit" id="${id}Edit">Editar</button>`:""}</div>
+    </div></div>`;
+  }
+
   box.innerHTML = `
   <div class="prod-panel">
     <div class="prod-head">
       <span class="ic">📊</span>
       <div><h3>Datos de producción · ${rango.etiqueta}</h3>
-        <p>${esTurno?"Registra las unidades empacadas y el desperdicio del turno para calcular el indicador."
+        <p>${esTurno?"Registra las unidades empacadas y el desperdicio recolectado para calcular el indicador."
                     :"Suma de los turnos del período. Para registrar datos, cambia el período a \"Un turno\"."}</p></div>
     </div>
     <div class="prod-grid">
-      ${tarjetaDato("emp","Unidades empacadas","Producción del turno",emp,"verde","📦",esTurno)}
-      ${tarjetaDato("rec","Desperdicio registrado","Recogido por el patinador (cierre de turno)",rec,"roja","🗑️",esTurno)}
-      <div class="pcard2">
-        <div class="ph"><span class="pi">％</span><div><div class="pt">% Desperdicio</div><div class="ps">Cálculo automático</div></div></div>
-        <div class="valbox">
-          <span class="pct-big ${est}">${pct==null?"—":pct.toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1})+"%"}</span>
-          ${pct==null?"":`<span class="badge-meta ${est}">${etqEstado}</span>`}
-        </div>
-        <div class="acc" style="justify-content:space-between;">
-          <span class="uds">${pct==null?"faltan datos":`${f0(base)} / ${f0(emp)} unidades`}</span>
-          <span class="uds"><b>Meta ${fam} ≤ ${meta}%</b></span>
-        </div>
-      </div>
-      <div class="pinfo"><b>ℹ️ Información</b>
-        Las unidades empacadas corresponden a la producción del turno y el desperdicio registrado es el recolectado por el patinador en el cierre de turno.
-        ${ncPendienteTexto(fam, periodo, fecha, turno, rango)}
-      </div>
+      ${tarjeta({clase:"verde", icono:"📦", id:"emp",
+        titulo:"Unidades empacadas", sub:"Producción del período",
+        valor: emp==null?null:f0(emp), unidad:"unidades",
+        pie: esTurno?"&nbsp;":`<span>${detalleEmp}</span>`, editable:esTurno})}
+
+      ${tarjeta({clase:"roja", icono:"🗑️", id:"rec",
+        titulo:"Desperdicio recolectado", sub:"Patinador · cierre de turno",
+        valor: rec==null?null:f0(rec), unidad:"unidades",
+        pie:"&nbsp;", editable:esTurno})}
+
+      ${tarjeta({clase:est, icono:"％", id:"pct",
+        titulo:"% Desperdicio", sub:`Meta ${fam} ≤ ${meta}%`,
+        valor: pct==null?null:f2b(pct)+"%", unidad:"",
+        pie: pct==null?"<span>faltan datos</span>"
+             :`<span>${f0(base)} / ${f0(emp)}</span><span class="estado ${est}">${etqEstado}</span>`,
+        editable:false})}
+
+      ${tarjeta({clase:cobEstado, icono:"🔍", id:"cob",
+        titulo:"Cobertura de clasificación", sub:"Identificado en rondas",
+        valor: cobertura==null?null:f2b(cobertura)+"%", unidad:"",
+        pie: cobertura==null?"<span>faltan datos</span>"
+             :`<span><b>${f0(ncRondas)}</b> de ${f0(rec)} clasificadas</span>`,
+        editable:false})}
     </div>
   </div>`;
 
@@ -852,6 +886,14 @@ function renderEmpBox(fam, periodo, fecha, turno, rango){
   }
 
   return {empacadas:emp, recogidas:rec};
+}
+
+function ncClasificadas(fam, periodo, fecha, turno, rango){
+  return S.registros.filter(r=>{
+    if(r.familia!==fam) return false;
+    if(periodo==="turno") return r.turnoKey===llaveTurno(turno,fecha);
+    const ft=fechaDeTurno(r); return ft>=rango.desde && ft<=rango.hasta;
+  }).reduce((s,r)=>s+r.cantidad,0);
 }
 
 function ncPendienteTexto(fam, periodo, fecha, turno, rango){
@@ -932,19 +974,19 @@ function renderDashboardTurno(){
 
   box.innerHTML = `
   <div class="dash-grid">
-    <div class="card"><div class="ch"><span class="ic">🏭</span>Desperdicio por Proceso</div><div class="cb">
-      ${porProc.length?`<table><thead><tr><th>Proceso</th><th class="num">NC</th><th class="num">% s/empacadas</th><th></th></tr></thead><tbody>
-      ${porProc.map(([k,v])=>{const p=(empacadas&&empacadas>0)?v/empacadas*100:null;
+    <div class="card"><div class="ch"><span class="ic">🏭</span>Desperdicio por Proceso <span style="font-weight:400;font-size:.72rem;color:var(--text-dim);">· solo lo clasificado en rondas</span></div><div class="cb">
+      ${porProc.length?`<table><thead><tr><th>Proceso</th><th class="num">NC</th><th class="num">% de lo clasificado</th><th></th></tr></thead><tbody>
+      ${porProc.map(([k,v])=>{const p=ncTotal>0?v/ncTotal*100:null;
         return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${p==null?"—":f2(p)+"%"}</td><td style="width:70px;">${barra(v,maxProc)}</td></tr>`;}).join("")}
-      <tr class="tot"><td>TOTAL</td><td class="num">${ncTotal}</td><td class="num">${pctRondas==null?"—":f2(pctRondas)+"%"}</td><td></td></tr>
+      <tr class="tot"><td>TOTAL</td><td class="num">${ncTotal}</td><td class="num">100%</td><td></td></tr>
       </tbody></table>`:'<div class="empty-mini">Sin registros.</div>'}
     </div></div>
 
-    <div class="card"><div class="ch"><span class="ic">📍</span>Desperdicio por Puesto</div><div class="cb">
-      ${porPuesto.length?`<table><thead><tr><th>Puesto</th><th class="num">NC</th><th class="num">% s/empacadas</th><th></th></tr></thead><tbody>
-      ${porPuesto.map(([k,v])=>{const pc=(empacadas&&empacadas>0)?v/empacadas*100:null;
+    <div class="card"><div class="ch"><span class="ic">📍</span>Desperdicio por Puesto <span style="font-weight:400;font-size:.72rem;color:var(--text-dim);">· solo lo clasificado en rondas</span></div><div class="cb">
+      ${porPuesto.length?`<table><thead><tr><th>Puesto</th><th class="num">NC</th><th class="num">% de lo clasificado</th><th></th></tr></thead><tbody>
+      ${porPuesto.map(([k,v])=>{const pc=ncTotal>0?v/ncTotal*100:null;
         return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${pc==null?"—":f2(pc)+"%"}</td><td style="width:70px;">${barra(v,maxPue)}</td></tr>`;}).join("")}
-      <tr class="tot"><td>TOTAL</td><td class="num">${ncTotal}</td><td class="num">${pctRondas==null?"—":f2(pctRondas)+"%"}</td><td></td></tr>
+      <tr class="tot"><td>TOTAL</td><td class="num">${ncTotal}</td><td class="num">100%</td><td></td></tr>
       </tbody></table>`:'<div class="empty-mini">Sin registros.</div>'}
     </div></div>
 
@@ -969,7 +1011,7 @@ function renderDashboardTurno(){
     <div class="card"><div class="ch"><span class="ic">📈</span>Evolución del % de desperdicio</div>
       <div class="chart-wrap"><canvas id="cvEvol"></canvas></div></div>
 
-    <div class="card"><div class="ch"><span class="ic">🥧</span>Distribución del desperdicio</div><div class="cb">
+    <div class="card"><div class="ch"><span class="ic">🥧</span>Distribución del desperdicio recogido</div><div class="cb">
       <div class="donut-wrap">
         <div class="cv"><canvas id="cvDonut"></canvas>
           <div class="donut-center"><b>${ncTotal}</b><span>piezas NC</span></div></div>
@@ -991,7 +1033,7 @@ function renderDashboardTurno(){
   </div></div>`;
 
   dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango, fam);
-  dibujarDonut(porProc, ncTotal);
+  dibujarDonut(porProc, ncTotal, recogidas);
   dibujarPareto(ordDef, ncTotal);
 }
 
@@ -1063,20 +1105,28 @@ function dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango, famActua
   });
 }
 
-function dibujarDonut(porProc, ncTotal){
+function dibujarDonut(porProc, ncTotal, recogidas){
   const cv=document.getElementById("cvDonut"); if(!cv) return;
   const colores=["#E2001A","#374151","#f2b90b","#3b82f6","#22c55e","#a855f7","#f97316","#0891b2"];
-  const labels=porProc.map(([k])=>k), datos=porProc.map(([,v])=>v);
+  // si hay dato del patinador, la dona representa TODO lo recogido:
+  // lo clasificado en rondas + el remanente sin clasificar
+  const sinClas = (recogidas!=null && recogidas>ncTotal) ? recogidas-ncTotal : 0;
+  const base = sinClas>0 ? recogidas : ncTotal;
+  const items = sinClas>0 ? [...porProc, ["Sin clasificar", sinClas]] : porProc;
+  const labels=items.map(([k])=>k), datos=items.map(([,v])=>v);
+  const cols = items.map((it,i)=> it[0]==="Sin clasificar" ? "#c2c8d0" : colores[i%colores.length]);
+  const centro=document.querySelector("#viewDashboard .donut-center");
+  if(centro) centro.innerHTML = `<b>${base}</b><span>${sinClas>0?"piezas recogidas":"piezas NC"}</span>`;
   if(chartDonut) chartDonut.destroy();
   if(!datos.length){ document.getElementById("donutLeg").innerHTML='<span style="color:var(--text-dim);font-size:.8rem;">Sin registros.</span>'; return; }
   chartDonut=new Chart(cv.getContext("2d"),{
     type:"doughnut",
-    data:{labels,datasets:[{data:datos,backgroundColor:colores,borderWidth:0}]},
+    data:{labels,datasets:[{data:datos,backgroundColor:cols,borderWidth:0}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:"66%",plugins:{legend:{display:false}}}
   });
-  document.getElementById("donutLeg").innerHTML=porProc.map(([k,v],i)=>
-    `<div><span class="dot" style="background:${colores[i%colores.length]}"></span>
-     <span><b>${k}</b><span>${v} piezas (${ncTotal?Math.round(v/ncTotal*100):0}%)</span></span></div>`).join("");
+  document.getElementById("donutLeg").innerHTML=items.map(([k,v],i)=>
+    `<div><span class="dot" style="background:${cols[i]}"></span>
+     <span><b>${k}</b><span>${v} piezas (${base?Math.round(v/base*100):0}%)</span></span></div>`).join("");
 }
 
 document.getElementById("dActualizar").addEventListener("click",()=>{
