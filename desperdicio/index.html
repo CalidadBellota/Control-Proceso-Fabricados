@@ -63,6 +63,15 @@
   .proc-box label{font-size:.66rem;margin-bottom:4px;}
   .proc-box select{padding:7px 8px;font-size:.78rem;}
 
+
+  .procesos{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+  .procesos button{border:1px solid var(--border);background:#fff;color:var(--text-dim);padding:9px 16px;
+    border-radius:20px;font-size:.85rem;font-weight:600;cursor:pointer;}
+  .procesos button.active{background:var(--red);border-color:var(--red);color:#fff;}
+  .procesos button .n{opacity:.65;font-weight:400;font-size:.76rem;margin-left:4px;}
+  .ajeno{background:#fff8e1;border:1px solid #f3e3ae;border-radius:6px;padding:5px 8px;
+    font-size:.7rem;color:#92660a;font-weight:600;margin-top:8px;}
+  .origen{font-size:.7rem;color:var(--text-dim);margin-top:8px;}
   .aviso{background:#fff8e1;border:1px solid #f3e3ae;border-radius:8px;padding:10px 12px;font-size:.78rem;color:#92660a;margin-bottom:16px;}
 
   .barra-fija{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);
@@ -77,7 +86,7 @@
   .filtros-row{display:grid;grid-template-columns:1.4fr 1fr 1fr auto;gap:12px;align-items:end;margin-bottom:20px;}
   @media(max-width:800px){.filtros-row{grid-template-columns:1fr 1fr;}}
   .filtros-row button{padding:11px 20px;border:none;border-radius:8px;background:var(--red);color:#fff;font-weight:700;cursor:pointer;height:41px;}
-  .tablas-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+  .tablas-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   @media(max-width:900px){.tablas-grid{grid-template-columns:1fr;}}
   .tabla-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
   .tabla-card .cabecera{background:var(--red);color:#fff;padding:10px 14px;font-weight:700;font-size:.85rem;}
@@ -131,13 +140,17 @@
   <div class="panel">
     <label>Línea de producto *</label>
     <div class="familias" id="familias"></div>
-    <div class="puesto-row">
+    <div id="zonaProceso" style="display:none;">
+      <label>Proceso que estás auditando *</label>
+      <div class="procesos" id="procesos"></div>
+    </div>
+    <div class="puesto-row" id="zonaPuesto" style="display:none;">
       <div>
-        <label for="puesto">Puesto donde estás auditando *</label>
-        <select id="puesto"><option value="">Selecciona primero la línea</option></select>
+        <label for="puesto">Puesto / máquina *</label>
+        <select id="puesto"><option value="">Selecciona un puesto</option></select>
       </div>
-      <div class="puesto-hint" id="puestoHint">
-        Al terminar este puesto, guarda y cambia el puesto para continuar con el siguiente.
+      <div class="puesto-hint">
+        Al terminar este puesto, guarda y cambia de puesto o de proceso para continuar la auditoría.
       </div>
     </div>
   </div>
@@ -222,8 +235,7 @@
 
 <script>
 const DEFECTOS = {"limas": [{"code": "L01", "name": "Fisura", "description": "Presencia de grietas en la superficie de la lima.", "cause": "Dureza alta después de templar la lima.", "process": "Temple"}, {"code": "L02", "name": "Fracturada", "description": "Fractura de la lima que la deja completamente inutilizable.", "cause": "Dureza alta después de templar la lima.", "process": "Temple"}, {"code": "L03", "name": "Estrellada", "description": "La cuchilla entra demasiado en el material cuando se está picando.", "cause": "Exceso de presión / Mal estado de la cuchilla.", "process": "Picado"}, {"code": "L04", "name": "Torcida", "description": "La lima se ve torcida hasta niveles que no se pueden enderezar.", "cause": "Exceso de presión en el pisador de picado.", "process": "Picado"}, {"code": "L05", "name": "Tallada", "description": "Tallones sobre la superficie de la cuchilla que son fácilmente visibles.", "cause": "Golpes o tallones sobre la superficie de la pieza.", "process": "General"}, {"code": "L06", "name": "Oxidada", "description": "Presencia de óxido sobre la superficie de la lima que no se puede corregir.", "cause": "Exposición a líquidos o ambientes húmedos.", "process": "General"}, {"code": "L07", "name": "Porosa", "description": "Presencia de 'huecos' en la superficie de la lima generalmente causado por oxidación.", "cause": "Estado avanzado de oxidación.", "process": "General"}, {"code": "L08", "name": "Quemada en Temple", "description": "Fractura de los dientes de la lima por exceso de dureza.", "cause": "Exceso de tiempo o temperatura en temple.", "process": "Picado"}, {"code": "L09", "name": "Quemada en Rectificado", "description": "Presencia de colores tornasol o negros que muestran la superficie quemada en rectificado.", "cause": "Mala concentración de líquido refrigerante.", "process": "Rectificado"}, {"code": "L10", "name": "Quemada en Forjado", "description": "Presencia de colores que muestran la superficie quemada en el espigo de la lima.", "cause": "Exceso de tiempo o temperatura en forjado.", "process": "Forja"}, {"code": "L11", "name": "Mal Forjado", "description": "Mala condición del espigo de la lima.", "cause": "Mala operación de la máquina para la fabricación del espigo.", "process": "Forja"}, {"code": "L12", "name": "Mal Rectificado", "description": "Exceso de rectificado en la lima que hace que 'baile' en la galga de verificación.", "cause": "Exceso de rectificado.", "process": "Rectificado"}, {"code": "L13", "name": "Picado Fuerte", "description": "Exceso de profundidad en los dientes de la lima; se suele ver más brillante.", "cause": "Exceso de presión en las cuchillas de picado.", "process": "Picado"}, {"code": "L14", "name": "Picado Bajo", "description": "Falta de profundidad en los dientes de la lima.", "cause": "Falta de presión en las cuchillas de picado.", "process": "Picado"}, {"code": "L15", "name": "Cuchilla Rota", "description": "Falta de contorno en los dientes de la lima.", "cause": "Cuchilla de corte en mal estado.", "process": "Picado"}, {"code": "L16", "name": "Mal Raspada", "description": "Exceso de rebaba en los bordes, bordes deformados o sin raspar.", "cause": "Mala operación de la máquina de raspado/Mal estado de fresa.", "process": "Raspado"}, {"code": "L17", "name": "Sin Agarre", "description": "Mal agarre de la lima al hacer el ensayo con la probeta de agarre.", "cause": "Baja o alta dureza de la lima/Picado bajo.", "process": "Temple/Picado"}, {"code": "L18", "name": "Puesta a Punto", "description": "Unidades malas hechas por una máquina que se está poniendo a punto para trabajar.", "cause": "Puesta a punto de las máquinas.", "process": "General"}, {"code": "L19", "name": "Materia Prima", "description": "Afectaciones que tiene el material únicamente sin procesar.", "cause": "Material en mal estado.", "process": "General"}, {"code": "L20", "name": "Desperdicio sin Clasificar", "description": "Material en altas cantidades con varios defectos, o sin saber sus defectos.", "cause": "Material almacenado sin control/Unidades recogidas a final de año.", "process": "General"}], "machetes": [{"code": "M01", "name": "Fisurado", "description": "Presencia de grietas en la superficie de la hoja del machete.", "cause": "Dureza alta después de templar el machete.", "process": "Temple"}, {"code": "M02", "name": "Fracturado", "description": "Fractura del machete que lo deja completamente inutilizable.", "cause": "Dureza alta después de templar el machete.", "process": "Temple"}, {"code": "M03", "name": "Torcido", "description": "El machete se ve torcido hasta niveles que no se pueden enderezar.", "cause": "Mal enderezado/Torcido desde Temple o Revenido.", "process": "Enderezado/Temple/Revenido"}, {"code": "M04", "name": "Tallado", "description": "Tallones sobre la superficie del machete que son fácilmente visibles.", "cause": "Golpes o tallones sobre la superficie de la pieza.", "process": "General"}, {"code": "M05", "name": "Quemado en Laminación", "description": "Presencia de un color rojizo oscuro, superficie cristalizada, o con cascarilla.", "cause": "Exceso de temperatura o tiempo dentro del horno de laminado.", "process": "Laminado"}, {"code": "M06", "name": "Quemado en Temple", "description": "Presencia de 'ampollas' o cascarilla profunda en toda la superficie del machete.", "cause": "Exceso de temperatura o tiempo dentro del horno temple.", "process": "Temple"}, {"code": "M07", "name": "Quemado en Lijado", "description": "Presencia de colores tornasol o negros que muestran partes quemadas.", "cause": "Mala concentración de líquido refrigerante.", "process": "Lijado"}, {"code": "M08", "name": "Quemado en Biselado", "description": "Presencia de colores tornasol o negros únicamente en la superficie del bisel.", "cause": "Dureza alta después de templar la lima.", "process": "Temple"}, {"code": "M09", "name": "Mal Biselado", "description": "Bisel mal definido, corto, o deformado.", "cause": "Mala operación/Hoja torcida.", "process": "Biselado"}, {"code": "M10", "name": "Sobrebiselado", "description": "Exceso de tamaño del bisel.", "cause": "Mala operación.", "process": "Biselado"}, {"code": "M11", "name": "Estrellado", "description": "Consumo excesivo del material en lijado o biselado que dejan el machete inutilizable.", "cause": "Mala operación/Hoja torcida.", "process": "Lijado/Biselado"}, {"code": "M12", "name": "Canto Deformado", "description": "Canto del machete deformado/tallado.", "cause": "Tallones sufridos en el transporte del material.", "process": "Transporte/Movimientos Internos"}, {"code": "M13", "name": "Lijado Irregular", "description": "Superficie irregular después de lijar el machete, generando zonas deformes.", "cause": "Hoja atascada/torcida.", "process": "Lijado"}, {"code": "M14", "name": "Cascarilla", "description": "Presencia de 'ampollas' o cascarilla profunda en toda la superficie.", "cause": "Exceso de temperatura o tiempo dentro del horno.", "process": "Laminado/Temple/Revenido"}, {"code": "M15", "name": "Poroso", "description": "Superficie con 'huecos' profundos que son perceptibles visualmente.", "cause": "Óxido profundo/Superficie quemada.", "process": "General"}, {"code": "M16", "name": "Oxidado", "description": "Superficie del material oxidada hasta un punto de no recuperación.", "cause": "Exposición a líquidos o ambientes húmedos.", "process": "General"}, {"code": "M17", "name": "Prueba de Impacto", "description": "Pruebas de calidad para verificar la dureza del machete.", "cause": "Prueba destructiva de calidad.", "process": "Revenido"}, {"code": "M18", "name": "Deformación Mordaza", "description": "Presencia de tallones profundos que deforman la hoja del machete.", "cause": "Mala caída del machete en los enderezadores de temple.", "process": "Temple"}, {"code": "M19", "name": "Canal Profunda", "description": "Canal marcada por el lado contrario de la hoja/Fisura.", "cause": "Exceso de presión en acanalado.", "process": "Acanalado"}, {"code": "M20", "name": "Canal Borrosa", "description": "Canales borrosas o con faltantes de línea.", "cause": "Falta de presión en acanalado/Exceso de lijado.", "process": "Acanalado/Lijado"}, {"code": "M21", "name": "Mal Acanalado", "description": "Presencia de más canales a las especificadas/Canales desviadas.", "cause": "Mala operación/Mal estado de herramentales.", "process": "Acanalado"}, {"code": "M22", "name": "Sello Profundo", "description": "Presencia de tallones, deformaciones o fisuras en la parte posterior.", "cause": "Exceso de presión en el sellado.", "process": "Sellado"}, {"code": "M23", "name": "Sello Borroso", "description": "Sellado borroso o con faltantes de letras.", "cause": "Falta de presión en sellado/Exceso de lijado.", "process": "Sellado/Lijado"}, {"code": "M24", "name": "Mal Sellado", "description": "Presencia de dos o más sellos/Sellos torcidos o remontados.", "cause": "Mala operación.", "process": "Sellado"}, {"code": "M25", "name": "Mal Cortado", "description": "Faltantes de material en los bordes del machete.", "cause": "Mal posicionamiento/Falta de material.", "process": "Corte"}, {"code": "M26", "name": "Mal Punzonado", "description": "Presencia de dos o más perforaciones/Perforaciones ovaladas.", "cause": "Mala operación/Mal estado de punzones.", "process": "Punzonado"}, {"code": "M27", "name": "Mal Laminado", "description": "Incumplimiento de forma o medidas necesarias respecto a la muestra.", "cause": "Mala operación.", "process": "Laminado"}, {"code": "M28", "name": "Retemplado", "description": "Machetes retemplados que incumplen con características.", "cause": "Retemplado de machetes.", "process": "Temple"}, {"code": "M29", "name": "Puesta a Punto", "description": "Unidades malas durante ajustes de máquina.", "cause": "Puesta a punto de las máquinas.", "process": "Temple"}, {"code": "M30", "name": "Limpieza de Tanque", "description": "Material desechado al realizar la limpieza del tanque de aceite.", "cause": "Limpieza de tanque de temple.", "process": "Temple"}, {"code": "M31", "name": "Materia Prima", "description": "Afectaciones que tiene el material únicamente sin procesar.", "cause": "Material en mal estado.", "process": "General"}, {"code": "M32", "name": "Desperdicio sin Clasificar", "description": "Material en altas cantidades con varios defectos.", "cause": "Material almacenado sin control.", "process": "General"}], "cuchillas": [{"code": "C01", "name": "Fisura", "description": "Presencia de grietas en la superficie de la cuchilla.", "cause": "Dureza alta después de templar la cuchilla.", "process": "Temple"}, {"code": "C02", "name": "Fractura", "description": "Fractura de la cuchilla que la deja completamente inutilizable.", "cause": "Dureza alta después de templar la cuchilla.", "process": "Temple"}, {"code": "C03", "name": "Cuchilla Torcida", "description": "La cuchilla se ve torcida hasta niveles que no se pueden enderezar.", "cause": "Mal enderezado/Torcido desde Temple o Revenido.", "process": "Enderezado/Temple/Revenido"}, {"code": "C04", "name": "Cuchilla Estrellada", "description": "Consumo excesivo del material en lijado o biselado que deja la cuchilla inutilizable.", "cause": "Mala operación/Hoja torcida.", "process": "Lijado/Biselado"}, {"code": "C05", "name": "Deformación por Mordaza", "description": "Presencia de tallones profundos que deforman la hoja de la cuchilla.", "cause": "Mala caída de la cuchilla en los enderezadores de temple.", "process": "Temple"}, {"code": "C06", "name": "Quemado en Temple", "description": "Presencia de 'ampollas' o cascarilla profunda en toda la superficie de la cuchilla.", "cause": "Exceso de temperatura o tiempo dentro del horno de temple.", "process": "Temple"}, {"code": "C07", "name": "Cascarilla", "description": "Presencia de 'ampollas' o cascarilla profunda en toda la superficie.", "cause": "Exceso de temperatura o tiempo dentro del horno.", "process": "Temple/Revenido"}, {"code": "C08", "name": "Retemplado", "description": "Cuchillas retempladas que incumplen con las características especificadas.", "cause": "Retemplado de cuchillas.", "process": "Temple"}, {"code": "C09", "name": "Prueba de Impacto", "description": "Pruebas de calidad para verificar la dureza de la cuchilla.", "cause": "Prueba destructiva de calidad.", "process": "Revenido"}, {"code": "C10", "name": "Tallada", "description": "Tallones sobre la superficie de la cuchilla que son fácilmente visibles.", "cause": "Golpes o tallones sobre la superficie de la pieza.", "process": "General"}, {"code": "C11", "name": "Oxidación", "description": "Superficie del material oxidada hasta un punto de no recuperación.", "cause": "Exposición a líquidos o ambientes húmedos.", "process": "General"}, {"code": "C12", "name": "Porosidad", "description": "Superficie con 'huecos' profundos que son perceptibles visualmente.", "cause": "Óxido profundo/Superficie quemada.", "process": "General"}, {"code": "C13", "name": "Quemado en Lijado", "description": "Presencia de colores tornasol o negros que muestran partes quemadas en la superficie después de lijar.", "cause": "Mala concentración de líquido refrigerante.", "process": "Lijado"}, {"code": "C14", "name": "Lijado Irregular", "description": "Superficie irregular después de lijar la cuchilla, generando zonas deformes.", "cause": "Hoja atascada/torcida.", "process": "Lijado"}, {"code": "C15", "name": "Bisel Quemado", "description": "Presencia de colores tornasol o negros que muestran quemadas únicamente en la superficie del bisel.", "cause": "Exceso de presión o avance / Piedra gastada / Falta de refrigerante.", "process": "Biselado"}, {"code": "C16", "name": "Bisel Sobrebiselado", "description": "La piedra entra más de lo debido y retira exceso de material de la cuchilla.", "cause": "Ajuste incorrecto / Presión o avance excesivo / Piedra gastada.", "process": "Biselado"}, {"code": "C17", "name": "Bisel Ancho Incorrecto", "description": "El ancho del bisel no cumple la medida especificada, quedando por encima o por debajo de la tolerancia.", "cause": "Ajuste incorrecto del ángulo o de la altura de la piedra / Desgaste de la piedra.", "process": "Biselado"}, {"code": "C18", "name": "Bisel Longitud Incorrecta", "description": "El bisel no cubre la longitud especificada de la hoja, quedando corto o extendiéndose más de lo requerido.", "cause": "Mal posicionamiento de la pieza / Topes descalibrados.", "process": "Biselado"}, {"code": "C19", "name": "Bisel Irregular", "description": "Bisel con ancho o ángulo variable a lo largo de la hoja, sin uniformidad en su recorrido.", "cause": "Hoja torcida / Presión inestable durante el biselado / Piedra desgastada de forma despareja.", "process": "Biselado"}, {"code": "C20", "name": "Bisel Incompleto", "description": "Zonas de la hoja donde el bisel no alcanzó a formarse, quedando material sin desbastar.", "cause": "Hoja torcida o mal apoyada / Presión insuficiente / Pasada incompleta.", "process": "Biselado"}, {"code": "C21", "name": "Bisel Diferente Entre Lados (Asimétrico)", "description": "El bisel de una cara no coincide en ancho o ángulo con el de la cara opuesta.", "cause": "Descalibración entre las dos estaciones de biselado / Desgaste desigual de las piedras.", "process": "Biselado"}, {"code": "C22", "name": "Bisel Rayado", "description": "Presencia de rayas o surcos visibles sobre la superficie del bisel.", "cause": "Piedra con grano contaminado o desgastado / Presencia de partículas en el refrigerante.", "process": "Biselado"}, {"code": "C23", "name": "Rebaba en el Filo", "description": "Exceso de material desprendido que queda adherido al borde del filo en forma de laminilla.", "cause": "Piedra desgastada / Falta de pasada de acabado / Avance excesivo.", "process": "Biselado"}, {"code": "C24", "name": "Filo con Muescas", "description": "Presencia de mellas o faltantes puntuales de material a lo largo del borde del filo.", "cause": "Golpes contra otras piezas o herramentales / Manipulación o transporte inadecuado.", "process": "Biselado/Transporte"}, {"code": "C25", "name": "Filo Deformado", "description": "El borde del filo pierde su línea recta, presentando ondulaciones o desviaciones.", "cause": "Hoja torcida / Presión excesiva durante el biselado / Golpes posteriores al proceso.", "process": "Biselado"}, {"code": "C26", "name": "Canto Deformado", "description": "Canto (lomo) de la cuchilla deformado o tallado.", "cause": "Tallones sufridos en el transporte del material.", "process": "Transporte/Movimientos Internos"}, {"code": "C27", "name": "Sello Profundo", "description": "Presencia de tallones, deformaciones o fisuras en la parte posterior por exceso de marcado.", "cause": "Exceso de presión en el sellado.", "process": "Sellado"}, {"code": "C28", "name": "Sello Borroso", "description": "Sellado borroso o con faltantes de letras.", "cause": "Falta de presión en sellado/Exceso de lijado.", "process": "Sellado/Lijado"}, {"code": "C29", "name": "Mal Sellado", "description": "Presencia de dos o más sellos/Sellos torcidos o remontados.", "cause": "Mala operación.", "process": "Sellado"}, {"code": "C30", "name": "Mal Cortado", "description": "Faltantes de material en los bordes de la cuchilla.", "cause": "Mal posicionamiento/Falta de material.", "process": "Corte"}, {"code": "C31", "name": "Mal Punzonado", "description": "Presencia de dos o más perforaciones/Perforaciones ovaladas.", "cause": "Mala operación/Mal estado de punzones.", "process": "Punzonado"}, {"code": "C32", "name": "Puesta a Punto", "description": "Unidades malas generadas durante los ajustes de máquina.", "cause": "Puesta a punto de las máquinas.", "process": "General"}, {"code": "C33", "name": "Limpieza de Tanque", "description": "Material desechado al realizar la limpieza del tanque de aceite.", "cause": "Limpieza de tanque de temple.", "process": "Temple"}, {"code": "C34", "name": "Materia Prima", "description": "Afectaciones que tiene el material únicamente sin procesar.", "cause": "Material en mal estado.", "process": "General"}, {"code": "C35", "name": "Desperdicio sin Clasificar", "description": "Material en altas cantidades con varios defectos, o sin saber sus defectos.", "cause": "Material almacenado sin control.", "process": "General"}], "palas": [{"code": "P01", "name": "Fisura", "description": "Presencia de grietas en la superficie de la pala.", "cause": "Dureza alta después de templar la pala.", "process": "Temple"}, {"code": "P02", "name": "Fractura", "description": "Fractura de la pala que la deja completamente inutilizable.", "cause": "Dureza alta después de templar la cuchilla.", "process": "Temple"}, {"code": "P03", "name": "Torcida", "description": "La pala se ve torcida hasta niveles que no se pueden enderezar.", "cause": "Torcido en Temple, Estampado, o Granallado.", "process": "Temple/Estampado/Granallado"}, {"code": "P04", "name": "Quemada", "description": "Presencia de 'ampollas' o cascarilla profunda en toda la superficie de la pala.", "cause": "Exceso de temperatura o tiempo dentro del horno temple.", "process": "Temple"}, {"code": "P05", "name": "Arrugada", "description": "Presencia de arrugas en la superficie de la pala.", "cause": "Mal estampado/Onduladas en estampado/Exceso de granallado.", "process": "Estampado/Granallado"}, {"code": "P06", "name": "Vena Desviada", "description": "Desviación visual de la vena (Refuerzo) de la pala.", "cause": "Mal estampado.", "process": "Estampado"}, {"code": "P07", "name": "Cubo Desviado", "description": "Desviación visual del cubo (Extensión) de la pala.", "cause": "Mal estampado.", "process": "Estampado"}, {"code": "P08", "name": "Cubo Mal Cerrado", "description": "Falta o exceso de cierre en el cubo de la pala que la deja inutilizable.", "cause": "Mal estampado.", "process": "Estampado"}, {"code": "P09", "name": "Prueba de Impacto", "description": "Pruebas de calidad para verificar la dureza de la pala.", "cause": "Prueba destructiva de calidad.", "process": "Revenido"}, {"code": "P10", "name": "Cascarilla", "description": "Presencia de 'ampollas' o cascarilla profunda en toda la superficie.", "cause": "Exceso de temperatura o tiempo dentro del horno de temple o revenido.", "process": "Temple/Revenido"}, {"code": "P11", "name": "Porosa", "description": "Superficie con 'huecos' profundos que son perceptibles visualmente.", "cause": "Óxido profundo/Superficie quemada/Exceso de granallado.", "process": "General"}, {"code": "P12", "name": "Oxidada", "description": "Superficie del material oxidada hasta un punto de no recuperación.", "cause": "Exposición a líquidos o ambientes húmedos.", "process": "General"}, {"code": "P13", "name": "Mal Perforado", "description": "Presencia de dos o más perforaciones/Perforaciones ovaladas.", "cause": "Mala operación/Mal estado de punzones.", "process": "Punzonado"}, {"code": "P14", "name": "Perforación Descentrada", "description": "Desviación en posición de las perforaciones de la pala.", "cause": "Mala operación.", "process": "Punzonado"}, {"code": "P15", "name": "Mal Estampado", "description": "Mal conformado de la pala.", "cause": "Mala operación.", "process": "Punzonado"}, {"code": "P16", "name": "Puesta a Punto", "description": "Unidades malas durante ajustes de máquina.", "cause": "Puesta a punto de las máquinas.", "process": "Temple"}, {"code": "P17", "name": "Materia Prima", "description": "Afectaciones que tiene el material únicamente sin procesar.", "cause": "Material en mal estado.", "process": "General"}, {"code": "P18", "name": "Desperdicio sin Clasificar", "description": "Material en altas cantidades con varios defectos.", "cause": "Material almacenado sin control/Unidades recogidas a final de año.", "process": "General"}]};
-const PROCESOS_POR_FAMILIA = {"Limas": ["Forja", "Corte", "Rectificado", "Raspado", "Picado", "Enderezado", "Temple", "Control"], "Machetes": ["Corte", "Laminación", "Troquelado", "Temple", "Revenido", "Lijado", "Biselado", "Enderezado"], "Cuchillas": ["Corte", "Troquelado", "Temple", "Revenido", "Lijado", "Biselado", "Pintura", "Enderezado"], "Palas": ["Corte", "Troquelado", "Estampado", "Revenido", "Granallado", "Fosfatizado", "Pintura", "Empaque"]};
-const PUESTOS_POR_FAMILIA = {"Cuchillas": ["Troqueladora 3", "Troqueladora Lima Plana", "Láser", "Yangli", "Temple 3", "Revenido Cuchillas", "Temple 4", "Revenido Machetes", "Lijadora 4", "Lijadora 5", "Biseladora 1", "Biseladora 2", "Biseladora 3", "Biseladora 4", "Biseladora 5", "Tren de Lacado", "Pintura", "Empaque", "Enderezado"], "Machetes": ["Puesto 1", "Puesto 2", "Puesto 3"], "Limas": ["Puesto 1", "Puesto 2", "Puesto 3"], "Palas": ["Puesto 1", "Puesto 2", "Puesto 3"]};
+const ESTRUCTURA = {"Cuchillas": {"Biselado": ["Biselado 1", "Biselado 2", "Biselado 3", "Biselado 5", "Biseladora 4"], "Corte": ["Corte 1", "Corte 2", "Corte láser"], "Empaque": ["Empaque 1", "Empaque 2", "Empaque 3"], "Enderezado": ["Enderezado", "Enderezado 2", "Enderezado 3"], "Lijado": ["Lijado 4", "Lijado 5"], "Otros": ["Galgueado"], "Pintura / Lacado": ["Lacado 1", "Pintura 1"], "Reproceso": ["Reproceso 1"], "Revenido": ["Revenido 1", "Revenido 3"], "Temple": ["Temple 3", "Temple 4"], "Troquelado": ["Troquelado 3", "Troquelado 4"]}, "Limas": {"Acabado": ["Acabado 1"], "Empaque": ["Empaque 2"], "Enderezado": ["Enderezado 1", "Enderezado 2", "Enderezado 3"], "Limpieza / Granallado": ["Limpieza en chorreadora 1", "Limpieza en chorreadora 2"], "Picado": ["Picado en J2 - 1", "Picado en J2 - 2", "Picado en J3 - 1", "Picado en J3 - 2", "Picado en automática 2", "Picado en automática 3", "Picado en automática 4", "Picado en automática 5"], "Raspado": ["Raspado 1", "Raspado 2", "Raspado 3"], "Rectificado": ["Rectificado 1", "Rectificado 2", "Rectificado 4", "Rectificado 5"], "Reproceso": ["Reproceso 1", "Reproceso 2"], "Temple": ["Temple eléctrico 1"]}, "Machetes": {"Biselado": ["Biselado manual 2", "Biselado manual 3", "Biselado manual 4", "Biselado manual 5"], "Canalado": ["Canalado 2"], "Corte": ["Corte 1", "Corte 2", "Tronzado 1"], "Empaque": ["Empaque 1", "Empaque 2"], "Enderezado": ["Enderezado 1", "Enderezado 2"], "Laminación": ["Laminación 1", "Laminación 2"], "Lijado": ["Lijado 2", "Lijado 3", "Lijado 5"], "Pintura / Lacado": ["Lacado 1"], "Rayado": ["Rayado 1"], "Remachado": ["Remachado 2", "Remachado 3", "Remachado 4", "Remachado 6", "Remachado 7"], "Revenido": ["Revenido 1", "Revenido 3"], "Temple": ["Temple 1", "Temple 2", "Temple 4"], "Troquelado": ["Troquelado 2", "Troquelado 5", "Troquelado 6"]}, "Palas": {"Empaque": ["Empaque 1", "Empaque 2"], "Estampado": ["Estampado"], "Limpieza / Granallado": ["Granallado"], "Otros": ["Carrusel"], "Perforado": ["Perforado de Anilla", "Perforado y sellado"], "Pintura / Lacado": ["Pintura"]}};
 const FAMILIAS = ["Machetes","Cuchillas","Limas","Palas"];
 const FAMILIA_EMOJI = {"Machetes":"🔪","Cuchillas":"🗡️","Limas":"🪚","Palas":"⛏️"};
 
@@ -233,9 +245,8 @@ const EXT_IMAGENES = ".png";
 const S = {
   registros: JSON.parse(localStorage.getItem("cd_registros")||"[]"),
   syncUrl: localStorage.getItem("cd_sync_url")||"https://script.google.com/macros/s/AKfycbx8FpJy8kGjLDDCMyD4MLP_08zdrZOSoRfOwD6kCMgdfk_rQltbSI9mOwLlxCwqynInTA/exec",
-  familia:null, puesto:"",
-  cantidades:{},   // codigo -> cantidad
-  procesos:{}      // codigo -> proceso de origen
+  familia:null, proceso:"", puesto:"",
+  cantidades:{}    // codigo -> cantidad
 };
 
 function pad(n){return String(n).padStart(2,"0");}
@@ -249,16 +260,14 @@ function fechaTurnoActual(){
 function llaveTurno(t,f){return `T${t}-${f}`;}
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2200);}
 
-/* proceso de origen sugerido: primer token del campo "process" del catálogo
-   que coincida con la lista de procesos de esa línea */
-function procesoSugerido(defecto, familia){
-  const lista = PROCESOS_POR_FAMILIA[familia]||[];
-  const tokens = String(defecto.process||"").split("/").map(t=>t.trim());
-  for(const t of tokens){
-    const m = lista.find(p => p.toLowerCase() === t.toLowerCase());
-    if(m) return m;
-  }
-  return "";
+/* origen del defecto según el catálogo, y si es ajeno al proceso auditado */
+function procesosDe(familia){ return Object.keys(ESTRUCTURA[familia]||{}); }
+function origenDefecto(d){ return String(d.process||"").trim(); }
+function esAjeno(d, proceso){
+  const org = origenDefecto(d);
+  if(!org || org.toLowerCase()==="general") return false;
+  const tokens = org.split("/").map(t=>t.trim().toLowerCase());
+  return !tokens.includes(proceso.toLowerCase());
 }
 
 /* ---------- Familias ---------- */
@@ -272,10 +281,32 @@ function renderFamilias(){
 }
 
 function seleccionarFamilia(familia){
-  S.familia=familia; S.puesto=""; S.cantidades={}; S.procesos={};
+  S.familia=familia; S.proceso=""; S.puesto=""; S.cantidades={};
   renderFamilias();
+  renderProcesos();
+  document.getElementById("zonaProceso").style.display="block";
+  document.getElementById("zonaPuesto").style.display="none";
+  renderDefectos();
+  actualizarBarra();
+}
+
+function renderProcesos(){
+  const box=document.getElementById("procesos");
+  const procs=ESTRUCTURA[S.familia]||{};
+  box.innerHTML=Object.keys(procs).map(p=>
+    `<button type="button" data-proc="${p}" class="${S.proceso===p?'active':''}">${p}<span class="n">(${procs[p].length})</span></button>`
+  ).join("");
+  box.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>seleccionarProceso(b.dataset.proc)));
+}
+
+function seleccionarProceso(proc){
+  S.proceso=proc; S.puesto=""; S.cantidades={};
+  renderProcesos();
+  const puestos=(ESTRUCTURA[S.familia]||{})[proc]||[];
   document.getElementById("puesto").innerHTML=`<option value="">Selecciona un puesto</option>`+
-    (PUESTOS_POR_FAMILIA[familia]||[]).map(p=>`<option value="${p}">${p}</option>`).join("");
+    puestos.map(p=>`<option value="${p}">${p}</option>`).join("");
+  document.getElementById("zonaPuesto").style.display="grid";
+  if(puestos.length===1){ document.getElementById("puesto").value=puestos[0]; S.puesto=puestos[0]; }
   renderDefectos();
   actualizarBarra();
 }
@@ -304,11 +335,14 @@ function renderDefectos(){
     !filtro || d.code.toLowerCase().includes(filtro) || d.name.toLowerCase().includes(filtro));
   document.getElementById("contadorDefectos").textContent=`${lista.length} de ${todos.length} defectos`;
 
-  const procs = PROCESOS_POR_FAMILIA[S.familia]||[];
   const grid=document.getElementById("defectosGrid");
   grid.innerHTML=lista.map(d=>{
     const cant=S.cantidades[d.code]||"";
-    const proc=S.procesos[d.code]||procesoSugerido(d,S.familia);
+    const org=origenDefecto(d);
+    const ajeno = S.proceso && esAjeno(d, S.proceso);
+    const notaOrigen = ajeno
+      ? `<div class="ajeno">⚠ Origen: ${org} — este defecto llegó desde otro proceso</div>`
+      : (org ? `<div class="origen">Origen típico: ${org}</div>` : "");
     return `
     <div class="def-card${cant?' con-cantidad':''}" data-codigo="${d.code}">
       <div class="cab"><span class="codigo">${d.code}</span><span class="nombre">${d.name.toUpperCase()}</span></div>
@@ -319,19 +353,13 @@ function renderDefectos(){
         <div class="txt">${d.description}</div>
         <div class="etq">CAUSA GENERAL</div>
         <div class="txt">${d.cause}</div>
+        ${notaOrigen}
       </div>
       <div class="def-foot">
         <div class="cant-row">
           <button type="button" class="btn-menos">-</button>
           <input type="number" class="cant-input" min="0" placeholder="0" value="${cant}">
           <button type="button" class="btn-mas">+</button>
-        </div>
-        <div class="proc-box${cant?' show':''}">
-          <label>Proceso donde se originó</label>
-          <select class="proc-card">
-            <option value="">Selecciona un proceso</option>
-            ${procs.map(p=>`<option value="${p}"${proc===p?' selected':''}>${p}</option>`).join("")}
-          </select>
         </div>
       </div>
     </div>`;
@@ -340,28 +368,10 @@ function renderDefectos(){
   grid.querySelectorAll(".def-card").forEach(card=>{
     const codigo=card.dataset.codigo;
     const input=card.querySelector(".cant-input");
-    const procBox=card.querySelector(".proc-box");
-    const procSel=card.querySelector(".proc-card");
-    const def = todos.find(x=>x.code===codigo);
-
     function aplicar(val){
       const n=parseInt(val)||0;
-      if(n>0){
-        S.cantidades[codigo]=n;
-        card.classList.add("con-cantidad");
-        procBox.classList.add("show");
-        if(!procSel.value){
-          const sug = procesoSugerido(def,S.familia);
-          if(sug){ procSel.value=sug; S.procesos[codigo]=sug; }
-        }else{
-          S.procesos[codigo]=procSel.value;
-        }
-      }else{
-        delete S.cantidades[codigo];
-        delete S.procesos[codigo];
-        card.classList.remove("con-cantidad");
-        procBox.classList.remove("show");
-      }
+      if(n>0){ S.cantidades[codigo]=n; card.classList.add("con-cantidad"); }
+      else{ delete S.cantidades[codigo]; card.classList.remove("con-cantidad"); }
       actualizarBarra();
     }
     input.addEventListener("input",()=>aplicar(input.value));
@@ -373,11 +383,6 @@ function renderDefectos(){
       const n=(parseInt(input.value)||0)+1;
       input.value=n; aplicar(n);
     });
-    procSel.addEventListener("change",()=>{
-      if(procSel.value) S.procesos[codigo]=procSel.value;
-      else delete S.procesos[codigo];
-      actualizarBarra();
-    });
   });
 }
 document.getElementById("buscador").addEventListener("input",renderDefectos);
@@ -388,20 +393,19 @@ function actualizarBarra(){
   document.getElementById("totalPiezas").textContent=total;
   document.getElementById("totalDefectos").textContent=codigos.length;
   document.getElementById("contextoBarra").textContent =
-    (S.familia||"—") + (S.puesto? " · "+S.puesto : " · selecciona el puesto") + " · Turno "+turnoActual();
+    (S.familia||"—") + (S.proceso? " · "+S.proceso : " · selecciona el proceso")
+    + (S.puesto? " · "+S.puesto : "") + " · Turno "+turnoActual();
 
-  const todosConProceso = codigos.every(c=>S.procesos[c]);
   document.getElementById("btnRegistrar").disabled =
-    !(S.familia && S.puesto && codigos.length>0 && todosConProceso);
+    !(S.familia && S.proceso && S.puesto && codigos.length>0);
 }
 
 /* ---------- Guardar ---------- */
 function registrarDesperdicio(){
   const codigos=Object.keys(S.cantidades);
   if(!codigos.length){toast("Escribe la cantidad en al menos un defecto");return;}
+  if(!S.proceso){toast("Selecciona el proceso que estás auditando");return;}
   if(!S.puesto){toast("Selecciona el puesto donde estás auditando");return;}
-  const sinProc=codigos.filter(c=>!S.procesos[c]);
-  if(sinProc.length){toast(`Falta el proceso en: ${sinProc.join(", ")}`);return;}
 
   const now=new Date();
   const turno=turnoActual();
@@ -415,8 +419,10 @@ function registrarDesperdicio(){
     return {
       id:"CD-"+Date.now()+"-"+i+"-"+Math.floor(Math.random()*1000),
       fecha:hoyISO(), hora, familia:S.familia,
-      proceso:S.procesos[codigo], puesto:S.puesto,
+      proceso:S.proceso, puesto:S.puesto,
       defectoCodigo:codigo, defectoLabel:d?d.name:"",
+      origenDefecto: d?origenDefecto(d):"",
+      defectoAjeno: (d && esAjeno(d,S.proceso)) ? "Sí" : "No",
       cantidad:S.cantidades[codigo],
       observacion:obs, turno, turnoKey,
       pendienteSync:!!S.syncUrl
@@ -430,7 +436,7 @@ function registrarDesperdicio(){
   toast(`${nuevos.length} defecto(s) registrados en ${S.puesto}`);
 
   // conserva línea y puesto para seguir auditando; limpia solo las cantidades
-  S.cantidades={}; S.procesos={};
+  S.cantidades={};
   document.getElementById("observacion").value="";
   renderDefectos();
   actualizarBarra();
@@ -451,14 +457,15 @@ function renderDashboardTurno(){
   const regs=S.registros.filter(r=>r.turnoKey===llave&&r.familia===familia);
   function agrupar(fn){
     const m={};
-    regs.forEach(r=>{const k=fn(r);m[k]=(m[k]||0)+r.cantidad;});
+    regs.forEach(r=>{const k=fn(r); if(k===null||k===undefined) return; m[k]=(m[k]||0)+r.cantidad;});
     const filas=Object.entries(m).sort((a,b)=>b[1]-a[1]);
     return {top:filas.slice(0,6),total:filas.reduce((s,[,v])=>s+v,0)};
   }
   const tablas=[
     ["Por Proceso","⚙️",agrupar(r=>r.proceso)],
     ["Por Puesto de Trabajo","📍",agrupar(r=>r.puesto)],
-    ["Por Defecto","⚠️",agrupar(r=>`${r.defectoCodigo} - ${r.defectoLabel}`)]
+    ["Por Defecto","⚠️",agrupar(r=>`${r.defectoCodigo} - ${r.defectoLabel}`)],
+    ["Defectos de otro proceso","↪️",agrupar(r=> r.defectoAjeno==="Sí" ? `${r.origenDefecto||"?"} → ${r.puesto}` : null, true)]
   ];
   grid.innerHTML=tablas.map(([t,ic,d])=>{
     if(d.total===0) return `<div class="tabla-card"><div class="cabecera">${ic} ${t}</div><div class="empty-mini">Sin registros en este turno.</div></div>`;
