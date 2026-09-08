@@ -115,6 +115,15 @@
   .rat-row .pr{color:var(--text-dim);font-size:.76rem;}
   .rat-row input{padding:7px 8px;font-size:.85rem;}
   .rat-head{font-size:.7rem;color:var(--text-dim);font-weight:700;border-bottom:2px solid var(--border);}
+  .emp-box{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:.86rem;}
+  .emp-box .et{font-size:.78rem;font-weight:600;color:var(--text-dim);}
+  .emp-box input{width:150px;padding:9px 10px;}
+  .emp-box button{padding:9px 18px;border:none;border-radius:8px;background:var(--red);color:#fff;font-weight:700;font-size:.84rem;cursor:pointer;}
+  .emp-box button.lite{background:#fff;color:var(--text);border:1px solid var(--border);}
+  .emp-guardado{background:var(--ok-bg,#e8f8ef);border:1px solid #c7ecd6;color:#1f9d55;
+    padding:8px 14px;border-radius:8px;font-weight:700;}
+  .emp-falta{background:#fff8e1;border:1px solid #f3e3ae;color:#92660a;padding:8px 14px;border-radius:8px;font-size:.8rem;}
+  .emp-detalle{font-size:.78rem;color:var(--text-dim);}
   .pareto{margin-top:4px;}
   .pareto .row{display:grid;grid-template-columns:minmax(130px,1.2fr) 1fr 62px;gap:10px;align-items:center;padding:5px 0;font-size:.82rem;}
   .pareto .bar{background:#f1f2f4;border-radius:4px;height:14px;overflow:hidden;}
@@ -337,12 +346,9 @@
           <option value="3">Turno 3 (Noche)</option>
         </select>
       </div>
-      <div>
-        <label for="dEmpacadas">Unidades empacadas</label>
-        <input type="number" id="dEmpacadas" min="0" placeholder="0" style="width:150px;">
-      </div>
       <button id="dActualizar">Actualizar</button>
     </div>
+    <div id="empBox" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);"></div>
   </div>
 
   <div id="dashContenido">
@@ -647,6 +653,8 @@ function rangoPeriodo(periodo, fecha, turno){
   const l=lunesDe(fecha), dom=sumarDias(l,6);
   return {desde:l, hasta:dom, clave:`W-${l}`, etiqueta:`Semana ${numeroSemana(fecha)} (${l} a ${dom})`};
 }
+// Las unidades empacadas SIEMPRE se guardan por línea + fecha + turno.
+// Día y semana son sumas de esos turnos; ahí no se captura nada.
 function guardarEmpacadas(fam, clave, valor){
   const all=JSON.parse(localStorage.getItem("cd_empacadas")||"{}");
   all[fam+"|"+clave]=valor;
@@ -656,7 +664,79 @@ function guardarEmpacadas(fam, clave, valor){
 function leerEmpacadas(fam, clave){
   const all=JSON.parse(localStorage.getItem("cd_empacadas")||"{}");
   const v=all[fam+"|"+clave];
-  return v==null?null:v;
+  return (v==null||v==="")?null:Number(v);
+}
+function empTurno(fam,turno,fecha){ return leerEmpacadas(fam, `T${turno}-${fecha}`); }
+function empDia(fam,fecha){
+  let tot=null, faltan=[];
+  ["1","2","3"].forEach(t=>{
+    const v=empTurno(fam,t,fecha);
+    if(v==null) faltan.push("T"+t); else tot=(tot||0)+v;
+  });
+  return {total:tot, faltan};
+}
+function empSemana(fam,lunes){
+  let tot=null, faltan=[];
+  for(let i=0;i<7;i++){
+    const f=sumarDias(lunes,i);
+    ["1","2","3"].forEach(t=>{
+      const v=empTurno(fam,t,f);
+      if(v==null) faltan.push(`${f.slice(5)} T${t}`); else tot=(tot||0)+v;
+    });
+  }
+  return {total:tot, faltan};
+}
+// fecha del TURNO al que pertenece el registro (turno 3 cruza medianoche)
+function fechaDeTurno(r){
+  const k=String(r.turnoKey||"");
+  return k.length>3 ? k.slice(3) : feStr(r);
+}
+
+function renderEmpBox(fam, periodo, fecha, turno, rango){
+  const box=document.getElementById("empBox");
+  if(!fam){ box.innerHTML=""; return null; }
+
+  if(periodo==="turno"){
+    const v=empTurno(fam,turno,fecha);
+    if(v==null){
+      box.innerHTML=`<div class="emp-box">
+        <span class="et">Unidades empacadas · Turno ${turno} · ${fecha}</span>
+        <input type="number" id="empIn" min="0" placeholder="0">
+        <button id="empSave">Guardar</button>
+        <span class="emp-falta">Sin registrar — el % de desperdicio no se puede calcular</span></div>`;
+      document.getElementById("empSave").onclick=()=>{
+        const n=parseInt(document.getElementById("empIn").value);
+        if(isNaN(n)||n<0){ toast("Escribe las unidades empacadas"); return; }
+        guardarEmpacadas(fam, `T${turno}-${fecha}`, n);
+        toast(`Guardado: ${n.toLocaleString("es-CO")} unidades`);
+        renderDashboardTurno();
+      };
+      document.getElementById("empIn").onkeydown=e=>{ if(e.key==="Enter") document.getElementById("empSave").click(); };
+    } else {
+      box.innerHTML=`<div class="emp-box">
+        <span class="et">Unidades empacadas · Turno ${turno} · ${fecha}</span>
+        <span class="emp-guardado">${v.toLocaleString("es-CO")} unidades</span>
+        <button class="lite" id="empEdit">Editar</button></div>`;
+      document.getElementById("empEdit").onclick=()=>{
+        const all=JSON.parse(localStorage.getItem("cd_empacadas")||"{}");
+        delete all[fam+"|"+`T${turno}-${fecha}`];
+        localStorage.setItem("cd_empacadas",JSON.stringify(all));
+        renderDashboardTurno();
+      };
+    }
+    return v;
+  }
+
+  const res = periodo==="dia" ? empDia(fam,fecha) : empSemana(fam,rango.desde);
+  const cuantos = periodo==="dia" ? 3 : 21;
+  const cargados = cuantos - res.faltan.length;
+  box.innerHTML=`<div class="emp-box">
+    <span class="et">Unidades empacadas · ${rango.etiqueta}</span>
+    <span class="emp-guardado">${res.total==null?"—":res.total.toLocaleString("es-CO")+" unidades"}</span>
+    <span class="emp-detalle">suma de ${cargados} de ${cuantos} turnos${res.faltan.length?` · faltan: ${res.faltan.slice(0,6).join(", ")}${res.faltan.length>6?"…":""}`:""}</span>
+    </div>
+    <div style="font-size:.74rem;color:var(--text-dim);margin-top:6px;">Para registrar unidades empacadas, cambia el período a "Un turno".</div>`;
+  return res.total;
 }
 async function enviarEmpacadas(fam, clave, valor){
   try{
@@ -701,18 +781,14 @@ function renderDashboardTurno(){
   const periodo = document.getElementById("dPeriodo").value;
   const rango = rangoPeriodo(periodo, fecha, turno);
 
-  // guardar unidades empacadas de este periodo
-  const empIn = document.getElementById("dEmpacadas").value;
-  if(empIn!=="") guardarEmpacadas(fam, rango.clave, parseInt(empIn)||0);
-  const empacadas = leerEmpacadas(fam, rango.clave);
-  document.getElementById("dEmpacadas").value = empacadas!=null ? empacadas : "";
+  const empacadas = renderEmpBox(fam, periodo, fecha, turno, rango);
 
   const regs = S.registros.filter(r=>{
     if(r.familia!==fam) return false;
     if(periodo==="turno") return r.turnoKey===llaveTurno(turno,fecha);
-    return feStr(r) >= rango.desde && feStr(r) <= rango.hasta &&
-           (periodo!=="dia" || true);
-  }).sort((a,b)=> (String(a.fecha)+a.hora).localeCompare(String(b.fecha)+b.hora));
+    const ft = fechaDeTurno(r);
+    return ft >= rango.desde && ft <= rango.hasta;
+  }).sort((a,b)=> (fechaDeTurno(a)+a.hora).localeCompare(fechaDeTurno(b)+b.hora));
 
   const ncTotal = regs.reduce((s,r)=>s+r.cantidad,0);
   const pct = (empacadas && empacadas>0) ? ncTotal/empacadas*100 : null;
@@ -811,7 +887,7 @@ function renderDashboardTurno(){
       </tbody></table></div>`:'<div class="empty-mini">Sin registros en este turno.</div>'}
   </div></div>`;
 
-  dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango);
+  dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango, fam);
   dibujarDonut(porProc, ncTotal);
   dibujarPareto(ordDef, ncTotal);
 }
@@ -839,7 +915,7 @@ function dibujarPareto(ordDef, ncTotal){
   });
 }
 
-function dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango){
+function dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango, famActual){
   const cv=document.getElementById("cvEvol"); if(!cv) return;
   let labels=[], datos=[];
 
@@ -847,11 +923,12 @@ function dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango){
     // % por día de la semana (usa las empacadas del período repartidas por día con registro)
     const dias={};
     for(let i=0;i<7;i++){ const f=sumarDias(rango.desde,i); dias[f]=0; }
-    regs.forEach(r=>{ const f=feStr(r); if(f in dias) dias[f]+=r.cantidad; });
-    const diasConDato=Object.values(dias).filter(v=>v>0).length || 1;
-    const empDia = empacadas? empacadas/diasConDato : 0;
+    regs.forEach(r=>{ const f=fechaDeTurno(r); if(f in dias) dias[f]+=r.cantidad; });
     labels=Object.keys(dias).map(f=>f.slice(5));
-    datos=Object.values(dias).map(v=> empDia>0 ? +(v/empDia*100).toFixed(2) : 0);
+    datos=Object.keys(dias).map(f=>{
+      const e=empDia(famActual,f).total;
+      return (e&&e>0) ? +(dias[f]/e*100).toFixed(2) : 0;
+    });
   } else {
     // acumulado por hora
     const ini = periodo==="turno" ? INICIO_TURNO[turno] : 0;
@@ -907,7 +984,6 @@ document.getElementById("dFamilia").addEventListener("change",renderDashboardTur
 document.getElementById("dPeriodo").addEventListener("change",()=>{
   document.getElementById("wrapTurno").style.display =
     document.getElementById("dPeriodo").value==="turno" ? "block":"none";
-  document.getElementById("dEmpacadas").value="";
   renderDashboardTurno();
 });
 document.getElementById("dFecha").addEventListener("change",renderDashboardTurno);
