@@ -253,6 +253,18 @@
   .notas-box{display:flex;gap:12px;align-items:flex-start;font-size:.79rem;color:var(--text-dim);line-height:1.6;}
   .notas-box .ni{width:30px;height:30px;border-radius:50%;background:#eef0f3;display:flex;align-items:center;justify-content:center;flex:none;}
   .notas-box b{color:var(--text);}
+
+  .btn-total{margin-top:9px;border:1px solid var(--border);background:#fff;color:var(--text);
+    padding:8px 14px;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer;}
+  .btn-total:hover{background:#fdeceb;border-color:var(--red);color:var(--red);}
+  .tbl-total{width:100%;border-collapse:collapse;font-size:.85rem;}
+  .tbl-total th{text-align:left;font-size:.7rem;color:var(--text-dim);padding:8px 6px;border-bottom:2px solid var(--border);}
+  .tbl-total td{padding:7px 6px;border-bottom:1px solid #f2f3f5;}
+  .tbl-total td.n,.tbl-total th.n{text-align:right;}
+  .tbl-total input{width:110px;padding:7px 9px;text-align:right;font-weight:700;}
+  .tbl-total tfoot td{font-weight:800;background:#f8f9fb;border-top:2px solid var(--border);padding:9px 6px;}
+  .tbl-total .sc{color:#92660a;font-weight:700;}
+  .tbl-total .neg{color:#c81d2e;font-weight:700;}
   .grp{margin-top:16px;}
   .grp-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
     border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:10px;flex-wrap:wrap;}
@@ -261,6 +273,16 @@
   .grp-head .gr{font-size:.72rem;color:var(--text-dim);}
   .grp-head .gr b{font-size:.85rem;margin:0 4px;}
   .grp-head .gr b.ok{color:#1f9d55;} .grp-head .gr b.warn{color:#92660a;} .grp-head .gr b.bad{color:#c81d2e;}
+
+  .grp-head .gr{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .sep-v{width:1px;height:14px;background:var(--border);display:inline-block;}
+  .sin-clas{background:#fff8e1;border:1px solid #f3e3ae;color:#92660a;padding:2px 9px;border-radius:20px;
+    font-size:.7rem;font-weight:700;}
+  .mini-cap{border:1px dashed var(--border);background:#fff;color:var(--red);font-size:.68rem;font-weight:700;
+    padding:2px 9px;border-radius:6px;cursor:pointer;margin-left:2px;}
+  .mini-cap:hover{background:#fdeceb;}
+  .mini-edit{border:none;background:none;color:var(--text-dim);font-size:.72rem;cursor:pointer;padding:0 3px;}
+  .mini-edit:hover{color:var(--red);}
   .mq-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
   @media(max-width:1050px){.mq-grid{grid-template-columns:repeat(2,1fr);}}
   @media(max-width:680px){.mq-grid{grid-template-columns:1fr;}}
@@ -489,6 +511,7 @@
       </div>
       <div class="puesto-hint">
         Al terminar este puesto, guarda y cambia de puesto o de proceso para continuar la auditoría.
+        <br><button class="btn-total" id="btnTotalTurno">🗑️ Cargar desperdicio total del turno</button>
       </div>
     </div>
   </div>
@@ -540,10 +563,6 @@
       </div>
       <button id="kActualizar">Actualizar</button>
       <button class="sec" id="kConfig">Editar ratios</button>
-      <div class="vista-tog" style="height:41px;">
-        <button id="kVerTarjetas" class="on">Tarjetas</button>
-        <button id="kVerFlujo">Flujo</button>
-      </div>
     </div>
     <div style="font-size:.76rem;color:var(--text-dim);margin-top:10px;" id="kInfoTurno"></div>
     <div style="font-size:.72rem;color:var(--text-dim);margin-top:4px;" id="kEstadoRatios"></div>
@@ -551,7 +570,19 @@
 
   <div id="zonaFlujo" style="display:none;">
     <div class="panel">
-      <div class="section-title"><h2>FLUJO DE PRODUCCIÓN</h2><span id="fResumen" style="font-size:.78rem;color:var(--text-dim);"></span></div>
+      <div class="section-title">
+        <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;">
+          <h2>FLUJO DE PRODUCCIÓN</h2>
+          <span id="fResumen" style="font-size:.78rem;color:var(--text-dim);"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:.68rem;font-weight:800;color:var(--text-dim);letter-spacing:.5px;">VISTA</span>
+          <div class="vista-tog">
+            <button id="kVerTarjetas2">Tarjetas</button>
+            <button id="kVerFlujo2" class="on">Flujo</button>
+          </div>
+        </div>
+      </div>
       <div class="flujo-leyenda" id="fLeyenda" style="border-top:none;padding-top:0;margin-top:0;margin-bottom:14px;"></div>
       <div class="flujo-wrap" id="fFlujo"></div>
     </div>
@@ -562,7 +593,16 @@
   <div class="prod-grid kpi5" id="kKpis" style="margin-bottom:16px;"></div>
 
   <div class="panel">
-    <div class="section-title"><h2>ESTADO POR MÁQUINA</h2></div>
+    <div class="section-title">
+      <h2>ESTADO POR MÁQUINA</h2>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:.68rem;font-weight:800;color:var(--text-dim);letter-spacing:.5px;">VISTA</span>
+        <div class="vista-tog">
+          <button id="kVerTarjetas" class="on">Tarjetas</button>
+          <button id="kVerFlujo">Flujo</button>
+        </div>
+      </div>
+    </div>
     <div class="barra-filtros">
       <div class="fsel">
         <label for="kSelProc">Proceso</label>
@@ -606,7 +646,7 @@
     </div>
   </div>
 
-  <div class="kpis" id="mKpis" style="grid-template-columns:repeat(4,1fr);"></div>
+  <div class="kpis" id="mKpis" style="grid-template-columns:repeat(5,1fr);"></div>
 
   <div class="dash-grid" style="grid-template-columns:1.5fr 1fr;">
     <div class="card"><div class="ch"><span class="ic">📈</span>Comportamiento del desperdicio</div>
@@ -682,6 +722,28 @@
   </div>
   <div class="obs"><input type="text" id="observacion" maxlength="150" placeholder="Observación (opcional)"></div>
   <button id="btnRegistrar" disabled>Registrar desperdicio</button>
+</div>
+
+
+<div class="modal-bg" id="modalTotal">
+  <div class="modal" style="max-width:720px;max-height:88vh;overflow-y:auto;">
+    <h3 style="margin-top:0;">Desperdicio total del turno</h3>
+    <p id="ttSub">Lo que recogió el patinador en cada proceso al cierre del turno. La diferencia con lo registrado
+    en rondas queda como <b>sin clasificar</b>.</p>
+    <div style="overflow-x:auto;">
+      <table class="tbl-total">
+        <thead><tr>
+          <th>Proceso</th><th class="n">En rondas</th><th class="n" style="width:130px;">Total recogido</th><th class="n">Sin clasificar</th>
+        </tr></thead>
+        <tbody id="ttBody"></tbody>
+        <tfoot><tr id="ttPie"></tr></tfoot>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button id="ttCancelar">Cancelar</button>
+      <button class="primary" id="ttGuardar">Guardar totales</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal-bg" id="syncModal">
@@ -986,15 +1048,27 @@ function leerEmpacadas(fam, clave){
 function empTurno(fam,turno,fecha){ return leerEmpacadas(fam, `T${turno}-${fecha}`); }
 // Desperdicio recogido por el patinador al cierre del turno (solo para el % del dashboard)
 function recTurno(fam,turno,fecha){ return leerEmpacadas(fam, `REC-T${turno}-${fecha}`); }
+// Desperdicio recogido por el patinador POR PROCESO y turno
+function recProcKey(proc,turno,fecha){ return `RECP|${proc}|T${turno}-${fecha}`; }
+function recProc(fam,proc,turno,fecha){ return leerEmpacadas(fam, recProcKey(proc,turno,fecha)); }
+function setRecProc(fam,proc,turno,fecha,v){ guardarEmpacadas(fam, recProcKey(proc,turno,fecha), v); }
+// suma de todos los procesos de la línea en un turno
+function recTurnoTotal(fam,turno,fecha){
+  let t=null;
+  Object.keys(ESTRUCTURA[fam]||{}).forEach(p=>{
+    const v=recProc(fam,p,turno,fecha); if(v!=null) t=(t||0)+v;
+  });
+  return t;
+}
 function recDia(fam,fecha){
   let tot=null;
-  ["1","2","3"].forEach(t=>{ const v=recTurno(fam,t,fecha); if(v!=null) tot=(tot||0)+v; });
+  ["1","2","3"].forEach(t=>{ const v=recTurnoTotal(fam,t,fecha); if(v!=null) tot=(tot||0)+v; });
   return tot;
 }
 function recSemana(fam,lunes){
   let tot=null;
   for(let i=0;i<7;i++){ const f=sumarDias(lunes,i);
-    ["1","2","3"].forEach(t=>{ const v=recTurno(fam,t,f); if(v!=null) tot=(tot||0)+v; }); }
+    ["1","2","3"].forEach(t=>{ const v=recTurnoTotal(fam,t,f); if(v!=null) tot=(tot||0)+v; }); }
   return tot;
 }
 function empDia(fam,fecha){
@@ -1047,7 +1121,7 @@ function renderEmpBox(fam, periodo, fecha, turno, rango){
   const esTurno = periodo==="turno";
   let emp, rec, detalleEmp="";
   if(esTurno){
-    emp=empTurno(fam,turno,fecha); rec=recTurno(fam,turno,fecha);
+    emp=empTurno(fam,turno,fecha); rec=recTurnoTotal(fam,turno,fecha);
   } else {
     const rE = periodo==="dia" ? empDia(fam,fecha) : empSemana(fam,rango.desde);
     emp = rE.total;
@@ -1119,9 +1193,9 @@ function renderEmpBox(fam, periodo, fecha, turno, rango){
         pie: esTurno?"&nbsp;":`<span>${detalleEmp}</span>`, editable:esTurno})}
 
       ${tarjeta({clase:"roja", icono:"🗑️", id:"rec",
-        titulo:"Desperdicio recolectado", sub:"Patinador · cierre de turno",
+        titulo:"Desperdicio recolectado", sub:"Patinador · suma de procesos",
         valor: rec==null?null:f0(rec), unidad:"unidades",
-        pie:"&nbsp;", editable:esTurno})}
+        pie:`<span>${rec==null?"se captura por proceso en Control":"capturado por proceso"}</span>`, editable:false})}
 
       ${tarjeta({clase:est, icono:"％", id:"pct",
         titulo:"% Desperdicio", sub:`Meta ${fam} ≤ ${meta}%`,
@@ -1160,7 +1234,6 @@ function renderEmpBox(fam, periodo, fecha, turno, rango){
       };
     }
     enganchar("emp",`T${turno}-${fecha}`,"las unidades empacadas");
-    enganchar("rec",`REC-T${turno}-${fecha}`,"las unidades recogidas");
   }
 
   return {empacadas:emp, recogidas:rec};
@@ -1183,6 +1256,77 @@ function ncPendienteTexto(fam, periodo, fecha, turno, rango){
   const nc = regs.reduce((s,r)=>s+r.cantidad,0);
   return nc ? `<br><br>En las rondas de inspección se registraron <b>${nc}</b> piezas no conformes.` : "";
 }
+
+
+/* ---------- Desperdicio total del turno (patinador) ---------- */
+function abrirTotalTurno(){
+  if(!S.familia){ toast("Selecciona primero la línea de producto"); return; }
+  const fam = S.familia;
+  const turno = turnoActual();
+  const fecha = fechaTurnoActual();
+  const llave = llaveTurno(turno, fecha);
+
+  document.getElementById("ttSub").innerHTML =
+    `<b>${fam}</b> · Turno ${turno} · ${fecha}<br>
+     Lo que recogió el patinador en cada proceso al cierre del turno. La diferencia con lo registrado
+     en rondas queda como <b>sin clasificar</b>.`;
+
+  const procs = Object.keys(ESTRUCTURA[fam]||{});
+  const ncPorProc = {};
+  S.registros.filter(r=>r.turnoKey===llave && r.familia===fam)
+             .forEach(r=> ncPorProc[r.proceso]=(ncPorProc[r.proceso]||0)+r.cantidad);
+
+  document.getElementById("ttBody").innerHTML = procs.map(p=>{
+    const nc = ncPorProc[p]||0;
+    const v = recProc(fam,p,turno,fecha);
+    return `<tr data-p="${p}">
+      <td>${p}</td>
+      <td class="n">${nc}</td>
+      <td class="n"><input type="number" class="tt-in" min="0" value="${v??""}" placeholder="—"></td>
+      <td class="n tt-sc">—</td>
+    </tr>`;
+  }).join("");
+
+  function recalc(){
+    let tNc=0, tRec=0, tSin=0;
+    document.querySelectorAll("#ttBody tr").forEach(tr=>{
+      const nc = parseInt(tr.children[1].textContent)||0;
+      const raw = tr.querySelector(".tt-in").value;
+      const rec = raw==="" ? null : (parseInt(raw)||0);
+      const celda = tr.querySelector(".tt-sc");
+      tNc += nc;
+      if(rec==null){ celda.textContent="—"; celda.className="n tt-sc"; return; }
+      tRec += rec;
+      const dif = rec-nc;
+      tSin += Math.max(0,dif);
+      celda.textContent = dif>=0 ? dif : `${dif} ⚠`;
+      celda.className = dif>=0 ? "n tt-sc sc" : "n tt-sc neg";
+      celda.title = dif<0 ? "El total recogido es menor que lo registrado en rondas" : "";
+    });
+    document.getElementById("ttPie").innerHTML =
+      `<td>TOTAL</td><td class="n">${tNc}</td><td class="n">${tRec||"—"}</td><td class="n">${tSin||"—"}</td>`;
+  }
+  document.querySelectorAll("#ttBody .tt-in").forEach(i=>i.addEventListener("input", recalc));
+  recalc();
+
+  document.getElementById("ttGuardar").onclick = ()=>{
+    let n=0;
+    document.querySelectorAll("#ttBody tr").forEach(tr=>{
+      const raw = tr.querySelector(".tt-in").value;
+      if(raw==="") return;
+      const val = Math.max(0, parseInt(raw)||0);
+      const prev = recProc(fam, tr.dataset.p, turno, fecha);
+      if(prev!==val){ setRecProc(fam, tr.dataset.p, turno, fecha, val); n++; }
+    });
+    document.getElementById("modalTotal").classList.remove("show");
+    toast(n? `${n} proceso(s) actualizados` : "Sin cambios");
+  };
+
+  document.getElementById("modalTotal").classList.add("show");
+}
+document.getElementById("btnTotalTurno").addEventListener("click", abrirTotalTurno);
+document.getElementById("ttCancelar").addEventListener("click", ()=>
+  document.getElementById("modalTotal").classList.remove("show"));
 
 /* ---------- Dashboard ejecutivo ---------- */
 let chartEvol=null, chartDonut=null;
@@ -1618,11 +1762,26 @@ function renderControl(){
       const pctP = teoP>0 ? ncP/teoP*100 : null;
       const clsP = pctP==null ? "" : estadoPorMeta(pctP, meta);
       const totalMaq = datos.filter(d=>d.proc===proc).length;
+      const recP = recProc(fam, proc, turno, fecha);
+      const sinClas = (recP!=null && recP>ncP) ? recP-ncP : 0;
+      const pctPat = (recP!=null && teoP>0) ? recP/teoP*100 : null;
+      const clsPat = pctPat==null ? "" : estadoPorMeta(pctPat, meta);
       return `<div class="grp">
         <div class="grp-head">
           <div><span class="gt">${proc.toUpperCase()}</span><span class="gc">${totalMaq} máquina(s)</span></div>
-          <div class="gr">desperdicio proceso <b class="${clsP}">${pctP==null?"—":pctP.toFixed(2)+"%"}</b>
-            ${ncP} NC / ${f0(teoP)} uds</div>
+          <div class="gr">
+            <span title="Solo lo identificado en rondas">rondas <b class="${clsP}">${pctP==null?"—":pctP.toFixed(2)+"%"}</b>
+              <span style="opacity:.75;">${ncP} NC / ${f0(teoP)} uds</span></span>
+            <span class="sep-v"></span>
+            <span title="Total recogido por el patinador en este proceso y turno">patinador
+              ${recP==null
+                ? `<span style="opacity:.6;">sin cargar</span>`
+                : `<b class="${clsPat}">${pctPat==null?"—":pctPat.toFixed(2)+"%"}</b>
+                   <span style="opacity:.75;">${recP} uds</span>
+                   `}
+            </span>
+            ${sinClas>0?`<span class="sep-v"></span><span class="sin-clas">${sinClas} sin clasificar</span>`:""}
+          </div>
         </div>
         <div class="mq-grid">
           ${lista.map(d=>`
@@ -1963,7 +2122,12 @@ function renderMaquina(){
   const enRango = regsMaq.filter(r => cubos.includes(claveDe(fechaDeTurno(r), periodo)));
   const nc = enRango.reduce((s,r)=>s+r.cantidad,0);
 
-  // producción real acumulada (solo días con dato)
+  // producción TEÓRICA del período (ratio × turnos del período) — base del cálculo
+  const cfgM = getCfg(fam, maq);
+  let teoTotal = 0;
+  const diasConRegistro = new Set(regsMaq.map(r=>fechaDeTurno(r)));
+
+  // producción real acumulada (solo informativa)
   let prod = 0, diasConProd = 0;
   const diasBase = periodo==="dia" ? cubos
     : (()=>{ const o=[]; const hoy=hoyISO();
@@ -1971,13 +2135,22 @@ function renderMaquina(){
         return o; })();
   diasBase.forEach(f=>{ const v=getProdReal(fam,maq,f); if(v!=null){ prod+=v; diasConProd++; } });
 
-  const pct = prod>0 ? nc/prod*100 : null;
+  // Teórico: solo los turnos de la línea en que hubo auditoría dentro del período.
+  // Contar los 3 turnos de todos los días daría una producción inflada (y un % irreal).
+  const turnosAuditados = new Set(
+    S.registros.filter(r => r.familia===fam && cubos.includes(claveDe(fechaDeTurno(r),periodo)))
+               .map(r => r.turnoKey));
+  const nTurnos = turnosAuditados.size;
+  teoTotal = (cfgM.activa && cfgM.ratio) ? cfgM.ratio * nTurnos : 0;
+
+  const pct = teoTotal>0 ? nc/teoTotal*100 : null;
   const est = pct==null ? "sin" : estadoPorMeta(pct, meta);
-  const etq = {ok:"Cumple la meta", warn:"Cerca del límite", bad:"Fuera de meta", sin:"Sin producción registrada"};
+  const etq = {ok:"Cumple la meta", warn:"Cerca del límite", bad:"Fuera de meta", sin:"Sin ratio configurado"};
   const f0 = n => n==null?"—":Math.round(n).toLocaleString("es-CO");
 
   document.getElementById("mNombre").textContent = maq;
-  document.getElementById("mSub").textContent = `${proc} · ${fam} · Meta ≤ ${meta}%`;
+  document.getElementById("mSub").innerHTML =
+    `${proc} · ${fam} · Meta ≤ ${meta}% <span style="color:#9aa5b1;">· el % se calcula con las piezas registradas en rondas sobre la producción teórica</span>`;
   const badge = document.getElementById("mBadge");
   badge.className = "mq-badge "+est; badge.textContent = etq[est];
   document.getElementById("mRango").textContent =
@@ -1989,9 +2162,9 @@ function renderMaquina(){
   const rank = hermanas.map(m=>{
     const n = S.registros.filter(r=>r.familia===fam && r.puesto===m &&
       cubos.includes(claveDe(fechaDeTurno(r),periodo))).reduce((s,r)=>s+r.cantidad,0);
-    let p=0, c=0;
-    diasBase.forEach(f=>{ const v=getProdReal(fam,m,f); if(v!=null){p+=v;c++;} });
-    return {maq:m, nc:n, pct: p>0 ? n/p*100 : null};
+    const cf = getCfg(fam,m);
+    const t = (cf.activa && cf.ratio) ? cf.ratio*nTurnos : 0;
+    return {maq:m, nc:n, pct: t>0 ? n/t*100 : null};
   }).filter(x=>x.pct!=null).sort((a,b)=>b.pct-a.pct);
   const pos = rank.findIndex(x=>x.maq===maq)+1;
 
@@ -2000,17 +2173,20 @@ function renderMaquina(){
       <div class="l">% DESPERDICIO</div><div class="m">Meta ≤ ${meta}%</div></div>
     <div class="kpi"><div class="v">${nc}</div>
       <div class="l">PIEZAS NO CONFORMES</div><div class="m">registradas en rondas</div></div>
-    <div class="kpi"><div class="v">${prod>0?f0(prod):"—"}</div>
-      <div class="l">PRODUCCIÓN REAL</div><div class="m">${diasConProd} día(s) con dato</div></div>
+    <div class="kpi"><div class="v">${teoTotal>0?f0(teoTotal):"—"}</div>
+      <div class="l">PRODUCCIÓN TEÓRICA</div><div class="m">${nTurnos} turno(s) auditado(s) × ${cfgM.ratio?f0(cfgM.ratio):"—"} uds</div></div>
+    <div class="kpi"><div class="v" style="color:#6b7280;">${prod>0?f0(prod):"—"}</div>
+      <div class="l">PRODUCCIÓN REAL</div><div class="m">${diasConProd?diasConProd+" día(s) con dato · solo referencia":"sin dato · solo referencia"}</div></div>
     <div class="kpi"><div class="v">${pos>0?pos+"º":"—"}<span style="font-size:1rem;color:var(--text-dim);">${rank.length?"/"+rank.length:""}</span></div>
       <div class="l">POSICIÓN EN ${proc.toUpperCase()}</div><div class="m">${pos===1&&rank.length>1?"la de mayor desperdicio":"1º = mayor desperdicio"}</div></div>`;
 
   // ---- gráfica de tendencia ----
   const serie = cubos.map(k=>{
     const ncK = regsMaq.filter(r=>claveDe(fechaDeTurno(r),periodo)===k).reduce((s,r)=>s+r.cantidad,0);
-    let pK=0;
-    diasBase.filter(f=>claveDe(f,periodo)===k).forEach(f=>{ const v=getProdReal(fam,maq,f); if(v!=null) pK+=v; });
-    return pK>0 ? +(ncK/pK*100).toFixed(2) : null;
+    const nT = new Set(S.registros.filter(r=>r.familia===fam && claveDe(fechaDeTurno(r),periodo)===k)
+                                  .map(r=>r.turnoKey)).size;
+    const tK = (cfgM.activa && cfgM.ratio) ? cfgM.ratio*nT : 0;
+    return tK>0 ? +(ncK/tK*100).toFixed(2) : null;
   });
   const labels = cubos.map(k=>etiquetaDe(k,periodo));
   if(chartMq) chartMq.destroy();
@@ -2222,12 +2398,12 @@ function aplicarVistaControl(){
   const flujo = VISTA_CTRL==="flujo";
   document.getElementById("zonaFlujo").style.display = flujo ? "block":"none";
   document.getElementById("zonaTarjetas").style.display = flujo ? "none":"block";
-  document.getElementById("kVerFlujo").classList.toggle("on", flujo);
-  document.getElementById("kVerTarjetas").classList.toggle("on", !flujo);
+  ["kVerFlujo","kVerFlujo2"].forEach(id=>document.getElementById(id).classList.toggle("on", flujo));
+  ["kVerTarjetas","kVerTarjetas2"].forEach(id=>document.getElementById(id).classList.toggle("on", !flujo));
   if(flujo) renderFlujo(); else renderControl();
 }
-document.getElementById("kVerTarjetas").addEventListener("click", ()=>{ VISTA_CTRL="tarjetas"; aplicarVistaControl(); });
-document.getElementById("kVerFlujo").addEventListener("click", ()=>{ VISTA_CTRL="flujo"; aplicarVistaControl(); });
+["kVerTarjetas","kVerTarjetas2"].forEach(id=>document.getElementById(id).addEventListener("click", ()=>{ VISTA_CTRL="tarjetas"; aplicarVistaControl(); }));
+["kVerFlujo","kVerFlujo2"].forEach(id=>document.getElementById(id).addEventListener("click", ()=>{ VISTA_CTRL="flujo"; aplicarVistaControl(); }));
 
 /* ---------- Pestañas ---------- */
 document.getElementById("tabRegistro").addEventListener("click",()=>{
