@@ -179,6 +179,23 @@
   .chips button.on{background:var(--red);border-color:var(--red);color:#fff;}
   .chips button.on .n{color:rgba(255,255,255,.8);}
   .chips button.dark.on{background:#1c1f24;border-color:#1c1f24;}
+
+  .barra-filtros{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:6px;
+    padding-bottom:14px;border-bottom:1px solid var(--border);}
+  .fsel{display:flex;align-items:center;gap:8px;}
+  .fsel label{margin:0;font-size:.7rem;font-weight:800;color:var(--text-dim);letter-spacing:.5px;text-transform:uppercase;}
+  .fsel select{width:auto;min-width:190px;padding:8px 11px;font-size:.85rem;font-weight:600;}
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:#f7f8fa;}
+  .seg button{border:none;background:transparent;color:var(--text-dim);padding:8px 13px;font-size:.79rem;
+    font-weight:600;cursor:pointer;border-right:1px solid var(--border);display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+  .seg button:last-child{border-right:none;}
+  .seg button:hover{background:#eef0f3;color:var(--text);}
+  .seg button .n{font-size:.72rem;font-weight:800;opacity:.65;}
+  .seg button.on{background:#fff;color:var(--text);box-shadow:inset 0 -2px 0 var(--red);}
+  .seg button.on .n{opacity:1;color:var(--red);}
+  .seg button.cero{opacity:.45;}
+  .limpiar{border:none;background:none;color:var(--red);font-size:.78rem;font-weight:700;cursor:pointer;
+    text-decoration:underline;padding:0;margin-left:auto;}
   .grp{margin-top:16px;}
   .grp-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
     border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:10px;flex-wrap:wrap;}
@@ -474,10 +491,15 @@
   <div class="kpis kpi5" id="kKpis"></div>
 
   <div class="panel">
-    <div class="section-title"><h2>ESTADO POR MÁQUINA</h2></div>
-    <span class="leyenda-sem" id="kLeyenda" style="margin-bottom:12px;"></span>
-    <div class="filtro-fila"><span class="filtro-et">PROCESO</span><div class="chips" id="kChipsProc"></div></div>
-    <div class="filtro-fila"><span class="filtro-et">CUMPLIMIENTO</span><div class="chips" id="kChipsCumpl"></div></div>
+    <div class="section-title"><h2>ESTADO POR MÁQUINA</h2><span class="leyenda-sem" id="kLeyenda"></span></div>
+    <div class="barra-filtros">
+      <div class="fsel">
+        <label for="kSelProc">Proceso</label>
+        <select id="kSelProc"></select>
+      </div>
+      <div class="seg" id="kChipsCumpl"></div>
+      <button class="limpiar" id="kLimpiar" style="display:none;">Limpiar filtros</button>
+    </div>
     <div id="kMaquinas"></div>
   </div>
 
@@ -1368,7 +1390,6 @@ function renderControl(){
 
   if(!fam){
     kpis.innerHTML="";
-    document.getElementById("kChipsProc").innerHTML="";
     document.getElementById("kChipsCumpl").innerHTML="";
     document.getElementById("kInfoTurno").textContent="";
     document.getElementById("kLeyenda").innerHTML="";
@@ -1425,11 +1446,10 @@ function renderControl(){
 
   const procs = Object.keys(ESTRUCTURA[fam]||{});
   const cuentaProc = p => p==="Todos" ? total : datos.filter(d=>d.proc===p).length;
-  document.getElementById("kChipsProc").innerHTML =
-    ["Todos",...procs].map(p=>
-      `<button data-p="${p}" class="${CTRL.proc===p?"on":""}">${p}<span class="n">${cuentaProc(p)}</span></button>`).join("");
-  document.querySelectorAll("#kChipsProc button").forEach(b=>
-    b.addEventListener("click",()=>{ CTRL.proc=b.dataset.p; renderControl(); }));
+  const selProc = document.getElementById("kSelProc");
+  selProc.innerHTML = ["Todos",...procs].map(p=>
+    `<option value="${p}"${CTRL.proc===p?" selected":""}>${p==="Todos"?"Todos los procesos":p} (${cuentaProc(p)})</option>`).join("");
+  selProc.onchange = () => { CTRL.proc = selProc.value; renderControl(); };
 
   const base = CTRL.proc==="Todos" ? datos : datos.filter(d=>d.proc===CTRL.proc);
   const cats = {
@@ -1440,11 +1460,19 @@ function renderControl(){
     "Sin ratio": base.filter(d=>d.cat==="sin").length,
     "Fuera de servicio": base.filter(d=>d.cat==="off").length
   };
+  const corto = {"Todas":"Todas","Cumplen":"Cumplen","Requieren atención":"Atención",
+                 "No cumplen":"No cumplen","Sin ratio":"Sin ratio","Fuera de servicio":"Inactivas"};
   document.getElementById("kChipsCumpl").innerHTML =
     Object.entries(cats).map(([k,v])=>
-      `<button class="dark ${CTRL.cumpl===k?"on":""}" data-c="${k}">${k}<span class="n">${v}</span></button>`).join("");
+      `<button class="${CTRL.cumpl===k?"on":""} ${v===0&&k!=="Todas"?"cero":""}" data-c="${k}" title="${k}">
+        ${corto[k]}<span class="n">${v}</span></button>`).join("");
   document.querySelectorAll("#kChipsCumpl button").forEach(b=>
     b.addEventListener("click",()=>{ CTRL.cumpl=b.dataset.c; renderControl(); }));
+
+  const hayFiltro = CTRL.proc!=="Todos" || CTRL.cumpl!=="Todas";
+  const btnLimpiar = document.getElementById("kLimpiar");
+  btnLimpiar.style.display = hayFiltro ? "block" : "none";
+  btnLimpiar.onclick = () => { CTRL.proc="Todos"; CTRL.cumpl="Todas"; renderControl(); };
 
   const filtroCat = {"Cumplen":"ok","Requieren atención":"warn","No cumplen":"bad","Sin ratio":"sin","Fuera de servicio":"off"};
   const visibles = base.filter(d => CTRL.cumpl==="Todas" || d.cat===filtroCat[CTRL.cumpl]);
