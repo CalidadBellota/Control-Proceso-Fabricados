@@ -166,7 +166,7 @@
   .emp-detalle{font-size:.78rem;color:var(--text-dim);}
 
   /* ---- Control: filtros y tarjetas de máquina ---- */
-  .leyenda-sem{font-size:.72rem;color:var(--text-dim);display:flex;gap:14px;}
+  .leyenda-sem{font-size:.72rem;color:var(--text-dim);display:flex;gap:16px;}
   .leyenda-sem i{font-style:normal;display:inline-flex;align-items:center;gap:5px;}
   .leyenda-sem i::before{content:"";width:8px;height:8px;border-radius:50%;}
   .leyenda-sem i.v::before{background:#22c55e;} .leyenda-sem i.a::before{background:#f2b90b;} .leyenda-sem i.r::before{background:#e53e3e;}
@@ -467,36 +467,18 @@
       <button id="kActualizar">Actualizar</button>
       <button class="sec" id="kConfig">Editar ratios</button>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-top:10px;">
-      <div style="font-size:.76rem;color:var(--text-dim);" id="kInfoTurno"></div>
-      <span class="leyenda-sem" id="kLeyenda"></span>
-    </div>
+    <div style="font-size:.76rem;color:var(--text-dim);margin-top:10px;" id="kInfoTurno"></div>
     <div style="font-size:.72rem;color:var(--text-dim);margin-top:4px;" id="kEstadoRatios"></div>
   </div>
 
   <div class="kpis kpi5" id="kKpis"></div>
 
-  <div class="ctrl-3col">
-    <aside class="col-proc">
-      <h4>Procesos</h4>
-      <div id="kListaProc"></div>
-    </aside>
-
-    <section class="col-cards">
-      <div class="col-head">
-        <div>
-          <h4>Máquinas por proceso</h4>
-          <p>Selecciona un proceso para ver el detalle de sus máquinas.</p>
-        </div>
-        <div class="vista-tog">
-          <button id="kVistaTarjetas" class="on">Tarjetas</button>
-          <button id="kVistaTabla">Tabla</button>
-        </div>
-      </div>
-      <div id="kProcCards"></div>
-    </section>
-
-    <aside class="col-det" id="kDetalle"></aside>
+  <div class="panel">
+    <div class="section-title"><h2>ESTADO POR MÁQUINA</h2></div>
+    <span class="leyenda-sem" id="kLeyenda" style="margin-bottom:12px;"></span>
+    <div class="filtro-fila"><span class="filtro-et">PROCESO</span><div class="chips" id="kChipsProc"></div></div>
+    <div class="filtro-fila"><span class="filtro-et">CUMPLIMIENTO</span><div class="chips" id="kChipsCumpl"></div></div>
+    <div id="kMaquinas"></div>
   </div>
 
 </section>
@@ -1375,30 +1357,22 @@ function textoSemaforo(meta){
   return `🟢 ≤${v.toFixed(2)}%  🟡 ${v.toFixed(2)}–${meta.toFixed(2)}%  🔴 >${meta.toFixed(2)}%`;
 }
 
-let CTRL = {proc:"Todos", vista:"tarjetas"};
-
-const ICONO_PROC = {
-  "Biselado":"⚙️","Corte":"✂️","Empaque":"📦","Enderezado":"✨","Lijado":"〰️","Otros":"⋯",
-  "Pintura / Lacado":"🖌️","Punzonado":"⁙","Reproceso":"🔄","Revenido":"🔥","Sellado":"🔒",
-  "Temple":"🌡️","Troquelado":"🔨","Laminación":"📏","Canalado":"📐","Rayado":"✏️","Remachado":"🔩",
-  "Forja":"🔨","Acabado":"✨","Picado":"⁘","Raspado":"〰️","Rectificado":"📏",
-  "Limpieza / Granallado":"💨","Estampado":"🔨","Perforado":"⁙","Hidrotemple":"💧","Control":"🔍"
-};
-const icoProc = p => ICONO_PROC[p] || "⚙️";
+let CTRL = {proc:"Todos", cumpl:"Todas"};
 
 function renderControl(){
   const fam = document.getElementById("kFamilia").value;
   const fecha = document.getElementById("kFecha").value || hoyISO();
   const turno = document.getElementById("kTurno").value;
+  const cont = document.getElementById("kMaquinas");
   const kpis = document.getElementById("kKpis");
 
   if(!fam){
     kpis.innerHTML="";
-    document.getElementById("kListaProc").innerHTML="";
-    document.getElementById("kProcCards").innerHTML=`<div class="empty-mini">Selecciona una línea de producto y presiona Actualizar.</div>`;
-    document.getElementById("kDetalle").innerHTML="";
+    document.getElementById("kChipsProc").innerHTML="";
+    document.getElementById("kChipsCumpl").innerHTML="";
     document.getElementById("kInfoTurno").textContent="";
     document.getElementById("kLeyenda").innerHTML="";
+    cont.innerHTML = `<div class="empty-mini">Selecciona una línea de producto y presiona Actualizar.</div>`;
     return;
   }
 
@@ -1433,144 +1407,99 @@ function renderControl(){
   });
 
   const f0 = n => n==null ? "—" : Math.round(n).toLocaleString("es-CO");
-  const cnt = (arr,c) => arr.filter(d=>d.cat===c).length;
-  const pc = (v,t) => t>0 ? (v/t*100).toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1})+"%" : "0,0%";
+  const cnt = c => datos.filter(d=>d.cat===c).length;
   const total = datos.length;
+  const pcT = v => total>0 ? (v/total*100).toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1})+"%" : "0,0%";
 
-  // ---- KPIs ----
   kpis.innerHTML = `
-    <div class="kpi"><div class="ic-k">🏭</div><div class="v">${total}</div><div class="l">Máquinas en planta</div></div>
-    <div class="kpi"><div class="ic-k g">✅</div><div class="v" style="color:#1f9d55;">${cnt(datos,"ok")}</div>
-      <div class="l">Cumplen</div><div class="m">${pc(cnt(datos,"ok"),total)}</div></div>
-    <div class="kpi"><div class="ic-k a">⚠️</div><div class="v" style="color:#92660a;">${cnt(datos,"warn")}</div>
-      <div class="l">Requieren atención</div><div class="m">${pc(cnt(datos,"warn"),total)}</div></div>
-    <div class="kpi"><div class="ic-k r">❌</div><div class="v" style="color:#c81d2e;">${cnt(datos,"bad")}</div>
-      <div class="l">No cumplen</div><div class="m">${pc(cnt(datos,"bad"),total)}</div></div>
-    <div class="kpi"><div class="ic-k n">➖</div><div class="v" style="color:#6b7280;">${cnt(datos,"sin")+cnt(datos,"off")}</div>
-      <div class="l">Sin ratio / inactivas</div><div class="m">${pc(cnt(datos,"sin")+cnt(datos,"off"),total)}</div></div>`;
+    <div class="kpi"><div class="ic-k">🏭</div><div class="v">${total}</div>
+      <div class="l">Máquinas en planta</div><div class="m">&nbsp;</div></div>
+    <div class="kpi"><div class="ic-k g">✅</div><div class="v" style="color:#1f9d55;">${cnt("ok")}</div>
+      <div class="l">Cumplen</div><div class="m">${pcT(cnt("ok"))}</div></div>
+    <div class="kpi"><div class="ic-k a">⚠️</div><div class="v" style="color:#92660a;">${cnt("warn")}</div>
+      <div class="l">Requieren atención</div><div class="m">${pcT(cnt("warn"))}</div></div>
+    <div class="kpi"><div class="ic-k r">❌</div><div class="v" style="color:#c81d2e;">${cnt("bad")}</div>
+      <div class="l">No cumplen</div><div class="m">${pcT(cnt("bad"))}</div></div>
+    <div class="kpi"><div class="ic-k n">➖</div><div class="v" style="color:#6b7280;">${cnt("sin")+cnt("off")}</div>
+      <div class="l">Sin ratio / inactivas</div><div class="m">${pcT(cnt("sin")+cnt("off"))}</div></div>`;
 
-  // ---- resumen por proceso ----
   const procs = Object.keys(ESTRUCTURA[fam]||{});
-  const resumen = procs.map(p=>{
-    const d = datos.filter(x=>x.proc===p);
-    const conRatio = d.filter(x=>x.teorico!=null);
-    const ncP = conRatio.reduce((s,x)=>s+x.nc,0);
-    const teoP = conRatio.reduce((s,x)=>s+x.teorico,0);
-    return {proc:p, maqs:d, n:d.length,
-      ok:cnt(d,"ok"), warn:cnt(d,"warn"), bad:cnt(d,"bad"), gris:cnt(d,"sin")+cnt(d,"off"),
-      ncP, teoP, pctP: teoP>0 ? ncP/teoP*100 : null};
-  });
+  const cuentaProc = p => p==="Todos" ? total : datos.filter(d=>d.proc===p).length;
+  document.getElementById("kChipsProc").innerHTML =
+    ["Todos",...procs].map(p=>
+      `<button data-p="${p}" class="${CTRL.proc===p?"on":""}">${p}<span class="n">${cuentaProc(p)}</span></button>`).join("");
+  document.querySelectorAll("#kChipsProc button").forEach(b=>
+    b.addEventListener("click",()=>{ CTRL.proc=b.dataset.p; renderControl(); }));
 
-  // ---- sidebar de procesos ----
-  document.getElementById("kListaProc").innerHTML =
-    [`<div class="pitem ${CTRL.proc==="Todos"?"on":""}" data-p="Todos"><span>Todos</span><span class="c">${total}</span></div>`]
-    .concat(resumen.map(r=>
-      `<div class="pitem ${CTRL.proc===r.proc?"on":""}" data-p="${r.proc}"><span>${r.proc}</span><span class="c">${r.n}</span></div>`
-    )).join("");
-  document.querySelectorAll("#kListaProc .pitem").forEach(el=>
-    el.addEventListener("click",()=>{ CTRL.proc = el.dataset.p; renderControl(); }));
+  const base = CTRL.proc==="Todos" ? datos : datos.filter(d=>d.proc===CTRL.proc);
+  const cats = {
+    "Todas": base.length,
+    "Cumplen": base.filter(d=>d.cat==="ok").length,
+    "Requieren atención": base.filter(d=>d.cat==="warn").length,
+    "No cumplen": base.filter(d=>d.cat==="bad").length,
+    "Sin ratio": base.filter(d=>d.cat==="sin").length,
+    "Fuera de servicio": base.filter(d=>d.cat==="off").length
+  };
+  document.getElementById("kChipsCumpl").innerHTML =
+    Object.entries(cats).map(([k,v])=>
+      `<button class="dark ${CTRL.cumpl===k?"on":""}" data-c="${k}">${k}<span class="n">${v}</span></button>`).join("");
+  document.querySelectorAll("#kChipsCumpl button").forEach(b=>
+    b.addEventListener("click",()=>{ CTRL.cumpl=b.dataset.c; renderControl(); }));
 
-  // ---- centro ----
-  const centro = document.getElementById("kProcCards");
-  const mostrar = CTRL.proc==="Todos" ? resumen : resumen.filter(r=>r.proc===CTRL.proc);
+  const filtroCat = {"Cumplen":"ok","Requieren atención":"warn","No cumplen":"bad","Sin ratio":"sin","Fuera de servicio":"off"};
+  const visibles = base.filter(d => CTRL.cumpl==="Todas" || d.cat===filtroCat[CTRL.cumpl]);
 
-  if(CTRL.vista==="tabla"){
-    const filas = (CTRL.proc==="Todos" ? datos : datos.filter(d=>d.proc===CTRL.proc))
-      .sort((a,b)=> (b.pct??-1)-(a.pct??-1));
-    const cls={ok:"g",warn:"a",bad:"r",sin:"n",off:"n"};
-    const etq={ok:"Cumple",warn:"Atención",bad:"No cumple",sin:"Sin ratio",off:"Inactiva"};
-    centro.innerHTML = `<table class="tabla-maq"><thead><tr>
-      <th>Máquina</th><th>Proceso</th><th class="n">Uds</th><th class="n">NC</th><th class="n">%</th><th>Estado</th></tr></thead><tbody>
-      ${filas.map(d=>`<tr>
-        <td><b>${d.maq}</b></td><td>${d.proc}</td>
-        <td class="n">${f0(d.teorico)}</td><td class="n">${d.nc}</td>
-        <td class="n"><b class="pct ${cls[d.cat]}" style="color:${d.cat==="ok"?"#1f9d55":d.cat==="warn"?"#92660a":d.cat==="bad"?"#c81d2e":"#8b939e"}">${d.pct==null?"—":d.pct.toFixed(2)+"%"}</b></td>
-        <td>${etq[d.cat]}</td></tr>`).join("")}
-      </tbody></table>`;
-  } else {
-    centro.innerHTML = `<div class="pgrid">${mostrar.map(r=>{
-      const seg = t => r.n>0 ? (t/r.n*100).toFixed(1) : 0;
-      return `<div class="pc-card ${CTRL.proc===r.proc?"sel":""}" data-p="${r.proc}">
-        <div class="top">
-          <span class="ci">${icoProc(r.proc)}</span>
-          <div><div class="nm">${r.proc}</div><div class="sb">${r.n} máquina(s)</div></div>
-          <div class="rt"><b>${pc(r.ok,r.n)}</b><span>Cumplen</span></div>
+  const porProceso = {};
+  visibles.forEach(d => (porProceso[d.proc] = porProceso[d.proc]||[]).push(d));
+
+  const etiqueta = {ok:"CONTINUAR", warn:"VIGILAR", bad:"PARAR PROCESO", sin:"CONFIGURAR RATIO", off:"FUERA DE SERVICIO"};
+
+  cont.innerHTML = Object.keys(porProceso).length===0
+    ? `<div class="empty-mini">Ninguna máquina cumple ese filtro.</div>`
+    : Object.entries(porProceso).map(([proc, lista])=>{
+      const delProc = datos.filter(d=>d.proc===proc && d.teorico!=null);
+      const ncP = delProc.reduce((s,d)=>s+d.nc,0);
+      const teoP = delProc.reduce((s,d)=>s+d.teorico,0);
+      const pctP = teoP>0 ? ncP/teoP*100 : null;
+      const clsP = pctP==null ? "" : estadoPorMeta(pctP, meta);
+      const totalMaq = datos.filter(d=>d.proc===proc).length;
+      return `<div class="grp">
+        <div class="grp-head">
+          <div><span class="gt">${proc.toUpperCase()}</span><span class="gc">${totalMaq} máquina(s)</span></div>
+          <div class="gr">desperdicio proceso <b class="${clsP}">${pctP==null?"—":pctP.toFixed(2)+"%"}</b>
+            ${ncP} NC / ${f0(teoP)} uds</div>
         </div>
-        <div class="barra">
-          <i class="g" style="width:${seg(r.ok)}%"></i><i class="a" style="width:${seg(r.warn)}%"></i>
-          <i class="r" style="width:${seg(r.bad)}%"></i><i class="n" style="width:${seg(r.gris)}%"></i>
+        <div class="mq-grid">
+          ${lista.map(d=>`
+            <div class="mq ${d.cat}" data-maq="${d.maq}">
+              <div class="r1">
+                <span class="nm">${d.maq}
+                  <label class="sw2"><input type="checkbox" class="sw-act" ${d.activa?"checked":""}><span></span></label>
+                </span>
+                <span class="pc">${d.cat==="sin"?"Sin ratio":d.cat==="off"?"—":d.pct.toFixed(2)+"%"}</span>
+              </div>
+              <div class="r2">
+                <span class="dt"><b>${f0(d.teorico)}</b> uds producidas<span class="sep">|</span><b>${d.nc}</b> no conformes</span>
+                <span class="pill" ${d.cat==="sin"?'data-cfg="1"':""}>${etiqueta[d.cat]}</span>
+              </div>
+            </div>`).join("")}
         </div>
-        <div class="dots"><span class="g">${r.ok}</span><span class="a">${r.warn}</span>
-          <span class="r">${r.bad}</span><span class="n">${r.gris}</span></div>
-      </div>`;}).join("")}</div>`;
-    centro.querySelectorAll(".pc-card").forEach(el=>
-      el.addEventListener("click",()=>{ CTRL.proc = el.dataset.p; renderControl(); }));
-  }
+      </div>`;
+    }).join("");
 
-  // ---- panel derecho ----
-  const det = document.getElementById("kDetalle");
-  const sel = CTRL.proc==="Todos"
-    ? {proc:"Todos los procesos", maqs:datos, n:total, ok:cnt(datos,"ok"), warn:cnt(datos,"warn"),
-       bad:cnt(datos,"bad"), gris:cnt(datos,"sin")+cnt(datos,"off")}
-    : resumen.find(r=>r.proc===CTRL.proc);
-  if(!sel){ det.innerHTML=""; return; }
-  const seg = t => sel.n>0 ? (t/sel.n*100).toFixed(1) : 0;
-  const cls={ok:"g",warn:"a",bad:"r",sin:"n",off:"n"};
-
-  det.innerHTML = `
-    <div class="det-head">
-      <div class="top">
-        <span class="ci" style="width:34px;height:34px;border-radius:9px;background:#fdecec;display:flex;align-items:center;justify-content:center;font-size:1rem;">${icoProc(sel.proc)}</span>
-        <div><h5>${sel.proc}</h5><div class="sb">${sel.n} máquina(s)</div></div>
-        <div class="rt"><b>${pc(sel.ok,sel.n)}</b><span>Cumplen</span></div>
-      </div>
-      <div class="barra">
-        <i class="g" style="width:${seg(sel.ok)}%"></i><i class="a" style="width:${seg(sel.warn)}%"></i>
-        <i class="r" style="width:${seg(sel.bad)}%"></i><i class="n" style="width:${seg(sel.gris)}%"></i>
-      </div>
-      <div class="dots"><span class="g">${sel.ok}</span><span class="a">${sel.warn}</span>
-        <span class="r">${sel.bad}</span><span class="n">${sel.gris}</span></div>
-      ${sel.pctP!=null?`<div style="font-size:.74rem;color:var(--text-dim);margin-top:9px;">
-        Desperdicio del proceso <b style="color:${estadoPorMeta(sel.pctP,meta)==="ok"?"#1f9d55":estadoPorMeta(sel.pctP,meta)==="warn"?"#92660a":"#c81d2e"};font-size:.85rem;">${sel.pctP.toFixed(2)}%</b>
-        · ${sel.ncP} NC / ${f0(sel.teoP)} uds</div>`:""}
-    </div>
-    <div class="det-lista">
-      <h5>Máquinas en ${sel.proc}</h5>
-      ${sel.maqs.map(d=>`
-        <div class="mrow" data-maq="${d.maq}">
-          <span class="dot ${cls[d.cat]}"></span>
-          <div class="info"><b>${d.maq}</b>
-            <span>${f0(d.teorico)} uds · ${d.nc} NC${CTRL.proc==="Todos"?" · "+d.proc:""}</span></div>
-          <span class="pct ${cls[d.cat]}">${d.cat==="sin"?"Sin ratio":d.cat==="off"?"Inactiva":d.pct.toFixed(2)+"%"}</span>
-          <label class="sw2"><input type="checkbox" class="sw-act" ${d.activa?"checked":""}><span></span></label>
-        </div>`).join("")}
-    </div>
-    <button class="btn-detproc" id="kVerDetalle">📊 Configurar ratios de ${sel.proc==="Todos los procesos"?"la línea":sel.proc}</button>`;
-
-  det.querySelectorAll(".mrow").forEach(row=>{
-    row.querySelector(".sw-act").addEventListener("change", e=>{
-      setCfg(fam, row.dataset.maq, {activa:e.target.checked}); renderControl();
+  cont.querySelectorAll(".mq").forEach(card=>{
+    const maq = card.dataset.maq;
+    card.querySelector(".sw-act").addEventListener("change", e=>{
+      setCfg(fam, maq, {activa:e.target.checked}); renderControl();
+    });
+    const pill = card.querySelector('.pill[data-cfg]');
+    if(pill) pill.addEventListener("click", ()=>{
+      document.getElementById("rFamilia").value = fam;
+      renderEditorRatios();
+      document.getElementById("modalRatios").classList.add("show");
     });
   });
-  document.getElementById("kVerDetalle").addEventListener("click", ()=>{
-    document.getElementById("rFamilia").value = fam;
-    renderEditorRatios();
-    document.getElementById("modalRatios").classList.add("show");
-  });
 }
-
-document.getElementById("kVistaTarjetas").addEventListener("click", ()=>{
-  CTRL.vista="tarjetas";
-  document.getElementById("kVistaTarjetas").classList.add("on");
-  document.getElementById("kVistaTabla").classList.remove("on");
-  renderControl();
-});
-document.getElementById("kVistaTabla").addEventListener("click", ()=>{
-  CTRL.vista="tabla";
-  document.getElementById("kVistaTabla").classList.add("on");
-  document.getElementById("kVistaTarjetas").classList.remove("on");
-  renderControl();
-});
 
 document.getElementById("kActualizar").addEventListener("click", renderControl);
 document.getElementById("kFamilia").addEventListener("change", renderControl);
