@@ -257,6 +257,11 @@
   .btn-total{margin-top:9px;border:1px solid var(--border);background:#fff;color:var(--text);
     padding:8px 14px;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer;}
   .btn-total:hover{background:#fdeceb;border-color:var(--red);color:var(--red);}
+
+  .tbl-cierre th.grp1{background:#f7f8fa;} .tbl-cierre th.grp2{background:#eef1f5;}
+  .tbl-cierre td.grp2{background:#fafbfc;}
+  .tbl-cierre th{text-align:center;}
+  .tbl-cierre input{width:88px;}
   .tbl-total{width:100%;border-collapse:collapse;font-size:.85rem;}
   .tbl-total th{text-align:left;font-size:.7rem;color:var(--text-dim);padding:8px 6px;border-bottom:2px solid var(--border);}
   .tbl-total td{padding:7px 6px;border-bottom:1px solid #f2f3f5;}
@@ -484,6 +489,7 @@
         <button id="tabRegistro" class="active">Registro</button>
         <button id="tabControl">Control</button>
         <button id="tabDashboard">Dashboard</button>
+        <button id="tabCierre">Cierre</button>
       </nav>
       <span style="display:flex;align-items:center;gap:6px;">
         <span id="syncDot" style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5);display:inline-block;"></span>
@@ -511,7 +517,6 @@
       </div>
       <div class="puesto-hint">
         Al terminar este puesto, guarda y cambia de puesto o de proceso para continuar la auditoría.
-        <br><button class="btn-total" id="btnTotalTurno">🗑️ Cargar desperdicio total del turno</button>
       </div>
     </div>
   </div>
@@ -570,11 +575,8 @@
 
   <div id="zonaFlujo" style="display:none;">
     <div class="panel">
-      <div class="section-title">
-        <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;">
-          <h2>FLUJO DE PRODUCCIÓN</h2>
-          <span id="fResumen" style="font-size:.78rem;color:var(--text-dim);"></span>
-        </div>
+      <div class="section-title" style="justify-content:flex-start;gap:22px;">
+        <h2>FLUJO DE PRODUCCIÓN</h2>
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:.68rem;font-weight:800;color:var(--text-dim);letter-spacing:.5px;">VISTA</span>
           <div class="vista-tog">
@@ -582,6 +584,7 @@
             <button id="kVerFlujo2" class="on">Flujo</button>
           </div>
         </div>
+        <span id="fResumen" style="font-size:.78rem;color:var(--text-dim);margin-left:auto;"></span>
       </div>
       <div class="flujo-leyenda" id="fLeyenda" style="border-top:none;padding-top:0;margin-top:0;margin-bottom:14px;"></div>
       <div class="flujo-wrap" id="fFlujo"></div>
@@ -593,7 +596,7 @@
   <div class="prod-grid kpi5" id="kKpis" style="margin-bottom:16px;"></div>
 
   <div class="panel">
-    <div class="section-title">
+    <div class="section-title" style="justify-content:flex-start;gap:22px;">
       <h2>ESTADO POR MÁQUINA</h2>
       <div style="display:flex;align-items:center;gap:10px;">
         <span style="font-size:.68rem;font-weight:800;color:var(--text-dim);letter-spacing:.5px;">VISTA</span>
@@ -620,6 +623,32 @@
 
 
 
+
+
+<!-- ============ CIERRE ============ -->
+<section id="viewCierre" style="display:none;">
+  <div class="panel">
+    <div class="ctrl-top" style="grid-template-columns:1.2fr 1fr auto;">
+      <div>
+        <label for="cxFamilia">Línea de producto *</label>
+        <select id="cxFamilia">
+          <option value="">Selecciona una línea</option>
+          <option value="Machetes">Machetes</option>
+          <option value="Cuchillas">Cuchillas</option>
+          <option value="Limas">Limas</option>
+          <option value="Palas">Palas</option>
+        </select>
+      </div>
+      <div><label for="cxFecha">Día a cerrar</label><input type="date" id="cxFecha"></div>
+      <button id="cxGuardar" disabled>Guardar cierre</button>
+    </div>
+    <div style="font-size:.76rem;color:var(--text-dim);margin-top:10px;" id="cxInfo"></div>
+  </div>
+
+  <div id="cxContenido">
+    <div class="panel"><div class="empty-mini">Selecciona una línea y el día que vas a cerrar.</div></div>
+  </div>
+</section>
 
 <!-- ============ DETALLE DE MÁQUINA ============ -->
 <section id="viewMaquina" style="display:none;">
@@ -725,26 +754,6 @@
 </div>
 
 
-<div class="modal-bg" id="modalTotal">
-  <div class="modal" style="max-width:720px;max-height:88vh;overflow-y:auto;">
-    <h3 style="margin-top:0;">Desperdicio total del turno</h3>
-    <p id="ttSub">Lo que recogió el patinador en cada proceso al cierre del turno. La diferencia con lo registrado
-    en rondas queda como <b>sin clasificar</b>.</p>
-    <div style="overflow-x:auto;">
-      <table class="tbl-total">
-        <thead><tr>
-          <th>Proceso</th><th class="n">En rondas</th><th class="n" style="width:130px;">Total recogido</th><th class="n">Sin clasificar</th>
-        </tr></thead>
-        <tbody id="ttBody"></tbody>
-        <tfoot><tr id="ttPie"></tr></tfoot>
-      </table>
-    </div>
-    <div class="modal-actions">
-      <button id="ttCancelar">Cancelar</button>
-      <button class="primary" id="ttGuardar">Guardar totales</button>
-    </div>
-  </div>
-</div>
 
 <div class="modal-bg" id="syncModal">
   <div class="modal">
@@ -1060,15 +1069,11 @@ function recTurnoTotal(fam,turno,fecha){
   });
   return t;
 }
-function recDia(fam,fecha){
-  let tot=null;
-  ["1","2","3"].forEach(t=>{ const v=recTurnoTotal(fam,t,fecha); if(v!=null) tot=(tot||0)+v; });
-  return tot;
-}
+function recDia(fam,fecha){ return recTotalDia(fam,fecha); }
 function recSemana(fam,lunes){
   let tot=null;
   for(let i=0;i<7;i++){ const f=sumarDias(lunes,i);
-    ["1","2","3"].forEach(t=>{ const v=recTurnoTotal(fam,t,f); if(v!=null) tot=(tot||0)+v; }); }
+    const v=recTotalDia(fam,f); if(v!=null) tot=(tot||0)+v; }
   return tot;
 }
 function empDia(fam,fecha){
@@ -1193,9 +1198,9 @@ function renderEmpBox(fam, periodo, fecha, turno, rango){
         pie: esTurno?"&nbsp;":`<span>${detalleEmp}</span>`, editable:esTurno})}
 
       ${tarjeta({clase:"roja", icono:"🗑️", id:"rec",
-        titulo:"Desperdicio recolectado", sub:"Patinador · suma de procesos",
+        titulo:"Desperdicio recolectado", sub:"Patinador · cierre de turno",
         valor: rec==null?null:f0(rec), unidad:"unidades",
-        pie:`<span>${rec==null?"se captura por proceso en Control":"capturado por proceso"}</span>`, editable:false})}
+        pie:`<span>${rec==null?"pendiente de cierre":"cargado en la pestaña Cierre"}</span>`, editable:false})}
 
       ${tarjeta({clase:est, icono:"％", id:"pct",
         titulo:"% Desperdicio", sub:`Meta ${fam} ≤ ${meta}%`,
@@ -1258,75 +1263,160 @@ function ncPendienteTexto(fam, periodo, fecha, turno, rango){
 }
 
 
-/* ---------- Desperdicio total del turno (patinador) ---------- */
-function abrirTotalTurno(){
-  if(!S.familia){ toast("Selecciona primero la línea de producto"); return; }
-  const fam = S.familia;
-  const turno = turnoActual();
-  const fecha = fechaTurnoActual();
-  const llave = llaveTurno(turno, fecha);
+/* ==========================================================================
+   CIERRE — desperdicio recogido por el patinador, por proceso y por DÍA
+   ========================================================================== */
+// El patinador reporta por proceso y por turno (hay uno por turno).
+// El cierre se hace con el día vencido, cargando los tres turnos en una sola pantalla.
+function recProcDia(fam, proc, fecha){          // suma de los 3 turnos
+  let t=null;
+  ["1","2","3"].forEach(tn=>{ const v=recProc(fam,proc,tn,fecha); if(v!=null) t=(t||0)+v; });
+  return t;
+}
+function recTotalDia(fam, fecha){
+  let t=null;
+  (PROCESOS_PATINADOR[fam]||[]).forEach(p=>{
+    const v=recProcDia(fam,p,fecha); if(v!=null) t=(t||0)+v;
+  });
+  return t;
+}
+// NC de rondas por proceso y turno
+function ncRondasTurno(fam, fecha, turno){
+  const out={};
+  S.registros.filter(r=>r.familia===fam && fechaDeTurno(r)===fecha && String(r.turno)===String(turno))
+             .forEach(r=> out[r.proceso]=(out[r.proceso]||0)+r.cantidad);
+  return out;
+}
+// NC de rondas del día (los 3 turnos) por proceso
+function ncRondasDia(fam, fecha){
+  const out={};
+  S.registros.filter(r=>r.familia===fam && fechaDeTurno(r)===fecha)
+             .forEach(r=> out[r.proceso]=(out[r.proceso]||0)+r.cantidad);
+  return out;
+}
 
-  document.getElementById("ttSub").innerHTML =
-    `<b>${fam}</b> · Turno ${turno} · ${fecha}<br>
-     Lo que recogió el patinador en cada proceso al cierre del turno. La diferencia con lo registrado
-     en rondas queda como <b>sin clasificar</b>.`;
+function renderCierre(){
+  const fam = document.getElementById("cxFamilia").value;
+  const fecha = document.getElementById("cxFecha").value || sumarDias(hoyISO(),-1);
+  const box = document.getElementById("cxContenido");
+  const btn = document.getElementById("cxGuardar");
 
-  const procs = Object.keys(ESTRUCTURA[fam]||{});
-  const ncPorProc = {};
-  S.registros.filter(r=>r.turnoKey===llave && r.familia===fam)
-             .forEach(r=> ncPorProc[r.proceso]=(ncPorProc[r.proceso]||0)+r.cantidad);
+  if(!fam){
+    box.innerHTML = `<div class="panel"><div class="empty-mini">Selecciona una línea y el día que vas a cerrar.</div></div>`;
+    document.getElementById("cxInfo").textContent = "";
+    btn.disabled = true;
+    return;
+  }
+  btn.disabled = false;
 
-  document.getElementById("ttBody").innerHTML = procs.map(p=>{
-    const nc = ncPorProc[p]||0;
-    const v = recProc(fam,p,turno,fecha);
-    return `<tr data-p="${p}">
-      <td>${p}</td>
-      <td class="n">${nc}</td>
-      <td class="n"><input type="number" class="tt-in" min="0" value="${v??""}" placeholder="—"></td>
-      <td class="n tt-sc">—</td>
-    </tr>`;
-  }).join("");
+  const procs = PROCESOS_PATINADOR[fam] || [];
+  const yaCargado = procs.some(p => ["1","2","3"].some(t=>recProc(fam,p,t,fecha)!=null));
+
+  document.getElementById("cxInfo").innerHTML =
+    `El patinador recoge el desperdicio de todo el día, no por turno. Este cierre se hace con el día vencido.
+     ${yaCargado?'<b style="color:#1f9d55;">· Este día ya tiene datos cargados.</b>':'<b style="color:#92660a;">· Sin cargar.</b>'}`;
+
+  const ncT = {1:ncRondasTurno(fam,fecha,"1"), 2:ncRondasTurno(fam,fecha,"2"), 3:ncRondasTurno(fam,fecha,"3")};
+
+  box.innerHTML = `<div class="panel">
+    <div class="section-title"><h2>DESPERDICIO RECOGIDO · ${fecha}</h2>
+      <span style="font-size:.78rem;color:var(--text-dim);">${procs.length} procesos que reporta el patinador</span></div>
+    <div style="overflow-x:auto;">
+      <table class="tbl-total tbl-cierre">
+        <thead>
+          <tr>
+            <th rowspan="2">Proceso</th>
+            <th colspan="2" class="grp1">Turno 1</th>
+            <th colspan="2" class="grp2">Turno 2</th>
+            <th colspan="2" class="grp1">Turno 3</th>
+            <th rowspan="2" class="n">Total día</th>
+            <th rowspan="2" class="n">Sin clasificar</th>
+          </tr>
+          <tr>
+            <th class="n grp1">Rondas</th><th class="n grp1">Recogido</th>
+            <th class="n grp2">Rondas</th><th class="n grp2">Recogido</th>
+            <th class="n grp1">Rondas</th><th class="n grp1">Recogido</th>
+          </tr>
+        </thead>
+        <tbody id="cxBody">
+          ${procs.map(p=>{
+            const celdas = ["1","2","3"].map(t=>{
+              const v = recProc(fam,p,t,fecha);
+              return `<td class="n ${t==="2"?"grp2":"grp1"}">${ncT[t][p]||0}</td>
+                      <td class="n ${t==="2"?"grp2":"grp1"}"><input type="number" class="cx-in" data-t="${t}" min="0" value="${v??""}" placeholder="—"></td>`;
+            }).join("");
+            return `<tr data-p="${p}">
+              <td><b>${p}</b></td>${celdas}
+              <td class="n cx-tot">—</td>
+              <td class="n cx-sc">—</td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+        <tfoot><tr id="cxPie"></tr></tfoot>
+      </table>
+    </div>
+    <div style="font-size:.74rem;color:var(--text-dim);margin-top:12px;">
+      Las piezas sin clasificar son las que el patinador recogió pero no se alcanzaron a identificar en las rondas
+      (por ejemplo, las que salieron después de la última ronda del turno). Puedes dejar en blanco los turnos sin recolección.
+    </div>
+  </div>`;
 
   function recalc(){
     let tNc=0, tRec=0, tSin=0;
-    document.querySelectorAll("#ttBody tr").forEach(tr=>{
-      const nc = parseInt(tr.children[1].textContent)||0;
-      const raw = tr.querySelector(".tt-in").value;
-      const rec = raw==="" ? null : (parseInt(raw)||0);
-      const celda = tr.querySelector(".tt-sc");
+    document.querySelectorAll("#cxBody tr").forEach(tr=>{
+      let nc=0, rec=null;
+      ["1","2","3"].forEach(t=> nc += (ncT[t][tr.dataset.p]||0));
+      tr.querySelectorAll(".cx-in").forEach(inp=>{
+        if(inp.value!=="") rec = (rec||0) + (parseInt(inp.value)||0);
+      });
+      tr.querySelector(".cx-tot").textContent = rec==null ? "—" : rec;
+      const cel = tr.querySelector(".cx-sc");
       tNc += nc;
-      if(rec==null){ celda.textContent="—"; celda.className="n tt-sc"; return; }
+      if(rec==null){ cel.textContent="—"; cel.className="n cx-sc"; return; }
       tRec += rec;
       const dif = rec-nc;
       tSin += Math.max(0,dif);
-      celda.textContent = dif>=0 ? dif : `${dif} ⚠`;
-      celda.className = dif>=0 ? "n tt-sc sc" : "n tt-sc neg";
-      celda.title = dif<0 ? "El total recogido es menor que lo registrado en rondas" : "";
+      cel.textContent = dif>=0 ? dif : `${dif} ⚠`;
+      cel.className = dif>=0 ? "n cx-sc sc" : "n cx-sc neg";
+      cel.title = dif<0 ? "El total recogido es menor que lo registrado en rondas" : "";
     });
-    document.getElementById("ttPie").innerHTML =
-      `<td>TOTAL</td><td class="n">${tNc}</td><td class="n">${tRec||"—"}</td><td class="n">${tSin||"—"}</td>`;
+    document.getElementById("cxPie").innerHTML =
+      `<td>TOTAL</td><td colspan="6" class="n" style="text-align:right;">rondas del día: ${tNc}</td>
+       <td class="n">${tRec||"—"}</td><td class="n">${tSin||"—"}</td>`;
   }
-  document.querySelectorAll("#ttBody .tt-in").forEach(i=>i.addEventListener("input", recalc));
+  document.querySelectorAll("#cxBody .cx-in").forEach(i=>i.addEventListener("input", recalc));
   recalc();
-
-  document.getElementById("ttGuardar").onclick = ()=>{
-    let n=0;
-    document.querySelectorAll("#ttBody tr").forEach(tr=>{
-      const raw = tr.querySelector(".tt-in").value;
-      if(raw==="") return;
-      const val = Math.max(0, parseInt(raw)||0);
-      const prev = recProc(fam, tr.dataset.p, turno, fecha);
-      if(prev!==val){ setRecProc(fam, tr.dataset.p, turno, fecha, val); n++; }
-    });
-    document.getElementById("modalTotal").classList.remove("show");
-    toast(n? `${n} proceso(s) actualizados` : "Sin cambios");
-  };
-
-  document.getElementById("modalTotal").classList.add("show");
 }
-document.getElementById("btnTotalTurno").addEventListener("click", abrirTotalTurno);
-document.getElementById("ttCancelar").addEventListener("click", ()=>
-  document.getElementById("modalTotal").classList.remove("show"));
+
+document.getElementById("cxGuardar").addEventListener("click", ()=>{
+  const fam = document.getElementById("cxFamilia").value;
+  const fecha = document.getElementById("cxFecha").value || sumarDias(hoyISO(),-1);
+  if(!fam){ toast("Selecciona una línea"); return; }
+  let n=0;
+  document.querySelectorAll("#cxBody tr").forEach(tr=>{
+    tr.querySelectorAll(".cx-in").forEach(inp=>{
+      if(inp.value==="") return;
+      const val = Math.max(0, parseInt(inp.value)||0);
+      if(recProc(fam, tr.dataset.p, inp.dataset.t, fecha)!==val){
+        setRecProc(fam, tr.dataset.p, inp.dataset.t, fecha, val); n++;
+      }
+    });
+  });
+  toast(n? `Cierre guardado · ${n} proceso(s)` : "Sin cambios");
+  renderCierre();
+});
+document.getElementById("cxFamilia").addEventListener("change", renderCierre);
+document.getElementById("cxFecha").addEventListener("change", renderCierre);
+
+document.getElementById("tabCierre").addEventListener("click", ()=>{
+  ["tabRegistro","tabControl","tabDashboard"].forEach(t=>document.getElementById(t).classList.remove("active"));
+  document.getElementById("tabCierre").classList.add("active");
+  ["viewRegistro","viewControl","viewDashboard","viewMaquina"].forEach(v=>document.getElementById(v).style.display="none");
+  document.getElementById("viewCierre").style.display="block";
+  document.getElementById("barraFija").style.display="none";
+  if(S.syncUrl) cargarRemoto();
+  renderCierre();
+});
 
 /* ---------- Dashboard ejecutivo ---------- */
 let chartEvol=null, chartDonut=null;
@@ -1527,7 +1617,12 @@ function dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango, famActua
       {label:`Meta ${meta}%`,data:labels.map(()=>meta),borderColor:"#9aa5b1",borderDash:[6,4],pointRadius:0,borderWidth:1.5}
     ]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:10}}}},
+      plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:10}}},
+        tooltip:{callbacks:{afterLabel:(ctx)=>{
+          if(ctx.datasetIndex!==0) return "";
+          const d=detalleSerie[ctx.dataIndex];
+          return `${d.nc} NC · ${d.turnos} turno(s) auditado(s) · ${Math.round(d.teo).toLocaleString("es-CO")} uds teóricas`;
+        }}}},
       scales:{y:{beginAtZero:true,ticks:{callback:v=>v+"%",font:{size:10}}},x:{ticks:{font:{size:10}}}}}
   });
 }
@@ -1647,6 +1742,8 @@ function textoSemaforo(meta){
 }
 
 const ICONO_FLUJO = {"Biselado": "◎", "Corte": "✂", "Empaque": "📦", "Enderezado": "⟋", "Lijado": "〰", "Otros": "⊕", "Pintura / Lacado": "🖌", "Punzonado": "⁙", "Reproceso": "↻", "Revenido": "♨", "Sellado": "🔒", "Temple": "🌡", "Troquelado": "⚒", "Laminación": "▤", "Canalado": "⌇", "Rayado": "✎", "Remachado": "⊙", "Forja": "⚒", "Acabado": "✦", "Picado": "⁘", "Raspado": "〰", "Rectificado": "▬", "Limpieza / Granallado": "❉", "Estampado": "⊓", "Perforado": "⁙", "Hidrotemple": "💧", "Control": "🔍"};
+const PROCESOS_PATINADOR = {"Limas": ["Forja", "Corte", "Rectificado", "Raspado", "Picado", "Enderezado", "Temple", "Control"], "Machetes": ["Corte", "Laminación", "Troquelado", "Temple", "Revenido", "Lijado", "Biselado", "Enderezado"], "Cuchillas": ["Corte", "Troquelado", "Temple", "Revenido", "Lijado", "Biselado", "Pintura", "Enderezado"], "Palas": ["Corte", "Troquelado", "Estampado", "Revenido", "Granallado", "Fosfatizado", "Pintura", "Empaque"]};
+
 const FLUJO_LINEA = {"Cuchillas": [{"p": "Corte", "t": "ob", "g": "corte", "n": "Corte láser: corta sin orificio, requiere punzonado"}, {"p": "Troquelado", "t": "ob", "g": "corte", "n": "Corta la cuchilla con el orificio central en una sola operación"}, {"p": "Punzonado", "t": "co", "n": "Solo piezas que vienen de corte láser"}, {"p": "Sellado", "t": "ob", "n": ""}, {"p": "Temple", "t": "ob", "n": ""}, {"p": "Revenido", "t": "ob", "n": ""}, {"p": "Lijado", "t": "co", "n": "Según acabado"}, {"p": "Biselado", "t": "ob", "n": ""}, {"p": "Pintura / Lacado", "t": "co", "n": "Solo cuchillas pintadas o lacadas"}, {"p": "Otros", "t": "ob", "n": "Galgueo — aplica a todas"}, {"p": "Empaque", "t": "ob", "n": ""}, {"p": "Enderezado", "t": "re", "n": "Retrabajo cuando no pasa galgueo"}, {"p": "Reproceso", "t": "re", "n": "Recuperación fuera de línea"}], "Machetes": [{"p": "Laminación", "t": "ob", "n": ""}, {"p": "Corte", "t": "ob", "g": "corte", "n": ""}, {"p": "Troquelado", "t": "ob", "g": "corte", "n": ""}, {"p": "Temple", "t": "ob", "n": ""}, {"p": "Revenido", "t": "ob", "n": ""}, {"p": "Enderezado", "t": "ob", "n": ""}, {"p": "Lijado", "t": "ob", "n": ""}, {"p": "Biselado", "t": "ob", "n": ""}, {"p": "Canalado", "t": "co", "n": "Según referencia"}, {"p": "Rayado", "t": "co", "n": "Según referencia"}, {"p": "Pintura / Lacado", "t": "co", "n": ""}, {"p": "Remachado", "t": "ob", "n": "Montaje del cabo"}, {"p": "Empaque", "t": "ob", "n": ""}], "Limas": [{"p": "Forja", "t": "ob", "n": "Espigo"}, {"p": "Rectificado", "t": "ob", "n": ""}, {"p": "Raspado", "t": "ob", "n": ""}, {"p": "Picado", "t": "ob", "n": ""}, {"p": "Temple", "t": "ob", "n": ""}, {"p": "Enderezado", "t": "co", "n": ""}, {"p": "Limpieza / Granallado", "t": "ob", "n": ""}, {"p": "Acabado", "t": "ob", "n": ""}, {"p": "Empaque", "t": "ob", "n": ""}, {"p": "Reproceso", "t": "re", "n": "Recuperación fuera de línea"}], "Palas": [{"p": "Punzonado", "t": "ob", "n": ""}, {"p": "Estampado", "t": "ob", "n": "Conformado de la pala"}, {"p": "Hidrotemple", "t": "ob", "n": ""}, {"p": "Revenido", "t": "ob", "n": ""}, {"p": "Limpieza / Granallado", "t": "ob", "n": "Granallado"}, {"p": "Pintura / Lacado", "t": "ob", "n": ""}, {"p": "Perforado", "t": "ob", "n": "Perforado del mango de madera"}, {"p": "Ensamble", "t": "ob", "n": "Montaje del mango"}, {"p": "Empaque", "t": "ob", "n": ""}, {"p": "Otros", "t": "co", "n": "Carrusel — sin ubicar en la secuencia"}]};
 
 let CTRL = {proc:"Todos", cumpl:"Todas"};
@@ -1773,12 +1870,11 @@ function renderControl(){
             <span title="Solo lo identificado en rondas">rondas <b class="${clsP}">${pctP==null?"—":pctP.toFixed(2)+"%"}</b>
               <span style="opacity:.75;">${ncP} NC / ${f0(teoP)} uds</span></span>
             <span class="sep-v"></span>
-            <span title="Total recogido por el patinador en este proceso y turno">patinador
+            <span title="Recogido por el patinador en este proceso y turno">patinador
               ${recP==null
                 ? `<span style="opacity:.6;">sin cargar</span>`
                 : `<b class="${clsPat}">${pctPat==null?"—":pctPat.toFixed(2)+"%"}</b>
-                   <span style="opacity:.75;">${recP} uds</span>
-                   `}
+                   <span style="opacity:.75;">${recP} uds</span>`}
             </span>
             ${sinClas>0?`<span class="sep-v"></span><span class="sin-clas">${sinClas} sin clasificar</span>`:""}
           </div>
@@ -1867,6 +1963,8 @@ document.getElementById("rGuardar").addEventListener("click", ()=>{
 
 document.getElementById("tabControl").addEventListener("click",()=>{
   document.getElementById("viewMaquina").style.display="none";
+  document.getElementById("viewCierre").style.display="none";
+  document.getElementById("tabCierre").classList.remove("active");
   ["tabRegistro","tabDashboard"].forEach(t=>document.getElementById(t).classList.remove("active"));
   document.getElementById("tabControl").classList.add("active");
   document.getElementById("viewControl").style.display="block";
@@ -2190,6 +2288,12 @@ function renderMaquina(){
   });
   const labels = cubos.map(k=>etiquetaDe(k,periodo));
   if(chartMq) chartMq.destroy();
+  const detalleSerie = cubos.map(k=>{
+    const ncK = regsMaq.filter(r=>claveDe(fechaDeTurno(r),periodo)===k).reduce((s,r)=>s+r.cantidad,0);
+    const nT = new Set(S.registros.filter(r=>r.familia===fam && claveDe(fechaDeTurno(r),periodo)===k)
+                                  .map(r=>r.turnoKey)).size;
+    return {nc:ncK, turnos:nT, teo:(cfgM.activa&&cfgM.ratio)?cfgM.ratio*nT:0};
+  });
   chartMq = new Chart(document.getElementById("mChart").getContext("2d"),{
     type:"line",
     data:{labels,datasets:[
@@ -2408,6 +2512,8 @@ function aplicarVistaControl(){
 /* ---------- Pestañas ---------- */
 document.getElementById("tabRegistro").addEventListener("click",()=>{
   document.getElementById("viewMaquina").style.display="none";
+  document.getElementById("viewCierre").style.display="none";
+  document.getElementById("tabCierre").classList.remove("active");
   document.getElementById("tabRegistro").classList.add("active");
   ["tabDashboard","tabControl"].forEach(t=>document.getElementById(t).classList.remove("active"));
   document.getElementById("viewControl").style.display="none";
@@ -2418,6 +2524,8 @@ document.getElementById("tabRegistro").addEventListener("click",()=>{
 });
 document.getElementById("tabDashboard").addEventListener("click",()=>{
   document.getElementById("viewMaquina").style.display="none";
+  document.getElementById("viewCierre").style.display="none";
+  document.getElementById("tabCierre").classList.remove("active");
   document.getElementById("tabDashboard").classList.add("active");
   ["tabRegistro","tabControl"].forEach(t=>document.getElementById(t).classList.remove("active"));
   document.getElementById("viewControl").style.display="none";
@@ -2505,6 +2613,7 @@ renderFamilias();
 document.getElementById("dFecha").value=hoyISO();
 document.getElementById("dTurno").value=turnoActual();
 document.getElementById("kFecha").value=hoyISO();
+document.getElementById("cxFecha").value=sumarDias(hoyISO(),-1);
 document.getElementById("kTurno").value=turnoActual();
 actualizarEstadoSync();
 if(S.syncUrl){cargarRemoto();cargarEmpacadas();cargarRatios();reintentarPendientes();setInterval(cargarRemoto,8000);}
