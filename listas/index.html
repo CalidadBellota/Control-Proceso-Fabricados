@@ -83,6 +83,10 @@
   .aviso-previa .dec.warn{background:#fff4d6;color:#92660a;}
   .aviso-previa .it button{padding:5px 11px;border:1px solid var(--border);background:#fff;border-radius:6px;
     font-size:.74rem;font-weight:700;cursor:pointer;}
+
+  .btn-reinsp{background:var(--red)!important;border-color:var(--red)!important;color:#fff!important;}
+  .btn-reinsp:disabled,.btn-reinsp.activo{background:#1f9d55!important;border-color:#1f9d55!important;
+    color:#fff!important;cursor:default;}
   .chip-re{display:inline-block;background:#fdeceb;color:var(--red);border:1px solid #f6c9cd;
     padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700;margin-left:8px;}
   .lista-item{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--border);
@@ -187,7 +191,7 @@
   <div id="zonaVars" style="display:none;">
     <div class="panel">
       <div class="section-title">
-        <h2>VARIABLES DE INSPECCIÓN DE CALIDAD</h2>
+        <h2>VARIABLES DE INSPECCIÓN DE CALIDAD<span id="chipModo"></span></h2>
         <span id="progresoVars" style="font-size:.8rem;color:var(--text-dim);"></span>
       </div>
       <div style="overflow-x:auto;">
@@ -205,7 +209,7 @@
     </div>
 
     <div class="panel">
-      <div class="section-title"><h2>DECISIÓN DE BODEGA</h2></div>
+      <div class="section-title"><h2>DECISIÓN DE CALIDAD</h2></div>
       <div class="decision" id="decision">
         <button data-d="Aprobado">Aprobado</button>
         <button data-d="Aprobado bajo condición">Aprobado bajo condición</button>
@@ -274,7 +278,10 @@
   <div class="panel">
     <div class="section-title">
       <h2>LISTAS DE CHEQUEO</h2>
-      <button class="btn-sec" id="btnNuevaLista">+ Nueva lista</button>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span id="estadoConfig" style="font-size:.72rem;color:var(--text-dim);"></span>
+        <button class="btn-sec" id="btnNuevaLista">+ Nueva lista</button>
+      </div>
     </div>
     <div id="listasAdmin"></div>
   </div>
@@ -433,7 +440,9 @@ const S = {
   listaActiva: null,
   mediciones: {},   // idx -> {valor, resultado, obs}
   decision: "",
-  editIdx: null
+  editIdx: null,
+  modo: null,          // null | "nueva" | "reinspeccion"
+  reinspeccion: null
 };
 function persist(){
   localStorage.setItem("lc_listas", JSON.stringify(S.listas));
@@ -484,6 +493,7 @@ function refrescarSelectores(){
 }
 
 document.getElementById("iOrden").addEventListener("input", e=>{
+  S.modo = null; S.reinspeccion = null;
   renderAvisoPrevia();
   const o = S.ordenes.find(o=>o.numero===e.target.value.trim());
   if(o){
@@ -512,17 +522,17 @@ document.getElementById("iInspector").addEventListener("input", ()=>{
 
 document.getElementById("iProducto").addEventListener("change", e=>{
   S.listaActiva = S.listas.find(l=>l.id===e.target.value) || null;
-  S.mediciones = {};
+  S.mediciones = {}; S.modo = null; S.reinspeccion = null;
   recalcMuestra();
-  renderVariables();
   renderAvisoPrevia();
 });
 
 /* ---------- Tabla de variables ---------- */
 function renderVariables(){
-  const hay = !!S.listaActiva;
+  const hay = !!S.listaActiva && !!S.modo;
   document.getElementById("zonaVars").style.display = hay?"block":"none";
-  document.getElementById("msgInicial").style.display = hay?"none":"block";
+  const conPrevias = S.listaActiva && inspeccionesPrevias().length>0;
+  document.getElementById("msgInicial").style.display = (hay||conPrevias)?"none":"block";
   document.getElementById("barraFija").style.display = hay?"flex":"none";
   if(!hay) return;
 
@@ -587,6 +597,8 @@ function renderVariables(){
       S.mediciones[i].obs=inp.value;
     });
   });
+  const chip = document.getElementById("chipModo");
+  if(chip) chip.innerHTML = S.reinspeccion>1 ? `<span class="chip-re">Reinspección ${S.reinspeccion}</span>` : "";
   actualizarBarra();
 }
 
@@ -628,13 +640,26 @@ function inspeccionesPrevias(){
 function renderAvisoPrevia(){
   const box = document.getElementById("avisoPrevia");
   const prev = inspeccionesPrevias();
-  if(!prev.length){ box.style.display="none"; box.innerHTML=""; S.reinspeccion=null; return; }
+  const lista = S.listaActiva;
+  const orden = document.getElementById("iOrden").value.trim();
 
+  if(!lista || !orden){ box.style.display="none"; box.innerHTML=""; return; }
+
+  if(!prev.length){
+    // sin inspecciones previas: se habilita directo
+    box.style.display="none"; box.innerHTML="";
+    S.modo = "nueva"; S.reinspeccion = 1;
+    renderVariables();
+    return;
+  }
+
+  // hay previas: bloquear hasta que el usuario decida
   const clase = d => d==="Aprobado" ? "ok" : (d==="Rechazado"||d==="Bloqueado") ? "bad" : "warn";
   box.style.display="block";
   box.innerHTML = `<div class="aviso-previa">
-    <h4>⚠ Este producto ya fue inspeccionado en esta orden de compra</h4>
-    <p>Puedes registrar una <b>reinspección</b> — la anterior no se borra y ambas quedan en la trazabilidad.</p>
+    <h4>⚠ ${lista.nombre} ya fue inspeccionado en la orden ${orden}</h4>
+    <p>Si el lote fue rechazado o hubo que revisarlo otra vez, registra una <b>reinspección</b>.
+       La anterior no se borra: ambas quedan en la trazabilidad.</p>
     <div class="lista">
       ${prev.map((i,idx)=>{
         const nc = i.resultados.filter(r=>r.resultado==="Rechazo").length;
@@ -644,16 +669,31 @@ function renderAvisoPrevia(){
           <span style="display:flex;align-items:center;gap:8px;">
             <span class="dec ${clase(i.decision)}">${i.decision}</span>
             <button type="button" data-pdfprev="${i.id}">PDF</button>
+            ${idx===0?`<button type="button" class="btn-reinsp" data-reinsp="1">Hacer reinspección</button>`:""}
           </span>
         </div>`;
       }).join("")}
     </div>
   </div>`;
+
   box.querySelectorAll("[data-pdfprev]").forEach(b=>b.addEventListener("click",()=>{
     const ins = S.inspecciones.find(i=>i.id===b.dataset.pdfprev);
     if(ins) generarPDF(ins, true);
   }));
-  S.reinspeccion = prev.length + 1;
+  const btnRe = box.querySelector("[data-reinsp]");
+  if(btnRe) btnRe.addEventListener("click", ()=>{
+    S.modo = "reinspeccion";
+    S.reinspeccion = prev.length + 1;
+    btnRe.textContent = `Reinspección ${S.reinspeccion} en curso`;
+    btnRe.disabled = true;
+    btnRe.classList.add("activo");
+    renderVariables();
+    const zv=document.getElementById("zonaVars"); if(zv.scrollIntoView) zv.scrollIntoView({behavior:"smooth", block:"start"});
+  });
+
+  // mientras no presione el botón, no se muestran las variables
+  if(S.modo !== "reinspeccion"){ S.modo = null; S.reinspeccion = null; }
+  renderVariables();
 }
 
 /* ---------- Guardar inspección ---------- */
@@ -702,7 +742,7 @@ function limpiarFormulario(){
   ["iOrden","iProveedor","iTrazabilidad","iCantidad","iInspector","iInspector2","iLider","iObservaciones"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("iMuestra").value="";
   document.getElementById("iProducto").value="";
-  S.listaActiva=null; S.mediciones={}; S.decision=""; S.reinspeccion=null;
+  S.listaActiva=null; S.mediciones={}; S.decision=""; S.reinspeccion=null; S.modo=null;
   document.getElementById("avisoPrevia").style.display="none";
   document.querySelectorAll("#decision button").forEach(x=>x.classList.remove("sel"));
   renderVariables();
@@ -747,7 +787,7 @@ function generarPDF(insp, guardar){
     ["Cantidad recibida", f0(insp.cantidadRecibida), "unidades"],
     ["Muestra inspeccionada", f0(insp.cantidadMuestra), `nivel ${insp.nivelInspeccion} · AQL ${insp.aql}`],
     ["Variables conformes", `${ok}/${insp.resultados.length}`, nc?`${nc} en rechazo`:"todas conformes"],
-    ["Decisión", insp.decision||"—", "bodega"]
+    ["Decisión", insp.decision||"—", "calidad"]
   ];
   const kw=(W-2*M-9)/4;
   kpis.forEach((k,i)=>{
@@ -826,20 +866,30 @@ function generarPDF(insp, guardar){
 
   // decisión
   doc.setFont("helvetica","bold"); doc.setFontSize(8.2); doc.setTextColor(226,0,26);
-  doc.text("DECISIÓN DE BODEGA", M, y); doc.setTextColor(28,31,36); y+=5.5;
-  doc.setFontSize(7.5); let x=M;
-  ["Aprobado","Aprobado bajo condición","Rechazado","Bloqueado"].forEach(o=>{
-    doc.setFillColor(255,255,255); doc.setDrawColor(150,156,164);
-    doc.rect(x, y, 4.6, 4.6, "FD");
-    if(insp.decision===o){
+  doc.text("DECISIÓN DE CALIDAD", M, y); doc.setTextColor(28,31,36); y+=5.5;
+  doc.setFontSize(7.2);
+  const opts = ["Aprobado","Aprobado bajo condición","Rechazado","Bloqueado"];
+  const anchoOp = (W-2*M)/opts.length;
+  opts.forEach((o,i)=>{
+    const x = M + i*anchoOp;
+    const marcada = insp.decision===o;
+    doc.setFillColor(marcada?253:252, marcada?240:253, marcada?240:254);
+    doc.setDrawColor(marcada?200:222, marcada?29:226, marcada?46:232);
+    doc.setLineWidth(marcada?0.5:0.3);
+    doc.roundedRect(x, y, anchoOp-3, 9, 1.5, 1.5, "FD");
+    doc.setFillColor(255,255,255); doc.setDrawColor(150,156,164); doc.setLineWidth(0.3);
+    doc.rect(x+3, y+2.6, 3.8, 3.8, "FD");
+    if(marcada){
       doc.setFont("helvetica","bold"); doc.setTextColor(200,29,46);
-      doc.text("X", x+1.2, y+3.6); doc.setTextColor(28,31,36);
+      doc.text("X", x+3.9, y+5.6);
     }
-    doc.setFont("helvetica","normal");
-    doc.text(o, x+6.5, y+3.5);
-    x += 46;
+    doc.setFont(marcada?"helvetica":"helvetica", marcada?"bold":"normal");
+    doc.setTextColor(marcada?200:60, marcada?29:66, marcada?46:76);
+    const t = doc.splitTextToSize(o, anchoOp-12);
+    doc.text(t, x+8.5, t.length>1 ? y+3.8 : y+5.6);
+    doc.setFont("helvetica","normal"); doc.setTextColor(28,31,36);
   });
-  y += 11;
+  y += 15;
 
   doc.setFont("helvetica","bold"); doc.setFontSize(7.6);
   doc.text("OBSERVACIONES", M, y); doc.setFont("helvetica","normal"); doc.setFontSize(7.2);
@@ -910,6 +960,51 @@ document.getElementById("cBuscar").addEventListener("click",()=>{
   }));
 });
 
+
+/* ---------- Catálogo compartido: listas y órdenes en la Sheet ---------- */
+async function cargarConfig(){
+  if(!S.syncUrl) return;
+  try{
+    const res = await fetch(S.syncUrl + "?tipo=config");
+    const data = await res.json();
+    if(data && Array.isArray(data.listas)){
+      // el servidor manda la versión compartida; se conserva lo local que aún no subió
+      const m = new Map();
+      S.listas.forEach(l=>m.set(String(l.id), l));
+      data.listas.forEach(l=>m.set(String(l.id), l));
+      S.listas = Array.from(m.values());
+    }
+    if(data && Array.isArray(data.ordenes)){
+      const m = new Map();
+      S.ordenes.forEach(o=>m.set(String(o.numero), o));
+      data.ordenes.forEach(o=>m.set(String(o.numero), o));
+      S.ordenes = Array.from(m.values());
+    }
+    persist();
+    refrescarSelectores();
+    if(document.getElementById("viewAdmin").style.display !== "none") renderAdmin();
+    marcarConfigSync(true);
+  }catch(e){ console.error("config:", e); marcarConfigSync(false); }
+}
+async function enviarConfig(accion, payload){
+  if(!S.syncUrl) { marcarConfigSync(false); return; }
+  try{
+    const res = await fetch(S.syncUrl, {method:"POST", body: JSON.stringify(Object.assign({action:accion}, payload))});
+    const d = await res.json();
+    if(!d || d.ok !== true) throw new Error("no ok");
+    marcarConfigSync(true);
+  }catch(e){
+    console.error("config post:", e);
+    marcarConfigSync(false);
+    toast("⚠ Se guardó en este dispositivo pero no en la hoja compartida");
+  }
+}
+function marcarConfigSync(ok){
+  const el = document.getElementById("estadoConfig");
+  if(el) el.textContent = ok ? "Catálogo sincronizado con la hoja"
+                             : "⚠ Catálogo guardado solo en este dispositivo";
+}
+
 /* ---------- Administrar: listas ---------- */
 function renderAdmin(){
   const box = document.getElementById("listasAdmin");
@@ -928,11 +1023,15 @@ function renderAdmin(){
   box.querySelectorAll("[data-dup]").forEach(b=>b.addEventListener("click",()=>{
     const c = JSON.parse(JSON.stringify(S.listas[+b.dataset.dup]));
     c.id = "L"+Date.now(); c.nombre += " (copia)";
-    S.listas.push(c); persist(); renderAdmin(); refrescarSelectores(); toast("Lista duplicada");
+    S.listas.push(c); persist(); enviarConfig("guardarLista", {lista:c});
+    renderAdmin(); refrescarSelectores(); toast("Lista duplicada");
   }));
   box.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{
     if(confirm("¿Eliminar esta lista de chequeo? Las inspecciones ya guardadas no se borran.")){
-      S.listas.splice(+b.dataset.del,1); persist(); renderAdmin(); refrescarSelectores();
+      const borrada = S.listas[+b.dataset.del];
+      S.listas.splice(+b.dataset.del,1); persist();
+      enviarConfig("borrarLista", {id:borrada.id});
+      renderAdmin(); refrescarSelectores();
     }
   }));
 
@@ -948,7 +1047,12 @@ function renderAdmin(){
     </div>`).join("") : `<div class="empty-mini">No hay órdenes registradas.</div>`;
   ob.querySelectorAll("[data-oedit]").forEach(b=>b.addEventListener("click",()=>abrirModalOrden(+b.dataset.oedit)));
   ob.querySelectorAll("[data-odel]").forEach(b=>b.addEventListener("click",()=>{
-    if(confirm("¿Eliminar esta orden de compra?")){ S.ordenes.splice(+b.dataset.odel,1); persist(); renderAdmin(); refrescarSelectores(); }
+    if(confirm("¿Eliminar esta orden de compra?")){
+      const o = S.ordenes[+b.dataset.odel];
+      S.ordenes.splice(+b.dataset.odel,1); persist();
+      enviarConfig("borrarOrden", {numero:o.numero});
+      renderAdmin(); refrescarSelectores();
+    }
   }));
 }
 
@@ -1045,7 +1149,7 @@ document.getElementById("mlGuardar").addEventListener("click",()=>{
     variables: vars
   };
   if(S.editIdx!=null) S.listas[S.editIdx]=obj; else S.listas.push(obj);
-  persist(); renderAdmin(); refrescarSelectores();
+  persist(); enviarConfig("guardarLista", {lista:obj}); renderAdmin(); refrescarSelectores();
   document.getElementById("modalLista").classList.remove("show");
   toast("Lista guardada");
 });
@@ -1072,7 +1176,7 @@ document.getElementById("moGuardar").addEventListener("click",()=>{
   const productos = [...document.querySelectorAll("#moProductos input:checked")].map(c=>c.value);
   const obj = {numero, proveedor:document.getElementById("moProveedor").value.trim(), productos};
   if(ordenEditIdx!=null) S.ordenes[ordenEditIdx]=obj; else S.ordenes.push(obj);
-  persist(); renderAdmin(); refrescarSelectores();
+  persist(); enviarConfig("guardarOrden", {orden:obj}); renderAdmin(); refrescarSelectores();
   document.getElementById("modalOrden").classList.remove("show");
   toast("Orden guardada");
 });
@@ -1085,7 +1189,7 @@ function tab(activo){
   });
   document.getElementById("barraFija").style.display = (activo==="Insp" && S.listaActiva)?"flex":"none";
   if(activo==="Admin") renderAdmin();
-  if(S.syncUrl) cargarRemoto();
+  if(S.syncUrl){ cargarRemoto(); cargarConfig(); }
 }
 document.getElementById("tabInsp").addEventListener("click",()=>tab("Insp"));
 document.getElementById("tabCons").addEventListener("click",()=>tab("Cons"));
@@ -1145,7 +1249,7 @@ document.getElementById("btnConectar").addEventListener("click",()=>{
   localStorage.setItem("lc_sync_url",S.syncUrl);
   actualizarEstadoSync();
   document.getElementById("syncModal").classList.remove("show");
-  cargarRemoto();
+  cargarRemoto(); cargarConfig();
 });
 document.getElementById("btnDesconectar").addEventListener("click",()=>{
   S.syncUrl=""; localStorage.removeItem("lc_sync_url");
@@ -1164,7 +1268,8 @@ document.getElementById("cHasta").value = hoyISO();
 refrescarSelectores();
 renderAdmin();
 actualizarEstadoSync();
-if(S.syncUrl){ cargarRemoto(); reintentarPendientes(); setInterval(cargarRemoto, 10000); }
+if(S.syncUrl){ cargarRemoto(); cargarConfig(); reintentarPendientes(); setInterval(cargarRemoto, 10000); }
+else marcarConfigSync(false);
 </script>
 
 </body>
