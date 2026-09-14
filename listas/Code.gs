@@ -18,7 +18,7 @@ const SH_INSP = "Inspecciones";
 const SH_DET  = "Detalle";
 const TZ = "America/Bogota";
 
-const H_INSP = ["id","fecha","hora","fechaRecepcion","orden","proveedor","trazabilidad",
+const H_INSP = ["id","numero","esReinspeccion","fecha","hora","fechaRecepcion","orden","proveedor","trazabilidad",
   "listaId","producto","codigoBPCS","codigoDoc","version",
   "cantidadRecibida","cantidadMuestra","nivelInspeccion","aql",
   "inspector","lider","decision","observaciones","totalVariables","noConformes"];
