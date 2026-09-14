@@ -14,6 +14,11 @@
  *  - "Detalle": una fila por variable inspeccionada, ligada por inspeccionId.
  */
 
+const SH_LIS  = "Listas";
+const SH_ORD  = "Ordenes";
+const H_LIS = ["id","nombre","codigoBPCS","codigoDoc","version","nivelInspeccion","aql","variables","actualizado"];
+const H_ORD = ["numero","proveedor","productos","actualizado"];
+
 const SH_INSP = "Inspecciones";
 const SH_DET  = "Detalle";
 const TZ = "America/Bogota";
@@ -38,6 +43,21 @@ function getSheet_(nombre, headers){
 }
 
 function doGet(e){
+  // catálogo compartido: listas de chequeo y órdenes de compra
+  if(e && e.parameter && e.parameter.tipo === "config"){
+    const shL = getSheet_(SH_LIS, H_LIS), shO = getSheet_(SH_ORD, H_ORD);
+    const dL = shL.getDataRange().getValues(), dO = shO.getDataRange().getValues();
+    const listas = dL.slice(1).filter(r=>r[0]).map(r=>({
+      id:String(r[0]), nombre:r[1], codigoBPCS:String(r[2]), codigoDoc:r[3], version:String(r[4]),
+      nivelInspeccion:String(r[5]), aql:Number(r[6])||10,
+      variables: (function(){ try{ return JSON.parse(r[7]||"[]"); }catch(err){ return []; } })()
+    }));
+    const ordenes = dO.slice(1).filter(r=>r[0]).map(r=>({
+      numero:String(r[0]), proveedor:r[1],
+      productos: (function(){ try{ return JSON.parse(r[2]||"[]"); }catch(err){ return []; } })()
+    }));
+    return json_({listas:listas, ordenes:ordenes});
+  }
   const sh = getSheet_(SH_INSP, H_INSP);
   const shD = getSheet_(SH_DET, H_DET);
   const data = sh.getDataRange().getValues();
@@ -81,9 +101,45 @@ function doPost(e){
     const p = JSON.parse(e.postData.contents);
     if(p.action === "create"){ guardar_(p.registro); return json_({ok:true}); }
     if(p.action === "createBatch"){ (p.registros||[]).forEach(guardar_); return json_({ok:true}); }
+
+    if(p.action === "guardarLista"){   upsert_(SH_LIS, H_LIS, p.lista, "id");        return json_({ok:true}); }
+    if(p.action === "guardarOrden"){   upsert_(SH_ORD, H_ORD, p.orden, "numero");    return json_({ok:true}); }
+    if(p.action === "borrarLista"){    borrar_(SH_LIS, H_LIS, p.id);                 return json_({ok:true}); }
+    if(p.action === "borrarOrden"){    borrar_(SH_ORD, H_ORD, p.numero);             return json_({ok:true}); }
     return json_({ok:false, error:"acción no reconocida"});
   }catch(err){
     return json_({ok:false, error:err.message});
+  }
+}
+
+function upsert_(nombre, headers, obj, llave){
+  const sh = getSheet_(nombre, headers);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try{
+    const stamp = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd HH:mm:ss");
+    const fila = headers.map(h=>{
+      if(h === "actualizado") return stamp;
+      const v = obj[h];
+      if(v === undefined || v === null) return "";
+      return (typeof v === "object") ? JSON.stringify(v) : v;
+    });
+    const d = sh.getDataRange().getValues();
+    for(let i=1;i<d.length;i++){
+      if(String(d[i][0]) === String(obj[llave])){
+        sh.getRange(i+1,1,1,headers.length).setValues([fila]);
+        return;
+      }
+    }
+    sh.appendRow(fila);
+  } finally { lock.releaseLock(); }
+}
+
+function borrar_(nombre, headers, valor){
+  const sh = getSheet_(nombre, headers);
+  const d = sh.getDataRange().getValues();
+  for(let i=1;i<d.length;i++){
+    if(String(d[i][0]) === String(valor)){ sh.deleteRow(i+1); return; }
   }
 }
 
