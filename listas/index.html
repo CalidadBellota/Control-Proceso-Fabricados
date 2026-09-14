@@ -84,6 +84,9 @@
   .aviso-previa .it button{padding:5px 11px;border:1px solid var(--border);background:#fff;border-radius:6px;
     font-size:.74rem;font-weight:700;cursor:pointer;}
 
+  .btn-cancel-re{padding:5px 11px;border:1px solid var(--border);background:#fff;border-radius:6px;
+    font-size:.74rem;font-weight:700;cursor:pointer;color:var(--text-dim);}
+  .btn-cancel-re:hover{border-color:var(--bad-text);color:var(--bad-text);}
   .btn-reinsp{background:var(--red)!important;border-color:var(--red)!important;color:#fff!important;}
   .btn-reinsp:disabled,.btn-reinsp.activo{background:#1f9d55!important;border-color:#1f9d55!important;
     color:#fff!important;cursor:default;}
@@ -169,42 +172,51 @@
 <!-- ============ INSPECCIONAR ============ -->
 <section id="viewInsp">
   <div class="panel">
-    <div class="section-title"><h2>DATOS DE RECEPCIÓN DEL PRODUCTO</h2></div>
-    <div class="grid4">
+    <div class="section-title"><h2>DATOS DE LA ORDEN DE COMPRA</h2>
+      <span style="font-size:.74rem;color:var(--text-dim);">Aplican a todo el contenedor</span></div>
+    <div class="grid3">
       <div class="campo">
-        <label for="iOrden">Orden de compra *</label>
-        <input list="ordenesList" id="iOrden" placeholder="Ej. 163155">
-        <datalist id="ordenesList"></datalist>
-      </div>
-      <div class="campo">
-        <label for="iProducto">Producto / Lista de chequeo *</label>
-        <select id="iProducto"><option value="">Selecciona un producto</option></select>
+        <label for="iOrdenSel">Orden de compra *</label>
+        <select id="iOrdenSel"></select>
+        <input type="text" id="iOrden" placeholder="Número de orden" style="margin-top:8px;display:none;">
       </div>
       <div class="campo">
         <label for="iProveedor">Proveedor</label>
         <input type="text" id="iProveedor" placeholder="Nombre del proveedor">
       </div>
       <div class="campo">
-        <label for="iTrazabilidad">Fecha de trazabilidad</label>
-        <input type="date" id="iTrazabilidad">
+        <label for="iFechaRec">Fecha de recepción del contenedor</label>
+        <input type="date" id="iFechaRec">
       </div>
     </div>
+    <div class="grid3">
+      <div class="campo">
+        <label for="iInspector">Inspeccionado por *</label>
+        <input type="text" id="iInspector" placeholder="Nombre del inspector">
+      </div>
+      <div class="campo"></div><div class="campo"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="section-title"><h2>REFERENCIA A INSPECCIONAR</h2>
+      <span style="font-size:.74rem;color:var(--text-dim);">Cada referencia se inspecciona por separado</span></div>
     <div class="grid4">
       <div class="campo">
-        <label for="iCantidad">Cantidad recibida *</label>
-        <input type="number" id="iCantidad" min="1" placeholder="Ej. 500">
+        <label for="iProducto">Producto / Lista de chequeo *</label>
+        <select id="iProducto"><option value="">Selecciona un producto</option></select>
+      </div>
+      <div class="campo">
+        <label for="iTrazabilidad">Fecha de trazabilidad de la referencia</label>
+        <input type="date" id="iTrazabilidad">
+      </div>
+      <div class="campo">
+        <label for="iCantidad">Cantidad recibida de la referencia *</label>
+        <input type="number" id="iCantidad" min="1" placeholder="Ej. 4800">
       </div>
       <div class="campo">
         <label id="etqMuestra">Cant. muestra (MIL-STD)</label>
         <input type="text" id="iMuestra" readonly style="background:#f8f9fb;font-weight:700;">
-      </div>
-      <div class="campo">
-        <label for="iFechaRec">Fecha recepción</label>
-        <input type="date" id="iFechaRec">
-      </div>
-      <div class="campo">
-        <label for="iInspector">Inspeccionado por *</label>
-        <input type="text" id="iInspector" placeholder="Nombre del inspector">
       </div>
     </div>
   </div>
@@ -502,8 +514,14 @@ function limites(v){
 
 /* ---------- Selectores ---------- */
 function refrescarSelectores(){
-  const dl = document.getElementById("ordenesList");
-  dl.innerHTML = S.ordenes.map(o=>`<option value="${o.numero}">`).join("");
+  const selO = document.getElementById("iOrdenSel");
+  const ocActual = document.getElementById("iOrden").value.trim();
+  selO.innerHTML = `<option value="">Selecciona una orden</option>` +
+    S.ordenes.sort((a,b)=>String(b.numero).localeCompare(String(a.numero)))
+      .map(o=>`<option value="${o.numero}"${ocActual===String(o.numero)?" selected":""}>OC ${o.numero}${o.proveedor?" · "+o.proveedor:""}</option>`).join("") +
+    `<option value="__otra__"${ocActual && !S.ordenes.some(o=>String(o.numero)===ocActual)?" selected":""}>➕ Otra orden (escribirla)</option>`;
+  if(ocActual && !S.ordenes.some(o=>String(o.numero)===ocActual))
+    document.getElementById("iOrden").style.display="block";
 
   const sel = document.getElementById("iProducto");
   const actual = sel.value;
@@ -538,6 +556,17 @@ function recalcMuestra(){
   const et = document.getElementById("etqMuestra");
   if(et) et.textContent = `Cant. muestra (MIL-STD nivel ${niv||"S1"} · AQL ${S.listaActiva?S.listaActiva.aql:10})`;
 }
+
+document.getElementById("iOrdenSel").addEventListener("change", e=>{
+  const inp = document.getElementById("iOrden");
+  if(e.target.value === "__otra__"){
+    inp.style.display = "block"; inp.value = ""; inp.focus();
+  } else {
+    inp.style.display = "none"; inp.value = e.target.value;
+  }
+  inp.dispatchEvent(new Event("input", {bubbles:true}));
+});
+
 document.getElementById("iCantidad").addEventListener("input", ()=>{ recalcMuestra(); actualizarBarra(); });
 document.getElementById("iInspector").addEventListener("input", ()=>{
   document.getElementById("iInspector2").value = document.getElementById("iInspector").value;
@@ -705,17 +734,34 @@ function renderAvisoPrevia(){
     if(ins) generarPDF(ins, true);
   }));
   const btnRe = box.querySelector("[data-reinsp]");
-  if(btnRe) btnRe.addEventListener("click", ()=>{
-    S.modo = "reinspeccion";
-    S.reinspeccion = prev.length + 1;
-    btnRe.textContent = `Reinspección ${S.reinspeccion} en curso`;
-    btnRe.disabled = true;
-    btnRe.classList.add("activo");
-    renderVariables();
-    const zv=document.getElementById("zonaVars"); if(zv.scrollIntoView) zv.scrollIntoView({behavior:"smooth", block:"start"});
-  });
+  if(btnRe){
+    if(S.modo === "reinspeccion"){
+      btnRe.textContent = `Reinspección ${S.reinspeccion} en curso`;
+      btnRe.classList.add("activo");
+      const cancelar = document.createElement("button");
+      cancelar.type = "button"; cancelar.className = "btn-cancel-re";
+      cancelar.textContent = "Cancelar";
+      cancelar.title = "Descarta la reinspección en curso";
+      cancelar.addEventListener("click", ()=>{
+        if(Object.keys(S.mediciones).length &&
+           !confirm("Se perderán los valores que ya escribiste en esta reinspección. ¿Cancelar?")) return;
+        S.modo = null; S.reinspeccion = null; S.mediciones = {}; S.decision = "";
+        document.querySelectorAll("#decision button").forEach(x=>x.classList.remove("sel"));
+        renderAvisoPrevia();
+        toast("Reinspección cancelada");
+      });
+      btnRe.parentNode.appendChild(cancelar);
+    } else {
+      btnRe.addEventListener("click", ()=>{
+        S.modo = "reinspeccion";
+        S.reinspeccion = prev.length + 1;
+        renderAvisoPrevia();
+        renderVariables();
+        const zv=document.getElementById("zonaVars"); if(zv && zv.scrollIntoView) zv.scrollIntoView({behavior:"smooth", block:"start"});
+      });
+    }
+  }
 
-  // mientras no presione el botón, no se muestran las variables
   if(S.modo !== "reinspeccion"){ S.modo = null; S.reinspeccion = null; }
   renderVariables();
 }
@@ -765,6 +811,8 @@ document.getElementById("btnGuardar").addEventListener("click",()=>{
 function limpiarFormulario(){
   ["iOrden","iProveedor","iTrazabilidad","iCantidad","iInspector","iInspector2","iLider","iObservaciones"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("iMuestra").value="";
+  document.getElementById("iOrdenSel").value="";
+  document.getElementById("iOrden").style.display="none";
   document.getElementById("iProducto").value="";
   S.listaActiva=null; S.mediciones={}; S.decision=""; S.reinspeccion=null; S.modo=null;
   document.getElementById("avisoPrevia").style.display="none";
@@ -823,11 +871,19 @@ function generarPDF(insp, guardar){
     doc.roundedRect(x,y,kw,24,2,2,"FD");
     doc.setFontSize(6.6); doc.setTextColor(110,118,129);
     doc.text(k[0], x+3, y+5.5);
-    doc.setFontSize(i===3?10:14); doc.setFont("helvetica","bold");
+    doc.setFont("helvetica","bold");
     if(i===3) doc.setTextColor(aprob?31:200, aprob?157:29, aprob?85:46);
     else if(i===2 && nc) doc.setTextColor(146,102,10);
     else doc.setTextColor(28,31,36);
-    doc.text(String(k[1]).slice(0,22), x+3, y+14);
+    if(i===3){
+      doc.setFontSize(9);
+      let t = doc.splitTextToSize(String(k[1]), kw-6);
+      if(t.length>2){ doc.setFontSize(7.6); t = doc.splitTextToSize(String(k[1]), kw-6); }
+      doc.text(t, x+3, t.length>1 ? y+11 : y+14);
+    } else {
+      doc.setFontSize(14);
+      doc.text(String(k[1]), x+3, y+14);
+    }
     doc.setFont("helvetica","normal"); doc.setFontSize(6.4); doc.setTextColor(110,118,129);
     doc.text(String(k[2]), x+3, y+19);
   });
