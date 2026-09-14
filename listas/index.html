@@ -90,7 +90,7 @@
   .modal-actions button.primary{background:var(--red);border-color:var(--red);color:#fff;}
   .footer-link{display:block;text-align:center;color:var(--text-dim);font-size:.78rem;margin-top:4px;text-decoration:underline;cursor:pointer;}
 
-  .var-edit{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 30px;gap:8px;margin-bottom:8px;align-items:center;}
+  .var-edit{display:grid;grid-template-columns:2fr .9fr .9fr .8fr .8fr 30px;gap:8px;margin-bottom:8px;align-items:center;}
   .var-edit input,.var-edit select{padding:7px 8px;font-size:.82rem;}
   .var-edit .del{background:none;border:none;color:var(--bad-text);cursor:pointer;font-size:1.1rem;}
   @media(max-width:700px){.var-edit{grid-template-columns:1fr;}}
@@ -142,8 +142,8 @@
         <input type="text" id="iProveedor" placeholder="Nombre del proveedor">
       </div>
       <div class="campo">
-        <label for="iTrazabilidad">No. Trazabilidad</label>
-        <input type="text" id="iTrazabilidad">
+        <label for="iTrazabilidad">Fecha de trazabilidad</label>
+        <input type="date" id="iTrazabilidad">
       </div>
     </div>
     <div class="grid4">
@@ -152,7 +152,7 @@
         <input type="number" id="iCantidad" min="1" placeholder="Ej. 500">
       </div>
       <div class="campo">
-        <label>Cant. muestra (MIL-STD S1 · AQL 10)</label>
+        <label id="etqMuestra">Cant. muestra (MIL-STD)</label>
         <input type="text" id="iMuestra" readonly style="background:#f8f9fb;font-weight:700;">
       </div>
       <div class="campo">
@@ -199,25 +199,20 @@
         <textarea id="iObservaciones" rows="3" placeholder="Observaciones generales de la inspección"></textarea>
       </div>
       <div class="grid3" style="margin-top:6px;">
-        <div>
-          <label>Firma inspector *</label>
-          <canvas class="firma" id="firmaInsp"></canvas>
-          <div class="firma-actions">
-            <span style="font-size:.72rem;color:var(--text-dim);">Firma con el dedo o el mouse</span>
-            <button type="button" data-limpiar="firmaInsp">Limpiar</button>
-          </div>
+        <div class="campo">
+          <label for="iInspector2">Firma inspector (nombre) *</label>
+          <input type="text" id="iInspector2" placeholder="Nombre de quien inspecciona" readonly
+                 style="background:#f8f9fb;">
         </div>
-        <div>
-          <label>Firma Líder Calidad Prod. Comercializados</label>
-          <canvas class="firma" id="firmaLider"></canvas>
-          <div class="firma-actions">
-            <span style="font-size:.72rem;color:var(--text-dim);">Opcional</span>
-            <button type="button" data-limpiar="firmaLider">Limpiar</button>
-          </div>
+        <div class="campo">
+          <label for="iLider">Firma Líder Calidad Prod. Comercializados</label>
+          <input type="text" id="iLider" placeholder="Nombre del líder de calidad">
         </div>
-        <div>
-          <label for="iLider">Nombre Líder de Calidad</label>
-          <input type="text" id="iLider">
+        <div class="campo">
+          <label>&nbsp;</label>
+          <div style="font-size:.76rem;color:var(--text-dim);padding:10px 0;">
+            La inspección queda firmada con el nombre del inspector y la fecha y hora del registro.
+          </div>
         </div>
       </div>
     </div>
@@ -294,15 +289,33 @@
     </div>
     <div class="grid3">
       <div class="campo"><label>Versión</label><input type="text" id="mlVersion"></div>
-      <div class="campo"><label>Nivel de inspección</label><input type="text" id="mlNivel" value="S1"></div>
-      <div class="campo"><label>AQL</label><input type="number" id="mlAql" value="10" step="0.1"></div>
+      <div class="campo"><label>Nivel de inspección</label>
+        <select id="mlNivel">
+          <optgroup label="Niveles especiales">
+            <option value="S1">S-1</option><option value="S2">S-2</option>
+            <option value="S3">S-3</option><option value="S4">S-4</option>
+          </optgroup>
+          <optgroup label="Niveles generales">
+            <option value="I">I</option><option value="II">II</option><option value="III">III</option>
+          </optgroup>
+        </select></div>
+      <div class="campo"><label>AQL (%)</label>
+        <select id="mlAql">
+          <option value="0.065">0,065</option><option value="0.1">0,10</option>
+          <option value="0.15">0,15</option><option value="0.25">0,25</option>
+          <option value="0.4">0,40</option><option value="0.65">0,65</option>
+          <option value="1">1,0</option><option value="1.5">1,5</option>
+          <option value="2.5">2,5</option><option value="4">4,0</option>
+          <option value="6.5">6,5</option><option value="10">10</option>
+        </select></div>
     </div>
     <div class="section-title" style="margin-top:12px;">
       <h2>VARIABLES</h2>
       <button class="btn-sec" id="mlAddVar">+ Variable</button>
     </div>
     <div class="var-edit" style="font-size:.7rem;color:var(--text-dim);font-weight:700;">
-      <span>Nombre / Especificación</span><span>Tipo</span><span>Valor nominal</span><span>Tolerancia</span><span></span>
+      <span>Nombre / Especificación</span><span>Tipo</span><span>Valor nominal</span>
+      <span>Tol. inferior (−)</span><span>Tol. superior (+)</span><span></span>
     </div>
     <div id="mlVars"></div>
     <div class="modal-actions">
@@ -351,34 +364,51 @@
 /* ========================================================================
    Tabla MIL-STD-105D — Nivel especial S1, tamaños de muestra por lote
    ======================================================================== */
-const MIL_S1 = [
-  {min:2,    max:8,     n:2},
-  {min:9,    max:15,    n:2},
-  {min:16,   max:25,    n:3},
-  {min:26,   max:50,    n:5},
-  {min:51,   max:90,    n:5},
-  {min:91,   max:150,   n:8},
-  {min:151,  max:280,   n:13},
-  {min:281,  max:500,   n:13},
-  {min:501,  max:1200,  n:20},
-  {min:1201, max:3200,  n:32},
-  {min:3201, max:10000, n:32},
-  {min:10001,max:35000, n:50},
-  {min:35001,max:150000,n:50},
-  {min:150001,max:500000,n:80},
-  {min:500001,max:Infinity,n:80}
-];
-function muestraMILSTD(lote){
+const MIL_TABLAS = {
+  // Nivel especial S-1 (recepción de comercializados)
+  "S1": [
+    {min:2,max:8,n:2},{min:9,max:15,n:2},{min:16,max:25,n:3},{min:26,max:50,n:5},
+    {min:51,max:90,n:5},{min:91,max:150,n:8},{min:151,max:280,n:13},{min:281,max:500,n:13},
+    {min:501,max:1200,n:20},{min:1201,max:3200,n:32},{min:3201,max:10000,n:32},
+    {min:10001,max:35000,n:50},{min:35001,max:150000,n:50},
+    {min:150001,max:500000,n:80},{min:500001,max:Infinity,n:80}
+  ],
+  // Nivel general I (informes de inspección de importación)
+  "I": [
+    {min:2,max:8,n:2},{min:9,max:15,n:2},{min:16,max:25,n:3},{min:26,max:50,n:5},
+    {min:51,max:90,n:5},{min:91,max:150,n:8},{min:151,max:280,n:13},{min:281,max:500,n:20},
+    {min:501,max:1200,n:32},{min:1201,max:3200,n:50},{min:3201,max:10000,n:80},
+    {min:10001,max:35000,n:125},{min:35001,max:150000,n:200},
+    {min:150001,max:500000,n:315},{min:500001,max:Infinity,n:500}
+  ],
+  // Nivel general II (el más usado cuando no se especifica)
+  "II": [
+    {min:2,max:8,n:2},{min:9,max:15,n:3},{min:16,max:25,n:5},{min:26,max:50,n:8},
+    {min:51,max:90,n:13},{min:91,max:150,n:20},{min:151,max:280,n:32},{min:281,max:500,n:50},
+    {min:501,max:1200,n:80},{min:1201,max:3200,n:125},{min:3201,max:10000,n:200},
+    {min:10001,max:35000,n:315},{min:35001,max:150000,n:500},
+    {min:150001,max:500000,n:800},{min:500001,max:Infinity,n:1250}
+  ]
+};
+function normNivel(n){
+  const s = String(n||"S1").toUpperCase().replace(/[\s\-]/g,"");
+  if(s==="S1"||s==="S-1") return "S1";
+  if(s==="I"||s==="GENERALI"||s==="1") return "I";
+  if(s==="II"||s==="GENERALII"||s==="2") return "II";
+  return "S1";
+}
+function muestraMILSTD(lote, nivel){
   const n = parseInt(lote);
   if(!n || n < 2) return "";
-  const f = MIL_S1.find(r => n >= r.min && n <= r.max);
+  const tabla = MIL_TABLAS[normNivel(nivel)] || MIL_TABLAS.S1;
+  const f = tabla.find(r => n >= r.min && n <= r.max);
   return f ? f.n : "";
 }
 
-const PLANTILLA_BASE = {"id": "SHQ01PP100", "nombre": "PALA PLÁSTICA CUADRADA", "codigoBPCS": "SHQ01PP100", "codigoDoc": "CC/RE/XX", "version": "FORMATO PRUEBA", "fechaDoc": "2024-05-19", "nivelInspeccion": "S1", "aql": 10, "variables": [{"nombre": "Peso unitario (kg)", "tipo": "numerico", "valor": 1.2, "tolTipo": "pct", "tol": 3, "unidad": "kg"}, {"nombre": "Peso Inner (kg)", "tipo": "numerico", "valor": 7.5, "tolTipo": "pct", "tol": 5, "unidad": "kg"}, {"nombre": "Etiqueta Unitaria 7702956*", "tipo": "texto", "especificacion": "248255"}, {"nombre": "Etiqueta Master 7702956*", "tipo": "texto", "especificacion": "248262"}, {"nombre": "Apariencia", "tipo": "texto", "especificacion": "• El empaque máster consta de 6 palas envueltas con plástico stretch en todo el cuerpo y cada pala del empaque master tendrá cobertura de cartón alrededor de la cuchara.\n• Las palas son de color rojo con cabo encabado y no deben presentar fractura o rebabas ni con el empaque en mal estado. El cabo no debe estar suelto.\n• El cabo de la pala cuenta con 6 nervios de refuerzo en su parte trasera.\n• En la parte posterior, el mango tendrá la identificación de reloj de trazabilidad y del plástico 5PP.\n• La cuchara cuenta con 3 venas: una central y una a cada lado de la vena central. La vena central cuenta con 3 nervios en su parte posterior.\n• La etiqueta de producto estará ubicada en la cuchara."}, {"nombre": "Sello", "tipo": "texto", "especificacion": "Legible en bajo relieve \"BELLOTA\" en el mango"}, {"nombre": "Largo total pala ensamblada (mm)", "tipo": "numerico", "valor": 1000, "tolTipo": "abs", "tol": 30, "unidad": "mm"}, {"nombre": "Diámetro del cabo (mm)", "tipo": "numerico", "valor": 32, "tolTipo": "abs", "tol": 2, "unidad": "mm"}, {"nombre": "Ancho de los nervios del cabo (mm)", "tipo": "numerico", "valor": 12, "tolTipo": "abs", "tol": 1, "unidad": "mm"}, {"nombre": "Profundidad de los nervios del cabo (mm)", "tipo": "numerico", "valor": 15, "tolTipo": "abs", "tol": 2, "unidad": "mm"}, {"nombre": "Espesor de los nervios del cabo (mm)", "tipo": "numerico", "valor": 5, "tolTipo": "abs", "tol": 1, "unidad": "mm"}, {"nombre": "Largo cabeza (mm)", "tipo": "numerico", "valor": 356, "tolTipo": "abs", "tol": 1, "unidad": "mm"}, {"nombre": "Ancho de la punta (mm)", "tipo": "numerico", "valor": 280, "tolTipo": "abs", "tol": 10, "unidad": "mm"}, {"nombre": "Altura en la punta (mm)", "tipo": "numerico", "valor": 35.8, "tolTipo": "abs", "tol": 3, "unidad": "mm"}, {"nombre": "Espesor cerca del filo (mm)", "tipo": "numerico", "valor": 4, "tolTipo": "pct", "tol": 3, "unidad": "mm"}, {"nombre": "Altura total del cubo (mm)", "tipo": "numerico", "valor": 175, "tolTipo": "abs", "tol": 5, "unidad": "mm"}, {"nombre": "Ancho del mango (mm)", "tipo": "numerico", "valor": 145, "tolTipo": "abs", "tol": 5, "unidad": "mm"}, {"nombre": "Largo del mango (mm)", "tipo": "numerico", "valor": 210, "tolTipo": "abs", "tol": 5, "unidad": "mm"}]};
+const PLANTILLAS_BASE = [{"id": "SHQ01PP100", "nombre": "PALA PLÁSTICA CUADRADA", "codigoBPCS": "SHQ01PP100", "codigoDoc": "CC/RE/XX", "version": "FORMATO PRUEBA", "fechaDoc": "2024-05-19", "nivelInspeccion": "S1", "aql": 10, "variables": [{"nombre": "Peso unitario (kg)", "tipo": "numerico", "valor": 1.2, "tolTipo": "pct", "tol": 3, "unidad": "kg"}, {"nombre": "Peso Inner (kg)", "tipo": "numerico", "valor": 7.5, "tolTipo": "pct", "tol": 5, "unidad": "kg"}, {"nombre": "Etiqueta Unitaria 7702956*", "tipo": "texto", "especificacion": "248255"}, {"nombre": "Etiqueta Master 7702956*", "tipo": "texto", "especificacion": "248262"}, {"nombre": "Apariencia", "tipo": "texto", "especificacion": "• El empaque máster consta de 6 palas envueltas con plástico stretch en todo el cuerpo y cada pala del empaque master tendrá cobertura de cartón alrededor de la cuchara.\n• Las palas son de color rojo con cabo encabado y no deben presentar fractura o rebabas ni con el empaque en mal estado. El cabo no debe estar suelto.\n• El cabo de la pala cuenta con 6 nervios de refuerzo en su parte trasera.\n• En la parte posterior, el mango tendrá la identificación de reloj de trazabilidad y del plástico 5PP.\n• La cuchara cuenta con 3 venas: una central y una a cada lado de la vena central. La vena central cuenta con 3 nervios en su parte posterior.\n• La etiqueta de producto estará ubicada en la cuchara."}, {"nombre": "Sello", "tipo": "texto", "especificacion": "Legible en bajo relieve \"BELLOTA\" en el mango"}, {"nombre": "Largo total pala ensamblada (mm)", "tipo": "numerico", "valor": 1000, "tolTipo": "abs", "tol": 30, "unidad": "mm"}, {"nombre": "Diámetro del cabo (mm)", "tipo": "numerico", "valor": 32, "tolTipo": "abs", "tol": 2, "unidad": "mm"}, {"nombre": "Ancho de los nervios del cabo (mm)", "tipo": "numerico", "valor": 12, "tolTipo": "abs", "tol": 1, "unidad": "mm"}, {"nombre": "Profundidad de los nervios del cabo (mm)", "tipo": "numerico", "valor": 15, "tolTipo": "abs", "tol": 2, "unidad": "mm"}, {"nombre": "Espesor de los nervios del cabo (mm)", "tipo": "numerico", "valor": 5, "tolTipo": "abs", "tol": 1, "unidad": "mm"}, {"nombre": "Largo cabeza (mm)", "tipo": "numerico", "valor": 356, "tolTipo": "abs", "tol": 1, "unidad": "mm"}, {"nombre": "Ancho de la punta (mm)", "tipo": "numerico", "valor": 280, "tolTipo": "abs", "tol": 10, "unidad": "mm"}, {"nombre": "Altura en la punta (mm)", "tipo": "numerico", "valor": 35.8, "tolTipo": "abs", "tol": 3, "unidad": "mm"}, {"nombre": "Espesor cerca del filo (mm)", "tipo": "numerico", "valor": 4, "tolTipo": "pct", "tol": 3, "unidad": "mm"}, {"nombre": "Altura total del cubo (mm)", "tipo": "numerico", "valor": 175, "tolTipo": "abs", "tol": 5, "unidad": "mm"}, {"nombre": "Ancho del mango (mm)", "tipo": "numerico", "valor": 145, "tolTipo": "abs", "tol": 5, "unidad": "mm"}, {"nombre": "Largo del mango (mm)", "tipo": "numerico", "valor": 210, "tolTipo": "abs", "tol": 5, "unidad": "mm"}]}, {"id": "155862TR", "nombre": "PALA CAVAHOYOS 310559 CM TR", "codigoBPCS": "155862TR", "codigoDoc": "CC/RE/164", "version": "Rev. 1 · 2020-09-18", "nivelInspeccion": "I", "aql": 4, "variables": [{"nombre": "Largo total de la pala (mm)", "tipo": "numerico", "valor": 1576, "tolTipo": "abs", "tol": 10, "unidad": "mm"}, {"nombre": "Ancho de la cabeza (mm)", "tipo": "numerico", "valor": 136, "tolTipo": "abs", "tol": 2, "unidad": "mm"}, {"nombre": "Espesor de la cabeza — materia prima (mm)", "tipo": "numerico", "valor": 1.6, "tolTipo": "abs", "tol": 0.05, "unidad": "mm"}, {"nombre": "Largo total de la cabeza (mm)", "tipo": "numerico", "valor": 366, "tolTipo": "abs", "tol": 3, "unidad": "mm"}, {"nombre": "Ancho de cierre del cubo (mm)", "tipo": "numerico", "valor": 36.5, "tolTipo": "abs", "tol": 1, "unidad": "mm"}, {"nombre": "Distancia centro a centro (mm)", "tipo": "numerico", "valor": 47, "tolTipo": "abs", "tol": 1, "unidad": "mm"}, {"nombre": "Diámetro del mango (mm)", "tipo": "numerico", "valor": 36, "tolTipo": "abs", "tol": 1, "unidad": "mm"}, {"nombre": "Dureza (HRC)", "tipo": "numerico", "valor": 47.5, "tolTipo": "abs", "tol": 2.5, "unidad": "HRC"}, {"nombre": "Humedad de la madera (%)", "tipo": "numerico", "valor": 8, "tolTipo": "abs", "tol": 8, "unidad": "%"}, {"nombre": "Peso total (kg)", "tipo": "numerico", "valor": 3.36, "tolTipo": "pct", "tol": 3, "unidad": "kg"}, {"nombre": "Prueba de impacto", "tipo": "texto", "especificacion": "OK / NOK · Martillo de bola"}, {"nombre": "Color / Pintura", "tipo": "texto", "especificacion": "Negro mate · Inspección visual"}, {"nombre": "Sello en bajo relieve — trazabilidad y marca", "tipo": "texto", "especificacion": "Posición y legibilidad correctas · Inspección visual"}, {"nombre": "Pirograbado del mango de madera", "tipo": "texto", "especificacion": "Posición y legibilidad correctas · Inspección visual"}, {"nombre": "Tampografía de la cabeza", "tipo": "texto", "especificacion": "Posición y legibilidad correctas · Inspección visual"}, {"nombre": "Código de barras del producto", "tipo": "texto", "especificacion": "7702956921004"}, {"nombre": "Código de barras de la caja máster", "tipo": "texto", "especificacion": "17702956921001"}, {"nombre": "Pruebas según ETC", "tipo": "texto", "especificacion": "Según especificación técnica ETC-155862TR"}]}];
 
 const S = {
-  listas: JSON.parse(localStorage.getItem("lc_listas")||"null") || [PLANTILLA_BASE],
+  listas: JSON.parse(localStorage.getItem("lc_listas")||"null") || PLANTILLAS_BASE,
   ordenes: JSON.parse(localStorage.getItem("lc_ordenes")||"[]"),
   inspecciones: JSON.parse(localStorage.getItem("lc_insp")||"[]"),
   syncUrl: localStorage.getItem("lc_sync_url")||"https://script.google.com/macros/s/AKfycbxX-MHs5Ztq9lWjCZHhLV90_n9aFO-dGQjjLDHhlinKRrbgeoZzQZoFZu6Onrh16gxJOw/exec",
@@ -397,17 +427,26 @@ function hoyISO(){const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2200);}
 
 /* ---------- Especificación legible ---------- */
+function tolsDe(v){
+  const ti = v.tolInf!=null ? v.tolInf : (v.tol||0);
+  const ts = v.tolSup!=null ? v.tolSup : (v.tol||0);
+  return {ti, ts, simetrica: ti===ts};
+}
 function especTexto(v){
   if(v.tipo==="numerico"){
-    const t = v.tolTipo==="pct" ? `±${v.tol}%` : `±${v.tol}`;
+    const {ti,ts,simetrica} = tolsDe(v);
+    const u = v.tolTipo==="pct" ? "%" : "";
+    const t = simetrica ? `±${ti}${u}` : `−${ti}${u} / +${ts}${u}`;
     return `${v.valor} ${t} ${v.unidad||""}`.trim();
   }
   return v.especificacion||"";
 }
 function limites(v){
   if(v.tipo!=="numerico") return null;
-  const d = v.tolTipo==="pct" ? v.valor*v.tol/100 : v.tol;
-  return {min:+(v.valor-d).toFixed(4), max:+(v.valor+d).toFixed(4)};
+  const {ti,ts} = tolsDe(v);
+  const di = v.tolTipo==="pct" ? v.valor*ti/100 : ti;
+  const ds = v.tolTipo==="pct" ? v.valor*ts/100 : ts;
+  return {min:+(v.valor-di).toFixed(4), max:+(v.valor+ds).toFixed(4)};
 }
 
 /* ---------- Selectores ---------- */
@@ -439,15 +478,23 @@ document.getElementById("iOrden").addEventListener("input", e=>{
   }
 });
 
-document.getElementById("iCantidad").addEventListener("input", e=>{
-  document.getElementById("iMuestra").value = muestraMILSTD(e.target.value) || "—";
+function recalcMuestra(){
+  const cant = document.getElementById("iCantidad").value;
+  const niv = S.listaActiva ? S.listaActiva.nivelInspeccion : "S1";
+  document.getElementById("iMuestra").value = muestraMILSTD(cant, niv) || "—";
+  const et = document.getElementById("etqMuestra");
+  if(et) et.textContent = `Cant. muestra (MIL-STD nivel ${niv||"S1"} · AQL ${S.listaActiva?S.listaActiva.aql:10})`;
+}
+document.getElementById("iCantidad").addEventListener("input", ()=>{ recalcMuestra(); actualizarBarra(); });
+document.getElementById("iInspector").addEventListener("input", ()=>{
+  document.getElementById("iInspector2").value = document.getElementById("iInspector").value;
   actualizarBarra();
 });
-document.getElementById("iInspector").addEventListener("input", actualizarBarra);
 
 document.getElementById("iProducto").addEventListener("change", e=>{
   S.listaActiva = S.listas.find(l=>l.id===e.target.value) || null;
   S.mediciones = {};
+  recalcMuestra();
   renderVariables();
 });
 
@@ -545,38 +592,9 @@ function actualizarBarra(){
   const listo = document.getElementById("iOrden").value.trim() &&
                 document.getElementById("iInspector").value.trim() &&
                 document.getElementById("iCantidad").value &&
-                evaluadas===total && S.decision && firmaTieneTrazo("firmaInsp");
+                evaluadas===total && S.decision;
   document.getElementById("btnGuardar").disabled = !listo;
 }
-
-/* ---------- Firmas ---------- */
-const firmas = {};
-function initFirma(id){
-  const cv = document.getElementById(id);
-  const ratio = window.devicePixelRatio||1;
-  const r = cv.getBoundingClientRect();
-  cv.width = r.width*ratio; cv.height = r.height*ratio;
-  const ctx = cv.getContext("2d");
-  ctx.scale(ratio,ratio);
-  ctx.lineWidth=2; ctx.lineCap="round"; ctx.strokeStyle="#1c1f24";
-  let dib=false;
-  firmas[id]={cv,ctx,trazo:false};
-  const pos = e=>{const b=cv.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return {x:t.clientX-b.left,y:t.clientY-b.top};};
-  const start=e=>{e.preventDefault();dib=true;firmas[id].trazo=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);actualizarBarra();};
-  const move=e=>{if(!dib)return;e.preventDefault();const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();};
-  const end=()=>{dib=false;};
-  cv.addEventListener("mousedown",start);cv.addEventListener("mousemove",move);
-  window.addEventListener("mouseup",end);
-  cv.addEventListener("touchstart",start,{passive:false});
-  cv.addEventListener("touchmove",move,{passive:false});
-  cv.addEventListener("touchend",end);
-}
-function firmaTieneTrazo(id){ return firmas[id] && firmas[id].trazo; }
-function limpiarFirma(id){
-  const f=firmas[id]; if(!f) return;
-  f.ctx.clearRect(0,0,f.cv.width,f.cv.height); f.trazo=false; actualizarBarra();
-}
-document.querySelectorAll("[data-limpiar]").forEach(b=>b.addEventListener("click",()=>limpiarFirma(b.dataset.limpiar)));
 
 /* ---------- Guardar inspección ---------- */
 function construirInspeccion(){
@@ -604,8 +622,6 @@ function construirInspeccion(){
       resultado:(S.mediciones[i]||{}).resultado==="ok"?"Aprobado":"Rechazo",
       observacion:(S.mediciones[i]||{}).obs||""
     })),
-    firmaInspector: firmas.firmaInsp && firmas.firmaInsp.trazo ? firmas.firmaInsp.cv.toDataURL("image/png") : "",
-    firmaLider: firmas.firmaLider && firmas.firmaLider.trazo ? firmas.firmaLider.cv.toDataURL("image/png") : "",
     pendienteSync: !!S.syncUrl
   };
 }
@@ -621,12 +637,11 @@ document.getElementById("btnGuardar").addEventListener("click",()=>{
 });
 
 function limpiarFormulario(){
-  ["iOrden","iProveedor","iTrazabilidad","iCantidad","iInspector","iLider","iObservaciones"].forEach(id=>document.getElementById(id).value="");
+  ["iOrden","iProveedor","iTrazabilidad","iCantidad","iInspector","iInspector2","iLider","iObservaciones"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("iMuestra").value="";
   document.getElementById("iProducto").value="";
   S.listaActiva=null; S.mediciones={}; S.decision="";
   document.querySelectorAll("#decision button").forEach(x=>x.classList.remove("sel"));
-  limpiarFirma("firmaInsp"); limpiarFirma("firmaLider");
   renderVariables();
 }
 
@@ -734,11 +749,7 @@ function generarPDF(insp, guardar){
   const obs = doc.splitTextToSize(insp.observaciones||"—", W-2*M-4);
   doc.text(obs, M, y+4);
   y += 6 + obs.length*3.2 + 6;
-
-  // firmas
-  if(insp.firmaInspector){ try{ doc.addImage(insp.firmaInspector,"PNG",M,y,50,16);}catch(e){} }
-  if(insp.firmaLider){ try{ doc.addImage(insp.firmaLider,"PNG",M+75,y,50,16);}catch(e){} }
-  y += 17;
+  y += 14;
   doc.setLineWidth(0.3);
   doc.line(M, y, M+50, y); doc.line(M+75, y, M+125, y);
   doc.setFontSize(7);
@@ -832,6 +843,9 @@ function renderAdmin(){
 
 function filaVarHTML(v={}){
   const t = v.tipo||"numerico";
+  const ti = v.tolInf!=null ? v.tolInf : (v.tol!=null?v.tol:"");
+  const ts = v.tolSup!=null ? v.tolSup : (v.tol!=null?v.tol:"");
+  const suf = v.tolTipo==="pct" ? "%" : "";
   return `<div class="var-edit">
     <input type="text" class="v-nom" placeholder="Nombre de la variable" value="${(v.nombre||"").replace(/"/g,"&quot;")}">
     <select class="v-tipo">
@@ -839,7 +853,8 @@ function filaVarHTML(v={}){
       <option value="texto"${t==="texto"?" selected":""}>Texto / visual</option>
     </select>
     <input type="text" class="v-valor" placeholder="${t==="numerico"?"Nominal":"Especificación"}" value="${t==="numerico"?(v.valor??""):(v.especificacion||"").replace(/"/g,"&quot;")}">
-    <input type="text" class="v-tol" placeholder="±3% o ±5" value="${t==="numerico"&&v.tol!=null?(v.tolTipo==="pct"?"±"+v.tol+"%":"±"+v.tol):""}">
+    <input type="text" class="v-tolinf" placeholder="ej. 10 o 3%" value="${t==="numerico"&&ti!==""?ti+suf:""}">
+    <input type="text" class="v-tolsup" placeholder="ej. 10 o 3%" value="${t==="numerico"&&ts!==""?ts+suf:""}">
     <button type="button" class="del" title="Quitar">✕</button>
   </div>`;
 }
@@ -852,8 +867,10 @@ function abrirModalLista(idx){
   document.getElementById("mlBpcs").value = l.codigoBPCS;
   document.getElementById("mlCodDoc").value = l.codigoDoc||"";
   document.getElementById("mlVersion").value = l.version||"";
-  document.getElementById("mlNivel").value = l.nivelInspeccion||"S1";
-  document.getElementById("mlAql").value = l.aql||10;
+  const nv=document.getElementById("mlNivel"); nv.value = l.nivelInspeccion||"S1";
+  if(!nv.value) nv.value="S1";
+  const aq=document.getElementById("mlAql"); aq.value = String(l.aql||10);
+  if(!aq.value) aq.value="10";
   document.getElementById("mlVars").innerHTML = (l.variables||[]).map(v=>filaVarHTML(v)).join("");
   engancharFilasVar();
   document.getElementById("modalLista").classList.add("show");
@@ -865,8 +882,14 @@ function engancharFilasVar(){
   document.querySelectorAll("#mlVars .v-tipo").forEach(s=>{
     s.onchange = ()=>{
       const row = s.closest(".var-edit");
-      row.querySelector(".v-valor").placeholder = s.value==="numerico"?"Nominal":"Especificación";
-      row.querySelector(".v-tol").disabled = s.value!=="numerico";
+      const esNum = s.value==="numerico";
+      row.querySelector(".v-valor").placeholder = esNum?"Nominal":"Especificación";
+      ["v-tolinf","v-tolsup"].forEach(cl=>{
+        const el = row.querySelector("."+cl);
+        el.disabled = !esNum;
+        el.style.visibility = esNum ? "visible" : "hidden";
+        if(!esNum) el.value = "";
+      });
     };
     s.onchange();
   });
@@ -886,12 +909,15 @@ document.getElementById("mlGuardar").addEventListener("click",()=>{
     const nom = row.querySelector(".v-nom").value.trim();
     const tipo = row.querySelector(".v-tipo").value;
     const valor = row.querySelector(".v-valor").value.trim();
-    const tolRaw = row.querySelector(".v-tol").value.trim();
+    const tiRaw = row.querySelector(".v-tolinf").value.trim();
+    const tsRaw = row.querySelector(".v-tolsup").value.trim();
     if(!nom) return null;
     if(tipo==="numerico"){
-      const pct = tolRaw.includes("%");
-      const tol = parseFloat(tolRaw.replace(/[±%\s]/g,""))||0;
-      return {nombre:nom,tipo:"numerico",valor:parseFloat(valor)||0,tolTipo:pct?"pct":"abs",tol,unidad:""};
+      const pct = tiRaw.includes("%") || tsRaw.includes("%");
+      const num = s => parseFloat(String(s).replace(/[±%\s]/g,""))||0;
+      const ti = num(tiRaw), ts = tsRaw===""? num(tiRaw) : num(tsRaw);
+      return {nombre:nom,tipo:"numerico",valor:parseFloat(valor)||0,
+              tolTipo:pct?"pct":"abs",tolInf:ti,tolSup:ts,tol:ti,unidad:""};
     }
     return {nombre:nom,tipo:"texto",especificacion:valor};
   }).filter(Boolean);
@@ -903,7 +929,7 @@ document.getElementById("mlGuardar").addEventListener("click",()=>{
     nombre, codigoBPCS:bpcs,
     codigoDoc: document.getElementById("mlCodDoc").value.trim(),
     version: document.getElementById("mlVersion").value.trim(),
-    nivelInspeccion: document.getElementById("mlNivel").value.trim()||"S1",
+    nivelInspeccion: document.getElementById("mlNivel").value||"S1",
     aql: parseFloat(document.getElementById("mlAql").value)||10,
     variables: vars
   };
@@ -1026,7 +1052,6 @@ document.getElementById("cDesde").value = hoyISO();
 document.getElementById("cHasta").value = hoyISO();
 refrescarSelectores();
 renderAdmin();
-initFirma("firmaInsp"); initFirma("firmaLider");
 actualizarEstadoSync();
 if(S.syncUrl){ cargarRemoto(); reintentarPendientes(); setInterval(cargarRemoto, 10000); }
 </script>
