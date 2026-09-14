@@ -89,6 +89,27 @@
     color:#fff!important;cursor:default;}
   .chip-re{display:inline-block;background:#fdeceb;color:var(--red);border:1px solid #f6c9cd;
     padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700;margin-left:8px;}
+
+
+  .banner-alerta{background:#fdeaea;border:1px solid #f6c9cd;color:#c81d2e;border-radius:10px;
+    padding:12px 16px;margin-bottom:16px;font-size:.84rem;line-height:1.5;}
+  .banner-alerta.warn{background:#fff8e1;border-color:#f3e3ae;color:#92660a;}
+  .banner-alerta b{font-weight:800;}
+  .lista-item{border-left:5px solid var(--border);}
+  .lista-item.dec-ok{border-left-color:#22c55e;background:#f6fdf9;}
+  .lista-item.dec-warn{border-left-color:#f2b90b;background:#fffdf5;}
+  .lista-item.dec-bad{border-left-color:#e53e3e;background:#fef7f7;}
+  .lista-item.dec-blk{border-left-color:#8b939e;background:#f8f9fa;}
+  .badge-dec{padding:5px 12px;border-radius:20px;font-size:.76rem;font-weight:700;white-space:nowrap;}
+  .badge-dec.ok{background:#e8f8ef;color:#1f9d55;}
+  .badge-dec.warn{background:#fff8e1;color:#92660a;}
+  .badge-dec.bad{background:#fdeaea;color:#c81d2e;}
+  .badge-dec.blk{background:#eef0f3;color:#5a6270;}
+  .leyenda-dec{display:flex;gap:14px;font-size:.72rem;color:var(--text-dim);flex-wrap:wrap;}
+  .leyenda-dec span{display:inline-flex;align-items:center;gap:5px;}
+  .leyenda-dec .pt{width:9px;height:9px;border-radius:50%;}
+  .leyenda-dec .pt.ok{background:#22c55e;} .leyenda-dec .pt.warn{background:#f2b90b;}
+  .leyenda-dec .pt.bad{background:#e53e3e;} .leyenda-dec .pt.blk{background:#8b939e;}
   .lista-item{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--border);
     border-radius:8px;margin-bottom:8px;background:#fff;flex-wrap:wrap;gap:10px;}
   .lista-item .info{font-size:.86rem;}
@@ -142,6 +163,8 @@
 </header>
 
 <main>
+
+<div id="bannerLocal" style="display:none;"></div>
 
 <!-- ============ INSPECCIONAR ============ -->
 <section id="viewInsp">
@@ -280,6 +303,7 @@
       <h2>LISTAS DE CHEQUEO</h2>
       <div style="display:flex;align-items:center;gap:12px;">
         <span id="estadoConfig" style="font-size:.72rem;color:var(--text-dim);"></span>
+        <button class="btn-sec" id="btnSubirTodo" title="Envía a la hoja compartida todas las listas y órdenes que tengas en este dispositivo">⬆ Subir catálogo a la hoja</button>
         <button class="btn-sec" id="btnNuevaLista">+ Nueva lista</button>
       </div>
     </div>
@@ -940,20 +964,38 @@ document.getElementById("cBuscar").addEventListener("click",()=>{
   const box = document.getElementById("resultadosCons");
   if(!res.length){ box.innerHTML = `<div class="panel"><div class="empty-mini">No se encontraron inspecciones con esos filtros.</div></div>`; return; }
 
+  const colorDec = d =>
+    d==="Aprobado" ? "ok" :
+    d==="Aprobado bajo condición" ? "warn" :
+    d==="Rechazado" ? "bad" :
+    d==="Bloqueado" ? "blk" : "";
+
   box.innerHTML = `<div class="panel">
-    <div class="section-title"><h2>${res.length} INSPECCIÓN(ES)</h2></div>
+    <div class="section-title"><h2>${res.length} INSPECCIÓN(ES)</h2>
+      <div class="leyenda-dec">
+        <span><i class="pt ok"></i>Aprobado</span>
+        <span><i class="pt warn"></i>Bajo condición</span>
+        <span><i class="pt bad"></i>Rechazado</span>
+        <span><i class="pt blk"></i>Bloqueado</span>
+      </div>
+    </div>
     ${res.map(i=>{
       const nc = i.resultados.filter(r=>r.resultado==="Rechazo").length;
-      return `<div class="lista-item">
+      const cl = colorDec(i.decision);
+      return `<div class="lista-item dec-${cl}">
         <div class="info">
           <b>OC ${i.orden||"—"} · ${i.producto}${i.numero>1?`<span class="chip-re">Reinspección ${i.numero}</span>`:""}</b>
           <span class="meta">${i.fecha} ${i.hora} · Inspector: ${i.inspector} · Cant: ${i.cantidadRecibida} (muestra ${i.cantidadMuestra})</span>
-          <span class="meta">Decisión: <b>${i.decision}</b>${nc?` · <span style="color:var(--bad-text);">${nc} variable(s) en rechazo</span>`:""}</span>
+          <span class="meta">${nc?`<span style="color:var(--bad-text);">${nc} variable(s) en rechazo</span>`:"todas las variables conformes"}</span>
         </div>
-        <div class="acciones"><button class="btn-sec" data-pdf="${i.id}">Descargar PDF</button></div>
+        <div class="acciones">
+          <span class="badge-dec ${cl}">${i.decision||"—"}</span>
+          <button class="btn-sec" data-pdf="${i.id}">Descargar PDF</button>
+        </div>
       </div>`;
     }).join("")}
   </div>`;
+
   box.querySelectorAll("[data-pdf]").forEach(b=>b.addEventListener("click",()=>{
     const insp = S.inspecciones.find(i=>i.id===b.dataset.pdf);
     if(insp) generarPDF(insp, true);
@@ -963,29 +1005,41 @@ document.getElementById("cBuscar").addEventListener("click",()=>{
 
 /* ---------- Catálogo compartido: listas y órdenes en la Sheet ---------- */
 async function cargarConfig(){
-  if(!S.syncUrl) return;
+  if(!S.syncUrl){ marcarConfigSync(false); return; }
   try{
     const res = await fetch(S.syncUrl + "?tipo=config");
     const data = await res.json();
-    if(data && Array.isArray(data.listas)){
-      // el servidor manda la versión compartida; se conserva lo local que aún no subió
-      const m = new Map();
-      S.listas.forEach(l=>m.set(String(l.id), l));
-      data.listas.forEach(l=>m.set(String(l.id), l));
-      S.listas = Array.from(m.values());
+    if(!data) throw new Error("sin datos");
+
+    const sListas  = Array.isArray(data.listas)  ? data.listas  : [];
+    const sOrdenes = Array.isArray(data.ordenes) ? data.ordenes : [];
+
+    // La hoja es la fuente de verdad. Solo se conserva lo local cuando la hoja
+    // aún está vacía, para no perder lo que falta por subir.
+    const soloLocal = [];
+    if(sListas.length){
+      const ids = new Set(sListas.map(l=>String(l.id)));
+      S.listas.filter(l=>!ids.has(String(l.id))).forEach(l=>soloLocal.push("lista: "+l.nombre));
+      S.listas = sListas;
+    } else if(S.listas.length){
+      S.listas.forEach(l=>soloLocal.push("lista: "+l.nombre));
     }
-    if(data && Array.isArray(data.ordenes)){
-      const m = new Map();
-      S.ordenes.forEach(o=>m.set(String(o.numero), o));
-      data.ordenes.forEach(o=>m.set(String(o.numero), o));
-      S.ordenes = Array.from(m.values());
+    if(sOrdenes.length){
+      const nums = new Set(sOrdenes.map(o=>String(o.numero)));
+      S.ordenes.filter(o=>!nums.has(String(o.numero))).forEach(o=>soloLocal.push("OC "+o.numero));
+      S.ordenes = sOrdenes;
+    } else if(S.ordenes.length){
+      S.ordenes.forEach(o=>soloLocal.push("OC "+o.numero));
     }
+
     persist();
     refrescarSelectores();
     if(document.getElementById("viewAdmin").style.display !== "none") renderAdmin();
+    S.pendientesLocal = soloLocal;
     marcarConfigSync(true);
   }catch(e){ console.error("config:", e); marcarConfigSync(false); }
 }
+
 async function enviarConfig(accion, payload){
   if(!S.syncUrl) { marcarConfigSync(false); return; }
   try{
@@ -1001,9 +1055,72 @@ async function enviarConfig(accion, payload){
 }
 function marcarConfigSync(ok){
   const el = document.getElementById("estadoConfig");
-  if(el) el.textContent = ok ? "Catálogo sincronizado con la hoja"
-                             : "⚠ Catálogo guardado solo en este dispositivo";
+  const banner = document.getElementById("bannerLocal");
+  if(!el) return;
+  const pend = (S.pendientesLocal||[]).length;
+
+  if(!S.syncUrl){
+    el.innerHTML = `<span style="color:#c81d2e;font-weight:700;">⚠ Sin conexión a la hoja — no trabajes así</span>`;
+  } else if(!ok){
+    el.innerHTML = `<span style="color:#c81d2e;font-weight:700;">⚠ No se pudo leer la hoja compartida</span>`;
+  } else if(pend){
+    el.innerHTML = `<span style="color:#92660a;font-weight:700;">⚠ ${pend} elemento(s) solo en este dispositivo</span>`;
+  } else {
+    el.innerHTML = `<span style="color:#1f9d55;">✓ Catálogo sincronizado con la hoja</span>`;
+  }
+
+  if(banner){
+    if(!S.syncUrl || !ok){
+      banner.style.display="block";
+      banner.innerHTML = `<div class="banner-alerta">
+        <b>⚠ La aplicación no está leyendo la hoja compartida.</b>
+        Lo que registres ahora queda solo en este dispositivo y no lo verán los demás.
+        Revisa la conexión o la configuración de sincronización antes de continuar.</div>`;
+    } else if(pend){
+      banner.style.display="block";
+      banner.innerHTML = `<div class="banner-alerta warn">
+        <b>⚠ Hay ${pend} elemento(s) creados en este dispositivo que no están en la hoja:</b>
+        ${(S.pendientesLocal||[]).slice(0,6).join(" · ")}${pend>6?" …":""}.
+        Ve a <b>Administrar</b> y presiona <b>Subir catálogo a la hoja</b>.</div>`;
+    } else banner.style.display="none";
+  }
 }
+
+/* ---------- Subir a la hoja todo lo creado localmente ---------- */
+document.getElementById("btnSubirTodo").addEventListener("click", async ()=>{
+  if(!S.syncUrl){ toast("Primero conecta la sincronización"); return; }
+  const total = S.listas.length + S.ordenes.length;
+  if(!total){ toast("No hay nada que subir"); return; }
+  if(!confirm(`Se enviarán a la hoja compartida ${S.listas.length} lista(s) de chequeo y ${S.ordenes.length} orden(es) de compra.\n\n¿Continuar?`)) return;
+
+  const btn = document.getElementById("btnSubirTodo");
+  const txtOrig = btn.textContent;
+  btn.disabled = true;
+  let ok=0, err=0, i=0;
+
+  for(const l of S.listas){
+    btn.textContent = `Subiendo ${++i}/${total}...`;
+    try{
+      const r = await fetch(S.syncUrl,{method:"POST",body:JSON.stringify({action:"guardarLista", lista:l})});
+      const d = await r.json();
+      if(d && d.ok===true) ok++; else err++;
+    }catch(e){ err++; }
+  }
+  for(const o of S.ordenes){
+    btn.textContent = `Subiendo ${++i}/${total}...`;
+    try{
+      const r = await fetch(S.syncUrl,{method:"POST",body:JSON.stringify({action:"guardarOrden", orden:o})});
+      const d = await r.json();
+      if(d && d.ok===true) ok++; else err++;
+    }catch(e){ err++; }
+  }
+
+  btn.disabled = false; btn.textContent = txtOrig;
+  marcarConfigSync(err===0);
+  toast(err===0 ? `${ok} elemento(s) subidos a la hoja`
+                : `${ok} subidos · ${err} con error — revisa la conexión`);
+  cargarConfig();
+});
 
 /* ---------- Administrar: listas ---------- */
 function renderAdmin(){
@@ -1189,7 +1306,7 @@ function tab(activo){
   });
   document.getElementById("barraFija").style.display = (activo==="Insp" && S.listaActiva)?"flex":"none";
   if(activo==="Admin") renderAdmin();
-  if(S.syncUrl){ cargarRemoto(); cargarConfig(); }
+  if(S.syncUrl){ cargarRemoto(); cargarConfig(); } else marcarConfigSync(false);
 }
 document.getElementById("tabInsp").addEventListener("click",()=>tab("Insp"));
 document.getElementById("tabCons").addEventListener("click",()=>tab("Cons"));
