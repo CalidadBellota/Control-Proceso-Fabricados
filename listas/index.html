@@ -70,6 +70,14 @@
   .barra-fija .resumen b{font-size:1.1rem;}
 
 
+
+  .aviso-refs{font-size:.8rem;border-radius:8px;padding:9px 13px;margin-bottom:14px;
+    background:#f7f8fa;border:1px solid var(--border);color:var(--text-dim);}
+  .aviso-refs.ok{background:#f4fdf7;border-color:#c7ecd6;color:#1f9d55;}
+  .aviso-refs.warn{background:#fff8e1;border-color:#f3e3ae;color:#92660a;}
+  .btn-ir-admin{margin-left:10px;padding:4px 11px;border:1px solid #f3e3ae;background:#fff;
+    border-radius:6px;font-size:.74rem;font-weight:700;cursor:pointer;color:#92660a;}
+  .btn-ir-admin:hover{background:#fff4d6;}
   .aviso-previa{background:#fff8e1;border:1px solid #f3e3ae;border-radius:10px;padding:14px 16px;margin-bottom:18px;}
   .aviso-previa h4{margin:0 0 4px 0;font-size:.9rem;color:#92660a;display:flex;align-items:center;gap:8px;}
   .aviso-previa p{margin:0;font-size:.82rem;color:var(--text-dim);}
@@ -201,10 +209,11 @@
   <div class="panel">
     <div class="section-title"><h2>REFERENCIA A INSPECCIONAR</h2>
       <span style="font-size:.74rem;color:var(--text-dim);">Cada referencia se inspecciona por separado</span></div>
+    <div id="avisoRefs" style="display:none;"></div>
     <div class="grid4">
       <div class="campo">
         <label for="iProducto">Producto / Lista de chequeo *</label>
-        <select id="iProducto"><option value="">Selecciona un producto</option></select>
+        <select id="iProducto" disabled><option value="">Selecciona primero la orden de compra</option></select>
       </div>
       <div class="campo">
         <label for="iTrazabilidad">Fecha de trazabilidad de la referencia</label>
@@ -523,11 +532,7 @@ function refrescarSelectores(){
   if(ocActual && !S.ordenes.some(o=>String(o.numero)===ocActual))
     document.getElementById("iOrden").style.display="block";
 
-  const sel = document.getElementById("iProducto");
-  const actual = sel.value;
-  sel.innerHTML = `<option value="">Selecciona un producto</option>` +
-    S.listas.map(l=>`<option value="${l.id}">${l.nombre} (${l.codigoBPCS})</option>`).join("");
-  sel.value = actual;
+  refrescarProductosDeOrden();
 
   const cs = document.getElementById("cProducto");
   cs.innerHTML = `<option value="">Todos</option>` +
@@ -537,16 +542,10 @@ function refrescarSelectores(){
 document.getElementById("iOrden").addEventListener("input", e=>{
   S.modo = null; S.reinspeccion = null;
   renderAvisoPrevia();
-  const o = S.ordenes.find(o=>o.numero===e.target.value.trim());
-  if(o){
-    if(o.proveedor) document.getElementById("iProveedor").value = o.proveedor;
-    const sel = document.getElementById("iProducto");
-    if(o.productos && o.productos.length){
-      sel.innerHTML = `<option value="">Selecciona un producto</option>` +
-        S.listas.filter(l=>o.productos.includes(l.id))
-          .map(l=>`<option value="${l.id}">${l.nombre} (${l.codigoBPCS})</option>`).join("");
-    }
-  }
+  const o = S.ordenes.find(o=>String(o.numero)===e.target.value.trim());
+  if(o && o.proveedor) document.getElementById("iProveedor").value = o.proveedor;
+  refrescarProductosDeOrden();
+  renderVariables();
 });
 
 function recalcMuestra(){
@@ -555,6 +554,56 @@ function recalcMuestra(){
   document.getElementById("iMuestra").value = muestraMILSTD(cant, niv) || "—";
   const et = document.getElementById("etqMuestra");
   if(et) et.textContent = `Cant. muestra (MIL-STD nivel ${niv||"S1"} · AQL ${S.listaActiva?S.listaActiva.aql:10})`;
+}
+
+
+/* ---------- Referencias disponibles según la orden seleccionada ---------- */
+function refrescarProductosDeOrden(){
+  const sel = document.getElementById("iProducto");
+  const aviso = document.getElementById("avisoRefs");
+  const num = document.getElementById("iOrden").value.trim();
+  const orden = S.ordenes.find(o=>String(o.numero)===num);
+  const previo = sel.value;
+
+  if(!num){
+    sel.innerHTML = `<option value="">Selecciona primero la orden de compra</option>`;
+    sel.disabled = true; aviso.style.display="none";
+    return;
+  }
+
+  if(!orden){
+    // orden escrita a mano, no registrada: se permiten todas
+    sel.disabled = false;
+    sel.innerHTML = `<option value="">Selecciona un producto</option>` +
+      S.listas.map(l=>`<option value="${l.id}">${l.nombre} (${l.codigoBPCS})</option>`).join("");
+    aviso.style.display="block";
+    aviso.innerHTML = `<div class="aviso-refs">La orden <b>${num}</b> no está registrada, así que se muestran
+      todas las listas de chequeo. Regístrala en <b>Administrar</b> para limitar sus referencias.</div>`;
+  } else if(orden.productos && orden.productos.length){
+    const refs = S.listas.filter(l=>orden.productos.includes(l.id));
+    sel.disabled = refs.length===0;
+    sel.innerHTML = `<option value="">Selecciona un producto</option>` +
+      refs.map(l=>`<option value="${l.id}">${l.nombre} (${l.codigoBPCS})</option>`).join("");
+    aviso.style.display="block";
+    aviso.innerHTML = `<div class="aviso-refs ok">La orden <b>${num}</b> tiene
+      <b>${refs.length}</b> referencia(s) asociada(s).</div>`;
+  } else {
+    sel.disabled = true;
+    sel.innerHTML = `<option value="">La orden no tiene referencias asociadas</option>`;
+    aviso.style.display="block";
+    aviso.innerHTML = `<div class="aviso-refs warn">La orden <b>${num}</b> no tiene referencias asociadas.
+      Ve a <b>Administrar → Órdenes de compra</b>, edítala y marca los productos que vienen en ese contenedor.
+      <button type="button" class="btn-ir-admin" id="btnIrOrden">Asignar referencias ahora</button></div>`;
+    const b = document.getElementById("btnIrOrden");
+    if(b) b.addEventListener("click", ()=>{
+      tab("Admin");
+      const idx = S.ordenes.findIndex(o=>String(o.numero)===num);
+      if(idx>=0) abrirModalOrden(idx);
+    });
+  }
+
+  if(previo && [...sel.options].some(o=>o.value===previo)) sel.value = previo;
+  else { S.listaActiva = null; S.modo = null; S.reinspeccion = null; }
 }
 
 document.getElementById("iOrdenSel").addEventListener("change", e=>{
