@@ -64,6 +64,12 @@
   .btn-principal:disabled{background:#e3e5e9;color:var(--text-dim);cursor:default;}
   .btn-sec{padding:10px 18px;border:1px solid var(--border);background:#fff;border-radius:8px;cursor:pointer;font-size:.86rem;font-weight:600;}
 
+
+  .falta-aviso{font-size:.78rem;color:#92660a;background:#fff8e1;border:1px solid #f3e3ae;
+    border-radius:7px;padding:7px 12px;max-width:52%;line-height:1.4;}
+  .falta-aviso b{font-weight:800;}
+  table.vars tr.pendiente td:first-child{border-left:3px solid #f2b90b;}
+  table.vars tr.pendiente td:first-child b::after{content:" •";color:#f2b90b;font-size:1.1rem;}
   .barra-fija{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);
     padding:12px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;z-index:20;box-shadow:0 -2px 10px rgba(0,0,0,.05);}
   .barra-fija .resumen{font-size:.85rem;}
@@ -102,6 +108,15 @@
     padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700;margin-left:8px;}
 
 
+
+  .diag{background:#f7f8fa;border:1px solid var(--border);border-radius:9px;padding:12px 14px;margin-bottom:12px;}
+  .diag-fila{display:flex;justify-content:space-between;font-size:.82rem;padding:3px 0;}
+  .diag-err{font-size:.74rem;color:#c81d2e;background:#fdeaea;border-radius:6px;padding:6px 9px;margin-top:8px;
+    word-break:break-word;}
+  .diag-lista{font-size:.74rem;color:var(--text-dim);margin-top:8px;line-height:1.6;max-height:130px;overflow-y:auto;}
+  .btn-reintentar{width:100%;margin-top:10px;padding:9px;border:none;border-radius:8px;background:var(--red);
+    color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;}
+  .btn-reintentar:disabled{background:#9aa5b1;}
   .banner-alerta{background:#fdeaea;border:1px solid #f6c9cd;color:#c81d2e;border-radius:10px;
     padding:12px 16px;margin-bottom:16px;font-size:.84rem;line-height:1.5;}
   .banner-alerta.warn{background:#fff8e1;border-color:#f3e3ae;color:#92660a;}
@@ -343,6 +358,7 @@
 
 <div class="barra-fija" id="barraFija" style="display:none;">
   <div class="resumen">Variables: <b id="rVars">0/0</b> · Conformes: <b id="rOk" style="color:var(--ok-text);">0</b> · No conformes: <b id="rBad" style="color:var(--bad-text);">0</b></div>
+  <div id="faltaGuardar" class="falta-aviso" style="display:none;"></div>
   <div style="flex:1;"></div>
   <button class="btn-sec" id="btnPdfPrev">Vista previa PDF</button>
   <button class="btn-principal" id="btnGuardar" disabled>Guardar inspección</button>
@@ -423,6 +439,7 @@
       <button class="primary" id="btnConectar">Conectar</button>
     </div>
     <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+      <div id="panelPendientes"></div>
       <span class="footer-link" id="btnBorrarLocal" style="margin:0;">Borrar datos locales de este dispositivo</span>
     </div>
   </div>
@@ -558,7 +575,13 @@ function recalcMuestra(){
 
 
 /* ---------- Referencias disponibles según la orden seleccionada ---------- */
+function inspeccionEnCurso(){
+  return !!S.listaActiva && (Object.keys(S.mediciones).length > 0 || !!S.decision);
+}
+
 function refrescarProductosDeOrden(){
+  // nunca rearmar el formulario si el inspector está en mitad de una inspección
+  if(inspeccionEnCurso()) return;
   const sel = document.getElementById("iProducto");
   const aviso = document.getElementById("avisoRefs");
   const num = document.getElementById("iOrden").value.trim();
@@ -723,13 +746,38 @@ function actualizarBarra(){
   document.getElementById("rBad").textContent = bad;
   document.getElementById("progresoVars").textContent = `${evaluadas} de ${total} evaluadas`;
 
-  const listo = document.getElementById("iOrden").value.trim() &&
-                document.getElementById("iInspector").value.trim() &&
-                document.getElementById("iCantidad").value &&
-                evaluadas===total && S.decision;
-  document.getElementById("btnGuardar").disabled = !listo;
-}
+  // qué falta para poder guardar
+  const falta = [];
+  if(!document.getElementById("iOrden").value.trim()) falta.push("la orden de compra");
+  if(!document.getElementById("iInspector").value.trim()) falta.push("el nombre del inspector");
+  if(!document.getElementById("iCantidad").value) falta.push("la cantidad recibida");
+  if(evaluadas < total){
+    const pend = S.listaActiva.variables
+      .map((v,i)=> (S.mediciones[i] && S.mediciones[i].resultado) ? null : v.nombre)
+      .filter(Boolean);
+    falta.push(`evaluar ${pend.length} variable(s): ${pend.slice(0,3).join(", ")}${pend.length>3?" y "+(pend.length-3)+" más":""}`);
+  }
+  if(!S.decision) falta.push("la decisión de calidad");
 
+  const aviso = document.getElementById("faltaGuardar");
+  if(aviso){
+    if(falta.length){
+      aviso.style.display = "block";
+      aviso.innerHTML = `<b>Falta:</b> ${falta.join(" · ")}`;
+    } else {
+      aviso.style.display = "block";
+      aviso.innerHTML = `<span style="color:#1f9d55;font-weight:700;">✓ Listo para guardar</span>`;
+    }
+  }
+
+  // resaltar las variables sin evaluar
+  document.querySelectorAll("#varsBody tr").forEach((tr,i)=>{
+    const m = S.mediciones[i];
+    tr.classList.toggle("pendiente", !(m && m.resultado));
+  });
+
+  document.getElementById("btnGuardar").disabled = falta.length > 0;
+}
 
 /* ---------- Inspecciones previas de la misma OC + producto ---------- */
 function inspeccionesPrevias(){
@@ -852,7 +900,8 @@ document.getElementById("btnGuardar").addEventListener("click",()=>{
   S.inspecciones.unshift(insp);
   persist();
   if(S.syncUrl) enviarRemoto(insp);
-  toast(insp.numero>1 ? `Reinspección ${insp.numero} guardada` : "Inspección guardada");
+  toast((insp.numero>1 ? `Reinspección ${insp.numero} guardada` : "Inspección guardada") +
+        ` · ${S.inspecciones.length} en total`);
   generarPDF(insp, true);
   limpiarFormulario();
 });
@@ -1067,7 +1116,14 @@ document.getElementById("cBuscar").addEventListener("click",()=>{
   );
 
   const box = document.getElementById("resultadosCons");
-  if(!res.length){ box.innerHTML = `<div class="panel"><div class="empty-mini">No se encontraron inspecciones con esos filtros.</div></div>`; return; }
+  const pend = S.inspecciones.filter(i=>i.pendienteSync).length;
+  const avisoPend = pend
+    ? `<div class="banner-alerta warn" style="margin-bottom:14px;">
+         <b>⚠ ${pend} inspección(es) están solo en este dispositivo</b> y no se han enviado a la hoja compartida,
+         así que no las verán desde otras tablets. Abre <b>Sincronización en tiempo real</b> (abajo en Inspeccionar)
+         y presiona <b>Reintentar envío</b>.</div>`
+    : "";
+  if(!res.length){ box.innerHTML = avisoPend + `<div class="panel"><div class="empty-mini">No se encontraron inspecciones con esos filtros.</div></div>`; return; }
 
   const colorDec = d =>
     d==="Aprobado" ? "ok" :
@@ -1075,7 +1131,7 @@ document.getElementById("cBuscar").addEventListener("click",()=>{
     d==="Rechazado" ? "bad" :
     d==="Bloqueado" ? "blk" : "";
 
-  box.innerHTML = `<div class="panel">
+  box.innerHTML = avisoPend + `<div class="panel">
     <div class="section-title"><h2>${res.length} INSPECCIÓN(ES)</h2>
       <div class="leyenda-dec">
         <span><i class="pt ok"></i>Aprobado</span>
@@ -1122,6 +1178,12 @@ async function cargarConfig(){
     // La hoja es la fuente de verdad. Solo se conserva lo local cuando la hoja
     // aún está vacía, para no perder lo que falta por subir.
     const soloLocal = [];
+    if(inspeccionEnCurso()){
+      // con una inspección abierta solo se anota lo pendiente, sin tocar el catálogo
+      S.pendientesLocal = S.pendientesLocal || [];
+      marcarConfigSync(true);
+      return;
+    }
     if(sListas.length){
       const ids = new Set(sListas.map(l=>String(l.id)));
       S.listas.filter(l=>!ids.has(String(l.id))).forEach(l=>soloLocal.push("lista: "+l.nombre));
@@ -1138,7 +1200,7 @@ async function cargarConfig(){
     }
 
     persist();
-    refrescarSelectores();
+    if(!inspeccionEnCurso()) refrescarSelectores();
     if(document.getElementById("viewAdmin").style.display !== "none") renderAdmin();
     S.pendientesLocal = soloLocal;
     marcarConfigSync(true);
@@ -1417,6 +1479,75 @@ document.getElementById("tabInsp").addEventListener("click",()=>tab("Insp"));
 document.getElementById("tabCons").addEventListener("click",()=>tab("Cons"));
 document.getElementById("tabAdmin").addEventListener("click",()=>tab("Admin"));
 
+
+/* ---------- Diagnóstico de sincronización ---------- */
+function renderPendientes(){
+  const box = document.getElementById("panelPendientes");
+  if(!box) return;
+  const pend = S.inspecciones.filter(i=>i.pendienteSync);
+  const total = S.inspecciones.length;
+
+  box.innerHTML = `
+    <div class="diag">
+      <div class="diag-fila"><span>Inspecciones en este dispositivo</span><b>${total}</b></div>
+      <div class="diag-fila"><span>Enviadas a la hoja</span><b style="color:#1f9d55;">${total-pend.length}</b></div>
+      <div class="diag-fila"><span>Pendientes de enviar</span><b style="color:${pend.length?"#c81d2e":"#1f9d55"};">${pend.length}</b></div>
+      ${S.ultimoErrorSync?`<div class="diag-err">Último error: ${S.ultimoErrorSync}</div>`:""}
+      ${pend.length?`
+        <div class="diag-lista">
+          ${pend.slice(0,8).map(i=>`<div>· OC ${i.orden||"—"} · ${i.producto} · ${i.fecha} ${i.hora}</div>`).join("")}
+          ${pend.length>8?`<div>· y ${pend.length-8} más</div>`:""}
+        </div>
+        <button class="btn-reintentar" id="btnReintentar">Reintentar envío de ${pend.length} pendiente(s)</button>
+      `:`<div style="font-size:.76rem;color:#1f9d55;margin-top:6px;">✓ Todo está en la hoja compartida.</div>`}
+      ${total?`<button class="btn-reintentar" id="btnReenviarTodo"
+        style="background:#fff;color:var(--text);border:1px solid var(--border);margin-top:8px;">
+        Reenviar las ${total} inspección(es) a la hoja</button>
+        <div style="font-size:.7rem;color:var(--text-dim);margin-top:6px;line-height:1.4;">
+          Úsalo si borraste filas mal escritas en la hoja. El script no duplica: si la inspección ya está, la ignora.
+        </div>`:""}
+    </div>`;
+
+
+  const bt = document.getElementById("btnReenviarTodo");
+  if(bt) bt.addEventListener("click", async ()=>{
+    if(!confirm(`Se reenviarán las ${S.inspecciones.length} inspecciones de este dispositivo a la hoja.\n\nLas que ya estén allá se ignoran. ¿Continuar?`)) return;
+    bt.disabled = true;
+    let ok=0, err=0;
+    for(let k=0;k<S.inspecciones.length;k++){
+      bt.textContent = `Reenviando ${k+1}/${S.inspecciones.length}...`;
+      try{
+        const res = await fetch(S.syncUrl,{method:"POST",body:JSON.stringify({action:"create",registro:S.inspecciones[k]})});
+        const d = await res.json();
+        if(d && d.ok===true){ marcarSync(S.inspecciones[k].id,true); ok++; }
+        else { err++; S.ultimoErrorSync = (d && d.error) ? d.error : "sin ok"; }
+      }catch(e){ err++; S.ultimoErrorSync = e.message; }
+    }
+    bt.disabled = false;
+    toast(err===0 ? `${ok} inspección(es) reenviadas` : `${ok} enviadas · ${err} con error`);
+    renderPendientes();
+  });
+
+  const b = document.getElementById("btnReintentar");
+  if(b) b.addEventListener("click", async ()=>{
+    b.disabled = true;
+    const lista = S.inspecciones.filter(i=>i.pendienteSync);
+    let ok=0, err=0;
+    for(let k=0;k<lista.length;k++){
+      b.textContent = `Enviando ${k+1}/${lista.length}...`;
+      try{
+        const res = await fetch(S.syncUrl,{method:"POST",body:JSON.stringify({action:"create",registro:lista[k]})});
+        const d = await res.json();
+        if(d && d.ok===true){ marcarSync(lista[k].id,true); ok++; }
+        else { err++; S.ultimoErrorSync = (d && d.error) ? d.error : "el servidor respondió sin ok"; }
+      }catch(e){ err++; S.ultimoErrorSync = e.message; }
+    }
+    b.disabled = false;
+    toast(err===0 ? `${ok} inspección(es) enviadas` : `${ok} enviadas · ${err} con error`);
+    renderPendientes();
+  });
+}
+
 /* ---------- Sincronización ---------- */
 const enviosEnCurso=new Set();
 async function enviarRemoto(insp){
@@ -1425,17 +1556,19 @@ async function enviarRemoto(insp){
   try{
     const res=await fetch(S.syncUrl,{method:"POST",body:JSON.stringify({action:"create",registro:insp})});
     const d=await res.json();
-    if(!d||d.ok!==true) throw new Error("no ok");
+    if(!d||d.ok!==true) throw new Error(d && d.error ? d.error : "el servidor respondió sin ok");
+    S.ultimoErrorSync = null;
     marcarSync(insp.id,true);
   }catch(e){
-    console.error(e); marcarSync(insp.id,false);
-    toast("⚠ No se pudo guardar en el servidor — reintentando...");
+    console.error("enviarRemoto:", e); S.ultimoErrorSync = e.message; marcarSync(insp.id,false);
+    toast("⚠ Guardado en este dispositivo. No llegó a la hoja — reintentando...");
   }finally{ enviosEnCurso.delete(insp.id); }
 }
 function marcarSync(id,ok){
   const r=S.inspecciones.find(i=>i.id===id);
   if(r){ r.pendienteSync=!ok; persist(); }
   actualizarEstadoSync();
+  renderPendientes();
 }
 function reintentarPendientes(){
   if(!S.syncUrl) return;
@@ -1464,6 +1597,7 @@ function actualizarEstadoSync(){
 }
 document.getElementById("openSync").addEventListener("click",()=>{
   document.getElementById("syncUrl").value=S.syncUrl;
+  renderPendientes();
   document.getElementById("syncModal").classList.add("show");
 });
 document.getElementById("btnConectar").addEventListener("click",()=>{
