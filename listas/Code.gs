@@ -31,6 +31,11 @@ const H_INSP = ["id","numero","esReinspeccion","fecha","hora","fechaRecepcion","
 const H_DET = ["inspeccionId","orden","producto","fecha","variable","especificacion",
   "valorMedido","resultado","observacion"];
 
+/**
+ * Devuelve la hoja y garantiza que su encabezado tenga TODAS las columnas esperadas.
+ * Si a una hoja vieja le faltan columnas nuevas, se agregan al final en vez de
+ * desplazar los datos existentes.
+ */
 function getSheet_(nombre, headers){
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sh = ss.getSheetByName(nombre);
@@ -38,8 +43,36 @@ function getSheet_(nombre, headers){
     sh = ss.insertSheet(nombre);
     sh.appendRow(headers);
     sh.setFrozenRows(1);
+    return sh;
+  }
+  if(sh.getLastRow() === 0){
+    sh.appendRow(headers);
+    sh.setFrozenRows(1);
+    return sh;
+  }
+  const actuales = sh.getRange(1,1,1,Math.max(1, sh.getLastColumn())).getValues()[0]
+                     .map(function(h){ return String(h).trim(); });
+  const faltantes = headers.filter(function(h){ return actuales.indexOf(h) === -1; });
+  if(faltantes.length){
+    sh.getRange(1, actuales.length + 1, 1, faltantes.length).setValues([faltantes]);
   }
   return sh;
+}
+
+/** Encabezado real de la hoja, que es el que manda para ubicar cada dato. */
+function headerDe_(sh){
+  return sh.getRange(1,1,1,Math.max(1, sh.getLastColumn())).getValues()[0]
+           .map(function(h){ return String(h).trim(); });
+}
+
+/** Arma la fila siguiendo el orden real del encabezado, no el del código. */
+function filaSegunHeader_(sh, obj){
+  return headerDe_(sh).map(function(h){
+    if(h === "") return "";
+    const v = obj[h];
+    if(v === undefined || v === null) return "";
+    return (typeof v === "object") ? JSON.stringify(v) : v;
+  });
 }
 
 function doGet(e){
@@ -118,16 +151,14 @@ function upsert_(nombre, headers, obj, llave){
   lock.waitLock(15000);
   try{
     const stamp = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd HH:mm:ss");
-    const fila = headers.map(h=>{
-      if(h === "actualizado") return stamp;
-      const v = obj[h];
-      if(v === undefined || v === null) return "";
-      return (typeof v === "object") ? JSON.stringify(v) : v;
-    });
+    const copia = {};
+    headers.forEach(function(h){ copia[h] = obj[h]; });
+    copia.actualizado = stamp;
+    const fila = filaSegunHeader_(sh, copia);
     const d = sh.getDataRange().getValues();
     for(let i=1;i<d.length;i++){
       if(String(d[i][0]) === String(obj[llave])){
-        sh.getRange(i+1,1,1,headers.length).setValues([fila]);
+        sh.getRange(i+1,1,1,fila.length).setValues([fila]);
         return;
       }
     }
@@ -154,20 +185,46 @@ function guardar_(r){
       if(ids.indexOf(r.id) !== -1) return; // idempotencia
     }
     const nc = (r.resultados||[]).filter(x => x.resultado === "Rechazo").length;
-    sh.appendRow(H_INSP.map(h=>{
-      if(h === "totalVariables") return (r.resultados||[]).length;
-      if(h === "noConformes") return nc;
-      return r[h] !== undefined ? r[h] : "";
-    }));
+    const datos = {};
+    H_INSP.forEach(function(h){ datos[h] = (r[h] !== undefined) ? r[h] : ""; });
+    datos.totalVariables = (r.resultados||[]).length;
+    datos.noConformes = nc;
+    sh.appendRow(filaSegunHeader_(sh, datos));
 
     const shD = getSheet_(SH_DET, H_DET);
-    (r.resultados||[]).forEach(v=>{
-      shD.appendRow([r.id, r.orden, r.producto, r.fecha,
-        v.nombre, v.especificacion, v.valorMedido, v.resultado, v.observacion]);
+    (r.resultados||[]).forEach(function(v){
+      shD.appendRow(filaSegunHeader_(shD, {
+        inspeccionId: r.id, orden: r.orden, producto: r.producto, fecha: r.fecha,
+        variable: v.nombre, especificacion: v.especificacion,
+        valorMedido: v.valorMedido, resultado: v.resultado, observacion: v.observacion
+      }));
     });
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Utilidad manual: borra de "Inspecciones" las filas cuyo encabezado no cuadra
+ * (las que quedaron corridas antes de esta corrección).
+ * Ejecútala una sola vez desde el editor si tienes filas desplazadas.
+ */
+function limpiarFilasCorridas(){
+  const sh = getSheet_(SH_INSP, H_INSP);
+  const head = headerDe_(sh);
+  const iFecha = head.indexOf("fecha");
+  if(iFecha === -1) return "No se encontró la columna fecha";
+  const d = sh.getDataRange().getValues();
+  let borradas = 0;
+  for(let i = d.length - 1; i >= 1; i--){
+    const v = String(d[i][iFecha] || "");
+    // una fecha válida se ve como 2026-09-15; si ahí hay un número suelto, la fila está corrida
+    if(v && !/\d{4}-\d{2}-\d{2}/.test(v) && !(d[i][iFecha] instanceof Date)){
+      sh.deleteRow(i + 1);
+      borradas++;
+    }
+  }
+  return borradas + " fila(s) corridas eliminadas";
 }
 
 function json_(o){
