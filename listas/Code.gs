@@ -14,6 +14,9 @@
  *  - "Detalle": una fila por variable inspeccionada, ligada por inspeccionId.
  */
 
+const SH_USR  = "Usuarios";
+const H_USR = ["usuario","nombre","pin","rol","activo","actualizado"];
+
 const SH_LIS  = "Listas";
 const SH_ORD  = "Ordenes";
 const H_LIS = ["id","nombre","codigoBPCS","codigoDoc","version","nivelInspeccion","aql","variables","actualizado"];
@@ -23,7 +26,8 @@ const SH_INSP = "Inspecciones";
 const SH_DET  = "Detalle";
 const TZ = "America/Bogota";
 
-const H_INSP = ["id","numero","esReinspeccion","fecha","hora","fechaRecepcion","orden","proveedor","trazabilidad",
+const H_INSP = ["id","numero","esReinspeccion","estado","aprobadoPor","fechaDecision",
+  "tipoRechazo","motivoRechazo","fecha","hora","fechaRecepcion","orden","proveedor","trazabilidad",
   "listaId","producto","codigoBPCS","codigoDoc","version",
   "cantidadRecibida","cantidadMuestra","nivelInspeccion","aql",
   "inspector","lider","decision","observaciones","totalVariables","noConformes"];
@@ -79,6 +83,15 @@ function doGet(e){
   // catálogo compartido: listas de chequeo y órdenes de compra
   if(e && e.parameter && e.parameter.tipo === "config"){
     const shL = getSheet_(SH_LIS, H_LIS), shO = getSheet_(SH_ORD, H_ORD);
+    const shU = getSheet_(SH_USR, H_USR);
+    const dU = shU.getDataRange().getValues();
+    if(dU.length <= 1){   // siembra el primer jefe para poder entrar la primera vez
+      shU.appendRow(["jefe","Jefe de Calidad","1234","jefe","Sí",
+        Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd HH:mm:ss")]);
+    }
+    const usuarios = shU.getDataRange().getValues().slice(1).filter(function(r){ return r[0]; })
+      .map(function(r){ return {usuario:String(r[0]), nombre:String(r[1]), pin:String(r[2]),
+                                rol:String(r[3]||"inspector"), activo:String(r[4]||"Sí")}; });
     const dL = shL.getDataRange().getValues(), dO = shO.getDataRange().getValues();
     const listas = dL.slice(1).filter(r=>r[0]).map(r=>({
       id:String(r[0]), nombre:r[1], codigoBPCS:String(r[2]), codigoDoc:r[3], version:String(r[4]),
@@ -89,7 +102,7 @@ function doGet(e){
       numero:String(r[0]), proveedor:r[1],
       productos: (function(){ try{ return JSON.parse(r[2]||"[]"); }catch(err){ return []; } })()
     }));
-    return json_({listas:listas, ordenes:ordenes});
+    return json_({listas:listas, ordenes:ordenes, usuarios:usuarios});
   }
   const sh = getSheet_(SH_INSP, H_INSP);
   const shD = getSheet_(SH_DET, H_DET);
@@ -135,6 +148,10 @@ function doPost(e){
     if(p.action === "create"){ guardar_(p.registro); return json_({ok:true}); }
     if(p.action === "createBatch"){ (p.registros||[]).forEach(guardar_); return json_({ok:true}); }
 
+    if(p.action === "guardarUsuario"){ upsert_(SH_USR, H_USR, p.usuario, "usuario"); return json_({ok:true}); }
+    if(p.action === "borrarUsuario"){  borrar_(SH_USR, H_USR, p.usuarioId);            return json_({ok:true}); }
+    if(p.action === "decidir"){        return json_(decidir_(p)); }
+
     if(p.action === "guardarLista"){   upsert_(SH_LIS, H_LIS, p.lista, "id");        return json_({ok:true}); }
     if(p.action === "guardarOrden"){   upsert_(SH_ORD, H_ORD, p.orden, "numero");    return json_({ok:true}); }
     if(p.action === "borrarLista"){    borrar_(SH_LIS, H_LIS, p.id);                 return json_({ok:true}); }
@@ -143,6 +160,33 @@ function doPost(e){
   }catch(err){
     return json_({ok:false, error:err.message});
   }
+}
+
+/** Registra la decisión del jefe sobre una inspección ya guardada. */
+function decidir_(p){
+  const sh = getSheet_(SH_INSP, H_INSP);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try{
+    const head = headerDe_(sh);
+    const d = sh.getDataRange().getValues();
+    const col = function(n){ return head.indexOf(n) + 1; };
+    for(let i = 1; i < d.length; i++){
+      if(String(d[i][0]) === String(p.id)){
+        const stamp = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd HH:mm:ss");
+        const set = function(n, v){ if(col(n) > 0) sh.getRange(i+1, col(n)).setValue(v); };
+        set("estado", p.estado);
+        set("decision", p.decision);
+        set("aprobadoPor", p.aprobadoPor || "");
+        set("fechaDecision", stamp);
+        set("tipoRechazo", p.tipoRechazo || "");
+        set("motivoRechazo", p.motivoRechazo || "");
+        set("lider", p.aprobadoPor || "");
+        return { ok:true, fechaDecision: stamp };
+      }
+    }
+    return { ok:false, error:"No se encontró la inspección " + p.id };
+  } finally { lock.releaseLock(); }
 }
 
 function upsert_(nombre, headers, obj, llave){
