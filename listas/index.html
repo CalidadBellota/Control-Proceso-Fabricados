@@ -117,6 +117,127 @@
   .btn-reintentar{width:100%;margin-top:10px;padding:9px;border:none;border-radius:8px;background:var(--red);
     color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;}
   .btn-reintentar:disabled{background:#9aa5b1;}
+
+  /* ---- Acceso ---- */
+  .login-bg{position:fixed;inset:0;background:linear-gradient(160deg,#f3f4f6 0%,#e7e9ee 100%);
+    z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;}
+  .login-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:26px 28px;
+    width:100%;max-width:460px;box-shadow:0 10px 40px rgba(0,0,0,.10);}
+  .login-head{display:flex;align-items:center;gap:14px;padding-bottom:16px;margin-bottom:18px;
+    border-bottom:1px solid var(--border);}
+  .login-head img{height:42px;width:auto;background:var(--red);border-radius:9px;padding:6px 9px;}
+  .login-head h2{margin:0;font-size:1.05rem;}
+  .login-head p{margin:2px 0 0 0;font-size:.78rem;color:var(--text-dim);}
+  .login-card label{font-size:.8rem;margin-bottom:9px;}
+  .user-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+  @media(max-width:460px){.user-grid{grid-template-columns:1fr;}}
+  .user-btn{display:flex;align-items:center;gap:10px;border:1px solid var(--border);background:#fff;
+    border-radius:10px;padding:11px 13px;cursor:pointer;text-align:left;font-family:inherit;}
+  .user-btn:hover{border-color:var(--red);background:#fdf6f6;}
+  .user-btn .ini{width:32px;height:32px;border-radius:50%;background:#eef0f3;color:var(--text-dim);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8rem;flex:none;}
+  .user-btn.jefe .ini{background:#fdeceb;color:var(--red);}
+  .user-btn b{display:block;font-size:.85rem;}
+  .user-btn span.r{font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;}
+  .login-nota{font-size:.75rem;color:var(--text-dim);margin-top:14px;line-height:1.5;}
+  .login-volver{background:none;border:none;color:var(--red);font-size:.8rem;font-weight:700;
+    cursor:pointer;padding:0;margin-bottom:14px;text-decoration:underline;}
+  .login-sel{display:flex;align-items:center;gap:11px;background:#f7f8fa;border:1px solid var(--border);
+    border-radius:10px;padding:11px 13px;margin-bottom:16px;}
+  .login-sel .ini{width:34px;height:34px;border-radius:50%;background:#fdeceb;color:var(--red);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;flex:none;}
+  .login-sel b{display:block;font-size:.88rem;}
+  .login-sel span{font-size:.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;}
+  #loginPin{font-size:1.5rem;text-align:center;letter-spacing:.5em;padding:13px;font-weight:700;}
+  .login-err{background:#fdeaea;border:1px solid #f6c9cd;color:#c81d2e;border-radius:8px;
+    padding:9px 12px;font-size:.8rem;margin-top:11px;font-weight:600;}
+  .login-entrar{width:100%;margin-top:14px;padding:13px;border:none;border-radius:9px;
+    background:var(--red);color:#fff;font-weight:700;font-size:.95rem;cursor:pointer;}
+
+  /* ---- Chip de usuario ---- */
+  .user-chip{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.15);
+    border-radius:20px;padding:4px 5px 4px 5px;}
+  .user-chip .ini{width:28px;height:28px;border-radius:50%;background:#fff;color:var(--red);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.72rem;flex:none;}
+  .user-chip b{display:block;font-size:.78rem;line-height:1.15;}
+  .user-chip span span{font-size:.64rem;opacity:.8;text-transform:uppercase;letter-spacing:.4px;}
+  .user-chip button{background:rgba(0,0,0,.18);border:none;color:#fff;font-size:.7rem;font-weight:700;
+    padding:5px 11px;border-radius:14px;cursor:pointer;}
+  .user-chip button:hover{background:rgba(0,0,0,.3);}
+  nav.tabs .pill-n{background:#fff;color:var(--red);border-radius:11px;padding:1px 7px;
+    font-size:.68rem;font-weight:800;margin-left:6px;}
+  nav.tabs button.active .pill-n{background:var(--red);color:#fff;}
+
+  /* ---- Pendientes / Aprobaciones ---- */
+  .barra-busca{display:flex;gap:14px;align-items:center;flex-wrap:wrap;}
+  .barra-busca input{flex:1;min-width:230px;}
+  .oc-grupo{background:#fff;border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden;}
+  .oc-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:13px 17px;background:#f7f8fa;border-bottom:1px solid var(--border);}
+  .oc-head b{font-size:.95rem;}
+  .oc-head .meta{font-size:.78rem;color:var(--text-dim);}
+  .ref-fila{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:13px 17px;border-bottom:1px solid #f2f3f5;}
+  .ref-fila:last-child{border-bottom:none;}
+  .ref-fila .info b{display:block;font-size:.88rem;}
+  .ref-fila .info .meta{font-size:.76rem;color:var(--text-dim);}
+  .ref-fila .acc{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .est{padding:4px 11px;border-radius:20px;font-size:.72rem;font-weight:700;white-space:nowrap;}
+  .est.nueva{background:#eef0f3;color:#5a6270;}
+  .est.espera{background:#fff8e1;color:#92660a;}
+  .est.ok{background:#e8f8ef;color:#1f9d55;}
+  .est.cond{background:#fff4d6;color:#92660a;}
+  .est.bad{background:#fdeaea;color:#c81d2e;}
+  .est.blk{background:#eef0f3;color:#5a6270;}
+  .btn-ir{padding:8px 16px;border:none;border-radius:8px;background:var(--red);color:#fff;
+    font-weight:700;font-size:.8rem;cursor:pointer;white-space:nowrap;}
+  .btn-ir.sec{background:#fff;color:var(--text);border:1px solid var(--border);}
+  .ap-card{background:#fff;border:1px solid var(--border);border-left:5px solid #f2b90b;
+    border-radius:12px;margin-bottom:14px;overflow:hidden;}
+  .ap-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;
+    justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;}
+  .ap-head h4{margin:0;font-size:1rem;}
+  .ap-head .meta{font-size:.78rem;color:var(--text-dim);margin-top:3px;line-height:1.5;}
+  .ap-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;padding:14px 18px;}
+  @media(max-width:700px){.ap-kpis{grid-template-columns:1fr 1fr;}}
+  .ap-kpi{background:#f9fafb;border:1px solid var(--border);border-radius:9px;padding:10px 13px;}
+  .ap-kpi b{display:block;font-size:1.2rem;font-weight:800;}
+  .ap-kpi span{font-size:.7rem;color:var(--text-dim);}
+  .ap-kpi.mal b{color:#c81d2e;}
+  .ap-body{padding:0 18px 14px 18px;}
+  .ap-acciones{display:flex;gap:9px;flex-wrap:wrap;padding:14px 18px;border-top:1px solid var(--border);
+    background:#fafbfc;}
+  .ap-acciones button{padding:11px 17px;border:1px solid var(--border);background:#fff;border-radius:9px;
+    font-weight:700;font-size:.83rem;cursor:pointer;font-family:inherit;}
+  .ap-acciones .ok{background:#1f9d55;border-color:#1f9d55;color:#fff;}
+  .ap-acciones .cond{background:#f2b90b;border-color:#f2b90b;color:#3d2f00;}
+  .ap-acciones .bad{background:var(--red);border-color:var(--red);color:#fff;}
+  .ap-acciones .dev{color:#92660a;border-color:#f3e3ae;background:#fff8e1;}
+  .ap-detalle{display:none;padding:0 18px 14px 18px;}
+  .ap-detalle.show{display:block;}
+  .ver-mas{background:none;border:none;color:var(--red);font-size:.78rem;font-weight:700;
+    cursor:pointer;padding:0 18px 12px 18px;text-decoration:underline;}
+  .seg{display:flex;gap:0;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:#fff;}
+  .seg button{padding:9px 14px;border:none;background:#fff;font-size:.78rem;font-weight:600;
+    color:var(--text-dim);cursor:pointer;border-right:1px solid var(--border);white-space:nowrap;}
+  .seg button:last-child{border-right:none;}
+  .seg button.on{background:var(--red);color:#fff;}
+  .ap-motivo{background:#fff8e1;border:1px solid #f3e3ae;color:#7a5600;border-radius:8px;
+    padding:9px 12px;font-size:.78rem;margin:0 18px 14px;}
+  .tabla-det{width:100%;border-collapse:collapse;font-size:.76rem;}
+  .tabla-det th{background:#f3f4f7;text-align:left;padding:7px 9px;font-size:.68rem;
+    text-transform:uppercase;letter-spacing:.04em;color:var(--text-dim);}
+  .tabla-det td{padding:7px 9px;border-top:1px solid var(--border);}
+  .tabla-det .r-ok{color:#1f9d55;font-weight:700;}
+  .tabla-det .r-bad{color:var(--bad-text);font-weight:700;}
+  .usr-item{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:12px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:#fff;}
+  .usr-item .rolx{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+    padding:3px 9px;border-radius:99px;}
+  .usr-item .rolx.jefe{background:#fdeaea;color:#c81d2e;}
+  .usr-item .rolx.inspector{background:#eef2f7;color:#4a5568;}
+  .usr-item .inact{opacity:.45;}
+  .solo-jefe{display:none;}
   .banner-alerta{background:#fdeaea;border:1px solid #f6c9cd;color:#c81d2e;border-radius:10px;
     padding:12px 16px;margin-bottom:16px;font-size:.84rem;line-height:1.5;}
   .banner-alerta.warn{background:#fff8e1;border-color:#f3e3ae;color:#92660a;}
@@ -126,16 +247,19 @@
   .lista-item.dec-warn{border-left-color:#f2b90b;background:#fffdf5;}
   .lista-item.dec-bad{border-left-color:#e53e3e;background:#fef7f7;}
   .lista-item.dec-blk{border-left-color:#8b939e;background:#f8f9fa;}
+  .lista-item.dec-esp{border-left-color:#5b7cc4;background:#f6f8fd;}
   .badge-dec{padding:5px 12px;border-radius:20px;font-size:.76rem;font-weight:700;white-space:nowrap;}
   .badge-dec.ok{background:#e8f8ef;color:#1f9d55;}
   .badge-dec.warn{background:#fff8e1;color:#92660a;}
   .badge-dec.bad{background:#fdeaea;color:#c81d2e;}
   .badge-dec.blk{background:#eef0f3;color:#5a6270;}
+  .badge-dec.esp{background:#eaf0fb;color:#3c5ea8;}
   .leyenda-dec{display:flex;gap:14px;font-size:.72rem;color:var(--text-dim);flex-wrap:wrap;}
   .leyenda-dec span{display:inline-flex;align-items:center;gap:5px;}
   .leyenda-dec .pt{width:9px;height:9px;border-radius:50%;}
   .leyenda-dec .pt.ok{background:#22c55e;} .leyenda-dec .pt.warn{background:#f2b90b;}
   .leyenda-dec .pt.bad{background:#e53e3e;} .leyenda-dec .pt.blk{background:#8b939e;}
+  .leyenda-dec .pt.esp{background:#5b7cc4;}
   .lista-item{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--border);
     border-radius:8px;margin-bottom:8px;background:#fff;flex-wrap:wrap;gap:10px;}
   .lista-item .info{font-size:.86rem;}
@@ -165,6 +289,32 @@
 </head>
 <body>
 
+
+<div class="login-bg" id="loginBg">
+  <div class="login-card">
+    <div class="login-head">
+      <img src="data:image/png;base64,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" alt="Bellota">
+      <div>
+        <h2>Listas de Chequeo</h2>
+        <p>Recepción de productos comercializados</p>
+      </div>
+    </div>
+    <div id="loginPaso1">
+      <label>¿Quién va a trabajar?</label>
+      <div class="user-grid" id="loginUsuarios"></div>
+      <div class="login-nota" id="loginNota"></div>
+    </div>
+    <div id="loginPaso2" style="display:none;">
+      <button class="login-volver" id="loginVolver">← Cambiar de usuario</button>
+      <div class="login-sel" id="loginSel"></div>
+      <label for="loginPin">Escribe tu PIN</label>
+      <input type="password" id="loginPin" inputmode="numeric" maxlength="8" placeholder="••••" autocomplete="off">
+      <div class="login-err" id="loginErr" style="display:none;"></div>
+      <button class="login-entrar" id="loginEntrar">Entrar</button>
+    </div>
+  </div>
+</div>
+
 <header>
   <div class="header-top">
     <a class="brand" href="../" title="Volver al portal">
@@ -176,10 +326,17 @@
     </a>
     <div class="header-right">
       <nav class="tabs">
-        <button id="tabInsp" class="active">Inspeccionar</button>
+        <button id="tabPend" class="active">Pendientes</button>
+        <button id="tabAprob">Aprobaciones<span class="pill-n" id="pillAprob"></span></button>
+        <button id="tabInsp">Inspeccionar</button>
         <button id="tabCons">Consultar</button>
         <button id="tabAdmin">Administrar</button>
       </nav>
+      <span class="user-chip" id="userChip" style="display:none;">
+        <span class="ini" id="userIni"></span>
+        <span><b id="userNom"></b><span id="userRol"></span></span>
+        <button id="btnSalir" title="Cambiar de usuario">Salir</button>
+      </span>
       <span style="display:flex;align-items:center;gap:6px;">
         <span id="syncDot" style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5);display:inline-block;"></span>
         <span id="syncLabel" style="font-size:.78rem;">Modo local</span>
@@ -191,6 +348,36 @@
 <main>
 
 <div id="bannerLocal" style="display:none;"></div>
+
+
+<!-- ============ PENDIENTES ============ -->
+<section id="viewPend" style="display:none;">
+  <div class="panel">
+    <div class="section-title"><h2>PENDIENTES POR INSPECCIONAR</h2>
+      <span id="pendResumen" style="font-size:.78rem;color:var(--text-dim);"></span></div>
+    <div class="barra-busca">
+      <input type="text" id="pendBuscar" placeholder="Buscar por orden de compra, producto o proveedor...">
+      <div class="seg" id="pendFiltro">
+        <button data-f="todas" class="on">Todas</button>
+        <button data-f="nuevas">Sin inspeccionar</button>
+        <button data-f="reinsp">Requieren reinspección</button>
+      </div>
+    </div>
+  </div>
+  <div id="pendLista"></div>
+</section>
+
+<!-- ============ APROBACIONES ============ -->
+<section id="viewAprob" style="display:none;">
+  <div class="panel">
+    <div class="section-title"><h2>INSPECCIONES POR APROBAR</h2>
+      <span id="aprobResumen" style="font-size:.78rem;color:var(--text-dim);"></span></div>
+    <div class="barra-busca">
+      <input type="text" id="aprobBuscar" placeholder="Buscar por orden de compra, producto o inspector...">
+    </div>
+  </div>
+  <div id="aprobLista"></div>
+</section>
 
 <!-- ============ INSPECCIONAR ============ -->
 <section id="viewInsp">
@@ -268,14 +455,9 @@
     </div>
 
     <div class="panel">
-      <div class="section-title"><h2>DECISIÓN DE CALIDAD</h2></div>
-      <div class="decision" id="decision">
-        <button data-d="Aprobado">Aprobado</button>
-        <button data-d="Aprobado bajo condición">Aprobado bajo condición</button>
-        <button data-d="Rechazado">Rechazado</button>
-        <button data-d="Bloqueado">Bloqueado</button>
-      </div>
-      <div class="campo" style="margin-top:16px;">
+      <div class="section-title"><h2>OBSERVACIONES Y ENVÍO</h2>
+        <span style="font-size:.74rem;color:var(--text-dim);">La decisión la toma el jefe de calidad</span></div>
+      <div class="campo">
         <label for="iObservaciones">Observaciones</label>
         <textarea id="iObservaciones" rows="3" placeholder="Observaciones generales de la inspección"></textarea>
       </div>
@@ -287,12 +469,14 @@
         </div>
         <div class="campo">
           <label for="iLider">Firma Líder Calidad Prod. Comercializados</label>
-          <input type="text" id="iLider" placeholder="Nombre del líder de calidad">
+          <input type="text" id="iLider" placeholder="La firma el jefe al aprobar" readonly
+                 style="background:#f8f9fb;">
         </div>
         <div class="campo">
           <label>&nbsp;</label>
           <div style="font-size:.76rem;color:var(--text-dim);padding:10px 0;">
-            La inspección queda firmada con el nombre del inspector y la fecha y hora del registro.
+            Al enviar, la inspección pasa a la bandeja del jefe de calidad. El PDF de liberación
+            se genera cuando él tome la decisión.
           </div>
         </div>
       </div>
@@ -352,6 +536,17 @@
     </div>
     <div id="ordenesAdmin"></div>
   </div>
+  <div class="panel">
+    <div class="section-title">
+      <h2>USUARIOS</h2>
+      <button class="btn-sec" id="btnNuevoUsuario">+ Nuevo usuario</button>
+    </div>
+    <div id="usuariosAdmin"></div>
+    <div style="font-size:.74rem;color:var(--text-dim);margin-top:10px;line-height:1.5;">
+      El PIN ordena el trabajo y deja constancia de quién inspecciona y quién aprueba.
+      No es una contraseña segura: cualquiera con conocimientos técnicos podría saltárselo.
+    </div>
+  </div>
 </section>
 
 </main>
@@ -361,10 +556,60 @@
   <div id="faltaGuardar" class="falta-aviso" style="display:none;"></div>
   <div style="flex:1;"></div>
   <button class="btn-sec" id="btnPdfPrev">Vista previa PDF</button>
-  <button class="btn-principal" id="btnGuardar" disabled>Guardar inspección</button>
+  <button class="btn-principal" id="btnGuardar" disabled>Enviar a aprobación</button>
 </div>
 
 <!-- Modal editar lista -->
+<div class="modal-bg" id="modalUsuario">
+  <div class="modal" style="max-width:460px;">
+    <h3 id="muTitulo">Nuevo usuario</h3>
+    <div class="grid3">
+      <div class="campo">
+        <label for="muUsuario">Usuario (sin espacios) *</label>
+        <input type="text" id="muUsuario" placeholder="jperez">
+      </div>
+      <div class="campo">
+        <label for="muNombre">Nombre completo *</label>
+        <input type="text" id="muNombre" placeholder="Juan Pérez">
+      </div>
+      <div class="campo">
+        <label for="muPin">PIN (4 dígitos) *</label>
+        <input type="text" id="muPin" inputmode="numeric" maxlength="6" placeholder="1234">
+      </div>
+      <div class="campo">
+        <label for="muRol">Rol *</label>
+        <select id="muRol">
+          <option value="inspector">Inspector</option>
+          <option value="jefe">Jefe de calidad</option>
+        </select>
+      </div>
+      <div class="campo">
+        <label for="muActivo">Estado</label>
+        <select id="muActivo"><option value="Sí">Activo</option><option value="No">Inactivo</option></select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="muCancelar">Cancelar</button>
+      <button class="primary" id="muGuardar">Guardar usuario</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalDecision">
+  <div class="modal" style="max-width:480px;">
+    <h3 id="mdTitulo">Decisión</h3>
+    <p id="mdTexto" style="font-size:.82rem;color:var(--text-dim);line-height:1.5;margin:0 0 14px;"></p>
+    <div class="campo">
+      <label for="mdMotivo" id="mdLabel">Motivo</label>
+      <textarea id="mdMotivo" rows="3" placeholder="Explica el motivo para que quede en la trazabilidad"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button id="mdCancelar">Cancelar</button>
+      <button class="primary" id="mdConfirmar">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modalLista">
   <div class="modal">
     <h3 id="mlTitulo">Nueva lista de chequeo</h3>
@@ -498,6 +743,9 @@ const S = {
   listas: JSON.parse(localStorage.getItem("lc_listas")||"null") || PLANTILLAS_BASE,
   ordenes: JSON.parse(localStorage.getItem("lc_ordenes")||"[]"),
   inspecciones: JSON.parse(localStorage.getItem("lc_insp")||"[]"),
+  usuarios: JSON.parse(localStorage.getItem("lc_usuarios")||"null") ||
+            [{usuario:"jefe", nombre:"Jefe de Calidad", pin:"1234", rol:"jefe", activo:"Sí"}],
+  sesion: null,
   syncUrl: localStorage.getItem("lc_sync_url")||"https://script.google.com/macros/s/AKfycbxX-MHs5Ztq9lWjCZHhLV90_n9aFO-dGQjjLDHhlinKRrbgeoZzQZoFZu6Onrh16gxJOw/exec",
   listaActiva: null,
   mediciones: {},   // idx -> {valor, resultado, obs}
@@ -510,8 +758,10 @@ function persist(){
   localStorage.setItem("lc_listas", JSON.stringify(S.listas));
   localStorage.setItem("lc_ordenes", JSON.stringify(S.ordenes));
   localStorage.setItem("lc_insp", JSON.stringify(S.inspecciones));
+  localStorage.setItem("lc_usuarios", JSON.stringify(S.usuarios));
 }
 function pad(n){return String(n).padStart(2,"0");}
+function ocTxt(n){ const t=String(n==null?"":n).trim(); return /^oc[\s\-.]?/i.test(t) ? t : "OC "+t; }
 function hoyISO(){const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2200);}
 
@@ -544,7 +794,7 @@ function refrescarSelectores(){
   const ocActual = document.getElementById("iOrden").value.trim();
   selO.innerHTML = `<option value="">Selecciona una orden</option>` +
     S.ordenes.sort((a,b)=>String(b.numero).localeCompare(String(a.numero)))
-      .map(o=>`<option value="${o.numero}"${ocActual===String(o.numero)?" selected":""}>OC ${o.numero}${o.proveedor?" · "+o.proveedor:""}</option>`).join("") +
+      .map(o=>`<option value="${o.numero}"${ocActual===String(o.numero)?" selected":""}>${ocTxt(o.numero)}${o.proveedor?" · "+o.proveedor:""}</option>`).join("") +
     `<option value="__otra__"${ocActual && !S.ordenes.some(o=>String(o.numero)===ocActual)?" selected":""}>➕ Otra orden (escribirla)</option>`;
   if(ocActual && !S.ordenes.some(o=>String(o.numero)===ocActual))
     document.getElementById("iOrden").style.display="block";
@@ -576,7 +826,7 @@ function recalcMuestra(){
 
 /* ---------- Referencias disponibles según la orden seleccionada ---------- */
 function inspeccionEnCurso(){
-  return !!S.listaActiva && (Object.keys(S.mediciones).length > 0 || !!S.decision);
+  return !!S.listaActiva && (Object.keys(S.mediciones).length > 0 || S.modo === "reinspeccion");
 }
 
 function refrescarProductosDeOrden(){
@@ -757,7 +1007,6 @@ function actualizarBarra(){
       .filter(Boolean);
     falta.push(`evaluar ${pend.length} variable(s): ${pend.slice(0,3).join(", ")}${pend.length>3?" y "+(pend.length-3)+" más":""}`);
   }
-  if(!S.decision) falta.push("la decisión de calidad");
 
   const aviso = document.getElementById("faltaGuardar");
   if(aviso){
@@ -804,7 +1053,7 @@ function renderAvisoPrevia(){
   }
 
   // hay previas: bloquear hasta que el usuario decida
-  const clase = d => d==="Aprobado" ? "ok" : (d==="Rechazado"||d==="Bloqueado") ? "bad" : "warn";
+  const clase = i => { const c = claseEstado(i); return c==="ok" ? "ok" : (c==="bad"||c==="blk") ? "bad" : "warn"; };
   box.style.display="block";
   box.innerHTML = `<div class="aviso-previa">
     <h4>⚠ ${lista.nombre} ya fue inspeccionado en la orden ${orden}</h4>
@@ -817,7 +1066,7 @@ function renderAvisoPrevia(){
           <span><b>Inspección ${i.numero||prev.length-idx}</b> · ${i.fecha} ${i.hora} · ${i.inspector}
             ${nc?` · <span style="color:var(--bad-text);">${nc} variable(s) en rechazo</span>`:""}</span>
           <span style="display:flex;align-items:center;gap:8px;">
-            <span class="dec ${clase(i.decision)}">${i.decision}</span>
+            <span class="dec ${clase(i)}">${textoEstado(i)}</span>
             <button type="button" data-pdfprev="${i.id}">PDF</button>
             ${idx===0?`<button type="button" class="btn-reinsp" data-reinsp="1">Hacer reinspección</button>`:""}
           </span>
@@ -863,6 +1112,152 @@ function renderAvisoPrevia(){
   renderVariables();
 }
 
+
+/* ==========================================================================
+   SESIÓN Y ROLES
+   ========================================================================== */
+const ESTADOS = {
+  pendiente_aprobacion: {txt:"En espera de aprobación", cls:"espera"},
+  aprobado:             {txt:"Aprobado",                cls:"ok"},
+  aprobado_condicion:   {txt:"Aprobado bajo condición", cls:"cond"},
+  rechazado_lote:       {txt:"Lote rechazado",          cls:"bad"},
+  devuelto:             {txt:"Devuelta al inspector",   cls:"bad"},
+  bloqueado:            {txt:"Bloqueado",               cls:"blk"}
+};
+// estados que cierran la referencia (ya no aparece en pendientes)
+const ESTADOS_CIERRAN = ["aprobado", "aprobado_condicion"];
+
+function esJefe(){ return !!S.sesion && S.sesion.rol === "jefe"; }
+function iniciales(n){
+  return String(n||"?").trim().split(/\s+/).slice(0,2).map(p=>p[0]).join("").toUpperCase();
+}
+
+function renderLogin(){
+  const box = document.getElementById("loginUsuarios");
+  const activos = S.usuarios.filter(u => String(u.activo||"Sí").toLowerCase() !== "no");
+  box.innerHTML = activos.map(u=>`
+    <button type="button" class="user-btn ${u.rol==="jefe"?"jefe":""}" data-u="${u.usuario}">
+      <span class="ini">${iniciales(u.nombre)}</span>
+      <span><b>${u.nombre}</b><span class="r">${u.rol==="jefe"?"Jefe de calidad":"Inspector"}</span></span>
+    </button>`).join("");
+  box.querySelectorAll("[data-u]").forEach(b=>
+    b.addEventListener("click", ()=> pedirPin(b.dataset.u)));
+
+  document.getElementById("loginNota").innerHTML = S.syncUrl
+    ? `Los usuarios se administran desde la hoja compartida. Si no ves el tuyo, pídele al jefe de calidad que lo cree.`
+    : `<b style="color:#c81d2e;">Sin conexión a la hoja compartida.</b> Solo se muestran los usuarios de este dispositivo.`;
+}
+
+let loginUsuarioSel = null;
+function pedirPin(usuario){
+  const u = S.usuarios.find(x=>x.usuario===usuario);
+  if(!u) return;
+  loginUsuarioSel = u;
+  document.getElementById("loginPaso1").style.display = "none";
+  document.getElementById("loginPaso2").style.display = "block";
+  document.getElementById("loginSel").innerHTML =
+    `<span class="ini">${iniciales(u.nombre)}</span>
+     <span><b>${u.nombre}</b><span>${u.rol==="jefe"?"Jefe de calidad":"Inspector"}</span></span>`;
+  const pin = document.getElementById("loginPin");
+  pin.value = ""; document.getElementById("loginErr").style.display = "none";
+  setTimeout(()=>pin.focus(), 60);
+}
+document.getElementById("loginVolver").addEventListener("click", ()=>{
+  document.getElementById("loginPaso2").style.display = "none";
+  document.getElementById("loginPaso1").style.display = "block";
+});
+function intentarEntrar(){
+  if(!loginUsuarioSel) return;
+  const pin = document.getElementById("loginPin").value.trim();
+  const err = document.getElementById("loginErr");
+  if(String(pin) !== String(loginUsuarioSel.pin)){
+    err.style.display = "block";
+    err.textContent = "PIN incorrecto. Inténtalo de nuevo.";
+    document.getElementById("loginPin").value = "";
+    return;
+  }
+  abrirSesion(loginUsuarioSel);
+}
+document.getElementById("loginEntrar").addEventListener("click", intentarEntrar);
+document.getElementById("loginPin").addEventListener("keydown", e=>{ if(e.key==="Enter") intentarEntrar(); });
+
+function abrirSesion(u){
+  S.sesion = {usuario:u.usuario, nombre:u.nombre, rol:u.rol};
+  sessionStorage.setItem("lc_sesion", JSON.stringify(S.sesion));
+  document.getElementById("loginBg").style.display = "none";
+  aplicarRol();
+  tab(esJefe() ? "Aprob" : "Pend");
+}
+function cerrarSesion(){
+  S.sesion = null;
+  sessionStorage.removeItem("lc_sesion");
+  limpiarFormulario();
+  document.getElementById("loginBg").style.display = "flex";
+  document.getElementById("loginPaso2").style.display = "none";
+  document.getElementById("loginPaso1").style.display = "block";
+  renderLogin();
+}
+document.getElementById("btnSalir").addEventListener("click", cerrarSesion);
+
+function aplicarRol(){
+  const jefe = esJefe();
+  document.getElementById("tabAprob").style.display = jefe ? "block" : "none";
+  document.getElementById("tabAdmin").style.display = jefe ? "block" : "none";
+  document.querySelectorAll(".solo-jefe").forEach(el=> el.style.display = jefe ? "" : "none");
+
+  const chip = document.getElementById("userChip");
+  if(S.sesion){
+    chip.style.display = "flex";
+    document.getElementById("userIni").textContent = iniciales(S.sesion.nombre);
+    document.getElementById("userNom").textContent = S.sesion.nombre;
+    document.getElementById("userRol").textContent = jefe ? "Jefe de calidad" : "Inspector";
+    // el inspector siempre firma con su propio nombre
+    const ins = document.getElementById("iInspector");
+    if(ins && !ins.value){ ins.value = S.sesion.nombre; ins.dispatchEvent(new Event("input",{bubbles:true})); }
+  } else chip.style.display = "none";
+  actualizarPill();
+}
+
+function actualizarPill(){
+  const p = document.getElementById("pillAprob");
+  const n = S.inspecciones.filter(i => estadoDe(i) === "pendiente_aprobacion").length;
+  p.textContent = n ? n : "";
+  p.style.display = n ? "inline-block" : "none";
+}
+
+/* ---------- Estado de una inspección (compatible con registros viejos) ---------- */
+function estadoDe(i){
+  if(i.estado) return i.estado;
+  const d = i.decision || "";
+  if(d === "Aprobado") return "aprobado";
+  if(d === "Aprobado bajo condición") return "aprobado_condicion";
+  if(d === "Rechazado") return "rechazado_lote";
+  if(d === "Bloqueado") return "bloqueado";
+  return "pendiente_aprobacion";
+}
+function textoEstado(i){ return (ESTADOS[estadoDe(i)] || {txt:"—"}).txt; }
+function claseEstado(i){ return (ESTADOS[estadoDe(i)] || {cls:""}).cls; }
+
+/* ---------- Referencias pendientes de inspección ---------- */
+function referenciasPendientes(){
+  const out = [];
+  S.ordenes.forEach(o=>{
+    (o.productos||[]).forEach(listaId=>{
+      const lista = S.listas.find(l => String(l.id) === String(listaId));
+      if(!lista) return;
+      const hist = S.inspecciones
+        .filter(i => String(i.orden) === String(o.numero) && String(i.listaId) === String(listaId))
+        .sort((a,b)=> String(b.id).localeCompare(String(a.id)));
+      const ultima = hist[0] || null;
+      const est = ultima ? estadoDe(ultima) : null;
+      if(ultima && ESTADOS_CIERRAN.includes(est)) return;   // cerrada, no es pendiente
+      out.push({orden:o, lista, ultima, estado:est, intentos:hist.length});
+    });
+  });
+  return out;
+}
+
+
 /* ---------- Guardar inspección ---------- */
 function construirInspeccion(){
   const l = S.listaActiva;
@@ -882,8 +1277,11 @@ function construirInspeccion(){
     cantidadMuestra: document.getElementById("iMuestra").value,
     nivelInspeccion: l.nivelInspeccion||"S1", aql: l.aql||10,
     inspector: document.getElementById("iInspector").value.trim(),
-    lider: document.getElementById("iLider").value.trim(),
-    decision: S.decision,
+    usuario: S.sesion ? S.sesion.usuario : "",
+    lider: "",
+    estado: "pendiente_aprobacion",
+    aprobadoPor: "", fechaDecision: "", tipoRechazo: "", motivoRechazo: "",
+    decision: "",
     observaciones: document.getElementById("iObservaciones").value,
     resultados: l.variables.map((v,i)=>({
       nombre:v.nombre, especificacion:especTexto(v),
@@ -896,14 +1294,16 @@ function construirInspeccion(){
 }
 
 document.getElementById("btnGuardar").addEventListener("click",()=>{
+  if(!S.sesion){ toast("Inicia sesión antes de enviar la inspección"); return; }
   const insp = construirInspeccion();
   S.inspecciones.unshift(insp);
   persist();
   if(S.syncUrl) enviarRemoto(insp);
-  toast((insp.numero>1 ? `Reinspección ${insp.numero} guardada` : "Inspección guardada") +
-        ` · ${S.inspecciones.length} en total`);
-  generarPDF(insp, true);
+  toast((insp.numero>1 ? `Reinspección ${insp.numero} enviada` : "Inspección enviada") +
+        " al jefe de calidad para su aprobación");
   limpiarFormulario();
+  actualizarPill();
+  tab(esJefe() ? "Aprob" : "Pend");
 });
 
 function limpiarFormulario(){
@@ -914,7 +1314,11 @@ function limpiarFormulario(){
   document.getElementById("iProducto").value="";
   S.listaActiva=null; S.mediciones={}; S.decision=""; S.reinspeccion=null; S.modo=null;
   document.getElementById("avisoPrevia").style.display="none";
-  document.querySelectorAll("#decision button").forEach(x=>x.classList.remove("sel"));
+  // el inspector siempre firma con su propio nombre
+  if(S.sesion){
+    document.getElementById("iInspector").value  = S.sesion.nombre;
+    document.getElementById("iInspector2").value = S.sesion.nombre;
+  }
   renderVariables();
 }
 
@@ -943,7 +1347,7 @@ function generarPDF(insp, guardar){
   doc.setFont("helvetica","bold"); doc.setFontSize(11);
   doc.text(String(insp.producto).toUpperCase().slice(0,34), W-M, 12, {align:"right"});
   doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
-  doc.text(`OC ${insp.orden||"—"}  ·  ${insp.fecha}${insp.numero>1?`  ·  Reinspección ${insp.numero}`:""}`, W-M, 18, {align:"right"});
+  doc.text(`${insp.orden?ocTxt(insp.orden):"—"}  ·  ${insp.fecha}${insp.numero>1?`  ·  Reinspección ${insp.numero}`:""}`, W-M, 18, {align:"right"});
   doc.setFontSize(7);
   doc.text(`${insp.codigoDoc||"—"}  ${insp.version||""}`, W-M, 22.5, {align:"right"});
   doc.setTextColor(28,31,36);
@@ -952,17 +1356,26 @@ function generarPDF(insp, guardar){
   // tarjetas de resumen
   const nc = insp.resultados.filter(r=>r.resultado==="Rechazo").length;
   const ok = insp.resultados.length - nc;
-  const aprob = insp.decision==="Aprobado";
+  const decTxt = insp.decision || "Pendiente de aprobación";
+  const est    = estadoDe(insp);
+  const decCol = est==="aprobado" ? [31,157,85]
+               : est==="aprobado_condicion" ? [146,102,10]
+               : (est==="rechazado_lote"||est==="devuelto") ? [200,29,46]
+               : est==="bloqueado" ? [90,98,110] : [110,118,129];
+  const decBg  = est==="aprobado" ? [232,248,239]
+               : est==="aprobado_condicion" ? [255,248,225]
+               : (est==="rechazado_lote"||est==="devuelto") ? [253,234,234]
+               : [244,245,247];
   const kpis = [
     ["Cantidad recibida", f0(insp.cantidadRecibida), "unidades"],
     ["Muestra inspeccionada", f0(insp.cantidadMuestra), `nivel ${insp.nivelInspeccion} · AQL ${insp.aql}`],
     ["Variables conformes", `${ok}/${insp.resultados.length}`, nc?`${nc} en rechazo`:"todas conformes"],
-    ["Decisión", insp.decision||"—", "calidad"]
+    ["Decisión", decTxt, insp.aprobadoPor ? insp.aprobadoPor : "calidad"]
   ];
   const kw=(W-2*M-9)/4;
   kpis.forEach((k,i)=>{
     const x=M+i*(kw+3);
-    if(i===3) doc.setFillColor(aprob?232:253, aprob?248:234, aprob?239:234);
+    if(i===3) doc.setFillColor(decBg[0], decBg[1], decBg[2]);
     else if(i===2 && nc) doc.setFillColor(255,248,225);
     else doc.setFillColor(250,251,252);
     doc.setDrawColor(225,228,233);
@@ -970,7 +1383,7 @@ function generarPDF(insp, guardar){
     doc.setFontSize(6.6); doc.setTextColor(110,118,129);
     doc.text(k[0], x+3, y+5.5);
     doc.setFont("helvetica","bold");
-    if(i===3) doc.setTextColor(aprob?31:200, aprob?157:29, aprob?85:46);
+    if(i===3) doc.setTextColor(decCol[0], decCol[1], decCol[2]);
     else if(i===2 && nc) doc.setTextColor(146,102,10);
     else doc.setTextColor(28,31,36);
     if(i===3){
@@ -1125,11 +1538,11 @@ document.getElementById("cBuscar").addEventListener("click",()=>{
     : "";
   if(!res.length){ box.innerHTML = avisoPend + `<div class="panel"><div class="empty-mini">No se encontraron inspecciones con esos filtros.</div></div>`; return; }
 
-  const colorDec = d =>
-    d==="Aprobado" ? "ok" :
-    d==="Aprobado bajo condición" ? "warn" :
-    d==="Rechazado" ? "bad" :
-    d==="Bloqueado" ? "blk" : "";
+  const colorDec = i => {
+    const c = claseEstado(i);
+    return c==="ok" ? "ok" : c==="cond" ? "warn" : c==="bad" ? "bad" :
+           c==="blk" ? "blk" : "esp";
+  };
 
   box.innerHTML = avisoPend + `<div class="panel">
     <div class="section-title"><h2>${res.length} INSPECCIÓN(ES)</h2>
@@ -1138,19 +1551,20 @@ document.getElementById("cBuscar").addEventListener("click",()=>{
         <span><i class="pt warn"></i>Bajo condición</span>
         <span><i class="pt bad"></i>Rechazado</span>
         <span><i class="pt blk"></i>Bloqueado</span>
+        <span><i class="pt esp"></i>Esperando al jefe</span>
       </div>
     </div>
     ${res.map(i=>{
       const nc = i.resultados.filter(r=>r.resultado==="Rechazo").length;
-      const cl = colorDec(i.decision);
+      const cl = colorDec(i);
       return `<div class="lista-item dec-${cl}">
         <div class="info">
-          <b>OC ${i.orden||"—"} · ${i.producto}${i.numero>1?`<span class="chip-re">Reinspección ${i.numero}</span>`:""}</b>
+          <b>${i.orden?ocTxt(i.orden):"—"} · ${i.producto}${i.numero>1?`<span class="chip-re">Reinspección ${i.numero}</span>`:""}</b>
           <span class="meta">${i.fecha} ${i.hora} · Inspector: ${i.inspector} · Cant: ${i.cantidadRecibida} (muestra ${i.cantidadMuestra})</span>
           <span class="meta">${nc?`<span style="color:var(--bad-text);">${nc} variable(s) en rechazo</span>`:"todas las variables conformes"}</span>
         </div>
         <div class="acciones">
-          <span class="badge-dec ${cl}">${i.decision||"—"}</span>
+          <span class="badge-dec ${cl}">${textoEstado(i)}</span>
           <button class="btn-sec" data-pdf="${i.id}">Descargar PDF</button>
         </div>
       </div>`;
@@ -1174,6 +1588,14 @@ async function cargarConfig(){
 
     const sListas  = Array.isArray(data.listas)  ? data.listas  : [];
     const sOrdenes = Array.isArray(data.ordenes) ? data.ordenes : [];
+
+    // Los usuarios siempre mandan desde la hoja
+    if(Array.isArray(data.usuarios) && data.usuarios.length){
+      S.usuarios = data.usuarios.filter(u=>u && u.usuario);
+      localStorage.setItem("lc_usuarios", JSON.stringify(S.usuarios));
+      if(!S.sesion) renderLogin();
+      if(document.getElementById("viewAdmin").style.display !== "none") renderUsuariosAdmin();
+    }
 
     // La hoja es la fuente de verdad. Solo se conserva lo local cuando la hoja
     // aún está vacía, para no perder lo que falta por subir.
@@ -1202,6 +1624,7 @@ async function cargarConfig(){
     persist();
     if(!inspeccionEnCurso()) refrescarSelectores();
     if(document.getElementById("viewAdmin").style.display !== "none") renderAdmin();
+    if(document.getElementById("viewPend").style.display !== "none") renderPendientesInsp();
     S.pendientesLocal = soloLocal;
     marcarConfigSync(true);
   }catch(e){ console.error("config:", e); marcarConfigSync(false); }
@@ -1322,7 +1745,7 @@ function renderAdmin(){
   const ob = document.getElementById("ordenesAdmin");
   ob.innerHTML = S.ordenes.length ? S.ordenes.map((o,idx)=>`
     <div class="lista-item">
-      <div class="info"><b>OC ${o.numero}</b>
+      <div class="info"><b>${ocTxt(o.numero)}</b>
         <span class="meta">${o.proveedor||"sin proveedor"} · ${(o.productos||[]).length} producto(s)</span></div>
       <div class="acciones">
         <button class="btn-sec" data-oedit="${idx}">Editar</button>
@@ -1467,17 +1890,379 @@ document.getElementById("moGuardar").addEventListener("click",()=>{
 
 /* ---------- Pestañas ---------- */
 function tab(activo){
-  ["Insp","Cons","Admin"].forEach(t=>{
+  if((activo==="Aprob" || activo==="Admin") && !esJefe()) activo = "Pend";
+  ["Pend","Aprob","Insp","Cons","Admin"].forEach(t=>{
     document.getElementById("tab"+t).classList.toggle("active", t===activo);
     document.getElementById("view"+t).style.display = t===activo?"block":"none";
   });
-  document.getElementById("barraFija").style.display = (activo==="Insp" && S.listaActiva)?"flex":"none";
-  if(activo==="Admin") renderAdmin();
+  document.getElementById("barraFija").style.display =
+    (activo==="Insp" && S.listaActiva && S.modo)?"flex":"none";
+  if(activo==="Pend")  renderPendientesInsp();
+  if(activo==="Aprob") renderAprobaciones();
+  if(activo==="Admin"){ renderAdmin(); renderUsuariosAdmin(); }
   if(S.syncUrl){ cargarRemoto(); cargarConfig(); } else marcarConfigSync(false);
 }
+document.getElementById("tabPend").addEventListener("click",()=>tab("Pend"));
+document.getElementById("tabAprob").addEventListener("click",()=>tab("Aprob"));
 document.getElementById("tabInsp").addEventListener("click",()=>tab("Insp"));
 document.getElementById("tabCons").addEventListener("click",()=>tab("Cons"));
 document.getElementById("tabAdmin").addEventListener("click",()=>tab("Admin"));
+
+
+/* ==========================================================================
+   VISTA 1 · PENDIENTES POR INSPECCIONAR  (pantalla inicial del inspector)
+   ========================================================================== */
+function motivoUltima(r){
+  if(!r.ultima) return "";
+  const m = r.ultima.motivoRechazo || "";
+  if(!m) return "";
+  const quien = r.ultima.aprobadoPor ? ` · ${r.ultima.aprobadoPor}` : "";
+  return `<div class="ap-motivo" style="margin:0 0 0;">Motivo${quien}: ${m}</div>`;
+}
+
+function renderPendientesInsp(){
+  const box = document.getElementById("pendLista");
+  if(!box) return;
+  const q = (document.getElementById("pendBuscar").value || "").trim().toLowerCase();
+  const btnF = document.querySelector("#pendFiltro button.on");
+  const filtro = btnF ? btnF.dataset.f : "todas";
+
+  let refs = referenciasPendientes();
+  const totalAbs = refs.length;
+  if(filtro === "nuevas") refs = refs.filter(r => !r.ultima);
+  if(filtro === "reinsp") refs = refs.filter(r => r.ultima && !ESTADOS_CIERRAN.includes(r.estado));
+  if(q) refs = refs.filter(r =>
+    `oc ${r.orden.numero} ${r.orden.proveedor||""} ${r.lista.nombre} ${r.lista.codigoBPCS||""}`
+      .toLowerCase().includes(q));
+
+  const nuevas = referenciasPendientes().filter(r=>!r.ultima).length;
+  const res = document.getElementById("pendResumen");
+  if(res) res.textContent = totalAbs
+    ? `${totalAbs} referencia(s) pendiente(s) · ${nuevas} sin inspeccionar · ${totalAbs-nuevas} en trámite`
+    : "Todo al día";
+
+  if(!refs.length){
+    box.innerHTML = `<div class="panel"><div class="empty-mini">${
+      totalAbs ? "Ninguna referencia coincide con el filtro."
+               : "No hay referencias pendientes. Crea una orden de compra en <b>Administrar</b> y asígnale sus referencias."
+    }</div></div>`;
+    return;
+  }
+
+  // agrupar por orden de compra
+  const grupos = {};
+  refs.forEach(r=>{
+    const k = String(r.orden.numero);
+    (grupos[k] = grupos[k] || {orden:r.orden, items:[]}).items.push(r);
+  });
+
+  box.innerHTML = Object.keys(grupos)
+    .sort((a,b)=>b.localeCompare(a))
+    .map(k=>{
+      const g = grupos[k];
+      const sinInsp = g.items.filter(i=>!i.ultima).length;
+      return `<div class="oc-grupo">
+        <div class="oc-head">
+          <div><b>${ocTxt(g.orden.numero)}</b>${g.orden.proveedor?` · ${g.orden.proveedor}`:""}</div>
+          <span>${g.items.length} referencia(s)${sinInsp?` · ${sinInsp} sin inspeccionar`:""}</span>
+        </div>
+        ${g.items.map(r=>{
+          const est  = r.ultima ? estadoDe(r.ultima) : null;
+          const txt  = r.ultima ? (ESTADOS[est]||{txt:"—"}).txt : "Sin inspeccionar";
+          const cls  = r.ultima ? (ESTADOS[est]||{cls:""}).cls : "nueva";
+          const puede = !r.ultima || est === "devuelto" || est === "rechazado_lote" || est === "bloqueado";
+          const label = !r.ultima ? "Inspeccionar" : `Reinspeccionar (${r.intentos+1})`;
+          return `<div class="ref-fila">
+            <div style="min-width:0;">
+              <b>${r.lista.nombre}</b>
+              <div style="font-size:.74rem;color:var(--text-dim);">
+                BPCS ${r.lista.codigoBPCS||"—"}${r.lista.codigoDoc?` · ${r.lista.codigoDoc}`:""}
+                ${r.ultima?` · última: ${r.ultima.fecha} ${r.ultima.hora||""} · ${r.ultima.inspector||""}`:""}
+              </div>
+              ${motivoUltima(r)}
+            </div>
+            <span class="est ${cls}">${txt}</span>
+            ${puede
+              ? `<button class="btn-ir" data-oc="${g.orden.numero}" data-lista="${r.lista.id}"
+                    data-re="${r.ultima?r.intentos+1:0}">${label}</button>`
+              : `<span style="font-size:.74rem;color:var(--text-dim);">Esperando al jefe</span>`}
+          </div>`;
+        }).join("")}
+      </div>`;
+    }).join("");
+
+  box.querySelectorAll("[data-oc]").forEach(b=>b.addEventListener("click",()=>
+    irAInspeccionar(b.dataset.oc, b.dataset.lista, +b.dataset.re)));
+}
+
+function irAInspeccionar(numero, listaId, reintento){
+  if(S.listaActiva && Object.keys(S.mediciones).length &&
+     !confirm("Tienes una inspección a medias. Se perderán esos valores. ¿Continuar?")) return;
+  limpiarFormulario();
+  tab("Insp");
+
+  const selO = document.getElementById("iOrdenSel");
+  const inp  = document.getElementById("iOrden");
+  if([...selO.options].some(o=>o.value===String(numero))) selO.value = String(numero);
+  inp.style.display = "none";
+  inp.value = String(numero);
+  inp.dispatchEvent(new Event("input", {bubbles:true}));
+
+  const selP = document.getElementById("iProducto");
+  selP.value = listaId;
+  selP.dispatchEvent(new Event("change", {bubbles:true}));
+
+  if(reintento > 0){                      // viene de un rechazo o devolución
+    S.modo = "reinspeccion";
+    S.reinspeccion = reintento + 0;
+    renderAvisoPrevia();
+    renderVariables();
+  }
+  document.getElementById("iCantidad").focus();
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+document.getElementById("pendBuscar").addEventListener("input", renderPendientesInsp);
+document.querySelectorAll("#pendFiltro button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("#pendFiltro button").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");
+  renderPendientesInsp();
+}));
+
+
+/* ==========================================================================
+   VISTA 2 · APROBACIONES  (bandeja del jefe de calidad)
+   ========================================================================== */
+function renderAprobaciones(){
+  const box = document.getElementById("aprobLista");
+  if(!box) return;
+  const q = (document.getElementById("aprobBuscar").value || "").trim().toLowerCase();
+
+  let cola = S.inspecciones.filter(i => estadoDe(i) === "pendiente_aprobacion")
+                           .sort((a,b)=> String(a.id).localeCompare(String(b.id)));
+  const total = cola.length;
+  if(q) cola = cola.filter(i =>
+    `oc ${i.orden} ${i.proveedor||""} ${i.producto||""} ${i.inspector||""}`.toLowerCase().includes(q));
+
+  const res = document.getElementById("aprobResumen");
+  if(res) res.textContent = total ? `${total} inspección(es) esperando decisión` : "Nada pendiente";
+
+  if(!cola.length){
+    box.innerHTML = `<div class="panel"><div class="empty-mini">${
+      total ? "Ninguna inspección coincide con la búsqueda."
+            : "No hay inspecciones esperando aprobación."}</div></div>`;
+    return;
+  }
+
+  box.innerHTML = cola.map(i=>{
+    const nc = (i.resultados||[]).filter(r=>r.resultado==="Rechazo").length;
+    const ok = (i.resultados||[]).length - nc;
+    return `<div class="ap-card">
+      <div class="ap-head">
+        <div><b>${i.producto}</b>
+          <div style="font-size:.74rem;color:var(--text-dim);">
+            ${ocTxt(i.orden)}${i.proveedor?` · ${i.proveedor}`:""} · BPCS ${i.codigoBPCS||"—"}
+            ${i.numero>1?` · <b style="color:var(--red);">Reinspección ${i.numero}</b>`:""}
+          </div>
+        </div>
+        <span style="font-size:.74rem;color:var(--text-dim);text-align:right;">
+          ${i.fecha} ${i.hora||""}<br>${i.inspector||""}
+        </span>
+      </div>
+      <div class="ap-kpis">
+        <div class="ap-kpi"><span>Cantidad recibida</span><b>${i.cantidadRecibida||"—"}</b></div>
+        <div class="ap-kpi"><span>Muestra (nivel ${i.nivelInspeccion||"—"})</span><b>${i.cantidadMuestra||"—"}</b></div>
+        <div class="ap-kpi"><span>Conformes</span><b style="color:#1f9d55;">${ok}</b></div>
+        <div class="ap-kpi"><span>No conformes</span><b style="color:${nc?"var(--bad-text)":"inherit"};">${nc}</b></div>
+        <div class="ap-kpi"><span>Trazabilidad</span><b>${i.trazabilidad||"—"}</b></div>
+      </div>
+      ${i.observaciones?`<div class="ap-motivo">Observaciones del inspector: ${i.observaciones}</div>`:""}
+      <div class="ap-body">
+        <button class="ver-mas" data-det="${i.id}">Ver las ${(i.resultados||[]).length} variables</button>
+        <div class="ap-detalle" id="det-${i.id}" style="display:none;">
+          <table class="tabla-det">
+            <thead><tr><th>Variable</th><th>Especificación</th><th>Medido</th><th>Resultado</th><th>Obs.</th></tr></thead>
+            <tbody>${(i.resultados||[]).map(r=>`<tr>
+              <td>${r.nombre}</td><td>${r.especificacion||""}</td><td>${r.valorMedido||""}</td>
+              <td class="${r.resultado==="Aprobado"?"r-ok":"r-bad"}">${r.resultado}</td>
+              <td>${r.observacion||""}</td></tr>`).join("")}</tbody>
+          </table>
+        </div>
+      </div>
+      <div class="ap-acciones">
+        <button class="ok"   data-dec="aprobado"           data-id="${i.id}">Aprobado</button>
+        <button class="cond" data-dec="aprobado_condicion" data-id="${i.id}">Aprobado bajo condición</button>
+        <button class="bad"  data-dec="rechazado_lote"     data-id="${i.id}">Lote rechazado</button>
+        <button class="dev"  data-dec="devuelto"           data-id="${i.id}">Devolver al inspector</button>
+        <button            data-dec="bloqueado"          data-id="${i.id}">Bloquear</button>
+        <div style="flex:1;"></div>
+        <button data-pdf="${i.id}">Ver PDF</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  box.querySelectorAll("[data-det]").forEach(b=>b.addEventListener("click",()=>{
+    const d = document.getElementById("det-"+b.dataset.det);
+    const abierto = d.style.display !== "none";
+    d.style.display = abierto ? "none" : "block";
+    b.textContent = abierto ? `Ver las ${d.querySelectorAll("tbody tr").length} variables` : "Ocultar variables";
+  }));
+  box.querySelectorAll("[data-pdf]").forEach(b=>b.addEventListener("click",()=>{
+    const ins = S.inspecciones.find(i=>i.id===b.dataset.pdf);
+    if(ins) generarPDF(ins, false);
+  }));
+  box.querySelectorAll("[data-dec]").forEach(b=>b.addEventListener("click",()=>
+    pedirDecision(b.dataset.id, b.dataset.dec)));
+}
+
+document.getElementById("aprobBuscar").addEventListener("input", renderAprobaciones);
+
+/* ---------- Modal de decisión ---------- */
+const DECISION_TXT = {
+  aprobado:           {d:"Aprobado",                t:"Aprobar el lote",
+                       p:"El lote queda liberado y la referencia sale de pendientes.", motivo:false},
+  aprobado_condicion: {d:"Aprobado bajo condición", t:"Aprobar bajo condición",
+                       p:"El lote se libera con una condición. La referencia también sale de pendientes.",
+                       motivo:true, label:"Condición bajo la que se libera *", obliga:true},
+  rechazado_lote:     {d:"Rechazado",               t:"Rechazar el lote",
+                       p:"El producto no cumple. La referencia vuelve a la lista de pendientes para reinspección tras la acción con el proveedor.",
+                       motivo:true, label:"Motivo del rechazo del lote *", obliga:true},
+  devuelto:           {d:"Devuelta al inspector",   t:"Devolver al inspector",
+                       p:"La inspección no está bien hecha. Vuelve al inspector para que la repita.",
+                       motivo:true, label:"Qué debe corregir el inspector *", obliga:true},
+  bloqueado:          {d:"Bloqueado",               t:"Bloquear el lote",
+                       p:"El lote queda retenido y la referencia sigue pendiente hasta que se resuelva.",
+                       motivo:true, label:"Motivo del bloqueo", obliga:false}
+};
+let decisionCtx = null;
+
+function pedirDecision(id, estado){
+  const cfg = DECISION_TXT[estado];
+  if(!cfg) return;
+  decisionCtx = {id, estado};
+  document.getElementById("mdTitulo").textContent = cfg.t;
+  document.getElementById("mdTexto").textContent  = cfg.p;
+  const campo = document.getElementById("mdMotivo").closest(".campo");
+  campo.style.display = cfg.motivo ? "block" : "none";
+  document.getElementById("mdLabel").textContent = cfg.label || "Motivo";
+  document.getElementById("mdMotivo").value = "";
+  document.getElementById("modalDecision").classList.add("show");
+  if(cfg.motivo) setTimeout(()=>document.getElementById("mdMotivo").focus(), 60);
+}
+document.getElementById("mdCancelar").addEventListener("click",()=>{
+  decisionCtx = null;
+  document.getElementById("modalDecision").classList.remove("show");
+});
+document.getElementById("mdConfirmar").addEventListener("click",()=>{
+  if(!decisionCtx) return;
+  const cfg = DECISION_TXT[decisionCtx.estado];
+  const motivo = document.getElementById("mdMotivo").value.trim();
+  if(cfg.obliga && !motivo){ toast("Escribe el motivo para dejarlo en la trazabilidad"); return; }
+  const ctx = decisionCtx;
+  decisionCtx = null;
+  document.getElementById("modalDecision").classList.remove("show");
+  decidirInspeccion(ctx.id, ctx.estado, motivo);
+});
+
+async function decidirInspeccion(id, estado, motivo){
+  const insp = S.inspecciones.find(i=>i.id===id);
+  if(!insp) return;
+  const cfg = DECISION_TXT[estado];
+  const ahora = `${hoyISO()} ${pad(new Date().getHours())}:${pad(new Date().getMinutes())}`;
+
+  insp.estado        = estado;
+  insp.decision      = cfg.d;
+  insp.aprobadoPor   = S.sesion ? S.sesion.nombre : "";
+  insp.lider         = insp.aprobadoPor;
+  insp.fechaDecision = ahora;
+  insp.tipoRechazo   = estado==="rechazado_lote" ? "Lote" : (estado==="devuelto" ? "Inspección" : "");
+  insp.motivoRechazo = motivo || "";
+  persist();
+  renderAprobaciones(); actualizarPill();
+  toast(`${insp.producto} · ${cfg.d}`);
+
+  if(S.syncUrl){
+    try{
+      const res = await fetch(S.syncUrl, {method:"POST", body: JSON.stringify({
+        action:"decidir", id:id, estado:estado, decision:cfg.d,
+        aprobadoPor:insp.aprobadoPor, tipoRechazo:insp.tipoRechazo, motivoRechazo:insp.motivoRechazo
+      })});
+      const d = await res.json();
+      if(!d || d.ok !== true) throw new Error(d && d.error ? d.error : "sin ok");
+    }catch(e){
+      console.error("decidir:", e);
+      toast("⚠ La decisión quedó en este dispositivo, no llegó a la hoja");
+    }
+  }
+  if(ESTADOS_CIERRAN.includes(estado)) generarPDF(insp, true);
+}
+
+
+/* ==========================================================================
+   ADMINISTRAR · USUARIOS
+   ========================================================================== */
+let usuarioEditIdx = null;
+
+function renderUsuariosAdmin(){
+  const box = document.getElementById("usuariosAdmin");
+  if(!box) return;
+  box.innerHTML = S.usuarios.length ? S.usuarios.map((u,idx)=>{
+    const act = String(u.activo||"Sí").toLowerCase().startsWith("s");
+    return `<div class="usr-item${act?"":" inact"}">
+      <div style="min-width:0;">
+        <b>${u.nombre||u.usuario}</b>
+        <div style="font-size:.74rem;color:var(--text-dim);">usuario: ${u.usuario} · PIN ${String(u.pin||"").replace(/./g,"•")}${act?"":" · inactivo"}</div>
+      </div>
+      <span class="rolx ${u.rol==="jefe"?"jefe":"inspector"}">${u.rol==="jefe"?"Jefe":"Inspector"}</span>
+      <div class="acciones">
+        <button class="btn-sec" data-uedit="${idx}">Editar</button>
+        <button class="btn-sec" data-udel="${idx}" style="color:var(--bad-text);">Eliminar</button>
+      </div>
+    </div>`;
+  }).join("") : `<div class="empty-mini">No hay usuarios creados.</div>`;
+
+  box.querySelectorAll("[data-uedit]").forEach(b=>b.addEventListener("click",()=>abrirModalUsuario(+b.dataset.uedit)));
+  box.querySelectorAll("[data-udel]").forEach(b=>b.addEventListener("click",()=>{
+    const u = S.usuarios[+b.dataset.udel];
+    if(S.usuarios.filter(x=>x.rol==="jefe").length===1 && u.rol==="jefe"){
+      toast("Debe quedar al menos un jefe de calidad"); return;
+    }
+    if(!confirm(`¿Eliminar al usuario ${u.nombre||u.usuario}?`)) return;
+    S.usuarios.splice(+b.dataset.udel,1);
+    persist(); enviarConfig("borrarUsuario", {usuarioId:u.usuario});
+    renderUsuariosAdmin(); toast("Usuario eliminado");
+  }));
+}
+
+function abrirModalUsuario(idx){
+  usuarioEditIdx = (idx==null) ? null : idx;
+  const u = usuarioEditIdx!=null ? S.usuarios[usuarioEditIdx] : {usuario:"",nombre:"",pin:"",rol:"inspector",activo:"Sí"};
+  document.getElementById("muTitulo").textContent = usuarioEditIdx!=null ? "Editar usuario" : "Nuevo usuario";
+  document.getElementById("muUsuario").value = u.usuario||"";
+  document.getElementById("muUsuario").disabled = usuarioEditIdx!=null;
+  document.getElementById("muNombre").value  = u.nombre||"";
+  document.getElementById("muPin").value     = u.pin||"";
+  document.getElementById("muRol").value     = u.rol||"inspector";
+  document.getElementById("muActivo").value  = String(u.activo||"Sí").toLowerCase().startsWith("s") ? "Sí" : "No";
+  document.getElementById("modalUsuario").classList.add("show");
+}
+document.getElementById("btnNuevoUsuario").addEventListener("click",()=>abrirModalUsuario(null));
+document.getElementById("muCancelar").addEventListener("click",()=>document.getElementById("modalUsuario").classList.remove("show"));
+document.getElementById("muGuardar").addEventListener("click",()=>{
+  const usuario = document.getElementById("muUsuario").value.trim().toLowerCase().replace(/\s+/g,"");
+  const nombre  = document.getElementById("muNombre").value.trim();
+  const pin     = document.getElementById("muPin").value.trim();
+  if(!usuario || !nombre){ toast("Usuario y nombre son obligatorios"); return; }
+  if(!/^\d{4,6}$/.test(pin)){ toast("El PIN debe tener entre 4 y 6 dígitos"); return; }
+  if(usuarioEditIdx==null && S.usuarios.some(u=>u.usuario===usuario)){ toast("Ese usuario ya existe"); return; }
+  const obj = {usuario, nombre, pin, rol:document.getElementById("muRol").value,
+               activo:document.getElementById("muActivo").value};
+  if(usuarioEditIdx!=null) S.usuarios[usuarioEditIdx] = obj; else S.usuarios.push(obj);
+  persist(); enviarConfig("guardarUsuario", {usuario:obj});
+  renderUsuariosAdmin();
+  document.getElementById("modalUsuario").classList.remove("show");
+  toast("Usuario guardado");
+});
 
 
 /* ---------- Diagnóstico de sincronización ---------- */
@@ -1495,7 +2280,7 @@ function renderPendientes(){
       ${S.ultimoErrorSync?`<div class="diag-err">Último error: ${S.ultimoErrorSync}</div>`:""}
       ${pend.length?`
         <div class="diag-lista">
-          ${pend.slice(0,8).map(i=>`<div>· OC ${i.orden||"—"} · ${i.producto} · ${i.fecha} ${i.hora}</div>`).join("")}
+          ${pend.slice(0,8).map(i=>`<div>· ${i.orden?ocTxt(i.orden):"—"} · ${i.producto} · ${i.fecha} ${i.hora}</div>`).join("")}
           ${pend.length>8?`<div>· y ${pend.length-8} más</div>`:""}
         </div>
         <button class="btn-reintentar" id="btnReintentar">Reintentar envío de ${pend.length} pendiente(s)</button>
@@ -1582,9 +2367,17 @@ async function cargarRemoto(){
     if(Array.isArray(data)){
       const m=new Map();
       S.inspecciones.forEach(i=>m.set(i.id,i));
-      data.forEach(i=>{ if(i && i.id) m.set(i.id,i); });
+      data.forEach(i=>{
+        if(!i || !i.id) return;
+        const loc = m.get(i.id);
+        // si aquí ya se decidió y la hoja todavía no lo refleja, conserva lo local
+        if(loc && loc.fechaDecision && !i.fechaDecision) return;
+        m.set(i.id, i);
+      });
       S.inspecciones=Array.from(m.values()).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
-      persist(); reintentarPendientes(); actualizarEstadoSync();
+      persist(); reintentarPendientes(); actualizarEstadoSync(); actualizarPill();
+      if(document.getElementById("viewPend").style.display  !== "none") renderPendientesInsp();
+      if(document.getElementById("viewAprob").style.display !== "none") renderAprobaciones();
     }
   }catch(e){ console.error(e); }
 }
@@ -1623,7 +2416,26 @@ document.getElementById("cDesde").value = hoyISO();
 document.getElementById("cHasta").value = hoyISO();
 refrescarSelectores();
 renderAdmin();
+renderUsuariosAdmin();
 actualizarEstadoSync();
+
+// sesión: se recupera la de esta pestaña, si no se pide login
+(function iniciarSesion(){
+  let ses = null;
+  try{ ses = JSON.parse(sessionStorage.getItem("lc_sesion") || "null"); }catch(e){}
+  const valido = ses && S.usuarios.some(u => u.usuario === ses.usuario);
+  if(valido){
+    S.sesion = ses;
+    document.getElementById("loginBg").style.display = "none";
+    aplicarRol();
+    tab(esJefe() ? "Aprob" : "Pend");
+  } else {
+    sessionStorage.removeItem("lc_sesion");
+    document.getElementById("loginBg").style.display = "flex";
+    renderLogin();
+  }
+})();
+
 if(S.syncUrl){ cargarRemoto(); cargarConfig(); reintentarPendientes(); setInterval(cargarRemoto, 10000); }
 else marcarConfigSync(false);
 </script>
