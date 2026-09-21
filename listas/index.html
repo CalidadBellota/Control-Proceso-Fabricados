@@ -41,6 +41,7 @@
   table.vars tr.ok{background:var(--ok-bg);}
   table.vars tr.bad{background:var(--bad-bg);}
   .spec{font-size:.78rem;color:var(--text-dim);white-space:pre-line;max-width:380px;}
+  .spec.oculta{font-style:italic;color:#9aa1ab;font-size:.74rem;}
   .val-input{width:110px;padding:7px 8px;}
   .res-btns{display:flex;gap:4px;}
   .res-btns button{padding:5px 11px;border:1px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;font-weight:700;font-size:.82rem;}
@@ -192,28 +193,34 @@
   .btn-ir{padding:8px 16px;border:none;border-radius:8px;background:var(--red);color:#fff;
     font-weight:700;font-size:.8rem;cursor:pointer;white-space:nowrap;}
   .btn-ir.sec{background:#fff;color:var(--text);border:1px solid var(--border);}
-  .ap-card{background:#fff;border:1px solid var(--border);border-left:5px solid #f2b90b;
-    border-radius:12px;margin-bottom:14px;overflow:hidden;}
-  .ap-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;
-    justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;}
-  .ap-head h4{margin:0;font-size:1rem;}
-  .ap-head .meta{font-size:.78rem;color:var(--text-dim);margin-top:3px;line-height:1.5;}
-  .ap-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;padding:14px 18px;}
-  @media(max-width:700px){.ap-kpis{grid-template-columns:1fr 1fr;}}
-  .ap-kpi{background:#f9fafb;border:1px solid var(--border);border-radius:9px;padding:10px 13px;}
-  .ap-kpi b{display:block;font-size:1.2rem;font-weight:800;}
-  .ap-kpi span{font-size:.7rem;color:var(--text-dim);}
-  .ap-kpi.mal b{color:#c81d2e;}
-  .ap-body{padding:0 18px 14px 18px;}
-  .ap-acciones{display:flex;gap:9px;flex-wrap:wrap;padding:14px 18px;border-top:1px solid var(--border);
-    background:#fafbfc;}
-  .ap-acciones button{padding:11px 17px;border:1px solid var(--border);background:#fff;border-radius:9px;
-    font-weight:700;font-size:.83rem;cursor:pointer;font-family:inherit;}
+  .ap-card{background:#fff;border:1px solid var(--border);border-left:4px solid #f2b90b;
+    border-radius:11px;margin-bottom:10px;overflow:hidden;}
+  .ap-card.conNC{border-left-color:var(--red);}
+  .ap-head{padding:11px 15px;display:flex;justify-content:space-between;align-items:center;gap:12px;
+    flex-wrap:wrap;}
+  .ap-head .tit{min-width:0;flex:1;}
+  .ap-head .tit b{font-size:.92rem;}
+  .ap-head .meta{font-size:.73rem;color:var(--text-dim);margin-top:1px;}
+  .ap-head .quien{font-size:.72rem;color:var(--text-dim);text-align:right;white-space:nowrap;}
+  .ap-tira{display:flex;flex-wrap:wrap;gap:0;padding:0 15px 11px;font-size:.75rem;color:var(--text-dim);}
+  .ap-tira .d{display:flex;align-items:baseline;gap:5px;padding-right:15px;margin-right:15px;
+    border-right:1px solid var(--border);}
+  .ap-tira .d:last-child{border-right:none;margin-right:0;padding-right:0;}
+  .ap-tira .d b{font-size:.86rem;color:var(--text);font-weight:700;}
+  .ap-tira .d b.mal{color:var(--bad-text);}
+  .ap-tira .d b.bien{color:#1f9d55;}
+  .ap-body{padding:0 15px 11px;}
+  .ap-acciones{display:flex;gap:7px;flex-wrap:wrap;padding:10px 15px;border-top:1px solid var(--border);
+    background:#fafbfc;align-items:center;}
+  .ap-acciones button{padding:8px 13px;border:1px solid var(--border);background:#fff;border-radius:8px;
+    font-weight:700;font-size:.78rem;cursor:pointer;font-family:inherit;white-space:nowrap;}
   .ap-acciones .ok{background:#1f9d55;border-color:#1f9d55;color:#fff;}
   .ap-acciones .cond{background:#f2b90b;border-color:#f2b90b;color:#3d2f00;}
   .ap-acciones .bad{background:var(--red);border-color:var(--red);color:#fff;}
   .ap-acciones .dev{color:#92660a;border-color:#f3e3ae;background:#fff8e1;}
-  .ap-detalle{display:none;padding:0 18px 14px 18px;}
+  .ap-motivo{background:#fff8e1;border:1px solid #f3e3ae;color:#7a5600;border-radius:7px;
+    padding:7px 10px;font-size:.74rem;margin:0 15px 11px;}
+  .ap-detalle{display:none;padding:0 15px 11px;}
   .ap-detalle.show{display:block;}
   .ver-mas{background:none;border:none;color:var(--red);font-size:.78rem;font-weight:700;
     cursor:pointer;padding:0 18px 12px 18px;text-decoration:underline;}
@@ -222,14 +229,24 @@
     color:var(--text-dim);cursor:pointer;border-right:1px solid var(--border);white-space:nowrap;}
   .seg button:last-child{border-right:none;}
   .seg button.on{background:var(--red);color:#fff;}
-  .ap-motivo{background:#fff8e1;border:1px solid #f3e3ae;color:#7a5600;border-radius:8px;
-    padding:9px 12px;font-size:.78rem;margin:0 18px 14px;}
+  .seg button .n{display:inline-block;min-width:17px;padding:1px 5px;border-radius:99px;margin-left:5px;
+    background:#eef0f3;color:var(--text-dim);font-size:.68rem;}
+  .seg button.on .n{background:rgba(255,255,255,.28);color:#fff;}
   .tabla-det{width:100%;border-collapse:collapse;font-size:.76rem;}
   .tabla-det th{background:#f3f4f7;text-align:left;padding:7px 9px;font-size:.68rem;
     text-transform:uppercase;letter-spacing:.04em;color:var(--text-dim);}
   .tabla-det td{padding:7px 9px;border-top:1px solid var(--border);}
   .tabla-det .r-ok{color:#1f9d55;font-weight:700;}
   .tabla-det .r-bad{color:var(--bad-text);font-weight:700;}
+  .pager{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:12px;
+    font-size:.76rem;color:var(--text-dim);}
+  .pager button{padding:6px 12px;border:1px solid var(--border);background:#fff;border-radius:7px;
+    font-size:.76rem;font-weight:600;cursor:pointer;font-family:inherit;}
+  .pager button:disabled{opacity:.4;cursor:default;}
+  .lista-item .ind{font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:99px;
+    background:#eef0f3;color:var(--text-dim);white-space:nowrap;}
+  .lista-item .ind.pend{background:#fff8e1;color:#92660a;}
+  .lista-item .ind.ok{background:#e8f8ef;color:#1f9d55;}
   .usr-item{display:flex;align-items:center;justify-content:space-between;gap:12px;
     padding:12px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:#fff;}
   .usr-item .rolx{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
@@ -281,7 +298,13 @@
   .modal-actions button.primary{background:var(--red);border-color:var(--red);color:#fff;}
   .footer-link{display:block;text-align:center;color:var(--text-dim);font-size:.78rem;margin-top:4px;text-decoration:underline;cursor:pointer;}
 
-  .var-edit{display:grid;grid-template-columns:2fr .9fr .9fr .8fr .8fr 30px;gap:8px;margin-bottom:8px;align-items:center;}
+  .var-edit{display:grid;grid-template-columns:22px 2fr .9fr .9fr .8fr .8fr 46px;gap:8px;margin-bottom:8px;align-items:center;}
+  .var-edit .num{font-size:.72rem;color:var(--text-dim);font-weight:700;text-align:right;}
+  .var-edit .mover{display:flex;gap:2px;}
+  .var-edit .mv{background:#f3f4f7;border:1px solid var(--border);color:var(--text-dim);
+    border-radius:5px;width:20px;height:22px;line-height:1;cursor:pointer;font-size:.7rem;padding:0;}
+  .var-edit .mv:hover{background:#e7e9ee;color:var(--text);}
+  .var-edit .mv:disabled{opacity:.3;cursor:default;}
   .var-edit input,.var-edit select{padding:7px 8px;font-size:.82rem;}
   .var-edit .del{background:none;border:none;color:var(--bad-text);cursor:pointer;font-size:1.1rem;}
   @media(max-width:700px){.var-edit{grid-template-columns:1fr;}}
@@ -370,13 +393,18 @@
 <!-- ============ APROBACIONES ============ -->
 <section id="viewAprob" style="display:none;">
   <div class="panel">
-    <div class="section-title"><h2>INSPECCIONES POR APROBAR</h2>
+    <div class="section-title"><h2>BANDEJA DEL JEFE DE CALIDAD</h2>
       <span id="aprobResumen" style="font-size:.78rem;color:var(--text-dim);"></span></div>
     <div class="barra-busca">
       <input type="text" id="aprobBuscar" placeholder="Buscar por orden de compra, producto o inspector...">
+      <div class="seg" id="aprobFiltro">
+        <button data-f="aprobar" class="on">Por aprobar <span class="n" id="nAprobar">0</span></button>
+        <button data-f="inspeccionar">Por inspeccionar <span class="n" id="nInspeccionar">0</span></button>
+      </div>
     </div>
   </div>
   <div id="aprobLista"></div>
+  <div id="aprobPorInsp" style="display:none;"></div>
 </section>
 
 <!-- ============ INSPECCIONAR ============ -->
@@ -418,8 +446,8 @@
         <select id="iProducto" disabled><option value="">Selecciona primero la orden de compra</option></select>
       </div>
       <div class="campo">
-        <label for="iTrazabilidad">Fecha de trazabilidad de la referencia</label>
-        <input type="date" id="iTrazabilidad">
+        <label for="iTrazabilidad">Mes de trazabilidad de la referencia</label>
+        <input type="month" id="iTrazabilidad">
       </div>
       <div class="campo">
         <label for="iCantidad">Cantidad recibida de la referencia *</label>
@@ -443,11 +471,11 @@
       <div style="overflow-x:auto;">
         <table class="vars">
           <thead><tr>
-            <th style="width:26%;">Variable</th>
-            <th style="width:34%;">Especificación</th>
-            <th style="width:14%;">Valor medido</th>
+            <th style="width:30%;">Variable</th>
+            <th style="width:26%;">Especificación</th>
+            <th style="width:16%;">Valor medido</th>
             <th style="width:14%;">Resultado</th>
-            <th style="width:12%;">Observación</th>
+            <th style="width:14%;">Observación</th>
           </tr></thead>
           <tbody id="varsBody"></tbody>
         </table>
@@ -468,7 +496,7 @@
                  style="background:#f8f9fb;">
         </div>
         <div class="campo">
-          <label for="iLider">Firma Líder Calidad Prod. Comercializados</label>
+          <label for="iLider">Responsable de revisión y liberación</label>
           <input type="text" id="iLider" placeholder="La firma el jefe al aprobar" readonly
                  style="background:#f8f9fb;">
         </div>
@@ -496,7 +524,8 @@
     <div class="grid4">
       <div class="campo">
         <label for="cOrden">Orden de compra</label>
-        <input type="text" id="cOrden" placeholder="Todas">
+        <input type="text" id="cOrdenBuscar" placeholder="Filtrar órdenes..." style="margin-bottom:6px;">
+        <select id="cOrden"><option value="">Todas</option></select>
       </div>
       <div class="campo">
         <label for="cProducto">Producto</label>
@@ -520,25 +549,53 @@
 <section id="viewAdmin" style="display:none;">
   <div class="panel">
     <div class="section-title">
-      <h2>LISTAS DE CHEQUEO</h2>
+      <h2>ADMINISTRAR</h2>
       <div style="display:flex;align-items:center;gap:12px;">
         <span id="estadoConfig" style="font-size:.72rem;color:var(--text-dim);"></span>
         <button class="btn-sec" id="btnSubirTodo" title="Envía a la hoja compartida todas las listas y órdenes que tengas en este dispositivo">⬆ Subir catálogo a la hoja</button>
-        <button class="btn-sec" id="btnNuevaLista">+ Nueva lista</button>
       </div>
     </div>
-    <div id="listasAdmin"></div>
+    <div class="seg" id="admSeg" style="width:fit-content;">
+      <button data-a="listas" class="on">Listas de chequeo <span class="n" id="nListas">0</span></button>
+      <button data-a="ordenes">Órdenes de compra <span class="n" id="nOrdenes">0</span></button>
+      <button data-a="usuarios">Usuarios <span class="n" id="nUsuarios">0</span></button>
+    </div>
   </div>
-  <div class="panel">
-    <div class="section-title">
-      <h2>ÓRDENES DE COMPRA</h2>
+
+  <!-- listas -->
+  <div class="panel" id="admListas">
+    <div class="barra-busca">
+      <input type="text" id="admBuscarListas" placeholder="Buscar por producto, código BPCS o código del documento...">
+      <select id="admOrdenarListas" style="max-width:190px;">
+        <option value="nombre">Ordenar: A → Z</option>
+        <option value="nombre-desc">Ordenar: Z → A</option>
+        <option value="bpcs">Ordenar: código BPCS</option>
+        <option value="vars">Ordenar: más variables</option>
+      </select>
+      <button class="btn-sec" id="btnNuevaLista">+ Nueva lista</button>
+    </div>
+    <div id="listasAdmin"></div>
+    <div class="pager" id="pagerListas"></div>
+  </div>
+
+  <!-- órdenes -->
+  <div class="panel" id="admOrdenes" style="display:none;">
+    <div class="barra-busca">
+      <input type="text" id="admBuscarOrdenes" placeholder="Buscar por número de orden o proveedor...">
+      <div class="seg" id="admFiltroOrdenes">
+        <button data-f="abiertas" class="on">Con pendientes</button>
+        <button data-f="todas">Todas</button>
+      </div>
       <button class="btn-sec" id="btnNuevaOrden">+ Nueva orden</button>
     </div>
     <div id="ordenesAdmin"></div>
+    <div class="pager" id="pagerOrdenes"></div>
   </div>
-  <div class="panel">
-    <div class="section-title">
-      <h2>USUARIOS</h2>
+
+  <!-- usuarios -->
+  <div class="panel" id="admUsuarios" style="display:none;">
+    <div class="barra-busca">
+      <input type="text" id="admBuscarUsuarios" placeholder="Buscar por nombre o usuario...">
       <button class="btn-sec" id="btnNuevoUsuario">+ Nuevo usuario</button>
     </div>
     <div id="usuariosAdmin"></div>
@@ -645,8 +702,8 @@
       <button class="btn-sec" id="mlAddVar">+ Variable</button>
     </div>
     <div class="var-edit" style="font-size:.7rem;color:var(--text-dim);font-weight:700;">
-      <span>Nombre / Especificación</span><span>Tipo</span><span>Valor nominal</span>
-      <span>Tol. inferior (−)</span><span>Tol. superior (+)</span><span></span>
+      <span>#</span><span>Nombre / Especificación</span><span>Tipo</span><span>Valor nominal</span>
+      <span>Tol. inferior (−)</span><span>Tol. superior (+)</span><span>Orden</span>
     </div>
     <div id="mlVars"></div>
     <div class="modal-actions">
@@ -761,6 +818,20 @@ function persist(){
   localStorage.setItem("lc_usuarios", JSON.stringify(S.usuarios));
 }
 function pad(n){return String(n).padStart(2,"0");}
+const MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+/** La trazabilidad se maneja siempre como mes y año, venga como venga de la hoja. */
+function mesAnio(v){
+  if(!v) return "—";
+  const t = String(v).trim();
+  const m = t.match(/^(\d{4})-(\d{2})/);
+  if(m){ const i = +m[2]-1; return `${MESES[i]||m[2]} ${m[1]}`; }
+  return t.slice(0,7);
+}
+function mesAnioISO(v){
+  const t = String(v||"").trim();
+  const m = t.match(/^(\d{4})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}` : "";
+}
 function ocTxt(n){ const t=String(n==null?"":n).trim(); return /^oc[\s\-.]?/i.test(t) ? t : "OC "+t; }
 function hoyISO(){const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2200);}
@@ -802,9 +873,29 @@ function refrescarSelectores(){
   refrescarProductosDeOrden();
 
   const cs = document.getElementById("cProducto");
+  const prodPrev = cs.value;
   cs.innerHTML = `<option value="">Todos</option>` +
-    S.listas.map(l=>`<option value="${l.id}">${l.nombre}</option>`).join("");
+    S.listas.slice().sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre)))
+      .map(l=>`<option value="${l.id}">${l.nombre}</option>`).join("");
+  if(prodPrev) cs.value = prodPrev;
+
+  refrescarOrdenesConsulta();
 }
+
+/** Desplegable de órdenes en Consultar, filtrable con su propio buscador. */
+function refrescarOrdenesConsulta(){
+  const sel = document.getElementById("cOrden");
+  if(!sel) return;
+  const q = (document.getElementById("cOrdenBuscar").value || "").trim().toLowerCase();
+  const previo = sel.value;
+  const ords = S.ordenes.slice()
+    .sort((a,b)=>String(b.numero).localeCompare(String(a.numero)))
+    .filter(o => !q || `${o.numero} ${o.proveedor||""}`.toLowerCase().includes(q));
+  sel.innerHTML = `<option value="">Todas (${S.ordenes.length})</option>` +
+    ords.map(o=>`<option value="${o.numero}">${ocTxt(o.numero)}${o.proveedor?" · "+o.proveedor:""}</option>`).join("");
+  if(previo && ords.some(o=>String(o.numero)===previo)) sel.value = previo;
+}
+document.getElementById("cOrdenBuscar").addEventListener("input", refrescarOrdenesConsulta);
 
 document.getElementById("iOrden").addEventListener("input", e=>{
   S.modo = null; S.reinspeccion = null;
@@ -927,7 +1018,9 @@ function renderVariables(){
          </div>`;
     return `<tr class="${clase}">
       <td><b>${v.nombre}</b></td>
-      <td><div class="spec">${especTexto(v)}</div>${lim?`<div style="font-size:.7rem;color:var(--text-dim);margin-top:3px;">Rango: ${lim.min} – ${lim.max}</div>`:""}</td>
+      <td>${v.tipo==="numerico"
+            ? `<div class="spec oculta">Registra el valor medido${v.unidad?` · ${v.unidad}`:""}</div>`
+            : `<div class="spec">${especTexto(v)}</div>`}</td>
       <td>${inputVal}</td>
       <td>${resultado}</td>
       <td><input type="text" class="obs" data-i="${i}" value="${m.obs??""}" placeholder="—" style="width:100%;padding:6px 8px;font-size:.78rem;"></td>
@@ -1203,6 +1296,7 @@ function aplicarRol(){
   const jefe = esJefe();
   document.getElementById("tabAprob").style.display = jefe ? "block" : "none";
   document.getElementById("tabAdmin").style.display = jefe ? "block" : "none";
+  document.getElementById("tabInsp").style.display  = jefe ? "none"  : "block";
   document.querySelectorAll(".solo-jefe").forEach(el=> el.style.display = jefe ? "" : "none");
 
   const chip = document.getElementById("userChip");
@@ -1270,7 +1364,7 @@ function construirInspeccion(){
     fechaRecepcion: document.getElementById("iFechaRec").value,
     orden: document.getElementById("iOrden").value.trim(),
     proveedor: document.getElementById("iProveedor").value.trim(),
-    trazabilidad: document.getElementById("iTrazabilidad").value.trim(),
+    trazabilidad: mesAnioISO(document.getElementById("iTrazabilidad").value),
     listaId: l.id, producto: l.nombre, codigoBPCS: l.codigoBPCS,
     codigoDoc: l.codigoDoc||"", version: l.version||"",
     cantidadRecibida: +document.getElementById("iCantidad").value,
@@ -1303,7 +1397,7 @@ document.getElementById("btnGuardar").addEventListener("click",()=>{
         " al jefe de calidad para su aprobación");
   limpiarFormulario();
   actualizarPill();
-  tab(esJefe() ? "Aprob" : "Pend");
+  tab("Pend");
 });
 
 function limpiarFormulario(){
@@ -1329,6 +1423,14 @@ document.getElementById("btnPdfPrev").addEventListener("click",()=>{
 
 /* ---------- PDF de liberación ---------- */
 const LOGO_PDF = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAkAAAAB6CAYAAABX5OzUAAAcwUlEQVR4nO2d8XXjtrLGv7zz/jdTweJW4EkFi1SwuhWstoLoVhCmgjAVRFtBnArCrSBwBaEruHIF+/6A9KQ4kgiS3wCkNL9zfCyLwIeRTILDwQD45uvXrzAMwzAMw7gn/qe0AYZhGIZhGLkxB8gwDMMwjLvDHCDDMAzDMO4Oc4D+TrX/MQzDMAzjhjEH6O80ADaFbTAMwzAMQ5lvbBbY/yMA/gTwun/dFbTFMAzDMAxFLAJ0pNn/fjh5bRiGYRjGDWIOUGQN4P3J3x8A+CKWGIZhGIahjg2BxaTnAODdm/efEYfCDMMwDMO4MSwCFJOe3zo/APCIGBkyDMMwDOPGuPcIkEOM/jxcOP66L7PLYo1hGIZhGFm49whQjcvOD/bHNlksMQzDMAwjG/ccAfIA/kgs+y/YtHjDMAzDuBnuOQLUDCi7VbLBMAzDMIwC3KsDtEZMck7lPWxavGEYhmHcDPc4BFYhDmddy/05xwtiQrRhGIZhGAvnHiNAGwx3foA4VX5DtcQwDMMwjCLcWwTIAfhrQn2bFm8YhmEYN8C9RYCaifUfEKfOG4ZhGIaxYO4pAuSRPu29j+8QF1A0DMMwDGOB3JMD1OH8lhdj+AKbFWYYhmEYi+VehsA24Dk/QJwWvyLqGYZhGIaRkXuIAFUYN+29D5sWbxiGYRgL5R4iQDX4zg8QI0q1gq5hGIZhGMrcegTIYdq09z5sWrxhGIZhLJBbjwBtlfUfMH1qvWEYhmEYmbnlCNAKwG+Z2voeQJupLcMwDMMwJnLLDlAH7syva9i0eMMwDMNYELc6BFYjn/MDxGnx64ztGYZhGIYxgVuMAFXgT3t/Rkx0DjgmPFcAZP/7EXFavMASog3DMAxj9tyiA7QF8HGixjOAJ8S8njahvEOMAO1gSdGGYRiGMXtuzQESAH+OrPuK6PTUiBEkwzAMwzBulP8tbQCZZmS9XxAdnx3LEMMwDMMw5sstOUBrxGTkITzv6wWyLYZhGIZhzJhbGQKrEJ2YITO/PiNukrqjW2MYhmEYxqy5lQjQBsOcn0/QXyXaMAzDMIyZcgsRIIcY/Umd9m7Oj2EYhmHcObewEGINc34MwzAMwxjA0iNAHsAfiWU/w1ZrNgzDMAwDy3eAAuIqzH08I64RZBiGYcwHv/9d4XIf3e5/72Azdg0iS3aA1gB+TSj3inhhdYq2GIZhGJepEJ0dOfk9druiF0RHKCB9tX7D+AdLdYAqpO/39R/Y9hRLYoU4q29OdPufHY6drjZPiOf5LVCj/zt7AvfzrlHmoWcN7lD7FsvNW3SI1/MaaZH6sRxW8T/8sKlxjFTdMlvwzrUt4v9fmxUmLGWz1GnwG6Q5P19gzs/S8Bi+oKU25+x5Rrypb8EPy1cAPpA150wF/uftyHqprME9fxuiVi7W4H8P13hA3P/xI6Iz1Ox/diT9FXQduLnwRNLxmL4fZyqCCQ+kS5wF5gD8mFi21jPDUEJKG5DII4AfEPeeC+A+9QtRaw60PceF3N4Xst4QhKwXyHqarBEdz19R7iHmAfH+0CH2/xVB8x6cH4B3rm1JOim4KZWX6AA1ieW+wMaGl8jcoj8pPCJ2+i04N0BP0JgLzwllPLnNQNZLxWF8XsslOrKeBiscHZ8hC9JqcuoIrSboCMGWpdASNNbIew64KZWX5gB5pIfKaz0zDCWktAETeY8YEVpP1HGTLZkPXUIZIbcZyHqpOLJeyUhWCg7xpvkb5uP4vOUB0b4njIsGCdGWOfNC0KiQf8jWT6m8NAdom1jOoj/LxJU2gMSvmBYGFo4ZsyAklBFymx1ZLxVP1gtkPSYbRPuWErH9gHER2qHll0ogaGzAj4D2UU2pvCQHaIP0p4ytnhmGIlLaACIfMX422y3lHLQJZdjRg5Q2NRCyXiDrMagQoyk/I//NbiqPGO4EDSm7ZMLE+g7publMJvWVS3GAKqQPab3CHKCl4ksbQOZnDP9MQ8vPndBz3JPbS8k50kLIeoGsNxVBdCCWPEPxAcOcoKVEuKbSTqxfE2wYi4ytuBQHqEb608ZWzwxDGSltgALbgeVFwYZSvKJ/KrKQ2wxkvVQq8CNZgaw3BUG8Sd5CdPLgBFU95Zy2ITMiTKjrkW/a+zmqsRWX4AA5xOnGqWx1zDCUcVheSD2FdxiWFO10zChCSCgjBdrUQMh6JSNZbxFEh+GWrs+DE3QN0TdjFqQ8qFyj5pgxGj+24hIcoO2Asocl0o3l4UoboMh6QFlRsqEEbUIZIbcZyHqpeLJeIOuNRXB7zs+BR1y/eUseM4oTJtRdofwwoRtbce4O0ArDvtxWxwwjA760AYq8R3qYtnRnwiQklGEPqaS0qYEj6wWy3hgEt+v8HPgRl/93Pp8ZRWkn1G1INkzBja04dweoGVj+ScEGbVxpA2aClDZAGZ9QRpRtyE3Xc9yT23sBb/uDoQhZL5D1hlLh9p2fA9sL70tGG0oSRtarMY/1n2RsxTk7QDWGf7kt3wx11uBuo7BUpLQBygipzJIIPcdd5vY0YUeyWrLemPbvwfkBYtTVv3mvwv18/m5EnQrz2bT6ASMToee6GWqF4V/uM8o9/U2lRoxe7YpaUY4K3CeJoedCjmEnSSjjlG3IScoqxkJuM5D1UvFkvdIJ0A3yzPY67OLeIt6EA47Xrdv/eOTZXmGDvzudotzenAgj6tSYl4MoGPHQMFcHqMHwLzfwzcjGO8QLsC5rRjGErLfB8ItBEHPONtC5sKuEMp7c5meUmxW5Sygj5DZbsl4qQtbryHpD8Bg263YML4h93fZKmW7/0+7L+n15LUfoA6LD1e3/9krtzI0x2604cM6RV8Tvm+FsuzGV5ugACcatKdByzchGtf+9QbzAu0J2lMST9cLIOgHR+d6izGJvQtbbYt7XBTvy1pH1UhGyXiDrpVJB12F+RXRmmhF1W8TvuYHemjMrHG3bgnft1OCe68wHm92IOg2p7Sfwot6jdOboADUj63VEG3Ii+98PiJ99VcqQgjii1tRE2B1iyD0g/67G7MhTIOsxEbLe4WmyBI6s15L1Uqmhd86/Ij7ohAkaOxzzJTWcoDWO958OvPOpIukceEK5c8SD93C4RfzOGc6hH1NpbknQa4z/MlqeGVlxJ68/4H5Cr6cIUSsQNHbIP71TyHolZ0SlIGS9QNYbAjuSFch6KQj0hr6eEfu5QNJbQydP6hF8Z+Wgy6Qj6w2hIem84Jj7xaAaU2lODlCF8TkwpZMGp/D2iaspYURhmB1EmJnOgbbnuJDbC2Q9No6s15L1UhGyXinHtVHSfUZ8qNuRdTdkvQOerCdkPaDctb0Gr6/eknQOjLJrTg7QBuPDrzueGVnxZ957xH1Ni/dkvUDSaUk6B3Y9xz25vUDWY+PJeoGsl4qQ9TqyXgor6MyEfEXsy3YK2i10Hnxl5npjkpYZVOBO0tkStQ7I0ApzcYAcpnn0LcWK/MiF9xvohGLniJD1AlmPRdtz3JHbC2Q9NkLWC2S9VISs15L1UmiUdNfQ/b9sFTQ9WU/IeoGsl8oGvPywzzg6+t3lYoOphlaYiwNUY15rCuRCLrz/gPksMqWNI+t1JB0h6QDxSThcOV7htncSf4sD/3rvyHqpCFkvkPX6WEMn8fkX6K/MHxQ0HVlPyHqBrJeCA/d+tD153RF1/dAKc3CAPKZn9LfTzSiCv3Ls2h41t4QQtZjhYSFqPWVsCyg7IyoFIeuVGhYAlp8AvVbQPEx316ZV0GQ7g7ew1EMN3gPLF+jdr93QCnNwgBqChido5Mah/2Lb6ptRHGYHEYhaK6LWtue4J7YFzDv6A9zGUzHAf0DJ7bh66OT+bJAvL/NFQVNIOo6kc0qroHkNAXfJgfrN3y1R2w2tUNoBWoOTVb4iaORmlVDm3B41t4SQ9TqSjgdvrYuUJx4htXWgr73SeLJeIOulImS9QNbrY62g+YK8D26dgmZF0hGSzoESs50bopZm9AcY4cyXdIAq8L7cRyzPCVolltsq2lAaIesFgoaAm7tQJ5RxxPaA+UeAHFkvkPVSEbJeS9a7RgWdxQS3CppLRch6gazXhwc3QlhfeJ85hF0NKVzSAdqAmwi5xXI2sKuQfmId9gm7RRxZr51Yfw3uLtifkWYTe6G0QNZjUuF2Er49Wa8j611jpaTbKOkuEU/WC2S9PrZELe3ozwEZUrjUVhgOMcmXyQPiF+wx7xsAMLzzqRFPxh3ZjtJ4otbQ8HCFeLFUeztW4N6YX5DmuHpimwcc8ifQt4nlhNxuyUVQhawXyHrXWClofsbt9VFTELJeIOtdYwNuf1hfOdaCF2kSDHC0SjlAjZLuwQmqFdtgsB5Y/gHxM23YhhRGiFqPAL4S9abwiniD2SWUFYX2/1DQ7OObxHKe3G4g66XisNy92yrobPb7pKC5VBz450dL1rtEBe4svlzRH2ABQ2Ae0y++3wH8G8B/zhx7APAzjrsHzw2Hcd7uD5jn5xmLw22u/TR000fRMiQjQ6IwQm47kPVScWS9nFP5vYLmK8wBOsWR9TRmu11iA356yjVaYlt+SOESDtB2Yv1nxAjKE2KU53vEi+8t7wH8uW/PTWyTyXpC3YZkwxyQ0gYo8Iz4ucKAOk7DkMyEAWWlYNtMPFkvkPWusVLQfFLQXDKerBfIepdw4Kan5J4V6IYUzu0AbTBtXPHc0EKL2Kleegr9COAvxAvUT2ibxXpC3fdY3my3S0hpA4i8AvgJ8TN1A+tqrMOSmzCgLDsBuiXrpSJkvY6sdw2voPmkoJnCXK8fIesFst4l6gJ6LbG9Qf1LTgeowvQvt8b5jqJDPOF+uVL3A2JuRIfoiLmJtoxhjek3gGa6GbNAShtA4jPiZ6lH1BWmIQUJieU8uV1LgB6Og87WF62C5pIRsl5L1juHB3dphNzRnwOSWjCnA1Rj2rjiC/pv/hvEIbFr46XvEHOE/kLsdDbI5wytCRrvkGeZeW2ktAETeEbMP/sW8X/ajdQRjjnFaRPLCbndjqyXSoXlRrJEQfMZZWZ/iZLubmL9Cstc6qEuqMfMgXOpBXM5QA4xiXcKdWK5dt/eTzifG3TKI47OUIfoYK2gsxP7Brxw7QbL3i2+gs5TqCY/ISbef4vY8TaY3lHKxPpz4B4ToIWslzOSJQqarYJmCpWSbphYXwg2nPIKfQdzDe5wYqnoDzDDCNB2Yv0xX2aNdEcIiDfkHwD8BuC/iBd1g+kOUbXX+XmCxlsesOyhMCltwAj8/scRNYWoVYpuQFkht92S9VLxZL1A1ruGV9DsFDRT8IXa7UPIeoGsd466sF5LbNulFszhAK0w3bN8Gllvh+GO0IH3+LtD1OG4xtAa8eKTC3VlX2a7rzc1+nWOj5hvB9CHL23ACA7nw5+I/9M1QVMIGqUJA8reyorXjqwXyHrXcAqaQUEzBVHQZAzFCEHjlJas95Ya/EVgt0S9objUgt98/aq+dlyH6V/u9+CcBBWiQ7YBvzMuwRcs05l4gs5CbLk5LMkQRtR1iEOvSyf12vTgLtD4gnJLCARw+w9W/5aCRof/LcrkAAXw+/HPmP5wE8C169/Qm2VXId6jmev+fMJwB8iD2z8kLcyqHQGqwfEsW4IGEC/SLaKH/h3irLGcC0yxeQ+dHZ21caUNIPGIeG6uRtQVpiEFCYnlHLndjqw3hKVGsryS7k5J9xoVdB5iO4LGks6PGlznp3T050CVUkjTAarA2bpBa4XUgOMMsO8Qh8hyrsbKosbyEqJvIfp24AFxmHQ9sJ7QLcnPC9JvfkJuuyXrpeLJekO+wzlSqs/0SrrtxPqeYMMpr9Bz9h346Rn1yHot0QYgsb/RdIAacDzLjqDRR0D8x3nE0Nn3iNOcP2PaBf6CuG3HtfWJprK03eJ9aQOUaDDsJu9VrMhLGFBWCrbNRMh6gax3DZexLW28km6YWF8INpwSyHqnbMl6c4n+AIn/B63NUAW8BZU6ks4QWpz3SP3Ja8E/Iy/thddAPJF/HW/SVTY4JlzPHSltgBIPOA6vppBabs6EAWXZK/YOaZuJkPUCWe8aTkEzKGimsFLQZKxn5Kab8TcCWe+AB/+arCfW/wKeTVVKIS0HqFHSLU174XUKW+g5QIdp8SslfSZC1HrFuHPNIXYA7LWIHhE7gbqnXAX+RrAlhiLaxHJCbldzWKAPR9ZryXq52RVoUzDf1ayFoHFKIOsdaMh6c4r+AIkRQg0HaI357s9SGqaH+5YPiP/0VkmfhSNqBUx76liDN1R7qln3lBFie8BxB/q5ImS9QNYbAvv67ch698BaSbclaCwh0rkGPw/zHXRmGI7FpRRi5wBVuI1tGpZKU9qABJgdRJhYf4voOAxZH6qPd+iPxHlie0BZhyAFR9ZryXqpCFmvZCRryawUNF8xfaq5TDfjHwSyXoX7uEcnRQjZDtAmteEBCFnvlnnEvKfFC1kvkDRWBJ1TfM9xIbfXkvXYeLJeR9ZLRch6gax3D6ygM/z1RNAQgsYpGsPaGyxvG6KxSF8BpgPkoDMbySlo3jIN5jstXsh6gaTTgrsfk+85LsS2gPlHEYSsF8h6qQhZryXr3QMbJd0ngoYjaJzSkfUcljVjeCqurwDTAarBT+wEYlSjUtC9VR4w35NcyHqBqPVE1OobX1/iTtFjceD3C4Gsl4qQ9QJZ79Zx0MmhZAx/AfMf2q6hc4+eK9JXgOUAefCmvV/SvwVcpnZ+zNjWEISoxd5BO5D1LuEVNIOCJgsh65VcrNQSoP+Jy9hWraS7JekISedAIGoJdO/Rc8T1FWA5QA1J5xJrZf1c5Bx73WZsKxUhagWiFsDvyGXg+2OZ++rlQtYLZL1UnIJmUNC8xk5B0ylonsND7wbeEDQc+NGVlqjVELWWgusrwHCA1tDf2uAD5hnRGILP3N77Am1ew4HbQQSiFsAfZr2kJ+R2AlmPjSfrdWS9VISsV8JxDQqauZY8aZR0P4NzTglB4xRmhHuF+1yapvczT3WAKuTzLOtM7WixKtDmtkCblxCyXiDrObJeuPC+ZGpnLjiyXiDrpSJkvUDWS6FT0vVKugdq6D1kb0k6QtI5EIhaDVFraVTXDk51gDbIl1T1EfOKaAxlVaDNOe0TJmS9QNZbkfV2F95f0k7RU6nAH/ZtyXqpeLJeIOul0IG75tWBtYLmgRViTqMGv4N3PnmSzoGOpLPB/Ux7P4dcOzjFAXLQOzEvscUyZ4R5lDsJa8zjO/NELfYO2mtwHflLNxkhtnEgKGiyELIeO/F9CELWC2S9ku2uoNPHCHSj2BuiliNqARzHrMLyR06mItcOTnGAmgl1x/IO3OnKuagLtv1QuP0DjqgViFoV+OdyuPC+kNsp6RCk4Ml6gayXisPtTOV/UtDU6GME0QnQGmH4BbwoS4V5Lm2xwX1Nez9Hde3gWAfIIyYml+A95pXb0odH+QS0H1B2Re0K3A4ikHQq6HSy7YX3hdxOIOuxEbJeIOulImS9ko5rq6T7A3hDYSvoOj8v4DpsQtQCOBFuh/wjNHPEXzs4djPU7ch6LA7TITcosxvxEJrSBuxpUC6HSsh6YWL9CsdNSzU62acL7wu5nUDWYyMKejVZ8xItjs6CkLUr5I3KnrYVEG+wGkPyv+5/b0fWrxD7dO0b9wbc+4YnagGc67ohaNwC7trBMQ7QBvNIqvqI2DGtMN8FxWroLxGQynvE7+qpQNuerBcGlhfEzlVwPGc0ny7DhWPsSOAaZZLrD2xw/X/B7idyLuTWnbwWsvY75Hs6PzfdvgHws1J7vyKekxsM65fXiP2l9r3lF/D7QCHrhYn1PfgjNK/I51StwTsPruoMdYAqzCOf5MAj4smyxvxyg1aYXwiyQZnvSch6f5H1mDQX3ncKbZV2rrsrx3wmG7ToTl5LIRsYhDPvbaG7LcKH/c/viP1Ni3+eK7L/8dB9IDnlGTr3L0fWCxPr1wQbzmk2Crrn8OA6wh4Xhn6H5gDVmF9S1QOA3xAvNFfUkiOC8sOE53iHMg6sK9BmCV5x+f8u+czIQl+eguQxQ412/7vCPCLeYwln3tshz83sA2JE6C8AX9/8/Lk/9hF57imviA/KOwXtOS1tsQY/0vyCvENqHVmvunRgiAPkEBPd5soHxAutRtlp3yvoJvBNZYP830/pSEUualzuYCWbFXkIPcclgw1anCYpSykjSIQL7zfQWRNorqyhkzPnyXqvmOYA1Bwz1DWv0ZH15NKBIQ7QdrIZefgR8QvcIn/koUaMRs3V+QGibU3G9nzGtkryjOvfq89jRjZCz3HJYIMW4eS1L2QDi3Dh/R3mlc6gySfoDf0LWS9MqFuDH618Qf57f0fWk0sHUh2gFcpP5R7CA2Jo9S/EaMwaulEPj/hPm1vOzyVyrqotmdopySv6k5FF34yshJ7jS476dSevpZANDPqm2zeY/2a6U/kE3Ru4kPXakfUq6Kz6v1bQ7KMj61WXDqQ6QA3FjDK8Rxxr/i/iU8AanMhQhWNY9Q8sL0+gztSOZGqnJGtcv2grzDsqOIZw5ZjPZIMW7clrV8gGBiGhzArxKf8W0XZ+AH7/1o2s14Dfx3xBma1nOrLexeBNyiywGsu7uV/iMDsBiBd9h+MMhdOfc3gcp1J7LCsido73iDfurXI7oqxfmpTwuuibkZW+PAXJY4Ya4eT1kiNZIaHMDvPPWxxDDucHmEcCtIPOEhG1gmYKnYKmO6fb5wBVmM9mmil8QvyQG/Svg/Bu/7N0R2YKNeLNe6fYxpJvIH2kdrJe14zshJ7jLoMNWpzObvPlzKAQBpTzuA0n6BXxs4QMbYmCZhhRZ0u2AeBuFDsG9mKdDmccoL4hsAbLuiA6xH/aCsC/APwHtxveZaC9W7woapfkFcB3SO94RM2SMrQ9xyWDDVqEk9dSyAYW7YCyAdFxWPLMsC+IN7qQqT0h643Jx/LQeYjfKGgOoSPrybk3rzlAgrwrrzKQk9cdogPnEG9Wv2D+m0eWYAO9J3ZR0i3J7xjeyYqGIQUJPceXHFUNJ6+lkA0Mxjz4BcQb6tL6yVfEh12PvFsjCVkvjKjTkG0AgM8ov7sCu3137s1rDlBDNiAH6wvvB8QbvSBGhv6N6BB9wbKfeBhoTosXJd0SvAD4HjG6uBtQr8Lt5NAdCFeOSSYbtAgnr6WQDQzChHoe8Sa4BD4j/p+aAm0LWS8MLL+GTopBraA5lI6sJ+fevOQArbHMp7hH9E9H7hDzXjY4JjZ/i3hz+wTgJx3TZs0H6OQ7iIJmbp4RzwuHcWPiQrRlLnRXjkkmG7QIJ6+XnL8WJtTdId4Dvsd8Uwi+INq3RrloBfse2Q0oW0HH6ftpoB1adGQ9d+7Ncw5QhXl4gGPZYviQzg7x5rZF/Oxzveg1aRQ0l+hEAzEq+BmxgxVMSzKU6ebMir48BclhhBKns9uknBkUWpKGQ7wpzqVPPDg+HmWTdJ2CZjug7Ab8/NycG5720ZH1zkbhzzlAm0uFF8IDpu0LtsWyP/9YHsFd9MoRtbR5RexYf0LsXCvE76IlaAtBY06EnuOSwQYtwslrKWQDi46oVSNez59QJj/oBTFl4V8o7/gcELLekO/VQSdJuUHeHKprdAqa/u0b56bB73Abw0Aew5/cHeIXfwuffw7M9XtsL7zWaqtTbiMnbc/xbUKZudKevO4w3/M3hU5Bc4tjhH0F3R0CnnGMygelNqawA/f86AaUddCJ1GhojqUD//rr3r7xzdevX8ltGIZhGHeER4yICOLN2SE9in5YkDac/G5plhnGFcwBMgzDMDQRHPdj2mGeER3jDjEHyDAMwzCMuyN1M1TDMAzDMIybwRwgwzAMwzDuDnOADMMwDMO4O/4P4BofvzuA3K0AAAAASUVORK5CYII=";
+
+/** Una celda que la hoja convirtió en fecha vuelve legible, nunca con hora. */
+function celdaPDF(v){
+  let t = (v===null || v===undefined) ? "—" : String(v);
+  t = t.replace(/^(\d{4}-\d{2}-\d{2})T[\d:.]+Z?$/, "$1");
+  t = t.replace(/^(\d{4}-\d{2}-\d{2}) 00:00:00$/, "$1");
+  return t.replace(/\n/g," ").trim() || "—";
+}
 
 function generarPDF(insp, guardar){
   const { jsPDF } = window.jspdf;
@@ -1411,18 +1513,23 @@ function generarPDF(insp, guardar){
       doc.text(nota, M+w+3.5, y);
     }
     doc.setTextColor(28,31,36); y+=4.5;
-    let x=M; doc.setFontSize(6.8); doc.setFont("helvetica","bold");
-    cols.forEach((cN,i)=>{
-      doc.setFillColor(238,240,245); doc.setDrawColor(213,217,223);
-      doc.rect(x,y,anchos[i],5.8,"FD");
-      doc.setTextColor(90,98,110); doc.text(cN, x+1.8, y+3.9);
-      x+=anchos[i];
-    });
-    y+=5.8; doc.setFont("helvetica","normal"); doc.setFontSize(7);
+    let x=M;
+    function encabezado(){
+      x=M; doc.setFontSize(6.8); doc.setFont("helvetica","bold");
+      cols.forEach((cN,i)=>{
+        doc.setFillColor(238,240,245); doc.setDrawColor(213,217,223);
+        doc.rect(x,y,anchos[i],5.8,"FD");
+        doc.setTextColor(90,98,110); doc.text(cN, x+1.8, y+3.9);
+        x+=anchos[i];
+      });
+      y+=5.8; doc.setFont("helvetica","normal"); doc.setFontSize(7);
+      doc.setTextColor(28,31,36);
+    }
+    encabezado();
     filas.forEach(f=>{
-      const celdas = f.map((cell,i)=> doc.splitTextToSize(String(cell).replace(/\n/g," "), anchos[i]-3));
-      const h = Math.max(5.2, Math.max(...celdas.map(t=>t.length))*3+2);
-      if(y+h>276){ doc.addPage(); y=16; }
+      const celdas = f.map((cell,i)=> doc.splitTextToSize(celdaPDF(cell), anchos[i]-3));
+      const h = Math.max(4.8, Math.max(...celdas.map(t=>t.length))*2.9+1.8);
+      if(y+h>276){ doc.addPage(); y=16; encabezado(); }
       x=M;
       const rechazo = f.includes("Rechazo") || String(f[3]||"").includes("Rechazo");
       celdas.forEach((txt,i)=>{
@@ -1435,7 +1542,7 @@ function generarPDF(insp, guardar){
       });
       y+=h;
     });
-    y+=6;
+    y+=5;
   }
 
   // datos de recepción
@@ -1443,7 +1550,7 @@ function generarPDF(insp, guardar){
     [["Proveedor", insp.proveedor||"—", "Orden de compra", insp.orden||"—"],
      ["Producto", insp.producto, "Código BPCS", insp.codigoBPCS],
      ["Fecha recepción", insp.fechaRecepcion||"—", "Fecha inspección", `${insp.fecha} ${insp.hora}`],
-     ["Fecha trazabilidad", insp.trazabilidad||"—", "Inspeccionado por", insp.inspector||"—"]],
+     ["Mes de trazabilidad", mesAnio(insp.trazabilidad), "Inspeccionado por", insp.inspector||"—"]],
     [32,62,32,W-2*M-126]);
 
   // variables
@@ -1459,11 +1566,14 @@ function generarPDF(insp, guardar){
   doc.setFont("helvetica","bold"); doc.setFontSize(8.2); doc.setTextColor(226,0,26);
   doc.text("DECISIÓN DE CALIDAD", M, y); doc.setTextColor(28,31,36); y+=5.5;
   doc.setFontSize(7.2);
-  const opts = ["Aprobado","Aprobado bajo condición","Rechazado","Bloqueado"];
+  const opts = [["aprobado","Aprobado"],["aprobado_condicion","Aprobado bajo condición"],
+                ["rechazado_lote","Lote rechazado"],["bloqueado","Bloqueado"],
+                ["devuelto","Devuelta al inspector"]];
   const anchoOp = (W-2*M)/opts.length;
-  opts.forEach((o,i)=>{
+  opts.forEach((par,i)=>{
+    const o = par[1];
     const x = M + i*anchoOp;
-    const marcada = insp.decision===o;
+    const marcada = est === par[0];
     doc.setFillColor(marcada?253:252, marcada?240:253, marcada?240:254);
     doc.setDrawColor(marcada?200:222, marcada?29:226, marcada?46:232);
     doc.setLineWidth(marcada?0.5:0.3);
@@ -1484,21 +1594,25 @@ function generarPDF(insp, guardar){
 
   doc.setFont("helvetica","bold"); doc.setFontSize(7.6);
   doc.text("OBSERVACIONES", M, y); doc.setFont("helvetica","normal"); doc.setFontSize(7.2);
-  const obs = doc.splitTextToSize(insp.observaciones||"—", W-2*M-4);
+  const textoObs = [insp.observaciones||"",
+                    insp.motivoRechazo ? `Decisión del responsable: ${insp.motivoRechazo}` : ""]
+                   .filter(Boolean).join("  |  ") || "—";
+  const obs = doc.splitTextToSize(textoObs, W-2*M-4);
   doc.setFillColor(250,251,252); doc.setDrawColor(225,228,233);
   doc.rect(M, y+2, W-2*M, Math.max(10, obs.length*3.4+5), "FD");
   doc.text(obs, M+2.5, y+7);
-  y += Math.max(10, obs.length*3.4+5) + 12;
+  y += Math.max(10, obs.length*3.4+5) + 9;
 
   // firmas por nombre
+  if(y > 276){ doc.addPage(); y = 30; }
   doc.setDrawColor(150,156,164); doc.setLineWidth(0.3);
   doc.line(M, y, M+62, y); doc.line(M+80, y, M+142, y);
   doc.setFontSize(7); doc.setTextColor(110,118,129);
   doc.text("Inspector", M, y+4);
-  doc.text("Líder de Calidad Productos Comercializados", M+80, y+4);
+  doc.text("Responsable de revisión y liberación", M+80, y+4);
   doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(28,31,36);
   doc.text(insp.inspector||"—", M, y-2);
-  doc.text(insp.lider||"—", M+80, y-2);
+  doc.text(insp.aprobadoPor || insp.lider || "—", M+80, y-2);
   doc.setFont("helvetica","normal"); doc.setFontSize(6.6); doc.setTextColor(140,148,158);
   doc.text(`Registrado en la aplicación el ${insp.fecha} a las ${insp.hora}`, M, y+9);
 
@@ -1506,8 +1620,8 @@ function generarPDF(insp, guardar){
   for(let p=1;p<=total;p++){
     doc.setPage(p);
     doc.setFontSize(6.4); doc.setTextColor(140,148,158);
-    doc.text(`Generado ${new Date().toLocaleString("es-CO")} · Listas de Chequeo · Bellota`, M, 290);
-    doc.text(`Página ${p} de ${total}`, W-M, 290, {align:"right"});
+    doc.text(`Generado ${new Date().toLocaleString("es-CO")} · Listas de Chequeo · Bellota`, M, 291);
+    doc.text(`Página ${p} de ${total}`, W-M, 291, {align:"right"});
   }
 
   const nombre = `Liberacion_${insp.orden||"SN"}_${insp.codigoBPCS}_${insp.fecha}.pdf`;
@@ -1594,7 +1708,7 @@ async function cargarConfig(){
       S.usuarios = data.usuarios.filter(u=>u && u.usuario);
       localStorage.setItem("lc_usuarios", JSON.stringify(S.usuarios));
       if(!S.sesion) renderLogin();
-      if(document.getElementById("viewAdmin").style.display !== "none") renderUsuariosAdmin();
+      if(document.getElementById("viewAdmin").style.display !== "none") renderAdmin();
     }
 
     // La hoja es la fuente de verdad. Solo se conserva lo local cuando la hoja
@@ -1713,18 +1827,93 @@ document.getElementById("btnSubirTodo").addEventListener("click", async ()=>{
 });
 
 /* ---------- Administrar: listas ---------- */
+/* ==========================================================================
+   ADMINISTRAR · pensado para cientos de listas y órdenes
+   ========================================================================== */
+const POR_PAGINA = 25;
+const admPag = {listas:1, ordenes:1};
+
+function admSubvista(){
+  const b = document.querySelector("#admSeg button.on");
+  return b ? b.dataset.a : "listas";
+}
+
+function pintarPager(id, total, pagina, onIr){
+  const box = document.getElementById(id);
+  if(!box) return;
+  const paginas = Math.max(1, Math.ceil(total / POR_PAGINA));
+  if(total <= POR_PAGINA){ box.innerHTML = total ? `<span>${total} registro(s)</span>` : ""; return; }
+  const desde = (pagina-1)*POR_PAGINA + 1;
+  const hasta = Math.min(total, pagina*POR_PAGINA);
+  box.innerHTML = `<span>Mostrando ${desde}–${hasta} de ${total}</span>
+    <button data-ir="1"        ${pagina===1?"disabled":""}>« Primera</button>
+    <button data-ir="${pagina-1}" ${pagina===1?"disabled":""}>‹ Anterior</button>
+    <span>Página ${pagina} de ${paginas}</span>
+    <button data-ir="${pagina+1}" ${pagina===paginas?"disabled":""}>Siguiente ›</button>
+    <button data-ir="${paginas}"  ${pagina===paginas?"disabled":""}>Última »</button>`;
+  box.querySelectorAll("[data-ir]").forEach(b=>b.addEventListener("click",()=>onIr(+b.dataset.ir)));
+}
+
 function renderAdmin(){
+  const vista = admSubvista();
+  document.getElementById("admListas").style.display   = vista==="listas"   ? "block":"none";
+  document.getElementById("admOrdenes").style.display  = vista==="ordenes"  ? "block":"none";
+  document.getElementById("admUsuarios").style.display = vista==="usuarios" ? "block":"none";
+  document.getElementById("nListas").textContent   = S.listas.length;
+  document.getElementById("nOrdenes").textContent  = S.ordenes.length;
+  document.getElementById("nUsuarios").textContent = S.usuarios.length;
+
+  if(vista==="listas")   renderListasAdmin();
+  if(vista==="ordenes")  renderOrdenesAdmin();
+  if(vista==="usuarios") renderUsuariosAdmin();
+}
+
+document.querySelectorAll("#admSeg button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("#admSeg button").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on"); renderAdmin();
+}));
+
+/* ---------- listas de chequeo ---------- */
+function renderListasAdmin(){
   const box = document.getElementById("listasAdmin");
-  box.innerHTML = S.listas.length ? S.listas.map((l,idx)=>`
+  const q = (document.getElementById("admBuscarListas").value||"").trim().toLowerCase();
+  const orden = document.getElementById("admOrdenarListas").value;
+
+  // índice de uso: en cuántas órdenes está cada lista y cuántas siguen pendientes
+  const pend = {};
+  referenciasPendientes().forEach(r=> pend[r.lista.id] = (pend[r.lista.id]||0)+1);
+
+  let items = S.listas.map((l,idx)=>({l, idx}));
+  if(q) items = items.filter(({l}) =>
+    `${l.nombre} ${l.codigoBPCS||""} ${l.codigoDoc||""} ${l.version||""}`.toLowerCase().includes(q));
+
+  items.sort((a,b)=>{
+    if(orden==="nombre")      return String(a.l.nombre).localeCompare(String(b.l.nombre));
+    if(orden==="nombre-desc") return String(b.l.nombre).localeCompare(String(a.l.nombre));
+    if(orden==="bpcs")        return String(a.l.codigoBPCS).localeCompare(String(b.l.codigoBPCS));
+    return (b.l.variables||[]).length - (a.l.variables||[]).length;
+  });
+
+  const paginas = Math.max(1, Math.ceil(items.length/POR_PAGINA));
+  if(admPag.listas > paginas) admPag.listas = paginas;
+  const pagina = admPag.listas;
+  const vis = items.slice((pagina-1)*POR_PAGINA, pagina*POR_PAGINA);
+
+  box.innerHTML = vis.length ? vis.map(({l,idx})=>`
     <div class="lista-item">
       <div class="info"><b>${l.nombre}</b>
-        <span class="meta">BPCS: ${l.codigoBPCS} · ${l.variables.length} variables · ${l.codigoDoc||"sin código"}</span></div>
+        <span class="meta">BPCS ${l.codigoBPCS||"—"} · ${(l.variables||[]).length} variables · ${l.codigoDoc||"sin código"}${l.version?" · "+l.version:""} · nivel ${l.nivelInspeccion||"—"} · AQL ${l.aql??"—"}</span></div>
+      ${pend[l.id]?`<span class="ind pend">${pend[l.id]} pendiente(s)</span>`:""}
       <div class="acciones">
         <button class="btn-sec" data-edit="${idx}">Editar</button>
         <button class="btn-sec" data-dup="${idx}">Duplicar</button>
         <button class="btn-sec" data-del="${idx}" style="color:var(--bad-text);">Eliminar</button>
       </div>
-    </div>`).join("") : `<div class="empty-mini">No hay listas creadas.</div>`;
+    </div>`).join("")
+    : `<div class="empty-mini">${S.listas.length ? "Ninguna lista coincide con la búsqueda." : "No hay listas creadas."}</div>`;
+
+  pintarPager("pagerListas", items.length, pagina, n=>{ admPag.listas = n; renderListasAdmin();
+    document.getElementById("admListas").scrollIntoView({behavior:"smooth", block:"start"}); });
 
   box.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>abrirModalLista(+b.dataset.edit)));
   box.querySelectorAll("[data-dup]").forEach(b=>b.addEventListener("click",()=>{
@@ -1734,34 +1923,72 @@ function renderAdmin(){
     renderAdmin(); refrescarSelectores(); toast("Lista duplicada");
   }));
   box.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{
-    if(confirm("¿Eliminar esta lista de chequeo? Las inspecciones ya guardadas no se borran.")){
-      const borrada = S.listas[+b.dataset.del];
+    const l = S.listas[+b.dataset.del];
+    if(confirm(`¿Eliminar la lista "${l.nombre}"? Las inspecciones ya guardadas no se borran.`)){
       S.listas.splice(+b.dataset.del,1); persist();
-      enviarConfig("borrarLista", {id:borrada.id});
+      enviarConfig("borrarLista", {id:l.id});
       renderAdmin(); refrescarSelectores();
     }
   }));
+}
+document.getElementById("admBuscarListas").addEventListener("input", ()=>{ admPag.listas=1; renderListasAdmin(); });
+document.getElementById("admOrdenarListas").addEventListener("change", ()=>{ admPag.listas=1; renderListasAdmin(); });
 
+/* ---------- órdenes de compra ---------- */
+function renderOrdenesAdmin(){
   const ob = document.getElementById("ordenesAdmin");
-  ob.innerHTML = S.ordenes.length ? S.ordenes.map((o,idx)=>`
-    <div class="lista-item">
+  const q = (document.getElementById("admBuscarOrdenes").value||"").trim().toLowerCase();
+  const btnF = document.querySelector("#admFiltroOrdenes button.on");
+  const filtro = btnF ? btnF.dataset.f : "abiertas";
+
+  const pendPorOC = {};
+  referenciasPendientes().forEach(r=> pendPorOC[String(r.orden.numero)] = (pendPorOC[String(r.orden.numero)]||0)+1);
+
+  let items = S.ordenes.map((o,idx)=>({o, idx}));
+  if(filtro==="abiertas") items = items.filter(({o}) => pendPorOC[String(o.numero)] > 0);
+  if(q) items = items.filter(({o}) => `${o.numero} ${o.proveedor||""}`.toLowerCase().includes(q));
+  items.sort((a,b)=> String(b.o.numero).localeCompare(String(a.o.numero)));
+
+  const paginas = Math.max(1, Math.ceil(items.length/POR_PAGINA));
+  if(admPag.ordenes > paginas) admPag.ordenes = paginas;
+  const pagina = admPag.ordenes;
+  const vis = items.slice((pagina-1)*POR_PAGINA, pagina*POR_PAGINA);
+
+  ob.innerHTML = vis.length ? vis.map(({o,idx})=>{
+    const p = pendPorOC[String(o.numero)] || 0;
+    const t = (o.productos||[]).length;
+    return `<div class="lista-item">
       <div class="info"><b>${ocTxt(o.numero)}</b>
-        <span class="meta">${o.proveedor||"sin proveedor"} · ${(o.productos||[]).length} producto(s)</span></div>
+        <span class="meta">${o.proveedor||"sin proveedor"} · ${t} referencia(s)</span></div>
+      <span class="ind ${p?"pend":"ok"}">${p ? `${p} pendiente(s)` : (t ? "cerrada" : "sin referencias")}</span>
       <div class="acciones">
         <button class="btn-sec" data-oedit="${idx}">Editar</button>
         <button class="btn-sec" data-odel="${idx}" style="color:var(--bad-text);">Eliminar</button>
       </div>
-    </div>`).join("") : `<div class="empty-mini">No hay órdenes registradas.</div>`;
+    </div>`;
+  }).join("")
+   : `<div class="empty-mini">${S.ordenes.length
+        ? (filtro==="abiertas" ? "No hay órdenes con referencias pendientes. Cambia a «Todas» para verlas." : "Ninguna orden coincide con la búsqueda.")
+        : "No hay órdenes registradas."}</div>`;
+
+  pintarPager("pagerOrdenes", items.length, pagina, n=>{ admPag.ordenes = n; renderOrdenesAdmin();
+    document.getElementById("admOrdenes").scrollIntoView({behavior:"smooth", block:"start"}); });
+
   ob.querySelectorAll("[data-oedit]").forEach(b=>b.addEventListener("click",()=>abrirModalOrden(+b.dataset.oedit)));
   ob.querySelectorAll("[data-odel]").forEach(b=>b.addEventListener("click",()=>{
-    if(confirm("¿Eliminar esta orden de compra?")){
-      const o = S.ordenes[+b.dataset.odel];
+    const o = S.ordenes[+b.dataset.odel];
+    if(confirm(`¿Eliminar la orden ${ocTxt(o.numero)}?`)){
       S.ordenes.splice(+b.dataset.odel,1); persist();
       enviarConfig("borrarOrden", {numero:o.numero});
       renderAdmin(); refrescarSelectores();
     }
   }));
 }
+document.getElementById("admBuscarOrdenes").addEventListener("input", ()=>{ admPag.ordenes=1; renderOrdenesAdmin(); });
+document.querySelectorAll("#admFiltroOrdenes button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("#admFiltroOrdenes button").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on"); admPag.ordenes=1; renderOrdenesAdmin();
+}));
 
 function filaVarHTML(v={}){
   const t = v.tipo||"numerico";
@@ -1769,6 +1996,7 @@ function filaVarHTML(v={}){
   const ts = v.tolSup!=null ? v.tolSup : (v.tol!=null?v.tol:"");
   const suf = v.tolTipo==="pct" ? "%" : "";
   return `<div class="var-edit">
+    <span class="num"></span>
     <input type="text" class="v-nom" placeholder="Nombre de la variable" value="${(v.nombre||"").replace(/"/g,"&quot;")}">
     <select class="v-tipo">
       <option value="numerico"${t==="numerico"?" selected":""}>Numérico</option>
@@ -1777,7 +2005,11 @@ function filaVarHTML(v={}){
     <input type="text" class="v-valor" placeholder="${t==="numerico"?"Nominal":"Especificación"}" value="${t==="numerico"?(v.valor??""):(v.especificacion||"").replace(/"/g,"&quot;")}">
     <input type="text" class="v-tolinf" placeholder="ej. 10 o 3%" value="${t==="numerico"&&ti!==""?ti+suf:""}">
     <input type="text" class="v-tolsup" placeholder="ej. 10 o 3%" value="${t==="numerico"&&ts!==""?ts+suf:""}">
-    <button type="button" class="del" title="Quitar">✕</button>
+    <div class="mover">
+      <button type="button" class="mv up"   title="Subir">▲</button>
+      <button type="button" class="mv down" title="Bajar">▼</button>
+      <button type="button" class="del" title="Quitar">✕</button>
+    </div>
   </div>`;
 }
 
@@ -1797,9 +2029,32 @@ function abrirModalLista(idx){
   engancharFilasVar();
   document.getElementById("modalLista").classList.add("show");
 }
+function numerarFilasVar(){
+  const filas = [...document.querySelectorAll("#mlVars .var-edit")];
+  filas.forEach((row,i)=>{
+    row.querySelector(".num").textContent = i+1;
+    row.querySelector(".mv.up").disabled   = i === 0;
+    row.querySelector(".mv.down").disabled = i === filas.length-1;
+  });
+}
+
 function engancharFilasVar(){
   document.querySelectorAll("#mlVars .del").forEach(b=>{
-    b.onclick = ()=> b.closest(".var-edit").remove();
+    b.onclick = ()=>{ b.closest(".var-edit").remove(); numerarFilasVar(); };
+  });
+  document.querySelectorAll("#mlVars .mv.up").forEach(b=>{
+    b.onclick = ()=>{
+      const row = b.closest(".var-edit"), prev = row.previousElementSibling;
+      if(prev && prev.classList.contains("var-edit")) row.parentNode.insertBefore(row, prev);
+      numerarFilasVar();
+    };
+  });
+  document.querySelectorAll("#mlVars .mv.down").forEach(b=>{
+    b.onclick = ()=>{
+      const row = b.closest(".var-edit"), sig = row.nextElementSibling;
+      if(sig && sig.classList.contains("var-edit")) row.parentNode.insertBefore(sig, row);
+      numerarFilasVar();
+    };
   });
   document.querySelectorAll("#mlVars .v-tipo").forEach(s=>{
     s.onchange = ()=>{
@@ -1815,6 +2070,7 @@ function engancharFilasVar(){
     };
     s.onchange();
   });
+  numerarFilasVar();
 }
 document.getElementById("btnNuevaLista").addEventListener("click",()=>abrirModalLista(null));
 document.getElementById("mlAddVar").addEventListener("click",()=>{
@@ -1891,6 +2147,7 @@ document.getElementById("moGuardar").addEventListener("click",()=>{
 /* ---------- Pestañas ---------- */
 function tab(activo){
   if((activo==="Aprob" || activo==="Admin") && !esJefe()) activo = "Pend";
+  if(activo==="Insp" && esJefe()) activo = "Aprob";
   ["Pend","Aprob","Insp","Cons","Admin"].forEach(t=>{
     document.getElementById("tab"+t).classList.toggle("active", t===activo);
     document.getElementById("view"+t).style.display = t===activo?"block":"none";
@@ -1899,7 +2156,7 @@ function tab(activo){
     (activo==="Insp" && S.listaActiva && S.modo)?"flex":"none";
   if(activo==="Pend")  renderPendientesInsp();
   if(activo==="Aprob") renderAprobaciones();
-  if(activo==="Admin"){ renderAdmin(); renderUsuariosAdmin(); }
+  if(activo==="Admin")  renderAdmin();
   if(S.syncUrl){ cargarRemoto(); cargarConfig(); } else marcarConfigSync(false);
 }
 document.getElementById("tabPend").addEventListener("click",()=>tab("Pend"));
@@ -2034,52 +2291,60 @@ document.querySelectorAll("#pendFiltro button").forEach(b=>b.addEventListener("c
    VISTA 2 · APROBACIONES  (bandeja del jefe de calidad)
    ========================================================================== */
 function renderAprobaciones(){
-  const box = document.getElementById("aprobLista");
+  const box  = document.getElementById("aprobLista");
+  const boxI = document.getElementById("aprobPorInsp");
   if(!box) return;
   const q = (document.getElementById("aprobBuscar").value || "").trim().toLowerCase();
+  const btnF = document.querySelector("#aprobFiltro button.on");
+  const vista = btnF ? btnF.dataset.f : "aprobar";
 
-  let cola = S.inspecciones.filter(i => estadoDe(i) === "pendiente_aprobacion")
-                           .sort((a,b)=> String(a.id).localeCompare(String(b.id)));
-  const total = cola.length;
+  const colaTodo = S.inspecciones.filter(i => estadoDe(i) === "pendiente_aprobacion");
+  const refsTodo = referenciasPendientes().filter(r => !r.ultima || estadoDe(r.ultima) !== "pendiente_aprobacion");
+  document.getElementById("nAprobar").textContent      = colaTodo.length;
+  document.getElementById("nInspeccionar").textContent = refsTodo.length;
+
+  const res = document.getElementById("aprobResumen");
+  if(res) res.textContent = `${colaTodo.length} por aprobar · ${refsTodo.length} por inspeccionar`;
+
+  box.style.display  = vista==="aprobar" ? "block" : "none";
+  boxI.style.display = vista==="aprobar" ? "none"  : "block";
+
+  if(vista !== "aprobar"){ renderPorInspeccionarJefe(refsTodo, q, boxI); return; }
+
+  let cola = colaTodo.sort((a,b)=> String(a.id).localeCompare(String(b.id)));
   if(q) cola = cola.filter(i =>
     `oc ${i.orden} ${i.proveedor||""} ${i.producto||""} ${i.inspector||""}`.toLowerCase().includes(q));
 
-  const res = document.getElementById("aprobResumen");
-  if(res) res.textContent = total ? `${total} inspección(es) esperando decisión` : "Nada pendiente";
-
   if(!cola.length){
     box.innerHTML = `<div class="panel"><div class="empty-mini">${
-      total ? "Ninguna inspección coincide con la búsqueda."
-            : "No hay inspecciones esperando aprobación."}</div></div>`;
+      colaTodo.length ? "Ninguna inspección coincide con la búsqueda."
+                      : "No hay inspecciones esperando aprobación."}</div></div>`;
     return;
   }
 
   box.innerHTML = cola.map(i=>{
     const nc = (i.resultados||[]).filter(r=>r.resultado==="Rechazo").length;
-    const ok = (i.resultados||[]).length - nc;
-    return `<div class="ap-card">
+    const tot = (i.resultados||[]).length;
+    const ok = tot - nc;
+    return `<div class="ap-card${nc?" conNC":""}">
       <div class="ap-head">
-        <div><b>${i.producto}</b>
-          <div style="font-size:.74rem;color:var(--text-dim);">
-            ${ocTxt(i.orden)}${i.proveedor?` · ${i.proveedor}`:""} · BPCS ${i.codigoBPCS||"—"}
-            ${i.numero>1?` · <b style="color:var(--red);">Reinspección ${i.numero}</b>`:""}
-          </div>
+        <div class="tit">
+          <b>${i.producto}</b>${i.numero>1?` <span class="chip-re">Reinspección ${i.numero}</span>`:""}
+          <div class="meta">${ocTxt(i.orden)}${i.proveedor?` · ${i.proveedor}`:""} · BPCS ${i.codigoBPCS||"—"}</div>
         </div>
-        <span style="font-size:.74rem;color:var(--text-dim);text-align:right;">
-          ${i.fecha} ${i.hora||""}<br>${i.inspector||""}
-        </span>
+        <div class="quien">${i.inspector||"—"}<br>${i.fecha} ${i.hora||""}</div>
       </div>
-      <div class="ap-kpis">
-        <div class="ap-kpi"><span>Cantidad recibida</span><b>${i.cantidadRecibida||"—"}</b></div>
-        <div class="ap-kpi"><span>Muestra (nivel ${i.nivelInspeccion||"—"})</span><b>${i.cantidadMuestra||"—"}</b></div>
-        <div class="ap-kpi"><span>Conformes</span><b style="color:#1f9d55;">${ok}</b></div>
-        <div class="ap-kpi"><span>No conformes</span><b style="color:${nc?"var(--bad-text)":"inherit"};">${nc}</b></div>
-        <div class="ap-kpi"><span>Trazabilidad</span><b>${i.trazabilidad||"—"}</b></div>
+      <div class="ap-tira">
+        <div class="d"><span>Recibido</span><b>${i.cantidadRecibida||"—"}</b></div>
+        <div class="d"><span>Muestra</span><b>${i.cantidadMuestra||"—"}</b><span>nivel ${i.nivelInspeccion||"—"} · AQL ${i.aql||"—"}</span></div>
+        <div class="d"><span>Conformes</span><b class="${nc?"":"bien"}">${ok}/${tot}</b></div>
+        <div class="d"><span>No conformes</span><b class="${nc?"mal":""}">${nc}</b></div>
+        <div class="d"><span>Trazabilidad</span><b>${mesAnio(i.trazabilidad)}</b></div>
       </div>
-      ${i.observaciones?`<div class="ap-motivo">Observaciones del inspector: ${i.observaciones}</div>`:""}
+      ${i.observaciones?`<div class="ap-motivo">${i.observaciones}</div>`:""}
       <div class="ap-body">
-        <button class="ver-mas" data-det="${i.id}">Ver las ${(i.resultados||[]).length} variables</button>
-        <div class="ap-detalle" id="det-${i.id}" style="display:none;">
+        <button class="ver-mas" data-det="${i.id}">Ver las ${tot} variables</button>
+        <div class="ap-detalle" id="det-${i.id}">
           <table class="tabla-det">
             <thead><tr><th>Variable</th><th>Especificación</th><th>Medido</th><th>Resultado</th><th>Obs.</th></tr></thead>
             <tbody>${(i.resultados||[]).map(r=>`<tr>
@@ -2091,21 +2356,20 @@ function renderAprobaciones(){
       </div>
       <div class="ap-acciones">
         <button class="ok"   data-dec="aprobado"           data-id="${i.id}">Aprobado</button>
-        <button class="cond" data-dec="aprobado_condicion" data-id="${i.id}">Aprobado bajo condición</button>
+        <button class="cond" data-dec="aprobado_condicion" data-id="${i.id}">Bajo condición</button>
         <button class="bad"  data-dec="rechazado_lote"     data-id="${i.id}">Lote rechazado</button>
-        <button class="dev"  data-dec="devuelto"           data-id="${i.id}">Devolver al inspector</button>
-        <button            data-dec="bloqueado"          data-id="${i.id}">Bloquear</button>
+        <button class="dev"  data-dec="devuelto"           data-id="${i.id}">Devolver</button>
+        <button              data-dec="bloqueado"          data-id="${i.id}">Bloquear</button>
         <div style="flex:1;"></div>
-        <button data-pdf="${i.id}">Ver PDF</button>
+        <button data-pdf="${i.id}">PDF</button>
       </div>
     </div>`;
   }).join("");
 
   box.querySelectorAll("[data-det]").forEach(b=>b.addEventListener("click",()=>{
     const d = document.getElementById("det-"+b.dataset.det);
-    const abierto = d.style.display !== "none";
-    d.style.display = abierto ? "none" : "block";
-    b.textContent = abierto ? `Ver las ${d.querySelectorAll("tbody tr").length} variables` : "Ocultar variables";
+    const abierto = d.classList.toggle("show");
+    b.textContent = abierto ? "Ocultar variables" : `Ver las ${d.querySelectorAll("tbody tr").length} variables`;
   }));
   box.querySelectorAll("[data-pdf]").forEach(b=>b.addEventListener("click",()=>{
     const ins = S.inspecciones.find(i=>i.id===b.dataset.pdf);
@@ -2114,6 +2378,61 @@ function renderAprobaciones(){
   box.querySelectorAll("[data-dec]").forEach(b=>b.addEventListener("click",()=>
     pedirDecision(b.dataset.id, b.dataset.dec)));
 }
+
+/* El jefe ve lo que falta por inspeccionar, pero no inspecciona */
+function renderPorInspeccionarJefe(refs, q, box){
+  let lista = refs;
+  if(q) lista = lista.filter(r =>
+    `oc ${r.orden.numero} ${r.orden.proveedor||""} ${r.lista.nombre} ${r.lista.codigoBPCS||""}`
+      .toLowerCase().includes(q));
+
+  if(!lista.length){
+    box.innerHTML = `<div class="panel"><div class="empty-mini">${
+      refs.length ? "Ninguna referencia coincide con la búsqueda."
+                  : "No hay referencias esperando inspección."}</div></div>`;
+    return;
+  }
+
+  const grupos = {};
+  lista.forEach(r=>{
+    const k = String(r.orden.numero);
+    (grupos[k] = grupos[k] || {orden:r.orden, items:[]}).items.push(r);
+  });
+
+  box.innerHTML = Object.keys(grupos).sort((a,b)=>b.localeCompare(a)).map(k=>{
+    const g = grupos[k];
+    const sinInsp = g.items.filter(i=>!i.ultima).length;
+    return `<div class="oc-grupo">
+      <div class="oc-head">
+        <div><b>${ocTxt(g.orden.numero)}</b>${g.orden.proveedor?` · ${g.orden.proveedor}`:""}</div>
+        <span>${g.items.length} referencia(s)${sinInsp?` · ${sinInsp} sin inspeccionar`:""}</span>
+      </div>
+      ${g.items.map(r=>{
+        const est = r.ultima ? estadoDe(r.ultima) : null;
+        const txt = r.ultima ? (ESTADOS[est]||{txt:"—"}).txt : "Sin inspeccionar";
+        const cls = r.ultima ? (ESTADOS[est]||{cls:""}).cls : "nueva";
+        return `<div class="ref-fila">
+          <div style="min-width:0;">
+            <b>${r.lista.nombre}</b>
+            <div style="font-size:.74rem;color:var(--text-dim);">
+              BPCS ${r.lista.codigoBPCS||"—"}
+              ${r.ultima?` · última: ${r.ultima.fecha} ${r.ultima.hora||""} · ${r.ultima.inspector||""}`:""}
+            </div>
+            ${motivoUltima(r)}
+          </div>
+          <span class="est ${cls}">${txt}</span>
+          <span style="font-size:.74rem;color:var(--text-dim);">${r.intentos?`${r.intentos} intento(s)`:"En espera del inspector"}</span>
+        </div>`;
+      }).join("")}
+    </div>`;
+  }).join("");
+}
+
+document.querySelectorAll("#aprobFiltro button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("#aprobFiltro button").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");
+  renderAprobaciones();
+}));
 
 document.getElementById("aprobBuscar").addEventListener("input", renderAprobaciones);
 
@@ -2206,7 +2525,11 @@ let usuarioEditIdx = null;
 function renderUsuariosAdmin(){
   const box = document.getElementById("usuariosAdmin");
   if(!box) return;
-  box.innerHTML = S.usuarios.length ? S.usuarios.map((u,idx)=>{
+  const bq = document.getElementById("admBuscarUsuarios");
+  const q = (bq ? bq.value : "").trim().toLowerCase();
+  const items = S.usuarios.map((u,idx)=>({u,idx}))
+    .filter(({u}) => !q || `${u.nombre||""} ${u.usuario}`.toLowerCase().includes(q));
+  box.innerHTML = items.length ? items.map(({u,idx})=>{
     const act = String(u.activo||"Sí").toLowerCase().startsWith("s");
     return `<div class="usr-item${act?"":" inact"}">
       <div style="min-width:0;">
@@ -2219,7 +2542,8 @@ function renderUsuariosAdmin(){
         <button class="btn-sec" data-udel="${idx}" style="color:var(--bad-text);">Eliminar</button>
       </div>
     </div>`;
-  }).join("") : `<div class="empty-mini">No hay usuarios creados.</div>`;
+  }).join("") : `<div class="empty-mini">${S.usuarios.length
+      ? "Ningún usuario coincide con la búsqueda." : "No hay usuarios creados."}</div>`;
 
   box.querySelectorAll("[data-uedit]").forEach(b=>b.addEventListener("click",()=>abrirModalUsuario(+b.dataset.uedit)));
   box.querySelectorAll("[data-udel]").forEach(b=>b.addEventListener("click",()=>{
@@ -2233,6 +2557,7 @@ function renderUsuariosAdmin(){
     renderUsuariosAdmin(); toast("Usuario eliminado");
   }));
 }
+document.getElementById("admBuscarUsuarios").addEventListener("input", renderUsuariosAdmin);
 
 function abrirModalUsuario(idx){
   usuarioEditIdx = (idx==null) ? null : idx;
@@ -2416,7 +2741,6 @@ document.getElementById("cDesde").value = hoyISO();
 document.getElementById("cHasta").value = hoyISO();
 refrescarSelectores();
 renderAdmin();
-renderUsuariosAdmin();
 actualizarEstadoSync();
 
 // sesión: se recupera la de esta pestaña, si no se pide login
