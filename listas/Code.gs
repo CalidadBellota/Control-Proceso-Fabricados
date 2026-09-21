@@ -90,7 +90,7 @@ function doGet(e){
         Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd HH:mm:ss")]);
     }
     const usuarios = shU.getDataRange().getValues().slice(1).filter(function(r){ return r[0]; })
-      .map(function(r){ return {usuario:String(r[0]), nombre:String(r[1]), pin:String(r[2]),
+      .map(function(r){ return {usuario:String(r[0]), nombre:String(r[1]), pin:String(r[2]).trim(),
                                 rol:String(r[3]||"inspector"), activo:String(r[4]||"Sí")}; });
     const dL = shL.getDataRange().getValues(), dO = shO.getDataRange().getValues();
     const listas = dL.slice(1).filter(r=>r[0]).map(r=>({
@@ -133,13 +133,36 @@ function doGet(e){
   return json_(rows);
 }
 
+const COLS_TEXTO = ["variable","especificacion","valorMedido","resultado","observacion",
+                    "producto","proveedor","orden","codigoBPCS","codigoDoc","version"];
+
 function fmt_(v, h){
   if(v instanceof Date){
     if(h === "fecha" || h === "fechaRecepcion") return Utilities.formatDate(v, TZ, "yyyy-MM-dd");
     if(h === "hora") return Utilities.formatDate(v, TZ, "HH:mm");
+    if(h === "trazabilidad") return Utilities.formatDate(v, TZ, "yyyy-MM");
+    // una celda de texto que Sheets convirtió a fecha: se devuelve corta, sin hora
+    if(COLS_TEXTO.indexOf(h) !== -1) return Utilities.formatDate(v, TZ, "yyyy-MM-dd");
     return Utilities.formatDate(v, TZ, "yyyy-MM-dd HH:mm:ss");
   }
+  if(h === "trazabilidad" && v) return String(v).slice(0,7);
   return v;
+}
+
+/**
+ * Escribe filas SIN que Sheets reinterprete el contenido.
+ * Una especificación como "1/2" o un valor como "3-5" se volvían fecha al guardarse;
+ * forzando el formato de texto en el rango, el dato queda tal cual se midió.
+ */
+function anexarComoTexto_(sh, filas){
+  if(!filas.length) return;
+  const fila0 = sh.getLastRow() + 1;
+  const ancho = filas[0].length;
+  const rango = sh.getRange(fila0, 1, filas.length, ancho);
+  rango.setNumberFormat("@");
+  rango.setValues(filas.map(function(f){
+    return f.map(function(c){ return (c === null || c === undefined) ? "" : String(c); });
+  }));
 }
 
 function doPost(e){
@@ -198,15 +221,18 @@ function upsert_(nombre, headers, obj, llave){
     const copia = {};
     headers.forEach(function(h){ copia[h] = obj[h]; });
     copia.actualizado = stamp;
-    const fila = filaSegunHeader_(sh, copia);
+    const fila = filaSegunHeader_(sh, copia).map(function(c){
+      return (c === null || c === undefined) ? "" : String(c);
+    });
     const d = sh.getDataRange().getValues();
     for(let i=1;i<d.length;i++){
       if(String(d[i][0]) === String(obj[llave])){
-        sh.getRange(i+1,1,1,fila.length).setValues([fila]);
+        const rg = sh.getRange(i+1,1,1,fila.length);
+        rg.setNumberFormat("@"); rg.setValues([fila]);
         return;
       }
     }
-    sh.appendRow(fila);
+    anexarComoTexto_(sh, [fila]);
   } finally { lock.releaseLock(); }
 }
 
@@ -233,16 +259,18 @@ function guardar_(r){
     H_INSP.forEach(function(h){ datos[h] = (r[h] !== undefined) ? r[h] : ""; });
     datos.totalVariables = (r.resultados||[]).length;
     datos.noConformes = nc;
-    sh.appendRow(filaSegunHeader_(sh, datos));
+    if(datos.trazabilidad) datos.trazabilidad = String(datos.trazabilidad).slice(0,7);
+    anexarComoTexto_(sh, [filaSegunHeader_(sh, datos)]);
 
     const shD = getSheet_(SH_DET, H_DET);
-    (r.resultados||[]).forEach(function(v){
-      shD.appendRow(filaSegunHeader_(shD, {
+    const filasDet = (r.resultados||[]).map(function(v){
+      return filaSegunHeader_(shD, {
         inspeccionId: r.id, orden: r.orden, producto: r.producto, fecha: r.fecha,
         variable: v.nombre, especificacion: v.especificacion,
         valorMedido: v.valorMedido, resultado: v.resultado, observacion: v.observacion
-      }));
+      });
     });
+    anexarComoTexto_(shD, filasDet);
   } finally {
     lock.releaseLock();
   }
