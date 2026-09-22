@@ -1,0 +1,2413 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Proceso · Bellota</title>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --red:#e2001a; --red-dark:#c81d2e;
+    --bg:#f4f5f7; --panel:#fff; --border:#e4e7ec;
+    --text:#1c1f24; --text-dim:#6e7681;
+    --ok:#1f9d55; --ok-bg:#e8f8ef;
+    --warn:#f2b90b; --warn-text:#92660a; --warn-bg:#fff8e1;
+    --bad:#c81d2e; --bad-bg:#fdeaea;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg);color:var(--text);font-size:15px;}
+  h1,h2,h3,h4{margin:0;}
+  button{font-family:inherit;}
+  label{display:block;font-size:.78rem;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
+  select,input[type=text],input[type=number],input[type=date],input[type=month],
+  input[type=password],input[type=time],textarea{
+    width:100%;padding:10px 11px;font-size:.92rem;background:#fff;border:1px solid var(--border);
+    border-radius:7px;color:var(--text);font-family:inherit;height:42px;}
+  textarea{height:auto;}
+  select:focus,input:focus,textarea:focus{outline:2px solid var(--red);}
+  input[type=date]::-webkit-calendar-picker-indicator,
+  input[type=month]::-webkit-calendar-picker-indicator{margin-left:auto;opacity:.55;cursor:pointer;}
+
+  /* ---------- Encabezado ---------- */
+  header{background:var(--red);color:#fff;position:sticky;top:0;z-index:40;}
+  .header-top{display:flex;align-items:center;gap:18px;padding:12px 22px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:16px;text-decoration:none;color:#fff;}
+  .brand img{height:38px;width:auto;}
+  .brand .txt{border-left:1px solid rgba(255,255,255,.35);padding-left:16px;}
+  .brand b{display:block;font-size:1.05rem;letter-spacing:-.01em;}
+  .brand span{display:block;font-size:.78rem;color:rgba(255,255,255,.82);margin-top:1px;}
+  nav.tabs{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap;}
+  nav.tabs button{padding:8px 15px;border:none;background:rgba(255,255,255,.14);color:rgba(255,255,255,.9);
+    border-radius:8px;font-size:.84rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+  nav.tabs button.active{background:#fff;color:var(--red-dark);}
+  nav.tabs .pill-n{display:none;margin-left:6px;background:var(--red-dark);color:#fff;border-radius:99px;
+    padding:1px 7px;font-size:.68rem;}
+  nav.tabs button.active .pill-n{background:var(--red);color:#fff;}
+  .user-chip{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.15);
+    border-radius:22px;padding:4px 6px 4px 5px;}
+  .user-chip .ini{width:28px;height:28px;border-radius:50%;background:#fff;color:var(--red-dark);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;}
+  .user-chip b{display:block;font-size:.8rem;line-height:1.2;}
+  .user-chip span{display:block;font-size:.66rem;color:rgba(255,255,255,.8);text-transform:uppercase;
+    letter-spacing:.4px;}
+  .user-chip button{background:rgba(0,0,0,.22);border:none;color:#fff;border-radius:16px;
+    padding:5px 11px;font-size:.72rem;font-weight:700;cursor:pointer;margin-left:4px;}
+  .sync{display:flex;align-items:center;gap:7px;font-size:.78rem;color:rgba(255,255,255,.9);}
+  .sync .dot{width:9px;height:9px;border-radius:50%;background:#7fe0a4;}
+
+  /* ---------- Login ---------- */
+  .login-bg{position:fixed;inset:0;background:var(--bg);z-index:200;display:none;
+    flex-direction:column;overflow-y:auto;}
+  .login-top{background:var(--red);padding:14px 22px;display:flex;align-items:center;gap:16px;flex:none;}
+  .login-top img{height:38px;width:auto;}
+  .login-top div{border-left:1px solid rgba(255,255,255,.35);padding-left:16px;}
+  .login-top b{display:block;color:#fff;font-size:1.05rem;}
+  .login-top span{display:block;color:rgba(255,255,255,.82);font-size:.78rem;margin-top:1px;}
+  .login-mid{flex:1;display:flex;align-items:center;justify-content:center;padding:28px 20px;}
+  .login-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:40px 36px 34px;
+    width:100%;max-width:680px;box-shadow:0 10px 40px rgba(0,0,0,.08);}
+  .login-logo{width:126px;height:126px;border-radius:50%;background:var(--red);margin:0 auto 22px;
+    display:flex;align-items:center;justify-content:center;}
+  .login-logo img{width:66px;height:auto;display:block;}
+  .login-card h2{margin:0 0 10px;text-align:center;font-size:1.45rem;}
+  .login-intro{margin:0 auto 26px;max-width:540px;text-align:center;font-size:.93rem;
+    color:var(--text-dim);line-height:1.55;}
+  .login-card .campo{max-width:540px;margin:0 auto 16px;}
+  .login-card label{font-size:.82rem;font-weight:700;}
+  #loginPin{letter-spacing:.35em;font-weight:700;}
+  .login-err{max-width:540px;margin:0 auto;background:var(--bad-bg);border:1px solid #f6c9cd;
+    color:var(--bad);border-radius:8px;padding:9px 12px;font-size:.82rem;font-weight:600;}
+  .login-entrar{display:block;width:100%;max-width:540px;margin:20px auto 0;padding:15px;border:none;
+    border-radius:10px;background:var(--red);color:#fff;font-weight:700;font-size:1rem;cursor:pointer;}
+  .login-entrar:disabled{background:#e7e9ee;color:#9aa1ab;cursor:default;}
+  .login-nota{max-width:540px;margin:18px auto 0;text-align:center;font-size:.76rem;
+    color:var(--text-dim);line-height:1.5;}
+
+  /* ---------- Estructura ---------- */
+  main{max-width:1400px;margin:0 auto;padding:18px 22px 60px;}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:18px 20px;margin-bottom:16px;}
+  .section-title{display:flex;justify-content:space-between;align-items:center;gap:14px;
+    flex-wrap:wrap;margin-bottom:14px;}
+  .section-title h2{font-size:.84rem;font-weight:800;letter-spacing:.05em;color:var(--red-dark);}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  @media(max-width:900px){.grid3,.grid4{grid-template-columns:1fr 1fr;}}
+  @media(max-width:620px){.grid2,.grid3,.grid4{grid-template-columns:1fr;}}
+  .empty-mini{padding:26px;color:var(--text-dim);font-size:.85rem;text-align:center;}
+  .btn-principal{padding:13px 22px;border:none;border-radius:9px;background:var(--red);color:#fff;
+    font-weight:700;font-size:.92rem;cursor:pointer;font-family:inherit;}
+  .btn-principal:disabled{background:#e7e9ee;color:#9aa1ab;cursor:default;}
+  .btn-sec{padding:9px 15px;border:1px solid var(--border);background:#fff;border-radius:8px;
+    font-weight:700;font-size:.8rem;cursor:pointer;font-family:inherit;color:var(--text);}
+  .btn-sec:hover{background:#f7f8fa;}
+
+  .seg{display:flex;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:#fff;
+    width:fit-content;max-width:100%;flex-wrap:wrap;}
+  .seg button{padding:9px 14px;border:none;background:#fff;font-size:.78rem;font-weight:700;
+    color:var(--text-dim);cursor:pointer;border-right:1px solid var(--border);white-space:nowrap;}
+  .seg button:last-child{border-right:none;}
+  .seg button.on{background:var(--red);color:#fff;}
+  .seg button .n{display:inline-block;min-width:17px;padding:1px 5px;border-radius:99px;margin-left:5px;
+    background:#eef0f3;color:var(--text-dim);font-size:.68rem;}
+  .seg button.on .n{background:rgba(255,255,255,.28);color:#fff;}
+
+  .barra-busca{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .barra-busca input[type=text]{flex:1;min-width:200px;}
+
+  /* ---------- Selector de proceso ---------- */
+  .proc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:11px;}
+  .proc-card{border:1px solid var(--border);background:#fff;border-radius:11px;padding:14px 15px;
+    text-align:left;cursor:pointer;font-family:inherit;border-left:4px solid var(--border);}
+  .proc-card:hover{border-color:#c9ced6;border-left-color:var(--red);background:#fafbfc;}
+  .proc-card.sel{border-color:var(--red);border-left-color:var(--red);background:#fdf6f6;}
+  .proc-card b{display:block;font-size:.92rem;margin-bottom:3px;}
+  .proc-card .meta{font-size:.73rem;color:var(--text-dim);}
+  .proc-card .cond{display:inline-block;margin-top:7px;font-size:.62rem;font-weight:800;
+    letter-spacing:.05em;text-transform:uppercase;background:var(--warn-bg);color:var(--warn-text);
+    border-radius:99px;padding:2px 8px;}
+
+  /* ---------- Tabla de variables ---------- */
+  .tabla-vars{width:100%;border-collapse:collapse;}
+  .tabla-vars th{background:#f3f4f7;text-align:left;padding:9px 11px;font-size:.68rem;
+    text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);font-weight:800;}
+  .tabla-vars td{padding:9px 11px;border-top:1px solid var(--border);vertical-align:middle;}
+  .tabla-vars tr.ok{background:#f6fdf9;}
+  .tabla-vars tr.bad{background:#fef7f7;}
+  .tabla-vars tr.fila-crit td:first-child{box-shadow:inset 3px 0 0 var(--red);}
+  tr.sec-vars td{background:#f3f4f7;font-size:.68rem;font-weight:800;letter-spacing:.06em;
+    color:var(--text-dim);padding:7px 11px;text-transform:uppercase;}
+  tr.sec-vars.crit td{background:#fdeceb;color:var(--bad);}
+  .tag-crit{display:inline-block;margin-left:7px;font-size:.62rem;font-weight:800;letter-spacing:.05em;
+    text-transform:uppercase;background:#fdeceb;color:var(--bad);border-radius:99px;padding:2px 7px;}
+  .spec{font-size:.78rem;color:var(--text-dim);}
+  .val-input{width:120px;}
+  .res-btns{display:flex;gap:4px;flex-wrap:wrap;}
+  .res-btns button{padding:6px 12px;border:1px solid var(--border);background:#fff;border-radius:7px;
+    font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text-dim);}
+  .res-btns button.sel-ok{background:var(--ok);border-color:var(--ok);color:#fff;}
+  .res-btns button.sel-bad{background:var(--red);border-color:var(--red);color:#fff;}
+  .res-btns button.sel-na{background:#eef0f3;border-color:#d7dbe1;color:var(--text);}
+  .badge{padding:4px 11px;border-radius:20px;font-size:.74rem;font-weight:700;white-space:nowrap;}
+  .badge.ok{background:var(--ok-bg);color:var(--ok);}
+  .badge.bad{background:var(--bad-bg);color:var(--bad);}
+  .badge.neutral{background:#eef0f3;color:var(--text-dim);}
+
+  /* ---------- Barra fija ---------- */
+  .barra-fija{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--border);
+    padding:12px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;z-index:30;
+    box-shadow:0 -4px 16px rgba(0,0,0,.06);margin:0 -22px -60px;}
+  .falta-aviso{background:var(--warn-bg);border:1px solid #f3e3ae;color:var(--warn-text);
+    border-radius:8px;padding:7px 12px;font-size:.78rem;}
+  .falta-aviso.listo{background:var(--ok-bg);border-color:#bde5cd;color:var(--ok);}
+  .aviso-crit{background:var(--bad-bg);border:1px solid #f6c9cd;color:var(--bad);border-radius:9px;
+    padding:10px 13px;font-size:.82rem;font-weight:600;margin-bottom:14px;}
+
+  /* ---------- Listas de registros ---------- */
+  .reg-lista{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .reg-fila{display:grid;grid-template-columns:minmax(0,1fr) 150px 120px;align-items:center;
+    column-gap:16px;row-gap:8px;padding:13px 17px;border-bottom:1px solid #f2f3f5;
+    border-left:4px solid var(--ok);}
+  .reg-fila.fuera{border-left-color:var(--red);}
+  .reg-fila:last-child{border-bottom:none;}
+  .reg-fila .datos{min-width:0;}
+  .reg-fila .datos b{display:block;font-size:.9rem;}
+  .reg-fila .sub{font-size:.74rem;color:var(--text-dim);margin-top:2px;}
+  .reg-fila .sub b{display:inline;color:var(--text);}
+  .reg-fila .est{justify-self:center;}
+  .reg-fila .final{justify-self:end;display:flex;gap:7px;}
+  @media(max-width:820px){
+    .reg-fila{grid-template-columns:minmax(0,1fr) auto;}
+    .reg-fila .est{grid-column:2;justify-self:end;}
+    .reg-fila .final{grid-column:1 / -1;justify-self:start;}
+  }
+
+  /* ---------- KPIs y gráficas ---------- */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  @media(max-width:900px){.kpis{grid-template-columns:1fr 1fr;}}
+  .kpi{background:#fff;border:1px solid var(--border);border-radius:11px;padding:14px 16px;}
+  .kpi span{display:block;font-size:.72rem;color:var(--text-dim);}
+  .kpi b{display:block;font-size:1.7rem;font-weight:800;margin-top:4px;line-height:1.1;}
+  .kpi small{display:block;font-size:.7rem;color:var(--text-dim);margin-top:3px;}
+  .kpi.malo b{color:var(--bad);}
+  .kpi.bueno b{color:var(--ok);}
+  .chart-box{position:relative;height:320px;}
+  .chart-box.corto{height:260px;}
+  .leyenda-lim{display:flex;gap:16px;flex-wrap:wrap;font-size:.74rem;color:var(--text-dim);margin-top:10px;}
+  .leyenda-lim span{display:inline-flex;align-items:center;gap:6px;}
+  .leyenda-lim i{width:16px;height:0;border-top:2px solid var(--red-dark);display:inline-block;}
+  .leyenda-lim i.punteada{border-top-style:dashed;}
+  .leyenda-lim i.pt{width:9px;height:9px;border:none;border-radius:50%;background:var(--red-dark);}
+
+  /* ---------- Matriz de cumplimiento ---------- */
+  .matriz{width:100%;border-collapse:separate;border-spacing:3px;font-size:.78rem;}
+  .matriz th{font-size:.68rem;font-weight:800;color:var(--text-dim);text-transform:uppercase;
+    letter-spacing:.04em;padding:5px 7px;text-align:center;}
+  .matriz th.proc{text-align:left;min-width:220px;}
+  .matriz td.proc{text-align:left;font-weight:600;padding:5px 8px;font-size:.8rem;}
+  .matriz td.celda{text-align:center;border-radius:6px;padding:7px 4px;font-weight:800;font-size:.72rem;
+    cursor:default;}
+  .matriz td.v{background:var(--ok-bg);color:var(--ok);}
+  .matriz td.r{background:var(--bad-bg);color:var(--bad);}
+  .matriz td.a{background:var(--warn-bg);color:var(--warn-text);}
+  .matriz td.n{background:#f3f4f7;color:#b9bec6;}
+  .matriz .grupo td{padding-top:12px;font-size:.7rem;font-weight:800;letter-spacing:.06em;
+    color:var(--red-dark);text-transform:uppercase;}
+
+  /* ---------- Administrar ---------- */
+  .adm-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+    padding-bottom:14px;margin-bottom:4px;border-bottom:1px solid var(--border);}
+  .adm-tools input[type=text]{flex:1;min-width:220px;}
+  .adm-tools select{max-width:200px;}
+  .adm-lista .item{display:flex;justify-content:space-between;align-items:center;gap:12px;
+    padding:13px 2px;border-bottom:1px solid #f0f1f4;flex-wrap:wrap;}
+  .adm-lista .item:last-child{border-bottom:none;}
+  .adm-lista .item:hover{background:#fafbfc;}
+  .adm-lista .item .info{min-width:0;}
+  .adm-lista .item .info b{display:block;font-size:.9rem;margin-bottom:2px;}
+  .adm-lista .item .meta{display:block;font-size:.76rem;color:var(--text-dim);}
+  .adm-lista .item .acciones{display:flex;gap:8px;}
+  .adm-lista .item .acciones button{padding:7px 12px;font-size:.78rem;}
+  .rolx{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+    padding:3px 9px;border-radius:99px;}
+  .rolx.jefe{background:var(--bad-bg);color:var(--bad);}
+  .rolx.coord{background:#eaf0fb;color:#3c5ea8;}
+  .rolx.inspector{background:#eef2f7;color:#4a5568;}
+  .pager{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:12px;
+    font-size:.76rem;color:var(--text-dim);}
+  .pager button{padding:6px 12px;border:1px solid var(--border);background:#fff;border-radius:7px;
+    font-size:.76rem;font-weight:600;cursor:pointer;font-family:inherit;}
+  .pager button:disabled{opacity:.4;cursor:default;}
+
+  /* ---------- Editor de variables ---------- */
+  .var-edit{display:grid;grid-template-columns:20px 22px 2.1fr .95fr .8fr .8fr .8fr 54px 46px;gap:8px;
+    margin-bottom:8px;align-items:center;background:#fff;border-radius:7px;}
+  .var-edit input,.var-edit select{padding:7px 8px;font-size:.82rem;height:36px;}
+  .var-edit .num{font-size:.72rem;color:var(--text-dim);font-weight:700;text-align:right;}
+  .var-edit .agarre{cursor:grab;color:#c2c7cf;text-align:center;font-size:1rem;user-select:none;
+    touch-action:none;}
+  .var-edit .agarre:active{cursor:grabbing;}
+  .var-edit.arrastrando{opacity:.45;}
+  .var-edit.destino{box-shadow:0 -2px 0 0 var(--red);}
+  .var-edit .critbox{display:flex;align-items:center;justify-content:center;}
+  .var-edit .critbox input{width:17px;height:17px;accent-color:var(--red);cursor:pointer;margin:0;}
+  .var-edit.es-critica{background:#fef7f7;}
+  .var-edit .mover{display:flex;gap:2px;}
+  .var-edit .mv{background:#f3f4f7;border:1px solid var(--border);color:var(--text-dim);
+    border-radius:5px;width:20px;height:24px;cursor:pointer;font-size:.7rem;padding:0;}
+  .var-edit .mv:hover{background:#e7e9ee;color:var(--text);}
+  .var-edit .mv:disabled{opacity:.3;cursor:default;}
+  .var-edit .del{background:none;border:none;color:var(--bad);cursor:pointer;font-size:1rem;padding:0;
+    width:20px;}
+  @media(max-width:900px){.var-edit{grid-template-columns:1fr;}}
+
+  /* ---------- Modales ---------- */
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150;
+    align-items:center;justify-content:center;padding:20px;}
+  .modal-bg.show{display:flex;}
+  .modal{background:#fff;border-radius:14px;padding:22px;width:100%;max-width:1040px;
+    max-height:88vh;overflow-y:auto;}
+  .modal h3{margin-top:0;margin-bottom:16px;}
+  .modal-actions{display:flex;gap:10px;margin-top:20px;}
+  .modal-actions button{flex:1;padding:13px;border:1px solid var(--border);background:#fff;
+    border-radius:9px;font-weight:700;cursor:pointer;font-family:inherit;font-size:.9rem;}
+  .modal-actions button.primary{background:var(--red);border-color:var(--red);color:#fff;}
+
+  .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1c1f24;color:#fff;
+    padding:11px 18px;border-radius:8px;font-size:.85rem;opacity:0;pointer-events:none;
+    transition:opacity .2s;z-index:300;max-width:90vw;text-align:center;}
+  .toast.show{opacity:1;}
+  .banner-alerta{background:var(--bad-bg);border:1px solid #f6c9cd;color:var(--bad);border-radius:10px;
+    padding:12px 15px;font-size:.84rem;margin-bottom:16px;line-height:1.5;}
+  .footer-link{display:block;text-align:center;margin-top:22px;font-size:.78rem;color:var(--text-dim);
+    text-decoration:underline;cursor:pointer;}
+  .solo-jefe{display:none;}
+  .diag{font-size:.84rem;}
+  .diag-fila{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);}
+  .diag-err{background:var(--bad-bg);color:var(--bad);border-radius:7px;padding:9px 11px;
+    font-size:.78rem;margin-top:10px;word-break:break-word;}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div class="login-bg" id="loginBg">
+  <div class="login-top">
+    <img src="data:image/png;base64,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" alt="Bellota">
+    <div>
+      <b>Control de Proceso</b>
+      <span>Líneas de fabricación · Manizales</span>
+    </div>
+  </div>
+  <div class="login-mid">
+    <div class="login-card">
+      <div class="login-logo"><img src="data:image/png;base64,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" alt="Bellota"></div>
+      <h2>Control de proceso</h2>
+      <p class="login-intro">Selecciona tu usuario y escribe tu PIN para entrar. Aquí se registran los
+        controles de proceso de cada línea: limas, machetes, cuchillas y palas.</p>
+      <div class="campo">
+        <label for="loginUsuario">Usuario *</label>
+        <select id="loginUsuario"><option value="">Seleccionar usuario</option></select>
+      </div>
+      <div class="campo">
+        <label for="loginPin">PIN *</label>
+        <input type="password" id="loginPin" inputmode="numeric" maxlength="8" placeholder="••••" autocomplete="off">
+      </div>
+      <div class="login-err" id="loginErr" style="display:none;"></div>
+      <button class="login-entrar" id="loginEntrar" disabled>Entrar</button>
+      <div class="login-nota" id="loginNota"></div>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="header-top">
+    <a class="brand" href="../" title="Volver al portal">
+      <img src="data:image/png;base64,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" alt="Bellota">
+      <span class="txt"><b>Control de Proceso</b><span>Líneas de fabricación</span></span>
+    </a>
+    <nav class="tabs">
+      <button id="tabReg" class="active">Registrar</button>
+      <button id="tabCons">Consultar</button>
+      <button id="tabTend">Tendencia</button>
+      <button id="tabTab">Tablero</button>
+      <button id="tabCump">Diligenciamiento<span class="pill-n" id="pillCump"></span></button>
+      <button id="tabAdmin">Administrar</button>
+    </nav>
+    <span class="user-chip" id="userChip" style="display:none;">
+      <span class="ini" id="userIni"></span>
+      <span><b id="userNom"></b><span id="userRol"></span></span>
+      <button id="btnSalir" title="Cambiar de usuario">Salir</button>
+    </span>
+    <span class="sync"><span class="dot" id="syncDot"></span><span id="syncLabel">Modo local</span></span>
+  </div>
+</header>
+
+<main>
+<div id="bannerLocal" style="display:none;"></div>
+
+<!-- ============ REGISTRAR ============ -->
+<section id="viewReg">
+  <div class="panel">
+    <div class="section-title"><h2>¿QUÉ PROCESO VAS A CONTROLAR?</h2>
+      <span id="regResumen" style="font-size:.78rem;color:var(--text-dim);"></span></div>
+    <div class="seg" id="lineaSeg"></div>
+    <div class="barra-busca" style="margin-top:12px;">
+      <input type="text" id="procBuscar" placeholder="Buscar proceso...">
+    </div>
+    <div class="proc-grid" id="procGrid" style="margin-top:12px;"></div>
+  </div>
+
+  <div id="formularioProc" style="display:none;">
+    <div class="panel">
+      <div class="section-title"><h2 id="tituloProc">PROCESO</h2>
+        <span id="subProc" style="font-size:.74rem;color:var(--text-dim);"></span></div>
+      <div class="grid4" id="encabezadoCampos"></div>
+    </div>
+
+    <div class="aviso-crit" id="avisoCriticas" style="display:none;"></div>
+
+    <div class="panel">
+      <div class="section-title"><h2>VARIABLES DEL PROCESO</h2>
+        <span id="progresoVars" style="font-size:.74rem;color:var(--text-dim);"></span></div>
+      <div style="overflow-x:auto;">
+        <table class="tabla-vars">
+          <thead><tr>
+            <th style="width:32%;">Variable</th>
+            <th style="width:22%;">Especificación</th>
+            <th style="width:18%;">Valor medido</th>
+            <th style="width:14%;">Resultado</th>
+            <th style="width:14%;">Observación</th>
+          </tr></thead>
+          <tbody id="varsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="section-title"><h2>CIERRE DEL REGISTRO</h2></div>
+      <div class="campo">
+        <label for="iObservaciones">Observaciones</label>
+        <textarea id="iObservaciones" rows="3" placeholder="Observaciones del control"></textarea>
+      </div>
+      <div class="grid2" style="margin-top:6px;">
+        <div class="campo">
+          <label for="iInspector">Registrado por *</label>
+          <input type="text" id="iInspector" readonly style="background:#f8f9fb;">
+        </div>
+        <div class="campo">
+          <label for="iRevisadoPor">Revisado por</label>
+          <input type="text" id="iRevisadoPor" placeholder="Nombre de quien revisa">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <span class="footer-link" id="openSync">Sincronización en tiempo real</span>
+</section>
+
+<!-- ============ CONSULTAR ============ -->
+<section id="viewCons" style="display:none;">
+  <div class="panel">
+    <div class="grid4">
+      <div class="campo">
+        <label for="cLinea">Línea</label>
+        <select id="cLinea"><option value="">Todas</option></select>
+      </div>
+      <div class="campo">
+        <label for="cProceso">Proceso</label>
+        <select id="cProceso"><option value="">Todos</option></select>
+      </div>
+      <div class="campo">
+        <label for="cDesde">Desde</label>
+        <input type="date" id="cDesde">
+      </div>
+      <div class="campo">
+        <label for="cHasta">Hasta</label>
+        <input type="date" id="cHasta">
+      </div>
+    </div>
+    <div class="grid3" style="margin-top:12px;">
+      <div class="campo">
+        <label for="cOF">Orden de fabricación</label>
+        <input type="text" id="cOF" placeholder="Todas">
+      </div>
+      <div class="campo">
+        <label for="cRef">Referencia</label>
+        <input type="text" id="cRef" placeholder="Todas">
+      </div>
+      <div class="campo">
+        <label for="cEstado">Resultado</label>
+        <select id="cEstado">
+          <option value="">Todos</option>
+          <option value="fuera">Solo con variables fuera de rango</option>
+          <option value="critica">Solo con críticas fuera de rango</option>
+          <option value="ok">Solo conformes</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-principal" id="cBuscar" style="margin-top:14px;">Buscar</button>
+  </div>
+  <div id="resultadosCons"></div>
+</section>
+
+<!-- ============ TENDENCIA ============ -->
+<section id="viewTend" style="display:none;">
+  <div class="panel">
+    <div class="section-title"><h2>TENDENCIA DE UNA VARIABLE</h2>
+      <span style="font-size:.74rem;color:var(--text-dim);">Cómo se movió la medición en el tiempo</span></div>
+    <div class="grid4">
+      <div class="campo">
+        <label for="tProceso">Proceso *</label>
+        <select id="tProceso"><option value="">Selecciona un proceso</option></select>
+      </div>
+      <div class="campo">
+        <label for="tVariable">Variable *</label>
+        <select id="tVariable" disabled><option value="">Selecciona primero el proceso</option></select>
+      </div>
+      <div class="campo">
+        <label for="tDesde">Desde</label>
+        <input type="date" id="tDesde">
+      </div>
+      <div class="campo">
+        <label for="tHasta">Hasta</label>
+        <input type="date" id="tHasta">
+      </div>
+    </div>
+    <div class="grid3" style="margin-top:12px;">
+      <div class="campo">
+        <label for="tMaquina">Máquina</label>
+        <select id="tMaquina"><option value="">Todas</option></select>
+      </div>
+      <div class="campo">
+        <label for="tRef">Referencia</label>
+        <select id="tRef"><option value="">Todas</option></select>
+      </div>
+      <div class="campo">
+        <label>&nbsp;</label>
+        <button class="btn-principal" id="tBuscar" style="width:100%;">Ver tendencia</button>
+      </div>
+    </div>
+  </div>
+  <div id="tendResultado"></div>
+</section>
+
+<!-- ============ TABLERO ============ -->
+<section id="viewTab" style="display:none;">
+  <div class="panel">
+    <div class="section-title"><h2>TABLERO DE CUMPLIMIENTO</h2>
+      <span id="tabResumen" style="font-size:.74rem;color:var(--text-dim);"></span></div>
+    <div class="grid4">
+      <div class="campo">
+        <label for="bLinea">Línea</label>
+        <select id="bLinea"><option value="">Todas</option></select>
+      </div>
+      <div class="campo">
+        <label for="bDesde">Desde</label>
+        <input type="date" id="bDesde">
+      </div>
+      <div class="campo">
+        <label for="bHasta">Hasta</label>
+        <input type="date" id="bHasta">
+      </div>
+      <div class="campo">
+        <label>&nbsp;</label>
+        <button class="btn-principal" id="bBuscar" style="width:100%;">Actualizar</button>
+      </div>
+    </div>
+  </div>
+  <div id="tableroResultado"></div>
+</section>
+
+<!-- ============ DILIGENCIAMIENTO ============ -->
+<section id="viewCump" style="display:none;">
+  <div class="panel">
+    <div class="section-title"><h2>CONTROL DE DILIGENCIAMIENTO</h2>
+      <span id="cumpResumen" style="font-size:.74rem;color:var(--text-dim);"></span></div>
+    <div class="grid4">
+      <div class="campo">
+        <label for="mLinea">Línea</label>
+        <select id="mLinea"><option value="">Todas</option></select>
+      </div>
+      <div class="campo">
+        <label for="mMes">Mes</label>
+        <input type="month" id="mMes">
+      </div>
+      <div class="campo">
+        <label for="mVista">Vista</label>
+        <select id="mVista">
+          <option value="dia">Un día · por turno</option>
+          <option value="mes">Mes completo · por día</option>
+        </select>
+      </div>
+      <div class="campo" id="campoDiaCump">
+        <label for="mDia">Día</label>
+        <input type="date" id="mDia">
+      </div>
+    </div>
+    <div class="leyenda-lim" style="margin-top:14px;">
+      <span><i class="pt" style="background:#1f9d55;"></i>Registrado</span>
+      <span><i class="pt" style="background:#c81d2e;"></i>Sin registro</span>
+      <span><i class="pt" style="background:#f2b90b;"></i>Registrado con variables fuera de rango</span>
+      <span><i class="pt" style="background:#d7dbe1;"></i>Aplica según la referencia</span>
+    </div>
+  </div>
+  <div class="panel" style="overflow-x:auto;"><div id="matrizCump"></div></div>
+</section>
+
+<!-- ============ ADMINISTRAR ============ -->
+<section id="viewAdmin" style="display:none;">
+  <div class="panel">
+    <div class="section-title">
+      <h2>ADMINISTRAR</h2>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span id="estadoConfig" style="font-size:.72rem;color:var(--text-dim);"></span>
+        <button class="btn-sec" id="btnSubirTodo" title="Envía a la hoja compartida todos los formatos de este dispositivo">⬆ Subir catálogo a la hoja</button>
+      </div>
+    </div>
+    <div class="seg" id="admSeg">
+      <button data-a="formatos" class="on">Formatos de control <span class="n" id="nFormatos">0</span></button>
+      <button data-a="usuarios" id="admTabUsuarios">Usuarios <span class="n" id="nUsuarios">0</span></button>
+    </div>
+  </div>
+
+  <div class="panel" id="admFormatos">
+    <div class="adm-tools">
+      <input type="text" id="admBuscarFormatos" placeholder="Buscar por línea, proceso o código de documento...">
+      <select id="admFiltroLinea"><option value="">Todas las líneas</option></select>
+      <button class="btn-sec" id="btnNuevoFormato">+ Nuevo formato</button>
+    </div>
+    <div id="formatosAdmin" class="adm-lista"></div>
+    <div class="pager" id="pagerFormatos"></div>
+  </div>
+
+  <div class="panel" id="admUsuarios" style="display:none;">
+    <div class="adm-tools">
+      <input type="text" id="admBuscarUsuarios" placeholder="Buscar por nombre o usuario...">
+      <button class="btn-sec" id="btnNuevoUsuario">+ Nuevo usuario</button>
+    </div>
+    <div id="usuariosAdmin" class="adm-lista"></div>
+    <div style="font-size:.74rem;color:var(--text-dim);margin-top:10px;line-height:1.5;">
+      El <b>jefe de calidad</b> administra formatos y usuarios. El <b>coordinador de calidad</b> administra
+      formatos pero no usuarios. El <b>inspector</b> registra y consulta.<br><br>
+      El PIN ordena el trabajo y deja constancia de quién registra. No es una contraseña segura:
+      cualquiera con conocimientos técnicos podría saltárselo.
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div class="barra-fija" id="barraFija" style="display:none;">
+  <div style="font-size:.85rem;">Variables: <b id="rVars">0/0</b> ·
+    Conformes: <b id="rOk" style="color:var(--ok);">0</b> ·
+    Fuera de rango: <b id="rBad" style="color:var(--bad);">0</b></div>
+  <div id="faltaGuardar" class="falta-aviso" style="display:none;"></div>
+  <div style="flex:1;"></div>
+  <button class="btn-sec" id="btnCancelar">Cancelar</button>
+  <button class="btn-principal" id="btnGuardar" disabled>Guardar registro</button>
+</div>
+
+<!-- Modal formato -->
+<div class="modal-bg" id="modalFormato">
+  <div class="modal">
+    <h3 id="mfTitulo">Nuevo formato de control</h3>
+    <div class="grid4">
+      <div class="campo"><label for="mfLinea">Línea *</label>
+        <input type="text" id="mfLinea" list="listaLineas" placeholder="Limas">
+        <datalist id="listaLineas"></datalist></div>
+      <div class="campo"><label for="mfProceso">Proceso *</label>
+        <input type="text" id="mfProceso" placeholder="Forja"></div>
+      <div class="campo"><label for="mfCodDoc">Código del documento</label>
+        <input type="text" id="mfCodDoc" placeholder="CC/RE/16"></div>
+      <div class="campo"><label for="mfMaquinas">Máquinas (separadas por coma)</label>
+        <input type="text" id="mfMaquinas" placeholder="1, 2, 3"></div>
+    </div>
+    <div class="grid2" style="margin-top:12px;">
+      <div class="campo">
+        <label>Campos del encabezado</label>
+        <div id="mfEncabezado" style="display:flex;gap:14px;flex-wrap:wrap;padding:9px 0;"></div>
+      </div>
+      <div class="campo">
+        <label>&nbsp;</label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--text);padding:9px 0;">
+          <input type="checkbox" id="mfCondicional" style="width:17px;height:17px;accent-color:var(--red);margin:0;">
+          Aplica solo según la referencia
+        </label>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:18px;">
+      <h2>VARIABLES</h2>
+      <button class="btn-sec" id="mfAddVar">+ Variable</button>
+    </div>
+    <div class="var-edit" style="font-size:.7rem;color:var(--text-dim);font-weight:700;">
+      <span></span><span>#</span><span>Nombre de la variable</span><span>Tipo</span>
+      <span>Unidad</span><span>Límite inferior</span><span>Límite superior</span>
+      <span title="Su rechazo se resalta al registrar y en el tablero">Crítica</span><span>Orden</span>
+    </div>
+    <div id="mfVars"></div>
+    <div style="font-size:.74rem;color:var(--text-dim);margin-top:10px;line-height:1.5;">
+      En las variables <b>visuales</b>, escribe las opciones separadas por coma en la columna de unidad
+      (por ejemplo <b>Ok, Nok, No aplica</b>). La primera opción es la que cuenta como conforme.
+      Si dejas los límites vacíos en una variable numérica, la app solo captura el valor sin juzgarlo.
+    </div>
+    <div class="modal-actions">
+      <button id="mfCancelar">Cancelar</button>
+      <button class="primary" id="mfGuardar">Guardar formato</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal usuario -->
+<div class="modal-bg" id="modalUsuario">
+  <div class="modal" style="max-width:460px;">
+    <h3 id="muTitulo">Nuevo usuario</h3>
+    <div class="grid3">
+      <div class="campo"><label for="muUsuario">Usuario (sin espacios) *</label>
+        <input type="text" id="muUsuario" placeholder="jperez"></div>
+      <div class="campo"><label for="muNombre">Nombre completo *</label>
+        <input type="text" id="muNombre" placeholder="Juan Pérez"></div>
+      <div class="campo"><label for="muPin">PIN (4 dígitos) *</label>
+        <input type="text" id="muPin" inputmode="numeric" maxlength="6" placeholder="1234"></div>
+      <div class="campo"><label for="muRol">Rol *</label>
+        <select id="muRol">
+          <option value="inspector">Inspector</option>
+          <option value="coordinador">Coordinador de calidad</option>
+          <option value="jefe">Jefe de calidad</option>
+        </select></div>
+      <div class="campo"><label for="muActivo">Estado</label>
+        <select id="muActivo"><option value="Sí">Activo</option><option value="No">Inactivo</option></select></div>
+    </div>
+    <div class="modal-actions">
+      <button id="muCancelar">Cancelar</button>
+      <button class="primary" id="muGuardar">Guardar usuario</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal sincronización -->
+<div class="modal-bg" id="syncModal">
+  <div class="modal" style="max-width:600px;">
+    <h3>Sincronización en tiempo real</h3>
+    <div class="campo">
+      <label for="syncUrl">URL de la aplicación web de Apps Script</label>
+      <input type="text" id="syncUrl" placeholder="https://script.google.com/macros/s/..../exec">
+    </div>
+    <div id="panelPendientes" style="margin-top:16px;"></div>
+    <div class="modal-actions">
+      <button id="btnDesconectar">Desconectar</button>
+      <button class="primary" id="btnConectar">Conectar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ==========================================================================
+   Control de Proceso · Bellota Colombia
+   Una sola página, sin framework. La hoja de cálculo es la fuente de verdad.
+   ========================================================================== */
+
+const PLANTILLAS_BASE = [{"id": "LIM-FORJA", "linea": "Limas", "proceso": "Forja", "nombre": "Limas · Forja", "codigoDoc": "CC/RE/16", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "proveedor", "maquina"], "maquinas": [], "variables": [{"nombre": "Longitud de espigo", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Longitud de cuerpo", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Arranque", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Apariencia", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "LIM-CORTE-ESPIGO", "linea": "Limas", "proceso": "Corte de espigo", "nombre": "Limas · Corte de espigo", "codigoDoc": "CC/RE/16", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "proveedor"], "maquinas": [], "variables": [{"nombre": "Longitud de espigo", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Apariencia de corte", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "LIM-TROQUELADO", "linea": "Limas", "proceso": "Troquelado (lima plana)", "nombre": "Limas · Troquelado (lima plana)", "codigoDoc": "CC/RE/16", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "proveedor"], "maquinas": [], "variables": [{"nombre": "Longitud total", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Longitud ahusada", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Ancho de la punta", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Acabado del corte (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "LIM-RECTIFICADO", "linea": "Limas", "proceso": "Rectificado", "nombre": "Limas · Rectificado", "codigoDoc": "CC/RE/16", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "proveedor", "maquina"], "maquinas": [], "variables": [{"nombre": "Diámetro circunferencia inscrita", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Ancho lado", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Ancho punta", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Longitud ahusada", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Acabado rectificado", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "LIM-RASPADO", "linea": "Limas", "proceso": "Raspado", "nombre": "Limas · Raspado", "codigoDoc": "CC/RE/16", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "proveedor", "maquina"], "maquinas": [], "variables": [{"nombre": "Ancho de canto", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Paralelismo", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Apariencia (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "LIM-PICADO", "linea": "Limas", "proceso": "Picado", "nombre": "Limas · Picado", "codigoDoc": "CC/RE/16", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "proveedor", "maquina"], "maquinas": [], "variables": [{"nombre": "Paso (dientes por cm)", "tipo": "numerico", "unidad": "dientes/cm", "min": null, "max": null, "critica": false}, {"nombre": "Longitud de picado", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Ángulo de talla", "tipo": "numerico", "unidad": "°", "min": null, "max": null, "critica": false}, {"nombre": "Profundidad de diente", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Uniformidad de picado", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "LIM-HORNO-ELEC", "linea": "Limas", "proceso": "Horno eléctrico", "nombre": "Limas · Horno eléctrico", "codigoDoc": "CC/RE/16", "condicional": true, "encabezado": ["ordenFabricacion", "referencia", "proveedor"], "maquinas": [], "variables": [{"nombre": "Pre-calentamiento", "tipo": "numerico", "unidad": "°C", "min": null, "max": null, "critica": false}, {"nombre": "Zona 1", "tipo": "numerico", "unidad": "°C", "min": null, "max": null, "critica": false}, {"nombre": "Zona 2", "tipo": "numerico", "unidad": "°C", "min": null, "max": null, "critica": false}, {"nombre": "Velocidad de entrada", "tipo": "numerico", "unidad": "Hz", "min": null, "max": null, "critica": false}, {"nombre": "Velocidad de salida", "tipo": "numerico", "unidad": "Hz", "min": null, "max": null, "critica": false}, {"nombre": "Densidad salmuera", "tipo": "numerico", "unidad": "gr/ml", "min": null, "max": null, "critica": false}, {"nombre": "Temperatura salmuera", "tipo": "numerico", "unidad": "°C", "min": null, "max": null, "critica": false}, {"nombre": "Rectitud", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Prueba de agarre", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Dureza cara 1", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza cara 2", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza cara 3", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}]}, {"id": "LIM-HORNO-IND", "linea": "Limas", "proceso": "Horno de inducción", "nombre": "Limas · Horno de inducción", "codigoDoc": "CC/RE/16", "condicional": true, "encabezado": ["ordenFabricacion", "referencia", "proveedor"], "maquinas": [], "variables": [{"nombre": "Paso 1 · Potencia", "tipo": "numerico", "unidad": "%", "min": null, "max": null, "critica": false}, {"nombre": "Paso 1 · Tiempo", "tipo": "numerico", "unidad": "seg", "min": null, "max": null, "critica": false}, {"nombre": "Paso 2 · Potencia", "tipo": "numerico", "unidad": "%", "min": null, "max": null, "critica": false}, {"nombre": "Paso 2 · Tiempo", "tipo": "numerico", "unidad": "seg", "min": null, "max": null, "critica": false}, {"nombre": "Densidad salmuera", "tipo": "numerico", "unidad": "gr/ml", "min": null, "max": null, "critica": false}, {"nombre": "Temperatura salmuera", "tipo": "numerico", "unidad": "°C", "min": null, "max": null, "critica": false}, {"nombre": "Rectitud", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Prueba de agarre", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Dureza cara 1", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza cara 2", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza cara 3", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}]}, {"id": "LIM-ACABADO", "linea": "Limas", "proceso": "Acabado y control", "nombre": "Limas · Acabado y control", "codigoDoc": "CC/RE/16", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "proveedor"], "maquinas": [], "variables": [{"nombre": "Limpieza de la lima", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Secado de la lima", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Agarre", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "pH neutralizante", "tipo": "numerico", "unidad": "", "min": null, "max": null, "critica": false}, {"nombre": "Acabado del sello", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "LIM-ENCABADO", "linea": "Limas", "proceso": "Encabado y empaque", "nombre": "Limas · Encabado y empaque", "codigoDoc": "CC/RE/16", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "proveedor"], "maquinas": [], "variables": [{"nombre": "Fijación del mango y la lima (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Acabado de la lima (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Acabado del empaque (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Sellos y etiquetas (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "MAC-LAMINACION", "linea": "Machetes", "proceso": "Laminación", "nombre": "Machetes · Laminación", "codigoDoc": "CC/RE/17", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero", "maquina"], "maquinas": ["1", "2", "3"], "variables": [{"nombre": "Longitud laminación", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Espesor punta", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Estado laminación (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Prueba de lijado", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "MAC-CORTE-FLEJE", "linea": "Machetes", "proceso": "Corte de fleje, punzonado y canales", "nombre": "Machetes · Corte de fleje, punzonado y canales", "codigoDoc": "CC/RE/17", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero", "maquina"], "maquinas": [], "variables": [{"nombre": "Dimensiones fleje", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Longitud corte", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}, {"nombre": "Coincidencia cabo - cacha (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Recristalización (visual - prueba)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Perforaciones (galga - visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Estado de las canales (visual)", "tipo": "visual", "opciones": ["Ok", "Nok", "No aplica"], "critica": false}]}, {"id": "MAC-TROQUELADO", "linea": "Machetes", "proceso": "Troquelado", "nombre": "Machetes · Troquelado", "codigoDoc": "CC/RE/17", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero", "maquina"], "maquinas": [], "variables": [{"nombre": "Apariencia troquelado (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Longitud hoja", "tipo": "numerico", "unidad": "\"", "min": null, "max": null, "critica": false}, {"nombre": "Ancho inicio hoja (visual)", "tipo": "visual", "opciones": ["Ok", "Nok", "Patrón"], "critica": false}, {"nombre": "Escala lomo (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "MAC-TEMPLE", "linea": "Machetes", "proceso": "Temple · sello y rebabado", "nombre": "Machetes · Temple · sello y rebabado", "codigoDoc": "CC/RE/17", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero", "maquina"], "maquinas": ["1", "2", "4"], "variables": [{"nombre": "Sellado (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Apariencia rebabado (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Temperatura zona 1", "tipo": "numerico", "unidad": "°C", "min": null, "max": null, "critica": true}, {"nombre": "Temperatura zona 2", "tipo": "numerico", "unidad": "°C", "min": null, "max": null, "critica": true}, {"nombre": "Velocidad", "tipo": "numerico", "unidad": "Hz", "min": null, "max": null, "critica": false}, {"nombre": "Dureza punto 1", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 2", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 3", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 4", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 5", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 6", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Prueba de mordaza · lijado (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": true}]}, {"id": "MAC-REVENIDO", "linea": "Machetes", "proceso": "Revenido", "nombre": "Machetes · Revenido", "codigoDoc": "CC/RE/17", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero"], "maquinas": [], "variables": [{"nombre": "Temperatura zona 1", "tipo": "numerico", "unidad": "°C", "min": null, "max": null, "critica": true}, {"nombre": "Velocidad", "tipo": "numerico", "unidad": "Hz", "min": null, "max": null, "critica": false}, {"nombre": "Prueba de flexibilidad (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": true}, {"nombre": "Prueba de impacto", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": true}, {"nombre": "Dureza punto 1", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 2", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 3", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 4", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 5", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 6", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}]}, {"id": "MAC-BISELADO", "linea": "Machetes", "proceso": "Biselado y enderezado", "nombre": "Machetes · Biselado y enderezado", "codigoDoc": "CC/RE/17", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero"], "maquinas": [], "variables": [{"nombre": "Apariencia (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Ancho bisel", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}]}, {"id": "MAC-LIJADO", "linea": "Machetes", "proceso": "Lijado", "nombre": "Machetes · Lijado", "codigoDoc": "CC/RE/17", "condicional": true, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero", "maquina"], "maquinas": [], "variables": [{"nombre": "Acabado (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Espesor", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}]}, {"id": "MAC-NIQUELADO", "linea": "Machetes", "proceso": "Niquelado", "nombre": "Machetes · Niquelado", "codigoDoc": "CC/RE/17", "condicional": true, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero"], "maquinas": [], "variables": [{"nombre": "Apariencia de niquelado (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Prueba de flexión · no se debe descascarar el recubrimiento", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": true}]}, {"id": "MAC-PINTURA", "linea": "Machetes", "proceso": "Pintura", "nombre": "Machetes · Pintura", "codigoDoc": "CC/RE/17", "condicional": true, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero"], "maquinas": [], "variables": [{"nombre": "Fosfatizado · apariencia tanque y pieza (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Titulación (concentración)", "tipo": "numerico", "unidad": "", "min": null, "max": null, "critica": false}, {"nombre": "Espesor pintura", "tipo": "numerico", "unidad": "μm", "min": null, "max": null, "critica": false}]}, {"id": "MAC-LACADO", "linea": "Machetes", "proceso": "Lacado", "nombre": "Machetes · Lacado", "codigoDoc": "CC/RE/17", "condicional": true, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero"], "maquinas": [], "variables": [{"nombre": "Estado de los tanques · desengrase y limpieza (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Viscosidad", "tipo": "numerico", "unidad": "seg", "min": null, "max": null, "critica": false}, {"nombre": "Apariencia (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "MAC-ENCABADO", "linea": "Machetes", "proceso": "Encabado, remachado y empaque", "nombre": "Machetes · Encabado, remachado y empaque", "codigoDoc": "CC/RE/17", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero"], "maquinas": [], "variables": [{"nombre": "Coincidencia remaches - cachas (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Acabado del remachado · cierre y estado de cacha", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Acabado del empaque · caja, apilado y producto empacado", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Verificación de etiquetado · producto y caja", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "CUC-CORTE-LASER", "linea": "Cuchillas", "proceso": "Corte láser", "nombre": "Cuchillas · Corte láser", "codigoDoc": "CC/RE/346", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero"], "maquinas": [], "variables": [{"nombre": "Sin rebaba excesiva", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Sin variaciones en la pieza (geometría)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Validación rectitud de pieza (galga)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Sin fisuras o microfisuras (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Validación dimensional (patrón)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "CUC-TROQUELADO", "linea": "Cuchillas", "proceso": "Troquelado", "nombre": "Cuchillas · Troquelado", "codigoDoc": "CC/RE/346", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "maquina"], "maquinas": [], "variables": [{"nombre": "Dimensiones fleje (espesor x ancho)", "tipo": "texto", "critica": false}, {"nombre": "Longitud corte (mm)", "tipo": "opcion", "opciones": ["350", "450", "461"], "critica": false}, {"nombre": "Apariencia troquelado (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Punzonado (validación galga)", "tipo": "visual", "opciones": ["Ok", "Nok", "No aplica"], "critica": false}, {"nombre": "Sellado (visual)", "tipo": "visual", "opciones": ["Ok", "Nok", "No aplica"], "critica": false}]}, {"id": "CUC-SELLADO", "linea": "Cuchillas", "proceso": "Sellado y punzonado", "nombre": "Cuchillas · Sellado y punzonado", "codigoDoc": "CC/RE/346", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "maquina"], "maquinas": [], "variables": [{"nombre": "Punzonado (validación con galga)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Sellado (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Acabado (centrada)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "CUC-TEMPLE", "linea": "Cuchillas", "proceso": "Temple · sello y rebabado", "nombre": "Cuchillas · Temple · sello y rebabado", "codigoDoc": "CC/RE/346", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "maquina"], "maquinas": [], "variables": [{"nombre": "Apariencia rebabado", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Temperatura horno zona 1", "tipo": "numerico", "unidad": "°C", "min": null, "max": null, "critica": true}, {"nombre": "Temperatura horno zona 2", "tipo": "numerico", "unidad": "°C", "min": null, "max": null, "critica": true}, {"nombre": "Velocidad", "tipo": "numerico", "unidad": "Hz", "min": null, "max": null, "critica": false}, {"nombre": "Dureza punto 1", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 2", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 3", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 4", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 5", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 6", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Prueba de mordaza · lijado (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": true}]}, {"id": "CUC-REVENIDO", "linea": "Cuchillas", "proceso": "Revenido", "nombre": "Cuchillas · Revenido", "codigoDoc": "CC/RE/346", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero"], "maquinas": [], "variables": [{"nombre": "Temperatura horno", "tipo": "numerico", "unidad": "°C", "min": null, "max": null, "critica": true}, {"nombre": "Velocidad", "tipo": "numerico", "unidad": "Hz", "min": null, "max": null, "critica": false}, {"nombre": "Prueba de impacto", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": true}, {"nombre": "Dureza punto 1", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 2", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 3", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 4", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 5", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 6", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}]}, {"id": "CUC-LIJADO", "linea": "Cuchillas", "proceso": "Lijado", "nombre": "Cuchillas · Lijado", "codigoDoc": "CC/RE/346", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero"], "maquinas": [], "variables": [{"nombre": "Acabado (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Espesor", "tipo": "numerico", "unidad": "mm", "min": null, "max": null, "critica": false}]}, {"id": "CUC-BISELADO", "linea": "Cuchillas", "proceso": "Biselado", "nombre": "Cuchillas · Biselado", "codigoDoc": "CC/RE/346", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "maquina"], "maquinas": [], "variables": [{"nombre": "Apariencia (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Ancho bisel", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "CUC-LACADO", "linea": "Cuchillas", "proceso": "Lacado", "nombre": "Cuchillas · Lacado", "codigoDoc": "CC/RE/346", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero"], "maquinas": [], "variables": [{"nombre": "Estado de los tanques (desengrase y limpieza)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Apariencia de la pieza lacada", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Viscosidad", "tipo": "numerico", "unidad": "s", "min": null, "max": null, "critica": false}]}, {"id": "CUC-PINTURA", "linea": "Cuchillas", "proceso": "Pintura", "nombre": "Cuchillas · Pintura", "codigoDoc": "CC/RE/346", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero"], "maquinas": [], "variables": [{"nombre": "Fosfatizado (apariencia tanque)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Apariencia de la pieza fosfatizada", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Titulación tanque fosfatizado", "tipo": "numerico", "unidad": "", "min": null, "max": null, "critica": false}, {"nombre": "Espesor pintura", "tipo": "numerico", "unidad": "μm", "min": null, "max": null, "critica": false}, {"nombre": "Prueba de adherencia · cuadrícula 10x10 mm, sin desprendimiento", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": true}, {"nombre": "Prueba de curado · Xilol, sin transferencia tras 20 frotes", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": true}]}, {"id": "CUC-ENDEREZADO", "linea": "Cuchillas", "proceso": "Enderezado y empaque", "nombre": "Cuchillas · Enderezado y empaque", "codigoDoc": "CC/RE/346", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero"], "maquinas": [], "variables": [{"nombre": "Prueba galga pieza enderezada", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Acabado del empaque · caja, apilado y producto empacado", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Verificación de etiquetado · producto y caja", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "PAL-CORTE-LASER", "linea": "Palas", "proceso": "Corte láser", "nombre": "Palas · Corte láser", "codigoDoc": "CC/RE/182", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero"], "maquinas": [], "variables": [{"nombre": "Sin rebaba excesiva (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Sin variaciones en la pieza (geometría)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Sin fisuras o microfisuras", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Validación dimensional (contra patrón)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}, {"id": "PAL-PERFORADO", "linea": "Palas", "proceso": "Perforado y sellado", "nombre": "Palas · Perforado y sellado", "codigoDoc": "CC/RE/182", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero"], "maquinas": [], "variables": [{"nombre": "Apariencia troquelado (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Sello de la referencia", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Apariencia de sellado y trazabilidad", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Número de perforaciones (unidades)", "tipo": "opcion", "opciones": ["1", "2", "3", "4", "No aplica"], "critica": false}]}, {"id": "PAL-TEMPLE", "linea": "Palas", "proceso": "Calentamiento y temple", "nombre": "Palas · Calentamiento y temple", "codigoDoc": "CC/RE/182", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero"], "maquinas": [], "variables": [{"nombre": "Temperatura zona 1", "tipo": "numerico", "unidad": "°C", "min": null, "max": null, "critica": true}, {"nombre": "Temperatura zona 2", "tipo": "numerico", "unidad": "°C", "min": null, "max": null, "critica": true}, {"nombre": "Tiempo ciclo de vigas", "tipo": "numerico", "unidad": "seg", "min": null, "max": null, "critica": false}, {"nombre": "Temperatura tanque de enfriamiento", "tipo": "numerico", "unidad": "°C", "min": null, "max": null, "critica": false}, {"nombre": "Concentración de hidrotemple", "tipo": "numerico", "unidad": "Brix", "min": null, "max": null, "critica": false}, {"nombre": "Dureza punto 1", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 2", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 3", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 4", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 5", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}]}, {"id": "PAL-REVENIDO", "linea": "Palas", "proceso": "Revenido", "nombre": "Palas · Revenido", "codigoDoc": "CC/RE/182", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero"], "maquinas": [], "variables": [{"nombre": "Temperatura", "tipo": "numerico", "unidad": "°C", "min": null, "max": null, "critica": true}, {"nombre": "Frecuencia variador de velocidad", "tipo": "numerico", "unidad": "Hz", "min": null, "max": null, "critica": false}, {"nombre": "Prueba de impacto", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": true}, {"nombre": "Dureza punto 1", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 2", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 3", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 4", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}, {"nombre": "Dureza punto 5", "tipo": "numerico", "unidad": "HRC", "min": null, "max": null, "critica": true}]}, {"id": "PAL-GRANALLADO", "linea": "Palas", "proceso": "Granallado y limpieza", "nombre": "Palas · Granallado y limpieza", "codigoDoc": "CC/RE/182", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero"], "maquinas": [], "variables": [{"nombre": "Apariencia acabado (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Apariencia fosfatizante", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Titulación fosfatizante", "tipo": "numerico", "unidad": "", "min": null, "max": null, "critica": false}]}, {"id": "PAL-PINTURA", "linea": "Palas", "proceso": "Pintura", "nombre": "Palas · Pintura", "codigoDoc": "CC/RE/182", "condicional": false, "encabezado": ["ordenFabricacion", "referencia"], "maquinas": [], "variables": [{"nombre": "Apariencia acabado (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Espesor de pintura punto 1", "tipo": "numerico", "unidad": "μm", "min": null, "max": null, "critica": false}, {"nombre": "Espesor de pintura punto 2", "tipo": "numerico", "unidad": "μm", "min": null, "max": null, "critica": false}, {"nombre": "Prueba de adherencia · cuadrícula 10x10 mm, sin desprendimiento", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": true}, {"nombre": "Prueba de curado · Xilol, sin transferencia tras 20 frotes", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": true}]}, {"id": "PAL-ENCABADO", "linea": "Palas", "proceso": "Encabado, remachado y empaque", "nombre": "Palas · Encabado, remachado y empaque", "codigoDoc": "CC/RE/182", "condicional": false, "encabezado": ["ordenFabricacion", "referencia", "tipoAcero", "espesorAcero"], "maquinas": [], "variables": [{"nombre": "Acabado remachado (visual)", "tipo": "visual", "opciones": ["Ok", "Nok", "N/A"], "critica": false}, {"nombre": "Acabado de pala (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Acabado del empaque (visual)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}, {"nombre": "Sellos y etiquetas · de acuerdo a referencia (ES-ETC)", "tipo": "visual", "opciones": ["Ok", "Nok"], "critica": false}]}];
+
+const LINEAS_BASE = ["Limas","Machetes","Cuchillas","Palas"];
+const TURNOS = ["1","2","3"];
+const CAMPOS_ENC = {
+  ordenFabricacion: {etq:"Orden de fabricación", oblig:true},
+  referencia:       {etq:"Referencia",           oblig:true},
+  tipoAcero:        {etq:"Tipo de acero",        oblig:false},
+  proveedor:        {etq:"Proveedor",            oblig:false},
+  espesorAcero:     {etq:"Espesor del acero (mm)", oblig:false},
+  maquina:          {etq:"Máquina",              oblig:false}
+};
+
+const S = {
+  formatos:  JSON.parse(localStorage.getItem("cp_formatos")  || "null") || PLANTILLAS_BASE,
+  registros: JSON.parse(localStorage.getItem("cp_registros") || "[]"),
+  usuarios:  JSON.parse(localStorage.getItem("cp_usuarios")  || "null") ||
+             [{usuario:"jefe", nombre:"Jefe de Calidad", pin:"1234", rol:"jefe", activo:"Sí"}],
+  sesion: null,
+  syncUrl: localStorage.getItem("cp_sync_url") || "",
+  lineaActiva: "",
+  formatoActivo: null,
+  mediciones: {},
+  editIdx: null,
+  pendientesLocal: [],
+  ultimoErrorSync: null
+};
+
+function persist(){
+  localStorage.setItem("cp_formatos",  JSON.stringify(S.formatos));
+  localStorage.setItem("cp_registros", JSON.stringify(S.registros));
+  localStorage.setItem("cp_usuarios",  JSON.stringify(S.usuarios));
+}
+function pad(n){ return String(n).padStart(2,"0"); }
+function hoyISO(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function mesISO(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}`; }
+function horaAhora(){ const d=new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function toast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2600); }
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+  .replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+/** El turno se deduce de la hora, pero el inspector lo puede cambiar. */
+function turnoDeHora(h){
+  const m = String(h||"").match(/^(\d{1,2})/);
+  const hh = m ? +m[1] : new Date().getHours();
+  if(hh >= 6  && hh < 14) return "1";
+  if(hh >= 14 && hh < 22) return "2";
+  return "3";
+}
+function fFecha(v){
+  const t = String(v==null?"":v).trim();
+  const m = t.match(/(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : (t || "—");
+}
+function fHora(v){
+  const m = String(v==null?"":v).trim().match(/(\d{1,2}):(\d{2})/);
+  return m ? `${pad(+m[1])}:${m[2]}` : "";
+}
+
+/* ==========================================================================
+   SESIÓN Y ROLES
+   ========================================================================== */
+const ROLES = {jefe:"Jefe de calidad", coordinador:"Coordinador de calidad", inspector:"Inspector"};
+function nombreRol(r){ return ROLES[r] || "Inspector"; }
+function administra(){ return !!S.sesion && (S.sesion.rol==="jefe" || S.sesion.rol==="coordinador"); }
+function gestionaUsuarios(){ return !!S.sesion && S.sesion.rol === "jefe"; }
+function iniciales(n){
+  return String(n||"").trim().split(/\s+/).slice(0,2).map(p=>p[0]||"").join("").toUpperCase() || "··";
+}
+
+function renderLogin(){
+  const sel = document.getElementById("loginUsuario");
+  const previo = sel.value;
+  const activos = S.usuarios.filter(u => String(u.activo||"Sí").toLowerCase() !== "no");
+  sel.innerHTML = `<option value="">Seleccionar usuario</option>` +
+    activos.map(u=>`<option value="${esc(u.usuario)}">${esc(u.nombre)} · ${nombreRol(u.rol)}</option>`).join("");
+  if(previo && activos.some(u=>u.usuario===previo)) sel.value = previo;
+  document.getElementById("loginNota").innerHTML = S.syncUrl
+    ? "Los usuarios se administran desde la hoja compartida. Si no ves el tuyo, pídele al jefe de calidad que lo cree."
+    : `<b style="color:#c81d2e;">Sin conexión a la hoja compartida.</b> Solo se muestran los usuarios de este dispositivo.`;
+  actualizarBotonEntrar();
+}
+function actualizarBotonEntrar(){
+  const u = document.getElementById("loginUsuario").value;
+  const p = document.getElementById("loginPin").value.trim();
+  document.getElementById("loginEntrar").disabled = !(u && p);
+}
+document.getElementById("loginUsuario").addEventListener("change", ()=>{
+  document.getElementById("loginErr").style.display = "none";
+  actualizarBotonEntrar();
+  if(document.getElementById("loginUsuario").value) document.getElementById("loginPin").focus();
+});
+document.getElementById("loginPin").addEventListener("input", ()=>{
+  document.getElementById("loginErr").style.display = "none";
+  actualizarBotonEntrar();
+});
+function intentarEntrar(){
+  const usuario = document.getElementById("loginUsuario").value;
+  const pin = document.getElementById("loginPin").value.trim();
+  const err = document.getElementById("loginErr");
+  const u = S.usuarios.find(x => x.usuario === usuario);
+  if(!u){ err.style.display="block"; err.textContent="Selecciona tu usuario."; return; }
+  if(String(pin) !== String(u.pin)){
+    err.style.display="block"; err.textContent="PIN incorrecto. Inténtalo de nuevo.";
+    document.getElementById("loginPin").value=""; document.getElementById("loginPin").focus();
+    actualizarBotonEntrar(); return;
+  }
+  abrirSesion(u);
+}
+document.getElementById("loginEntrar").addEventListener("click", intentarEntrar);
+document.getElementById("loginPin").addEventListener("keydown", e=>{ if(e.key==="Enter") intentarEntrar(); });
+
+function abrirSesion(u){
+  S.sesion = {usuario:u.usuario, nombre:u.nombre, rol:u.rol};
+  sessionStorage.setItem("cp_sesion", JSON.stringify(S.sesion));
+  document.getElementById("loginBg").style.display = "none";
+  aplicarRol();
+  tab("Reg");
+}
+function cerrarSesion(){
+  S.sesion = null;
+  sessionStorage.removeItem("cp_sesion");
+  cancelarRegistro(true);
+  document.getElementById("loginBg").style.display = "flex";
+  document.getElementById("loginUsuario").value = "";
+  document.getElementById("loginPin").value = "";
+  document.getElementById("loginErr").style.display = "none";
+  renderLogin();
+}
+document.getElementById("btnSalir").addEventListener("click", cerrarSesion);
+
+function aplicarRol(){
+  const adm = administra();
+  document.getElementById("tabAdmin").style.display = adm ? "block" : "none";
+  document.querySelectorAll(".solo-jefe").forEach(el=> el.style.display = adm ? "" : "none");
+  const chip = document.getElementById("userChip");
+  if(S.sesion){
+    chip.style.display = "flex";
+    document.getElementById("userIni").textContent = iniciales(S.sesion.nombre);
+    document.getElementById("userNom").textContent = S.sesion.nombre;
+    document.getElementById("userRol").textContent = nombreRol(S.sesion.rol);
+    const ins = document.getElementById("iInspector");
+    if(ins) ins.value = S.sesion.nombre;
+  } else chip.style.display = "none";
+}
+
+/* ==========================================================================
+   PESTAÑAS
+   ========================================================================== */
+const VISTAS = ["Reg","Cons","Tend","Tab","Cump","Admin"];
+function tab(activo){
+  if(activo === "Admin" && !administra()) activo = "Reg";
+  VISTAS.forEach(t=>{
+    document.getElementById("tab"+t).classList.toggle("active", t===activo);
+    document.getElementById("view"+t).style.display = t===activo ? "block" : "none";
+  });
+  document.getElementById("barraFija").style.display =
+    (activo==="Reg" && S.formatoActivo) ? "flex" : "none";
+  if(activo==="Reg")   renderProcesos();
+  if(activo==="Tend")  refrescarSelectoresTendencia();
+  if(activo==="Tab")   renderTablero();
+  if(activo==="Cump")  renderCumplimiento();
+  if(activo==="Admin") renderAdmin();
+  if(S.syncUrl){ cargarRemoto(); cargarConfig(); } else marcarConfigSync(false);
+}
+VISTAS.forEach(t=> document.getElementById("tab"+t).addEventListener("click", ()=>tab(t)));
+
+/* ==========================================================================
+   REGISTRAR · selección de proceso
+   ========================================================================== */
+/** Orden de las líneas: el de fabricación, y al final las que se agreguen después. */
+function ordenLinea(l){
+  const i = LINEAS_BASE.indexOf(l);
+  return i === -1 ? LINEAS_BASE.length : i;
+}
+function lineas(){
+  const set = [];
+  S.formatos.forEach(f=>{ if(f.linea && set.indexOf(f.linea)===-1) set.push(f.linea); });
+  return set.sort((a,b)=> ordenLinea(a) - ordenLinea(b) || String(a).localeCompare(String(b)));
+}
+
+function renderSegLineas(){
+  const box = document.getElementById("lineaSeg");
+  const ls = lineas();
+  if(!S.lineaActiva || ls.indexOf(S.lineaActiva)===-1) S.lineaActiva = ls[0] || "";
+  box.innerHTML = ls.map(l=>{
+    const n = S.formatos.filter(f=>f.linea===l).length;
+    return `<button data-l="${esc(l)}" class="${l===S.lineaActiva?"on":""}">${esc(l)} <span class="n">${n}</span></button>`;
+  }).join("");
+  box.querySelectorAll("[data-l]").forEach(b=>b.addEventListener("click",()=>{
+    S.lineaActiva = b.dataset.l; renderProcesos();
+  }));
+}
+
+function renderProcesos(){
+  renderSegLineas();
+  const box = document.getElementById("procGrid");
+  const q = (document.getElementById("procBuscar").value||"").trim().toLowerCase();
+  let fs = S.formatos.filter(f => f.linea === S.lineaActiva);
+  if(q) fs = fs.filter(f => `${f.proceso} ${f.nombre} ${f.codigoDoc||""}`.toLowerCase().includes(q));
+  fs.sort((a,b)=> String(a.proceso).localeCompare(String(b.proceso)));
+
+  const hoy = hoyISO();
+  document.getElementById("regResumen").textContent =
+    `${S.registros.filter(r=>fFecha(r.fecha)===hoy).length} registro(s) hoy en toda la planta`;
+
+  box.innerHTML = fs.length ? fs.map(f=>{
+    const hoyProc = S.registros.filter(r=> r.formatoId===f.id && fFecha(r.fecha)===hoy).length;
+    return `<button class="proc-card${S.formatoActivo&&S.formatoActivo.id===f.id?" sel":""}" data-f="${esc(f.id)}">
+      <b>${esc(f.proceso)}</b>
+      <span class="meta">${(f.variables||[]).length} variables${f.codigoDoc?` · ${esc(f.codigoDoc)}`:""}${hoyProc?` · ${hoyProc} hoy`:""}</span>
+      ${f.condicional?`<span class="cond">Según la referencia</span>`:""}
+    </button>`;
+  }).join("") : `<div class="empty-mini">No hay procesos en esta línea.</div>`;
+
+  box.querySelectorAll("[data-f]").forEach(b=>b.addEventListener("click",()=> abrirFormato(b.dataset.f)));
+}
+document.getElementById("procBuscar").addEventListener("input", renderProcesos);
+
+function abrirFormato(id){
+  if(S.formatoActivo && Object.keys(S.mediciones).length &&
+     !confirm("Tienes un registro a medias. Se perderán los valores. ¿Continuar?")) return;
+  const f = S.formatos.find(x => String(x.id)===String(id));
+  if(!f) return;
+  S.formatoActivo = f;
+  S.mediciones = {};
+  document.getElementById("tituloProc").textContent = String(f.nombre || (f.linea+" · "+f.proceso)).toUpperCase();
+  document.getElementById("subProc").textContent =
+    `${f.codigoDoc||"sin código"} · ${(f.variables||[]).length} variables${f.condicional?" · aplica según la referencia":""}`;
+  renderEncabezado(f);
+  renderVariables();
+  document.getElementById("formularioProc").style.display = "block";
+  document.getElementById("iObservaciones").value = "";
+  document.getElementById("iRevisadoPor").value = "";
+  if(S.sesion) document.getElementById("iInspector").value = S.sesion.nombre;
+  renderProcesos();
+  actualizarBarra();
+  document.getElementById("formularioProc").scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function renderEncabezado(f){
+  const box = document.getElementById("encabezadoCampos");
+  const campos = [];
+  campos.push(`<div class="campo"><label for="eFecha">Fecha *</label>
+    <input type="date" id="eFecha" value="${hoyISO()}"></div>`);
+  campos.push(`<div class="campo"><label for="eHora">Hora *</label>
+    <input type="time" id="eHora" value="${horaAhora()}"></div>`);
+  campos.push(`<div class="campo"><label for="eTurno">Turno *</label>
+    <select id="eTurno">${TURNOS.map(t=>`<option value="${t}"${t===turnoDeHora(horaAhora())?" selected":""}>Turno ${t}</option>`).join("")}</select></div>`);
+
+  (f.encabezado||[]).forEach(k=>{
+    const c = CAMPOS_ENC[k]; if(!c) return;
+    if(k === "maquina" && (f.maquinas||[]).length){
+      campos.push(`<div class="campo"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
+        <select id="e_${k}"><option value="">Selecciona</option>${
+          f.maquinas.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join("")}</select></div>`);
+    } else {
+      campos.push(`<div class="campo"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
+        <input type="text" id="e_${k}" placeholder="${c.etq}"></div>`);
+    }
+  });
+  box.innerHTML = campos.join("");
+  box.querySelectorAll("input,select").forEach(el=>{
+    el.addEventListener("input", actualizarBarra);
+    el.addEventListener("change", actualizarBarra);
+  });
+  const hora = document.getElementById("eHora");
+  if(hora) hora.addEventListener("change", ()=>{
+    const t = document.getElementById("eTurno");
+    if(t) t.value = turnoDeHora(hora.value);
+  });
+}
+
+/* ---------- Tabla de variables ---------- */
+function especTexto(v){
+  if(v.tipo === "visual" || v.tipo === "opcion") return (v.opciones||["Ok","Nok"]).join(" · ");
+  if(v.tipo === "texto") return "Texto libre";
+  const min = v.min, max = v.max;
+  const hay = x => x !== null && x !== undefined && x !== "";
+  if(hay(min) && hay(max)) return `${min} – ${max}${v.unidad?" "+v.unidad:""}`;
+  if(hay(min)) return `Mínimo ${min}${v.unidad?" "+v.unidad:""}`;
+  if(hay(max)) return `Máximo ${max}${v.unidad?" "+v.unidad:""}`;
+  return v.unidad ? `Sin rango definido · ${v.unidad}` : "Sin rango definido";
+}
+function juzgar(v, valor){
+  if(v.tipo === "texto") return undefined;
+  if(v.tipo === "opcion") return valor ? "ok" : undefined;
+  if(v.tipo === "visual"){
+    if(!valor) return undefined;
+    const ops = v.opciones||["Ok","Nok"];
+    if(valor === ops[0]) return "ok";
+    if(/^(no aplica|n\/a)$/i.test(valor)) return "na";
+    return "bad";
+  }
+  const n = parseFloat(String(valor).replace(",","."));
+  if(isNaN(n)) return undefined;
+  const hay = x => x !== null && x !== undefined && x !== "";
+  if(!hay(v.min) && !hay(v.max)) return "ok";       // sin rango: solo se captura
+  if(hay(v.min) && n < parseFloat(v.min)) return "bad";
+  if(hay(v.max) && n > parseFloat(v.max)) return "bad";
+  return "ok";
+}
+
+function renderVariables(){
+  const body = document.getElementById("varsBody");
+  if(!S.formatoActivo){ body.innerHTML = ""; return; }
+  const vars = S.formatoActivo.variables || [];
+  const hayCrit = vars.some(v=>v.critica);
+  const puesto = {crit:false, resto:false};
+  const orden = vars.map((v,i)=>({v,i})).sort((a,b)=> (b.v.critica?1:0) - (a.v.critica?1:0));
+
+  body.innerHTML = orden.map(({v,i})=>{
+    const m = S.mediciones[i] || {};
+    const clase = m.resultado==="ok" ? "ok" : m.resultado==="bad" ? "bad" : "";
+    let entrada;
+    if(v.tipo === "numerico"){
+      entrada = `<input type="number" step="any" class="val-input valor" data-i="${i}" value="${esc(m.valor??"")}" placeholder="0.00">`;
+    } else if(v.tipo === "texto"){
+      entrada = `<input type="text" class="valor" data-i="${i}" value="${esc(m.valor??"")}" placeholder="Escribe">`;
+    } else if(v.tipo === "opcion"){
+      entrada = `<select class="valor" data-i="${i}"><option value="">—</option>${
+        (v.opciones||[]).map(o=>`<option value="${esc(o)}"${m.valor===o?" selected":""}>${esc(o)}</option>`).join("")}</select>`;
+    } else {
+      entrada = `<div class="res-btns">${(v.opciones||["Ok","Nok"]).map(o=>{
+        const cl = m.valor===o ? (o===(v.opciones||["Ok","Nok"])[0] ? "sel-ok"
+                   : /^(no aplica|n\/a)$/i.test(o) ? "sel-na" : "sel-bad") : "";
+        return `<button type="button" class="rb ${cl}" data-i="${i}" data-op="${esc(o)}">${esc(o)}</button>`;
+      }).join("")}</div>`;
+    }
+    const badge = (v.tipo==="numerico")
+      ? `<span class="badge ${m.resultado==="ok"?"ok":m.resultado==="bad"?"bad":"neutral"}">${
+          m.resultado==="ok"?"✓ En rango":m.resultado==="bad"?"✗ Fuera de rango":"—"}</span>`
+      : `<span class="badge ${m.resultado==="ok"?"ok":m.resultado==="bad"?"bad":"neutral"}">${
+          m.resultado==="ok"?"✓ Conforme":m.resultado==="bad"?"✗ No conforme":m.resultado==="na"?"No aplica":"—"}</span>`;
+
+    let cabecera = "";
+    if(hayCrit){
+      if(v.critica && !puesto.crit){ puesto.crit = true;
+        cabecera = `<tr class="sec-vars crit"><td colspan="5">VARIABLES CRÍTICAS · ${vars.filter(x=>x.critica).length}</td></tr>`;
+      } else if(!v.critica && !puesto.resto){ puesto.resto = true;
+        cabecera = `<tr class="sec-vars"><td colspan="5">DEMÁS VARIABLES · ${vars.filter(x=>!x.critica).length}</td></tr>`;
+      }
+    }
+    return cabecera + `<tr class="${clase}${v.critica?" fila-crit":""}">
+      <td><b>${esc(v.nombre)}</b>${v.critica?`<span class="tag-crit">crítica</span>`:""}</td>
+      <td><div class="spec">${esc(especTexto(v))}</div></td>
+      <td>${entrada}</td>
+      <td>${badge}</td>
+      <td><input type="text" class="obs" data-i="${i}" value="${esc(m.obs??"")}" placeholder="—"></td>
+    </tr>`;
+  }).join("");
+
+  body.querySelectorAll(".valor").forEach(el=>{
+    const ev = el.tagName==="SELECT" ? "change" : "input";
+    el.addEventListener(ev, ()=>{
+      const i = +el.dataset.i, v = S.formatoActivo.variables[i];
+      S.mediciones[i] = S.mediciones[i] || {};
+      S.mediciones[i].valor = el.value;
+      S.mediciones[i].resultado = juzgar(v, el.value);
+      renderVariables(); actualizarBarra();
+      const otro = document.querySelector(`.valor[data-i="${i}"]`);
+      if(otro && otro.focus && ev==="input"){ otro.focus(); otro.setSelectionRange?.(otro.value.length, otro.value.length); }
+    });
+  });
+  body.querySelectorAll(".rb").forEach(b=>b.addEventListener("click",()=>{
+    const i = +b.dataset.i, v = S.formatoActivo.variables[i];
+    S.mediciones[i] = S.mediciones[i] || {};
+    S.mediciones[i].valor = (S.mediciones[i].valor === b.dataset.op) ? "" : b.dataset.op;
+    S.mediciones[i].resultado = juzgar(v, S.mediciones[i].valor);
+    renderVariables(); actualizarBarra();
+  }));
+  body.querySelectorAll(".obs").forEach(el=>el.addEventListener("input",()=>{
+    const i = +el.dataset.i;
+    S.mediciones[i] = S.mediciones[i] || {};
+    S.mediciones[i].obs = el.value;
+  }));
+}
+
+function actualizarBarra(){
+  const f = S.formatoActivo;
+  document.getElementById("barraFija").style.display = f ? "flex" : "none";
+  if(!f) return;
+  const vars = f.variables || [];
+  const total = vars.length;
+  const med = Object.values(S.mediciones);
+  const evaluadas = med.filter(m=>m.resultado || (m.valor||"").trim()).length;
+  const ok  = med.filter(m=>m.resultado==="ok" || m.resultado==="na").length;
+  const bad = med.filter(m=>m.resultado==="bad").length;
+  document.getElementById("rVars").textContent = `${evaluadas}/${total}`;
+  document.getElementById("rOk").textContent = ok;
+  document.getElementById("rBad").textContent = bad;
+  document.getElementById("progresoVars").textContent = `${evaluadas} de ${total} diligenciadas`;
+
+  const falta = [];
+  (f.encabezado||[]).forEach(k=>{
+    const c = CAMPOS_ENC[k];
+    const el = document.getElementById("e_"+k);
+    if(c && c.oblig && el && !String(el.value).trim()) falta.push(c.etq.toLowerCase());
+  });
+  if(evaluadas < total){
+    const pend = vars.map((v,i)=> (S.mediciones[i] && (S.mediciones[i].resultado || (S.mediciones[i].valor||"").trim())) ? null : v.nombre)
+                     .filter(Boolean);
+    falta.push(`diligenciar ${pend.length} variable(s): ${pend.slice(0,3).join(", ")}${pend.length>3?" y "+(pend.length-3)+" más":""}`);
+  }
+  const aviso = document.getElementById("faltaGuardar");
+  aviso.style.display = "block";
+  if(falta.length){
+    aviso.className = "falta-aviso";
+    aviso.innerHTML = `<b>Falta:</b> ${falta.join(" · ")}`;
+  } else {
+    aviso.className = "falta-aviso listo";
+    aviso.textContent = "✓ Listo para guardar";
+  }
+  document.getElementById("btnGuardar").disabled = falta.length > 0;
+
+  // críticas fuera de rango
+  const critNC = vars.map((v,i)=> (v.critica && (S.mediciones[i]||{}).resultado === "bad") ? v.nombre : null).filter(Boolean);
+  const caja = document.getElementById("avisoCriticas");
+  if(critNC.length){
+    caja.style.display = "block";
+    caja.innerHTML = `⚠ ${critNC.length} variable(s) <b>crítica(s)</b> fuera de rango: ${critNC.map(esc).join(", ")}.
+      Puedes guardar el registro, pero queda marcado en el tablero.`;
+  } else caja.style.display = "none";
+}
+
+function construirRegistro(){
+  const f = S.formatoActivo;
+  const val = k => { const el = document.getElementById("e_"+k); return el ? String(el.value).trim() : ""; };
+  const hora = document.getElementById("eHora").value || horaAhora();
+  return {
+    id: "CP-"+Date.now()+"-"+Math.floor(Math.random()*1000),
+    fecha: document.getElementById("eFecha").value || hoyISO(),
+    hora: hora,
+    turno: document.getElementById("eTurno").value || turnoDeHora(hora),
+    linea: f.linea, proceso: f.proceso, formatoId: f.id, codigoDoc: f.codigoDoc || "",
+    ordenFabricacion: val("ordenFabricacion"), referencia: val("referencia"),
+    tipoAcero: val("tipoAcero"), proveedor: val("proveedor"),
+    espesorAcero: val("espesorAcero"), maquina: val("maquina"),
+    inspector: S.sesion ? S.sesion.nombre : "",
+    revisadoPor: document.getElementById("iRevisadoPor").value.trim(),
+    observaciones: document.getElementById("iObservaciones").value.trim(),
+    resultados: (f.variables||[]).map((v,i)=>{
+      const m = S.mediciones[i] || {};
+      return {
+        nombre: v.nombre, tipo: v.tipo, unidad: v.unidad || "",
+        critica: v.critica ? "Sí" : "",
+        min: (v.min ?? "") === "" ? "" : v.min,
+        max: (v.max ?? "") === "" ? "" : v.max,
+        valor: m.valor ?? "",
+        observacion: m.obs || "",
+        resultado: m.resultado==="bad" ? "Fuera de rango"
+                 : m.resultado==="na"  ? "No aplica"
+                 : m.resultado==="ok"  ? "Conforme" : "Sin dato"
+      };
+    }),
+    pendienteSync: !!S.syncUrl
+  };
+}
+
+document.getElementById("btnGuardar").addEventListener("click",()=>{
+  if(!S.sesion){ toast("Inicia sesión antes de guardar"); return; }
+  if(!S.formatoActivo) return;
+  const reg = construirRegistro();
+  S.registros.unshift(reg);
+  persist();
+  if(S.syncUrl) enviarRemoto(reg);
+  const nc = reg.resultados.filter(r=>r.resultado==="Fuera de rango").length;
+  toast(nc ? `Registro guardado · ${nc} variable(s) fuera de rango` : "Registro guardado");
+  cancelarRegistro(true);
+  actualizarPillCump();
+});
+
+function cancelarRegistro(silencioso){
+  if(!silencioso && Object.keys(S.mediciones).length &&
+     !confirm("Se perderán los valores diligenciados. ¿Cancelar?")) return;
+  S.formatoActivo = null; S.mediciones = {};
+  document.getElementById("formularioProc").style.display = "none";
+  document.getElementById("barraFija").style.display = "none";
+  document.getElementById("avisoCriticas").style.display = "none";
+  renderProcesos();
+}
+document.getElementById("btnCancelar").addEventListener("click", ()=>cancelarRegistro(false));
+
+/* ==========================================================================
+   CONSULTAR
+   ========================================================================== */
+function refrescarSelectoresConsulta(){
+  const ls = lineas();
+  ["cLinea","bLinea","mLinea"].forEach(id=>{
+    const s = document.getElementById(id); if(!s) return;
+    const prev = s.value;
+    s.innerHTML = `<option value="">Todas</option>` + ls.map(l=>`<option value="${esc(l)}">${esc(l)}</option>`).join("");
+    if(prev) s.value = prev;
+  });
+  const cp = document.getElementById("cProceso");
+  const prev = cp.value;
+  const linea = document.getElementById("cLinea").value;
+  const fs = S.formatos.filter(f=>!linea || f.linea===linea)
+                       .sort((a,b)=>String(a.proceso).localeCompare(String(b.proceso)));
+  cp.innerHTML = `<option value="">Todos</option>` +
+    fs.map(f=>`<option value="${esc(f.id)}">${esc(f.linea)} · ${esc(f.proceso)}</option>`).join("");
+  if(prev && fs.some(f=>f.id===prev)) cp.value = prev;
+
+  const tp = document.getElementById("tProceso");
+  const prevT = tp.value;
+  tp.innerHTML = `<option value="">Selecciona un proceso</option>` +
+    S.formatos.slice().sort((a,b)=>String(a.linea+a.proceso).localeCompare(String(b.linea+b.proceso)))
+      .map(f=>`<option value="${esc(f.id)}">${esc(f.linea)} · ${esc(f.proceso)}</option>`).join("");
+  if(prevT) tp.value = prevT;
+
+  const fl = document.getElementById("admFiltroLinea");
+  if(fl){ const p = fl.value;
+    fl.innerHTML = `<option value="">Todas las líneas</option>` + ls.map(l=>`<option value="${esc(l)}">${esc(l)}</option>`).join("");
+    if(p) fl.value = p; }
+  const dl = document.getElementById("listaLineas");
+  if(dl) dl.innerHTML = ls.map(l=>`<option value="${esc(l)}">`).join("");
+}
+document.getElementById("cLinea").addEventListener("change", refrescarSelectoresConsulta);
+
+function ncDe(r){ return (r.resultados||[]).filter(x=>x.resultado==="Fuera de rango").length; }
+function critNCDe(r){
+  return (r.resultados||[]).filter(x=>x.resultado==="Fuera de rango" &&
+    String(x.critica||"").toLowerCase().indexOf("s")===0).length;
+}
+
+document.getElementById("cBuscar").addEventListener("click",()=>{
+  const linea = document.getElementById("cLinea").value;
+  const proc  = document.getElementById("cProceso").value;
+  const desde = document.getElementById("cDesde").value;
+  const hasta = document.getElementById("cHasta").value;
+  const of    = document.getElementById("cOF").value.trim().toLowerCase();
+  const ref   = document.getElementById("cRef").value.trim().toLowerCase();
+  const est   = document.getElementById("cEstado").value;
+
+  let res = S.registros.filter(r=>
+    (!linea || r.linea===linea) &&
+    (!proc  || r.formatoId===proc) &&
+    (!desde || fFecha(r.fecha)>=desde) &&
+    (!hasta || fFecha(r.fecha)<=hasta) &&
+    (!of    || String(r.ordenFabricacion||"").toLowerCase().includes(of)) &&
+    (!ref   || String(r.referencia||"").toLowerCase().includes(ref))
+  );
+  if(est==="fuera")   res = res.filter(r=>ncDe(r)>0);
+  if(est==="critica") res = res.filter(r=>critNCDe(r)>0);
+  if(est==="ok")      res = res.filter(r=>ncDe(r)===0);
+
+  const box = document.getElementById("resultadosCons");
+  if(!res.length){
+    box.innerHTML = `<div class="panel"><div class="empty-mini">No se encontraron registros con esos filtros.</div></div>`;
+    return;
+  }
+  box.innerHTML = `<div class="panel">
+    <div class="section-title"><h2>${res.length} REGISTRO(S)</h2>
+      <span style="font-size:.74rem;color:var(--text-dim);">${res.filter(r=>ncDe(r)>0).length} con variables fuera de rango</span></div>
+    <div class="reg-lista">${res.map(r=>{
+      const nc = ncDe(r), cnc = critNCDe(r);
+      return `<div class="reg-fila${nc?" fuera":""}">
+        <div class="datos">
+          <b>${esc(r.linea)} · ${esc(r.proceso)}</b>
+          <div class="sub">OF <b>${esc(r.ordenFabricacion||"—")}</b> · Ref. <b>${esc(r.referencia||"—")}</b>${
+            r.maquina?` · Máquina <b>${esc(r.maquina)}</b>`:""}</div>
+          <div class="sub">${fFecha(r.fecha)} · ${fHora(r.hora)} · Turno ${esc(r.turno||"—")} · ${esc(r.inspector||"—")}</div>
+        </div>
+        <span class="est badge ${nc?"bad":"ok"}">${nc? `${nc} fuera de rango` : "Todo conforme"}${cnc?` · ${cnc} crítica(s)`:""}</span>
+        <div class="final">
+          <button class="btn-sec" data-det="${esc(r.id)}">Detalle</button>
+          <button class="btn-sec" data-pdf="${esc(r.id)}">PDF</button>
+        </div>
+      </div>`;
+    }).join("")}</div>
+  </div>`;
+
+  box.querySelectorAll("[data-pdf]").forEach(b=>b.addEventListener("click",()=>{
+    const r = S.registros.find(x=>x.id===b.dataset.pdf); if(r) generarPDF(r, true);
+  }));
+  box.querySelectorAll("[data-det]").forEach(b=>b.addEventListener("click",()=>{
+    const r = S.registros.find(x=>x.id===b.dataset.det); if(r) generarPDF(r, false);
+  }));
+});
+
+/* ==========================================================================
+   TENDENCIA · una variable en el tiempo con sus límites
+   ========================================================================== */
+let graficaTend = null, graficaProc = null, graficaMaq = null;
+
+function refrescarSelectoresTendencia(){
+  refrescarSelectoresConsulta();
+  const tp = document.getElementById("tProceso");
+  const tv = document.getElementById("tVariable");
+  const f = S.formatos.find(x=>x.id===tp.value);
+  if(!f){
+    tv.disabled = true;
+    tv.innerHTML = `<option value="">Selecciona primero el proceso</option>`;
+  } else {
+    const nums = (f.variables||[]).filter(v=>v.tipo==="numerico");
+    const prev = tv.value;
+    tv.disabled = nums.length===0;
+    tv.innerHTML = nums.length
+      ? `<option value="">Selecciona una variable</option>` +
+        nums.map(v=>`<option value="${esc(v.nombre)}">${esc(v.nombre)}${v.unidad?` (${esc(v.unidad)})`:""}</option>`).join("")
+      : `<option value="">Este proceso no tiene variables numéricas</option>`;
+    if(prev && nums.some(v=>v.nombre===prev)) tv.value = prev;
+  }
+  // máquinas y referencias vistas en los registros de ese proceso
+  const regs = S.registros.filter(r=>!tp.value || r.formatoId===tp.value);
+  const llenar = (id, campo) => {
+    const s = document.getElementById(id); if(!s) return;
+    const prev = s.value;
+    const vals = [];
+    regs.forEach(r=>{ const v = String(r[campo]||"").trim(); if(v && vals.indexOf(v)===-1) vals.push(v); });
+    vals.sort();
+    s.innerHTML = `<option value="">Todas</option>` + vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
+    if(prev && vals.indexOf(prev)!==-1) s.value = prev;
+  };
+  llenar("tMaquina","maquina");
+  llenar("tRef","referencia");
+}
+document.getElementById("tProceso").addEventListener("change", refrescarSelectoresTendencia);
+
+document.getElementById("tBuscar").addEventListener("click", renderTendencia);
+
+function renderTendencia(){
+  const box = document.getElementById("tendResultado");
+  const fId = document.getElementById("tProceso").value;
+  const vNom = document.getElementById("tVariable").value;
+  const f = S.formatos.find(x=>x.id===fId);
+  if(!f || !vNom){
+    box.innerHTML = `<div class="panel"><div class="empty-mini">Selecciona un proceso y una variable numérica.</div></div>`;
+    return;
+  }
+  const vDef = (f.variables||[]).find(v=>v.nombre===vNom) || {};
+  const desde = document.getElementById("tDesde").value;
+  const hasta = document.getElementById("tHasta").value;
+  const maq   = document.getElementById("tMaquina").value;
+  const ref   = document.getElementById("tRef").value;
+
+  const puntos = [];
+  S.registros.filter(r=> r.formatoId===fId &&
+      (!desde || fFecha(r.fecha)>=desde) && (!hasta || fFecha(r.fecha)<=hasta) &&
+      (!maq || String(r.maquina)===maq) && (!ref || String(r.referencia)===ref))
+    .forEach(r=>{
+      (r.resultados||[]).forEach(x=>{
+        if(x.nombre !== vNom) return;
+        const n = parseFloat(String(x.valor).replace(",","."));
+        if(isNaN(n)) return;
+        puntos.push({x:`${fFecha(r.fecha)} ${fHora(r.hora)}`.trim(), y:n, reg:r, fuera:x.resultado==="Fuera de rango"});
+      });
+    });
+  puntos.sort((a,b)=> a.x.localeCompare(b.x));
+
+  if(!puntos.length){
+    box.innerHTML = `<div class="panel"><div class="empty-mini">No hay mediciones de <b>${esc(vNom)}</b> con esos filtros.</div></div>`;
+    return;
+  }
+
+  const ys = puntos.map(p=>p.y);
+  const prom = ys.reduce((a,b)=>a+b,0)/ys.length;
+  const desvia = Math.sqrt(ys.reduce((a,b)=>a+Math.pow(b-prom,2),0)/ys.length);
+  const fuera = puntos.filter(p=>p.fuera).length;
+  const hay = x => x !== null && x !== undefined && x !== "";
+  const lim = {min: hay(vDef.min)?parseFloat(vDef.min):null, max: hay(vDef.max)?parseFloat(vDef.max):null};
+  const u = vDef.unidad ? " "+vDef.unidad : "";
+  const f2 = n => (Math.round(n*100)/100).toLocaleString("es-CO");
+
+  box.innerHTML = `
+    <div class="panel">
+      <div class="kpis">
+        <div class="kpi"><span>Mediciones</span><b>${puntos.length}</b><small>en el periodo filtrado</small></div>
+        <div class="kpi"><span>Promedio</span><b>${f2(prom)}</b><small>${esc(vDef.unidad||"")}</small></div>
+        <div class="kpi"><span>Rango medido</span><b>${f2(Math.min(...ys))} – ${f2(Math.max(...ys))}</b>
+          <small>desviación ${f2(desvia)}</small></div>
+        <div class="kpi ${fuera?"malo":"bueno"}"><span>Fuera de rango</span><b>${fuera}</b>
+          <small>${puntos.length?((fuera/puntos.length)*100).toFixed(1):0}% de las mediciones</small></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="section-title"><h2>${esc(vNom).toUpperCase()}${esc(u.toUpperCase())}</h2>
+        <span style="font-size:.74rem;color:var(--text-dim);">${esc(f.linea)} · ${esc(f.proceso)}${
+          maq?` · máquina ${esc(maq)}`:""}${ref?` · ref. ${esc(ref)}`:""}</span></div>
+      <div class="chart-box"><canvas id="cvTend"></canvas></div>
+      <div class="leyenda-lim">
+        <span><i></i>Medición</span>
+        ${lim.min!==null||lim.max!==null?`<span><i class="punteada"></i>Límite de especificación</span>`:""}
+        <span><i class="pt"></i>Fuera de rango</span>
+        ${lim.min===null&&lim.max===null?`<span style="color:var(--warn-text);">Esta variable no tiene límites cargados · defínelos en Administrar para que la app juzgue las medidas</span>`:""}
+      </div>
+    </div>`;
+
+  if(graficaTend) graficaTend.destroy();
+  const ctx = document.getElementById("cvTend");
+  const anot = [];
+  if(lim.min!==null) anot.push(lim.min);
+  if(lim.max!==null) anot.push(lim.max);
+
+  graficaTend = new Chart(ctx, {
+    type:"line",
+    data:{
+      labels: puntos.map(p=>p.x),
+      datasets: [
+        {label:"Medición", data: ys, borderColor:"#1c1f24", borderWidth:2, tension:.25,
+         pointRadius: puntos.map(p=>p.fuera?6:4),
+         pointBackgroundColor: puntos.map(p=>p.fuera?"#c81d2e":"#1c1f24"),
+         pointBorderColor:"#fff", pointBorderWidth:2, fill:false, order:1},
+        ...(lim.max!==null?[{label:"Límite superior", data: ys.map(()=>lim.max), borderColor:"#c81d2e",
+            borderWidth:2, borderDash:[7,5], pointRadius:0, fill:false, order:2}]:[]),
+        ...(lim.min!==null?[{label:"Límite inferior", data: ys.map(()=>lim.min), borderColor:"#c81d2e",
+            borderWidth:2, borderDash:[7,5], pointRadius:0, fill:false, order:2}]:[])
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:"index", intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:"#1c1f24", padding:11, titleFont:{size:12}, bodyFont:{size:12},
+          callbacks:{
+            title: it => puntos[it[0].dataIndex].x,
+            label: it => {
+              if(it.datasetIndex !== 0) return `${it.dataset.label}: ${f2(it.parsed.y)}${u}`;
+              const p = puntos[it.dataIndex];
+              return `${f2(p.y)}${u}${p.fuera?"  ·  FUERA DE RANGO":""}`;
+            },
+            afterBody: it => {
+              const r = puntos[it[0].dataIndex].reg;
+              return [`OF ${r.ordenFabricacion||"—"} · Ref. ${r.referencia||"—"}`,
+                      `Turno ${r.turno||"—"}${r.maquina?` · Máquina ${r.maquina}`:""} · ${r.inspector||""}`];
+            }
+          }
+        }
+      },
+      scales:{
+        y:{ grid:{color:"#eef0f3"}, ticks:{color:"#6e7681", font:{size:11}},
+            title:{display:!!vDef.unidad, text:vDef.unidad||"", color:"#6e7681", font:{size:11}},
+            suggestedMin: anot.length ? Math.min(...ys, ...anot) : undefined,
+            suggestedMax: anot.length ? Math.max(...ys, ...anot) : undefined },
+        x:{ grid:{display:false}, ticks:{color:"#6e7681", font:{size:10}, maxRotation:60, autoSkip:true,
+            maxTicksLimit:14} }
+      }
+    }
+  });
+}
+
+/* ==========================================================================
+   TABLERO
+   ========================================================================== */
+function inicioMes(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-01`; }
+
+function renderTablero(){
+  refrescarSelectoresConsulta();
+  const box = document.getElementById("tableroResultado");
+  const linea = document.getElementById("bLinea").value;
+  const desde = document.getElementById("bDesde").value;
+  const hasta = document.getElementById("bHasta").value;
+
+  const regs = S.registros.filter(r=>
+    (!linea || r.linea===linea) &&
+    (!desde || fFecha(r.fecha)>=desde) &&
+    (!hasta || fFecha(r.fecha)<=hasta));
+
+  document.getElementById("tabResumen").textContent =
+    `${regs.length} registro(s)${desde||hasta?" en el periodo":""}`;
+
+  if(!regs.length){
+    box.innerHTML = `<div class="panel"><div class="empty-mini">No hay registros con esos filtros.</div></div>`;
+    if(graficaProc) graficaProc.destroy(), graficaProc=null;
+    if(graficaMaq)  graficaMaq.destroy(),  graficaMaq=null;
+    return;
+  }
+
+  let medTot = 0, medFuera = 0, critFuera = 0;
+  regs.forEach(r=>(r.resultados||[]).forEach(x=>{
+    if(x.resultado === "Sin dato" || x.resultado === "No aplica") return;
+    medTot++;
+    if(x.resultado === "Fuera de rango"){
+      medFuera++;
+      if(String(x.critica||"").toLowerCase().indexOf("s")===0) critFuera++;
+    }
+  }));
+  const conNC = regs.filter(r=>ncDe(r)>0).length;
+  const pct = medTot ? (medFuera/medTot*100) : 0;
+
+  // por proceso
+  const porProc = {};
+  regs.forEach(r=>{
+    const k = `${r.linea} · ${r.proceso}`;
+    const o = porProc[k] = porProc[k] || {reg:0, med:0, fuera:0};
+    o.reg++;
+    (r.resultados||[]).forEach(x=>{
+      if(x.resultado==="Sin dato" || x.resultado==="No aplica") return;
+      o.med++; if(x.resultado==="Fuera de rango") o.fuera++;
+    });
+  });
+  const procs = Object.keys(porProc).map(k=>({k, ...porProc[k],
+    pct: porProc[k].med ? porProc[k].fuera/porProc[k].med*100 : 0}))
+    .sort((a,b)=> b.fuera - a.fuera || b.pct - a.pct);
+
+  // por máquina
+  const porMaq = {};
+  regs.forEach(r=>{
+    const m = String(r.maquina||"").trim(); if(!m) return;
+    const k = `${r.proceso} · ${m}`;
+    const o = porMaq[k] = porMaq[k] || {fuera:0, med:0};
+    (r.resultados||[]).forEach(x=>{
+      if(x.resultado==="Sin dato" || x.resultado==="No aplica") return;
+      o.med++; if(x.resultado==="Fuera de rango") o.fuera++;
+    });
+  });
+  const maqs = Object.keys(porMaq).map(k=>({k, ...porMaq[k]}))
+    .filter(m=>m.fuera>0).sort((a,b)=>b.fuera-a.fuera).slice(0,12);
+
+  // variables más incumplidas
+  const porVar = {};
+  regs.forEach(r=>(r.resultados||[]).forEach(x=>{
+    if(x.resultado!=="Fuera de rango") return;
+    const k = `${r.proceso} · ${x.nombre}`;
+    porVar[k] = (porVar[k]||0) + 1;
+  }));
+  const vars = Object.keys(porVar).map(k=>({k, n:porVar[k]})).sort((a,b)=>b.n-a.n).slice(0,10);
+
+  box.innerHTML = `
+    <div class="panel">
+      <div class="kpis">
+        <div class="kpi"><span>Registros</span><b>${regs.length}</b><small>${procs.length} proceso(s) controlados</small></div>
+        <div class="kpi ${conNC?"malo":"bueno"}"><span>Con variables fuera de rango</span><b>${conNC}</b>
+          <small>${regs.length?((conNC/regs.length)*100).toFixed(0):0}% de los registros</small></div>
+        <div class="kpi ${pct>0?"malo":"bueno"}"><span>Mediciones fuera de rango</span><b>${pct.toFixed(1)}%</b>
+          <small>${medFuera} de ${medTot} medidas juzgadas</small></div>
+        <div class="kpi ${critFuera?"malo":"bueno"}"><span>Críticas fuera de rango</span><b>${critFuera}</b>
+          <small>${critFuera?"requieren revisión":"ninguna"}</small></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="section-title"><h2>MEDICIONES FUERA DE RANGO POR PROCESO</h2>
+        <span style="font-size:.74rem;color:var(--text-dim);">Ordenado de mayor a menor</span></div>
+      <div class="chart-box corto"><canvas id="cvProc"></canvas></div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <div class="section-title"><h2>POR MÁQUINA</h2></div>
+        ${maqs.length ? `<div class="chart-box corto"><canvas id="cvMaq"></canvas></div>`
+          : `<div class="empty-mini">Ninguna máquina registra mediciones fuera de rango.</div>`}
+      </div>
+      <div class="panel">
+        <div class="section-title"><h2>VARIABLES MÁS INCUMPLIDAS</h2></div>
+        ${vars.length ? `<div class="reg-lista" style="border:none;">${vars.map(v=>`
+          <div class="reg-fila fuera" style="grid-template-columns:minmax(0,1fr) 90px;">
+            <div class="datos"><b style="font-size:.85rem;">${esc(v.k)}</b></div>
+            <span class="est badge bad">${v.n} vez(ces)</span>
+          </div>`).join("")}</div>`
+          : `<div class="empty-mini">Ninguna variable fuera de rango en el periodo.</div>`}
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="section-title"><h2>DETALLE POR PROCESO</h2></div>
+      <div class="reg-lista">${procs.map(p=>`
+        <div class="reg-fila${p.fuera?" fuera":""}" style="grid-template-columns:minmax(0,1fr) 130px 130px;">
+          <div class="datos"><b>${esc(p.k)}</b>
+            <div class="sub">${p.reg} registro(s) · ${p.med} medición(es) juzgadas</div></div>
+          <span class="est badge ${p.fuera?"bad":"ok"}">${p.fuera} fuera</span>
+          <span class="est badge ${p.pct>0?"bad":"ok"}" style="justify-self:end;">${p.pct.toFixed(1)}%</span>
+        </div>`).join("")}</div>
+    </div>`;
+
+  if(graficaProc) graficaProc.destroy();
+  graficaProc = new Chart(document.getElementById("cvProc"), {
+    type:"bar",
+    data:{ labels: procs.map(p=>p.k),
+      datasets:[{label:"Mediciones fuera de rango", data: procs.map(p=>p.fuera),
+        backgroundColor: procs.map(p=>p.fuera?"#c81d2e":"#d7dbe1"),
+        borderRadius:4, borderSkipped:false, barPercentage:.7, categoryPercentage:.8}] },
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis:"y",
+      plugins:{ legend:{display:false},
+        tooltip:{ backgroundColor:"#1c1f24", padding:11,
+          callbacks:{ label: it => {
+            const p = procs[it.dataIndex];
+            return [`${p.fuera} de ${p.med} mediciones fuera de rango`, `${p.pct.toFixed(1)}% · ${p.reg} registro(s)`];
+          } } } },
+      scales:{ x:{ grid:{color:"#eef0f3"}, ticks:{color:"#6e7681", font:{size:11}, precision:0} },
+               y:{ grid:{display:false}, ticks:{color:"#1c1f24", font:{size:11}} } } }
+  });
+
+  if(graficaMaq) graficaMaq.destroy(), graficaMaq = null;
+  if(maqs.length){
+    graficaMaq = new Chart(document.getElementById("cvMaq"), {
+      type:"bar",
+      data:{ labels: maqs.map(m=>m.k),
+        datasets:[{label:"Fuera de rango", data: maqs.map(m=>m.fuera),
+          backgroundColor:"#c81d2e", borderRadius:4, borderSkipped:false,
+          barPercentage:.7, categoryPercentage:.8}] },
+      options:{ responsive:true, maintainAspectRatio:false, indexAxis:"y",
+        plugins:{ legend:{display:false},
+          tooltip:{ backgroundColor:"#1c1f24", padding:11,
+            callbacks:{ label: it => `${maqs[it.dataIndex].fuera} de ${maqs[it.dataIndex].med} mediciones` } } },
+        scales:{ x:{ grid:{color:"#eef0f3"}, ticks:{color:"#6e7681", font:{size:11}, precision:0} },
+                 y:{ grid:{display:false}, ticks:{color:"#1c1f24", font:{size:11}} } } }
+    });
+  }
+}
+document.getElementById("bBuscar").addEventListener("click", renderTablero);
+
+/* ==========================================================================
+   CONTROL DE DILIGENCIAMIENTO
+   ========================================================================== */
+function renderCumplimiento(){
+  refrescarSelectoresConsulta();
+  const linea = document.getElementById("mLinea").value;
+  const vista = document.getElementById("mVista").value;
+  const mes   = document.getElementById("mMes").value || mesISO();
+  const dia   = document.getElementById("mDia").value || hoyISO();
+  document.getElementById("campoDiaCump").style.display = vista==="dia" ? "block" : "none";
+
+  const fs = S.formatos.filter(f=>!linea || f.linea===linea)
+    .sort((a,b)=> ordenLinea(a.linea) - ordenLinea(b.linea) ||
+                  String(a.proceso).localeCompare(String(b.proceso)));
+  const box = document.getElementById("matrizCump");
+  if(!fs.length){ box.innerHTML = `<div class="empty-mini">No hay formatos en esta línea.</div>`; return; }
+
+  const clase = (regs) => {
+    if(!regs.length) return "r";
+    return regs.some(r=>ncDe(r)>0) ? "a" : "v";
+  };
+
+  let html = "", faltan = 0, total = 0;
+
+  if(vista === "dia"){
+    html = `<table class="matriz"><thead><tr><th class="proc">Proceso</th>${
+      TURNOS.map(t=>`<th>Turno ${t}</th>`).join("")}<th>Total del día</th></tr></thead><tbody>`;
+    let lineaPrev = "";
+    fs.forEach(f=>{
+      if(f.linea !== lineaPrev){ lineaPrev = f.linea;
+        html += `<tr class="grupo"><td colspan="${TURNOS.length+2}">${esc(f.linea)}</td></tr>`; }
+      const delDia = S.registros.filter(r=> r.formatoId===f.id && fFecha(r.fecha)===dia);
+      html += `<tr><td class="proc">${esc(f.proceso)}${f.condicional?` <span style="color:var(--text-dim);font-size:.7rem;">(según referencia)</span>`:""}</td>`;
+      TURNOS.forEach(t=>{
+        const rs = delDia.filter(r=>String(r.turno)===t);
+        const c = f.condicional && !rs.length ? "n" : clase(rs);
+        if(c === "r") faltan++;
+        if(!f.condicional) total++;
+        html += `<td class="celda ${c}" title="${esc(f.proceso)} · turno ${t}">${
+          rs.length ? rs.length + (rs.some(r=>ncDe(r)>0) ? " ⚠" : " ✓") : (c==="n" ? "—" : "✗")}</td>`;
+      });
+      html += `<td class="celda ${delDia.length?"v":"n"}">${delDia.length}</td></tr>`;
+    });
+    html += `</tbody></table>`;
+    document.getElementById("cumpResumen").textContent =
+      `${dia} · faltan ${faltan} de ${total} controles por turno`;
+  } else {
+    const [y,m] = mes.split("-").map(Number);
+    const dias = new Date(y, m, 0).getDate();
+    html = `<table class="matriz"><thead><tr><th class="proc">Proceso</th>${
+      Array.from({length:dias},(_,i)=>`<th>${i+1}</th>`).join("")}<th>Total</th></tr></thead><tbody>`;
+    let lineaPrev = "";
+    fs.forEach(f=>{
+      if(f.linea !== lineaPrev){ lineaPrev = f.linea;
+        html += `<tr class="grupo"><td colspan="${dias+2}">${esc(f.linea)}</td></tr>`; }
+      html += `<tr><td class="proc">${esc(f.proceso)}</td>`;
+      let n = 0;
+      for(let d=1; d<=dias; d++){
+        const fechaD = `${mes}-${pad(d)}`;
+        const rs = S.registros.filter(r=> r.formatoId===f.id && fFecha(r.fecha)===fechaD);
+        n += rs.length;
+        const c = f.condicional && !rs.length ? "n" : clase(rs);
+        if(c === "r") faltan++;
+        if(!f.condicional) total++;
+        html += `<td class="celda ${c}" title="${esc(f.proceso)} · ${fechaD}">${rs.length||""}</td>`;
+      }
+      html += `<td class="celda ${n?"v":"n"}">${n}</td></tr>`;
+    });
+    html += `</tbody></table>`;
+    document.getElementById("cumpResumen").textContent =
+      `${mes} · ${faltan} día(s)-proceso sin registro de ${total}`;
+  }
+  box.innerHTML = html;
+}
+["mLinea","mVista","mMes","mDia"].forEach(id=>
+  document.getElementById(id).addEventListener("change", renderCumplimiento));
+
+function actualizarPillCump(){
+  const p = document.getElementById("pillCump");
+  const hoy = hoyISO();
+  const t = turnoDeHora(horaAhora());
+  const faltan = S.formatos.filter(f=>!f.condicional &&
+    !S.registros.some(r=> r.formatoId===f.id && fFecha(r.fecha)===hoy && String(r.turno)===t)).length;
+  p.textContent = faltan ? faltan : "";
+  p.style.display = faltan ? "inline-block" : "none";
+  p.title = `${faltan} proceso(s) sin control en el turno ${t} de hoy`;
+}
+
+/* ==========================================================================
+   PDF DEL REGISTRO
+   ========================================================================== */
+const LOGO_PDF = "data:image/png;base64,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";
+
+function celdaPDF(v){
+  let t = (v===null || v===undefined) ? "—" : String(v);
+  t = t.replace(/^(\d{4}-\d{2}-\d{2})T[\d:.]+Z?$/, "$1").replace(/^(\d{4}-\d{2}-\d{2}) 00:00:00$/, "$1");
+  return t.replace(/\n/g," ").trim() || "—";
+}
+
+function generarPDF(reg, guardar){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:"mm", format:"a4"});
+  const W = doc.internal.pageSize.getWidth();
+  const M = 12;
+  let y = 0;
+
+  doc.setFillColor(226,0,26);
+  doc.rect(0,0,W,26,"F");
+  try{ doc.addImage(LOGO_PDF, "PNG", M, 6, 34, 14); }catch(e){}
+  doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(12.5);
+  doc.text(String(reg.proceso||"").toUpperCase().slice(0,40), W-M, 12, {align:"right"});
+  doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
+  const ofTxt = String(reg.ordenFabricacion||"").trim();
+  doc.text(`${reg.linea||"—"}  ·  ${ofTxt ? (/^of[\s\-.]?/i.test(ofTxt) ? ofTxt : "OF "+ofTxt) : "sin OF"}  ·  ${fFecha(reg.fecha)} ${fHora(reg.hora)}`,
+           W-M, 18, {align:"right"});
+  doc.setFontSize(7);
+  doc.text(`${reg.codigoDoc||"—"}  ·  Turno ${reg.turno||"—"}`, W-M, 22.5, {align:"right"});
+  doc.setTextColor(28,31,36);
+  y = 34;
+
+  const res = reg.resultados || [];
+  const juzgadas = res.filter(r=>r.resultado==="Conforme" || r.resultado==="Fuera de rango");
+  const fuera = res.filter(r=>r.resultado==="Fuera de rango").length;
+  const crit  = res.filter(r=>r.resultado==="Fuera de rango" &&
+                              String(r.critica||"").toLowerCase().indexOf("s")===0).length;
+
+  const kpis = [
+    ["Variables", `${res.length}`, "del formato"],
+    ["Conformes", `${juzgadas.length - fuera}/${juzgadas.length}`, "de las juzgadas"],
+    ["Fuera de rango", `${fuera}`, fuera?"requiere acción":"ninguna"],
+    ["Críticas fuera", `${crit}`, crit?"revisar":"ninguna"]
+  ];
+  const kw = (W-2*M-9)/4;
+  kpis.forEach((k,i)=>{
+    const x = M+i*(kw+3);
+    const mal = (i===2 && fuera) || (i===3 && crit);
+    doc.setFillColor(mal?253:250, mal?234:251, mal?234:252);
+    doc.setDrawColor(225,228,233);
+    doc.roundedRect(x,y,kw,22,2,2,"FD");
+    doc.setFontSize(6.6); doc.setTextColor(110,118,129); doc.setFont("helvetica","normal");
+    doc.text(k[0], x+3, y+5.5);
+    doc.setFont("helvetica","bold"); doc.setFontSize(13);
+    doc.setTextColor(mal?200:28, mal?29:31, mal?46:36);
+    doc.text(String(k[1]), x+3, y+13.5);
+    doc.setFont("helvetica","normal"); doc.setFontSize(6.4); doc.setTextColor(110,118,129);
+    doc.text(String(k[2]), x+3, y+18.5);
+  });
+  doc.setTextColor(28,31,36);
+  y += 29;
+
+  function tabla(titulo, cols, filas, anchos){
+    if(y > 250){ doc.addPage(); y = 16; }
+    doc.setFont("helvetica","bold"); doc.setFontSize(8.2); doc.setTextColor(226,0,26);
+    doc.text(titulo, M, y); doc.setTextColor(28,31,36); y += 4.5;
+    let x = M;
+    function encabezado(){
+      x = M; doc.setFontSize(6.8); doc.setFont("helvetica","bold");
+      cols.forEach((c,i)=>{
+        doc.setFillColor(238,240,245); doc.setDrawColor(213,217,223);
+        doc.rect(x,y,anchos[i],5.8,"FD");
+        doc.setTextColor(90,98,110); doc.text(c, x+1.8, y+3.9);
+        x += anchos[i];
+      });
+      y += 5.8; doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(28,31,36);
+    }
+    encabezado();
+    filas.forEach(f=>{
+      const celdas = f.map((c,i)=> doc.splitTextToSize(celdaPDF(c), anchos[i]-3));
+      const h = Math.max(4.8, Math.max(...celdas.map(t=>t.length))*2.9+1.8);
+      if(y+h > 276){ doc.addPage(); y = 16; encabezado(); }
+      x = M;
+      const mal = f.some(c => String(c).indexOf("Fuera de rango") === 0);
+      celdas.forEach((t,i)=>{
+        doc.setFillColor(mal?253:255, mal?240:255, mal?240:255);
+        doc.setDrawColor(228,231,236);
+        doc.rect(x,y,anchos[i],h,"FD");
+        doc.setTextColor(28,31,36);
+        doc.text(t, x+1.8, y+3.6);
+        x += anchos[i];
+      });
+      y += h;
+    });
+    y += 5;
+  }
+
+  const enc = [["Orden de fabricación", reg.ordenFabricacion, "Referencia", reg.referencia],
+               ["Tipo de acero", reg.tipoAcero, "Espesor del acero", reg.espesorAcero],
+               ["Proveedor", reg.proveedor, "Máquina", reg.maquina],
+               ["Fecha y hora", `${fFecha(reg.fecha)} ${fHora(reg.hora)}`, "Turno", reg.turno]]
+    .filter(f => String(f[1]||"").trim() || String(f[3]||"").trim());
+  tabla("DATOS DEL CONTROL", ["Campo","Dato","Campo","Dato"], enc, [34,60,34,W-2*M-128]);
+
+  tabla("VARIABLES DEL PROCESO",
+    ["Variable","Especificación","Medido","Resultado","Observación"],
+    res.map(r=>{
+      const espec = (r.tipo==="numerico")
+        ? ((r.min!=="" && r.min!=null) || (r.max!=="" && r.max!=null)
+            ? `${r.min!==""&&r.min!=null?r.min:"—"} a ${r.max!==""&&r.max!=null?r.max:"—"}${r.unidad?" "+r.unidad:""}`
+            : (r.unidad || "sin rango"))
+        : (r.unidad || "visual");
+      return [`${r.nombre}${String(r.critica||"").toLowerCase().indexOf("s")===0?"  (crítica)":""}`,
+              espec, r.valor || "—", r.resultado || "—", r.observacion || "—"];
+    }),
+    [52,36,26,26,W-2*M-140]);
+
+  if(y > 244){ doc.addPage(); y = 16; }
+  doc.setFont("helvetica","bold"); doc.setFontSize(7.6);
+  doc.text("OBSERVACIONES", M, y);
+  doc.setFont("helvetica","normal"); doc.setFontSize(7.2);
+  const obs = doc.splitTextToSize(reg.observaciones || "—", W-2*M-4);
+  doc.setFillColor(250,251,252); doc.setDrawColor(225,228,233);
+  const ho = Math.max(10, obs.length*3.4+5);
+  doc.rect(M, y+2, W-2*M, ho, "FD");
+  doc.text(obs, M+2.5, y+7);
+  y += ho + 12;
+
+  if(y > 276){ doc.addPage(); y = 30; }
+  doc.setDrawColor(150,156,164); doc.setLineWidth(0.3);
+  doc.line(M, y, M+62, y); doc.line(M+80, y, M+142, y);
+  doc.setFontSize(7); doc.setTextColor(110,118,129);
+  doc.text("Registrado por", M, y+4);
+  doc.text("Revisado por", M+80, y+4);
+  doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(28,31,36);
+  doc.text(reg.inspector || "—", M, y-2);
+  doc.text(reg.revisadoPor || "—", M+80, y-2);
+  doc.setFont("helvetica","normal"); doc.setFontSize(6.6); doc.setTextColor(140,148,158);
+  doc.text(`Registrado en la aplicación el ${fFecha(reg.fecha)} a las ${fHora(reg.hora)}`, M, y+9);
+
+  const total = doc.internal.getNumberOfPages();
+  for(let p=1; p<=total; p++){
+    doc.setPage(p);
+    doc.setFontSize(6.4); doc.setTextColor(140,148,158);
+    doc.text(`Generado ${new Date().toLocaleString("es-CO")} · Control de Proceso · Bellota`, M, 291);
+    doc.text(`Página ${p} de ${total}`, W-M, 291, {align:"right"});
+  }
+
+  const nombre = `Control_${(reg.linea||"").replace(/\s+/g,"")}_${(reg.proceso||"").replace(/\s+/g,"")}_${fFecha(reg.fecha)}.pdf`;
+  if(guardar) doc.save(nombre); else window.open(doc.output("bloburl"), "_blank");
+}
+
+/* ==========================================================================
+   ADMINISTRAR
+   ========================================================================== */
+const POR_PAGINA = 25;
+let pagFormatos = 1;
+
+function admSubvista(){
+  const b = document.querySelector("#admSeg button.on");
+  return b ? b.dataset.a : "formatos";
+}
+function pintarPager(id, total, pagina, onIr){
+  const box = document.getElementById(id); if(!box) return;
+  const paginas = Math.max(1, Math.ceil(total/POR_PAGINA));
+  if(total <= POR_PAGINA){ box.innerHTML = total ? `<span>${total} registro(s)</span>` : ""; return; }
+  box.innerHTML = `<span>Mostrando ${(pagina-1)*POR_PAGINA+1}–${Math.min(total,pagina*POR_PAGINA)} de ${total}</span>
+    <button data-ir="${pagina-1}" ${pagina===1?"disabled":""}>‹ Anterior</button>
+    <span>Página ${pagina} de ${paginas}</span>
+    <button data-ir="${pagina+1}" ${pagina===paginas?"disabled":""}>Siguiente ›</button>`;
+  box.querySelectorAll("[data-ir]").forEach(b=>b.addEventListener("click",()=>onIr(+b.dataset.ir)));
+}
+
+function renderAdmin(){
+  const tabU = document.getElementById("admTabUsuarios");
+  tabU.style.display = gestionaUsuarios() ? "block" : "none";
+  if(!gestionaUsuarios() && admSubvista()==="usuarios"){
+    document.querySelectorAll("#admSeg button").forEach(x=>x.classList.remove("on"));
+    document.querySelector("#admSeg [data-a='formatos']").classList.add("on");
+  }
+  const v = admSubvista();
+  document.getElementById("admFormatos").style.display = v==="formatos" ? "block":"none";
+  document.getElementById("admUsuarios").style.display = v==="usuarios" ? "block":"none";
+  document.getElementById("nFormatos").textContent = S.formatos.length;
+  document.getElementById("nUsuarios").textContent = S.usuarios.length;
+  refrescarSelectoresConsulta();
+  if(v==="formatos") renderFormatosAdmin();
+  if(v==="usuarios") renderUsuariosAdmin();
+}
+document.querySelectorAll("#admSeg button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("#admSeg button").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on"); renderAdmin();
+}));
+
+function renderFormatosAdmin(){
+  const box = document.getElementById("formatosAdmin");
+  const q = (document.getElementById("admBuscarFormatos").value||"").trim().toLowerCase();
+  const lin = document.getElementById("admFiltroLinea").value;
+  let items = S.formatos.map((f,idx)=>({f,idx}))
+    .filter(({f}) => (!lin || f.linea===lin) &&
+      (!q || `${f.linea} ${f.proceso} ${f.codigoDoc||""}`.toLowerCase().includes(q)));
+  items.sort((a,b)=> ordenLinea(a.f.linea) - ordenLinea(b.f.linea) ||
+                     String(a.f.proceso).localeCompare(String(b.f.proceso)));
+
+  const paginas = Math.max(1, Math.ceil(items.length/POR_PAGINA));
+  if(pagFormatos > paginas) pagFormatos = paginas;
+  const vis = items.slice((pagFormatos-1)*POR_PAGINA, pagFormatos*POR_PAGINA);
+
+  box.innerHTML = vis.length ? vis.map(({f,idx})=>{
+    const nums = (f.variables||[]).filter(v=>v.tipo==="numerico");
+    const conRango = nums.filter(v=> (v.min??"")!=="" || (v.max??"")!=="").length;
+    const crit = (f.variables||[]).filter(v=>v.critica).length;
+    return `<div class="item">
+      <div class="info"><b>${esc(f.linea)} · ${esc(f.proceso)}</b>
+        <span class="meta">${(f.variables||[]).length} variables · ${nums.length} numéricas${
+          nums.length?` (${conRango} con rango)`:""}${crit?` · ${crit} crítica(s)`:""} · ${esc(f.codigoDoc||"sin código")}${
+          f.condicional?" · según referencia":""}</span></div>
+      <div class="acciones">
+        <button class="btn-sec" data-edit="${idx}">Editar</button>
+        <button class="btn-sec" data-dup="${idx}">Duplicar</button>
+        <button class="btn-sec" data-del="${idx}" style="color:var(--bad);">Eliminar</button>
+      </div>
+    </div>`;
+  }).join("") : `<div class="empty-mini">${S.formatos.length?"Ningún formato coincide con la búsqueda.":"No hay formatos creados."}</div>`;
+
+  pintarPager("pagerFormatos", items.length, pagFormatos, n=>{ pagFormatos=n; renderFormatosAdmin(); });
+
+  box.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>abrirModalFormato(+b.dataset.edit)));
+  box.querySelectorAll("[data-dup]").forEach(b=>b.addEventListener("click",()=>{
+    const c = JSON.parse(JSON.stringify(S.formatos[+b.dataset.dup]));
+    c.id = "F"+Date.now(); c.proceso += " (copia)"; c.nombre = `${c.linea} · ${c.proceso}`;
+    S.formatos.push(c); persist(); enviarConfig("guardarFormato", {formato:c});
+    renderAdmin(); toast("Formato duplicado");
+  }));
+  box.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{
+    const f = S.formatos[+b.dataset.del];
+    const n = S.registros.filter(r=>r.formatoId===f.id).length;
+    if(!confirm(`¿Eliminar el formato "${f.linea} · ${f.proceso}"?` +
+      (n?`\n\nLos ${n} registro(s) ya guardados NO se borran.`:""))) return;
+    S.formatos.splice(+b.dataset.del,1); persist();
+    enviarConfig("borrarFormato", {id:f.id});
+    renderAdmin(); toast("Formato eliminado");
+  }));
+}
+document.getElementById("admBuscarFormatos").addEventListener("input", ()=>{ pagFormatos=1; renderFormatosAdmin(); });
+document.getElementById("admFiltroLinea").addEventListener("change", ()=>{ pagFormatos=1; renderFormatosAdmin(); });
+
+/* ---------- Editor de formatos ---------- */
+function filaVarHTML(v){
+  v = v || {};
+  const t = v.tipo || "numerico";
+  const esNum = t === "numerico";
+  const unidadOpc = (t==="visual" || t==="opcion") ? (v.opciones||["Ok","Nok"]).join(", ") : (v.unidad||"");
+  return `<div class="var-edit${v.critica?" es-critica":""}" draggable="true">
+    <span class="agarre" title="Arrastra para cambiar el orden">⠿</span>
+    <span class="num"></span>
+    <input type="text" class="v-nom" placeholder="Nombre de la variable" value="${esc(v.nombre||"")}">
+    <select class="v-tipo">
+      <option value="numerico"${t==="numerico"?" selected":""}>Numérica</option>
+      <option value="visual"${t==="visual"?" selected":""}>Visual (Ok/Nok)</option>
+      <option value="opcion"${t==="opcion"?" selected":""}>Lista de opciones</option>
+      <option value="texto"${t==="texto"?" selected":""}>Texto libre</option>
+    </select>
+    <input type="text" class="v-unidad" placeholder="${esNum?"mm, °C, HRC":"Ok, Nok"}" value="${esc(unidadOpc)}">
+    <input type="text" class="v-min" placeholder="mín." value="${esc(v.min??"")}">
+    <input type="text" class="v-max" placeholder="máx." value="${esc(v.max??"")}">
+    <span class="critbox"><input type="checkbox" class="v-crit"${v.critica?" checked":""}
+      title="Variable crítica" aria-label="Variable crítica"></span>
+    <div class="mover">
+      <button type="button" class="mv up" title="Subir">▲</button>
+      <button type="button" class="mv down" title="Bajar">▼</button>
+      <button type="button" class="del" title="Quitar">✕</button>
+    </div>
+  </div>`;
+}
+
+function numerarFilasVar(){
+  const filas = [...document.querySelectorAll("#mfVars .var-edit")];
+  filas.forEach((row,i)=>{
+    row.querySelector(".num").textContent = i+1;
+    row.querySelector(".mv.up").disabled   = i === 0;
+    row.querySelector(".mv.down").disabled = i === filas.length-1;
+  });
+}
+
+let filaArrastrada = null;
+function limpiarDestinos(){ document.querySelectorAll("#mfVars .var-edit").forEach(f=>f.classList.remove("destino")); }
+function filaBajoElPunto(y){
+  return [...document.querySelectorAll("#mfVars .var-edit:not(.arrastrando)")]
+    .find(f=>{ const r=f.getBoundingClientRect(); return y < r.top + r.height/2; }) || null;
+}
+function moverFilaA(fila, ref){
+  const c = document.getElementById("mfVars");
+  if(ref) c.insertBefore(fila, ref); else c.appendChild(fila);
+  numerarFilasVar();
+}
+
+function engancharFilasVar(){
+  document.querySelectorAll("#mfVars .var-edit").forEach(fila=>{
+    fila.querySelector(".del").onclick = ()=>{ fila.remove(); numerarFilasVar(); };
+    fila.querySelector(".mv.up").onclick = ()=>{
+      const p = fila.previousElementSibling;
+      if(p && p.classList.contains("var-edit")) fila.parentNode.insertBefore(fila, p);
+      numerarFilasVar();
+    };
+    fila.querySelector(".mv.down").onclick = ()=>{
+      const s = fila.nextElementSibling;
+      if(s && s.classList.contains("var-edit")) fila.parentNode.insertBefore(s, fila);
+      numerarFilasVar();
+    };
+    fila.querySelector(".v-crit").onchange = e => fila.classList.toggle("es-critica", e.target.checked);
+    const tipo = fila.querySelector(".v-tipo");
+    tipo.onchange = ()=>{
+      const esNum = tipo.value === "numerico";
+      const esLista = tipo.value === "visual" || tipo.value === "opcion";
+      const u = fila.querySelector(".v-unidad");
+      u.placeholder = esNum ? "mm, °C, HRC" : esLista ? "Ok, Nok" : "—";
+      u.disabled = tipo.value === "texto";
+      ["v-min","v-max"].forEach(cl=>{
+        const el = fila.querySelector("."+cl);
+        el.disabled = !esNum;
+        el.style.visibility = esNum ? "visible" : "hidden";
+        if(!esNum) el.value = "";
+      });
+      if(esLista && !u.value.trim()) u.value = "Ok, Nok";
+    };
+    tipo.onchange();
+
+    fila.ondragstart = e=>{
+      filaArrastrada = fila; fila.classList.add("arrastrando");
+      e.dataTransfer.effectAllowed = "move";
+      try{ e.dataTransfer.setData("text/plain",""); }catch(err){}
+    };
+    fila.ondragend = ()=>{ fila.classList.remove("arrastrando"); limpiarDestinos(); filaArrastrada=null; };
+    fila.ondragover = e=>{
+      e.preventDefault(); if(!filaArrastrada) return;
+      limpiarDestinos();
+      const ref = filaBajoElPunto(e.clientY);
+      if(ref) ref.classList.add("destino");
+      moverFilaA(filaArrastrada, ref);
+    };
+    const ag = fila.querySelector(".agarre");
+    ag.onpointerdown = e=>{
+      if(e.pointerType === "mouse") return;
+      e.preventDefault();
+      filaArrastrada = fila; fila.classList.add("arrastrando");
+      ag.setPointerCapture(e.pointerId);
+    };
+    ag.onpointermove = e=>{
+      if(filaArrastrada !== fila) return;
+      e.preventDefault(); moverFilaA(fila, filaBajoElPunto(e.clientY));
+    };
+    ag.onpointerup = ag.onpointercancel = ()=>{
+      fila.classList.remove("arrastrando"); limpiarDestinos(); filaArrastrada=null;
+    };
+  });
+  numerarFilasVar();
+}
+
+function abrirModalFormato(idx){
+  if(!administra()){ toast("Solo calidad administra los formatos"); return; }
+  S.editIdx = idx;
+  const f = idx!=null ? S.formatos[idx]
+    : {linea:"", proceso:"", codigoDoc:"", condicional:false,
+       encabezado:["ordenFabricacion","referencia"], maquinas:[], variables:[]};
+  document.getElementById("mfTitulo").textContent = idx!=null ? "Editar formato de control" : "Nuevo formato de control";
+  document.getElementById("mfLinea").value    = f.linea || "";
+  document.getElementById("mfProceso").value  = f.proceso || "";
+  document.getElementById("mfCodDoc").value   = f.codigoDoc || "";
+  document.getElementById("mfMaquinas").value = (f.maquinas||[]).join(", ");
+  document.getElementById("mfCondicional").checked = !!f.condicional;
+  document.getElementById("mfEncabezado").innerHTML = Object.keys(CAMPOS_ENC).map(k=>`
+    <label style="display:flex;align-items:center;gap:7px;font-weight:600;color:var(--text);margin:0;">
+      <input type="checkbox" class="enc-chk" value="${k}"${(f.encabezado||[]).includes(k)?" checked":""}
+        ${CAMPOS_ENC[k].oblig?" checked disabled":""} style="width:16px;height:16px;accent-color:var(--red);margin:0;">
+      ${CAMPOS_ENC[k].etq}</label>`).join("");
+  document.getElementById("mfVars").innerHTML = (f.variables||[]).map(filaVarHTML).join("");
+  engancharFilasVar();
+  document.getElementById("modalFormato").classList.add("show");
+}
+document.getElementById("btnNuevoFormato").addEventListener("click",()=>abrirModalFormato(null));
+document.getElementById("mfAddVar").addEventListener("click",()=>{
+  document.getElementById("mfVars").insertAdjacentHTML("beforeend", filaVarHTML());
+  engancharFilasVar();
+});
+document.getElementById("mfCancelar").addEventListener("click",()=>
+  document.getElementById("modalFormato").classList.remove("show"));
+
+document.getElementById("mfGuardar").addEventListener("click",()=>{
+  const linea   = document.getElementById("mfLinea").value.trim();
+  const proceso = document.getElementById("mfProceso").value.trim();
+  if(!linea || !proceso){ toast("La línea y el proceso son obligatorios"); return; }
+
+  const vars = [...document.querySelectorAll("#mfVars .var-edit")].map(row=>{
+    const nom  = row.querySelector(".v-nom").value.trim();
+    if(!nom) return null;
+    const tipo = row.querySelector(".v-tipo").value;
+    const uni  = row.querySelector(".v-unidad").value.trim();
+    const crit = row.querySelector(".v-crit").checked;
+    if(tipo === "numerico"){
+      const num = s => { const t = String(s).trim().replace(",","."); return t==="" ? "" : (isNaN(parseFloat(t)) ? "" : parseFloat(t)); };
+      return {nombre:nom, tipo:"numerico", unidad:uni, critica:crit,
+              min:num(row.querySelector(".v-min").value), max:num(row.querySelector(".v-max").value)};
+    }
+    if(tipo === "texto") return {nombre:nom, tipo:"texto", critica:crit};
+    const ops = uni.split(",").map(s=>s.trim()).filter(Boolean);
+    return {nombre:nom, tipo:tipo, opciones: ops.length ? ops : ["Ok","Nok"], critica:crit};
+  }).filter(Boolean);
+
+  if(!vars.length){ toast("Agrega al menos una variable"); return; }
+
+  const enc = [...document.querySelectorAll(".enc-chk")].filter(c=>c.checked).map(c=>c.value);
+  const obj = {
+    id: S.editIdx!=null ? S.formatos[S.editIdx].id : "F"+Date.now(),
+    linea, proceso, nombre: `${linea} · ${proceso}`,
+    codigoDoc: document.getElementById("mfCodDoc").value.trim(),
+    condicional: document.getElementById("mfCondicional").checked,
+    encabezado: enc,
+    maquinas: document.getElementById("mfMaquinas").value.split(",").map(s=>s.trim()).filter(Boolean),
+    variables: vars
+  };
+  if(S.editIdx!=null) S.formatos[S.editIdx] = obj; else S.formatos.push(obj);
+  persist(); enviarConfig("guardarFormato", {formato:obj});
+  renderAdmin();
+  document.getElementById("modalFormato").classList.remove("show");
+  toast("Formato guardado");
+});
+
+/* ---------- Usuarios ---------- */
+let usuarioEditIdx = null;
+function renderUsuariosAdmin(){
+  const box = document.getElementById("usuariosAdmin"); if(!box) return;
+  const bq = document.getElementById("admBuscarUsuarios");
+  const q = (bq ? bq.value : "").trim().toLowerCase();
+  const items = S.usuarios.map((u,idx)=>({u,idx}))
+    .filter(({u}) => !q || `${u.nombre||""} ${u.usuario}`.toLowerCase().includes(q));
+  box.innerHTML = items.length ? items.map(({u,idx})=>{
+    const act = String(u.activo||"Sí").toLowerCase().startsWith("s");
+    return `<div class="item" style="${act?"":"opacity:.45;"}">
+      <div class="info"><b>${esc(u.nombre||u.usuario)}</b>
+        <span class="meta">usuario: ${esc(u.usuario)} · PIN ${String(u.pin||"").replace(/./g,"•")}${act?"":" · inactivo"}</span></div>
+      <span class="rolx ${u.rol==="jefe"?"jefe":u.rol==="coordinador"?"coord":"inspector"}">${nombreRol(u.rol)}</span>
+      <div class="acciones">
+        <button class="btn-sec" data-uedit="${idx}">Editar</button>
+        <button class="btn-sec" data-udel="${idx}" style="color:var(--bad);">Eliminar</button>
+      </div>
+    </div>`;
+  }).join("") : `<div class="empty-mini">${S.usuarios.length?"Ningún usuario coincide.":"No hay usuarios creados."}</div>`;
+
+  box.querySelectorAll("[data-uedit]").forEach(b=>b.addEventListener("click",()=>abrirModalUsuario(+b.dataset.uedit)));
+  box.querySelectorAll("[data-udel]").forEach(b=>b.addEventListener("click",()=>{
+    if(!gestionaUsuarios()){ toast("Solo el jefe de calidad elimina usuarios"); return; }
+    const u = S.usuarios[+b.dataset.udel];
+    if(S.usuarios.filter(x=>x.rol==="jefe").length===1 && u.rol==="jefe"){
+      toast("Debe quedar al menos un jefe de calidad"); return;
+    }
+    if(!confirm(`¿Eliminar al usuario ${u.nombre||u.usuario}?`)) return;
+    S.usuarios.splice(+b.dataset.udel,1); persist();
+    enviarConfig("borrarUsuario", {usuarioId:u.usuario});
+    renderUsuariosAdmin(); toast("Usuario eliminado");
+  }));
+}
+document.getElementById("admBuscarUsuarios").addEventListener("input", renderUsuariosAdmin);
+
+function abrirModalUsuario(idx){
+  if(!gestionaUsuarios()){ toast("Solo el jefe de calidad gestiona los usuarios"); return; }
+  usuarioEditIdx = idx==null ? null : idx;
+  const u = idx!=null ? S.usuarios[idx] : {usuario:"",nombre:"",pin:"",rol:"inspector",activo:"Sí"};
+  document.getElementById("muTitulo").textContent = idx!=null ? "Editar usuario" : "Nuevo usuario";
+  document.getElementById("muUsuario").value = u.usuario||"";
+  document.getElementById("muUsuario").disabled = idx!=null;
+  document.getElementById("muNombre").value = u.nombre||"";
+  document.getElementById("muPin").value = u.pin||"";
+  document.getElementById("muRol").value = u.rol||"inspector";
+  document.getElementById("muActivo").value = String(u.activo||"Sí").toLowerCase().startsWith("s")?"Sí":"No";
+  document.getElementById("modalUsuario").classList.add("show");
+}
+document.getElementById("btnNuevoUsuario").addEventListener("click",()=>abrirModalUsuario(null));
+document.getElementById("muCancelar").addEventListener("click",()=>
+  document.getElementById("modalUsuario").classList.remove("show"));
+document.getElementById("muGuardar").addEventListener("click",()=>{
+  const usuario = document.getElementById("muUsuario").value.trim().toLowerCase().replace(/\s+/g,"");
+  const nombre  = document.getElementById("muNombre").value.trim();
+  const pin     = document.getElementById("muPin").value.trim();
+  if(!usuario || !nombre){ toast("Usuario y nombre son obligatorios"); return; }
+  if(!/^\d{4,6}$/.test(pin)){ toast("El PIN debe tener entre 4 y 6 dígitos"); return; }
+  if(usuarioEditIdx==null && S.usuarios.some(u=>u.usuario===usuario)){ toast("Ese usuario ya existe"); return; }
+  const obj = {usuario, nombre, pin, rol:document.getElementById("muRol").value,
+               activo:document.getElementById("muActivo").value};
+  if(usuarioEditIdx!=null) S.usuarios[usuarioEditIdx] = obj; else S.usuarios.push(obj);
+  persist(); enviarConfig("guardarUsuario", {usuario:obj});
+  renderUsuariosAdmin();
+  document.getElementById("modalUsuario").classList.remove("show");
+  toast("Usuario guardado");
+});
+
+/* ==========================================================================
+   SINCRONIZACIÓN CON LA HOJA
+   ========================================================================== */
+const enviosEnCurso = new Set();
+
+async function enviarRemoto(reg){
+  if(enviosEnCurso.has(reg.id)) return;
+  enviosEnCurso.add(reg.id);
+  try{
+    const res = await fetch(S.syncUrl, {method:"POST", body: JSON.stringify({action:"create", registro:reg})});
+    const d = await res.json();
+    if(!d || d.ok !== true) throw new Error(d && d.error ? d.error : "el servidor respondió sin ok");
+    S.ultimoErrorSync = null;
+    marcarSync(reg.id, true);
+  }catch(e){
+    console.error("enviarRemoto:", e);
+    S.ultimoErrorSync = e.message;
+    marcarSync(reg.id, false);
+    toast("⚠ Guardado en este dispositivo. No llegó a la hoja — reintentando...");
+  }finally{ enviosEnCurso.delete(reg.id); }
+}
+function marcarSync(id, ok){
+  const r = S.registros.find(x=>x.id===id);
+  if(r){ r.pendienteSync = !ok; persist(); }
+  actualizarEstadoSync(); renderPendientes();
+}
+function reintentarPendientes(){
+  if(!S.syncUrl) return;
+  S.registros.filter(r=>r.pendienteSync).forEach(enviarRemoto);
+}
+
+async function cargarRemoto(){
+  if(!S.syncUrl) return;
+  try{
+    const res = await fetch(S.syncUrl);
+    const data = await res.json();
+    if(Array.isArray(data)){
+      const m = new Map();
+      S.registros.forEach(r=>m.set(r.id, r));
+      data.forEach(r=>{ if(r && r.id && !m.has(r.id)) m.set(r.id, r); });
+      S.registros = Array.from(m.values()).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
+      persist(); reintentarPendientes(); actualizarEstadoSync(); actualizarPillCump();
+    }
+  }catch(e){ console.error("cargarRemoto:", e); }
+}
+
+async function cargarConfig(){
+  if(!S.syncUrl){ marcarConfigSync(false); return; }
+  try{
+    const res = await fetch(S.syncUrl + "?tipo=config");
+    const data = await res.json();
+    if(!data) throw new Error("sin datos");
+
+    if(Array.isArray(data.usuarios) && data.usuarios.length){
+      S.usuarios = data.usuarios.filter(u=>u && u.usuario);
+      localStorage.setItem("cp_usuarios", JSON.stringify(S.usuarios));
+      if(!S.sesion) renderLogin();
+    }
+
+    const sF = Array.isArray(data.formatos) ? data.formatos : [];
+    const soloLocal = [];
+    if(S.formatoActivo && Object.keys(S.mediciones).length){ marcarConfigSync(true); return; }
+    if(sF.length){
+      const ids = new Set(sF.map(f=>String(f.id)));
+      S.formatos.filter(f=>!ids.has(String(f.id))).forEach(f=>soloLocal.push(`${f.linea} · ${f.proceso}`));
+      S.formatos = sF;
+    } else if(S.formatos.length){
+      S.formatos.forEach(f=>soloLocal.push(`${f.linea} · ${f.proceso}`));
+    }
+    persist();
+    S.pendientesLocal = soloLocal;
+    marcarConfigSync(true);
+    if(document.getElementById("viewAdmin").style.display !== "none") renderAdmin();
+    if(document.getElementById("viewReg").style.display  !== "none") renderProcesos();
+  }catch(e){ console.error("config:", e); marcarConfigSync(false); }
+}
+
+async function enviarConfig(accion, payload){
+  if(!S.syncUrl){ marcarConfigSync(false); return; }
+  try{
+    const res = await fetch(S.syncUrl, {method:"POST",
+      body: JSON.stringify(Object.assign({action:accion}, payload))});
+    const d = await res.json();
+    if(!d || d.ok !== true) throw new Error("no ok");
+    marcarConfigSync(true);
+  }catch(e){
+    console.error("config post:", e);
+    marcarConfigSync(false);
+    toast("⚠ Se guardó en este dispositivo pero no en la hoja compartida");
+  }
+}
+
+function marcarConfigSync(ok){
+  const el = document.getElementById("estadoConfig");
+  const banner = document.getElementById("bannerLocal");
+  const pend = (S.pendientesLocal||[]).length;
+  if(el){
+    if(!S.syncUrl){
+      el.innerHTML = `<span style="color:#c81d2e;font-weight:700;">⚠ Sin conexión a la hoja</span>`;
+    } else if(!ok){
+      el.innerHTML = `<span style="color:#c81d2e;font-weight:700;">⚠ No se pudo leer la hoja compartida</span>`;
+    } else {
+      el.innerHTML = pend
+        ? `<span style="color:#92660a;font-weight:700;">${pend} formato(s) solo en este dispositivo</span>`
+        : `<span style="color:#1f9d55;font-weight:700;">Catálogo sincronizado</span>`;
+    }
+  }
+  if(banner){
+    if(!S.syncUrl || !ok){
+      banner.style.display = "block";
+      banner.className = "banner-alerta";
+      banner.innerHTML = `<b>La aplicación no está leyendo la hoja compartida.</b> Lo que registres ahora queda
+        solo en este dispositivo y no lo verán los demás. Revisa la conexión o la configuración de
+        sincronización antes de continuar.`;
+    } else banner.style.display = "none";
+  }
+}
+
+function actualizarEstadoSync(){
+  const dot = document.getElementById("syncDot"), label = document.getElementById("syncLabel");
+  if(!S.syncUrl){ dot.style.background = "rgba(255,255,255,.5)"; label.textContent = "Modo local"; return; }
+  const p = S.registros.filter(r=>r.pendienteSync).length;
+  if(p > 0){ dot.style.background = "#f2b90b"; label.textContent = `Sincronizando... (${p})`; }
+  else { dot.style.background = "#7fe0a4"; label.textContent = "Sincronizado"; }
+}
+
+function renderPendientes(){
+  const box = document.getElementById("panelPendientes"); if(!box) return;
+  const pend = S.registros.filter(r=>r.pendienteSync);
+  const total = S.registros.length;
+  box.innerHTML = `<div class="diag">
+    <div class="diag-fila"><span>Registros en este dispositivo</span><b>${total}</b></div>
+    <div class="diag-fila"><span>Enviados a la hoja</span><b style="color:#1f9d55;">${total-pend.length}</b></div>
+    <div class="diag-fila"><span>Pendientes de enviar</span>
+      <b style="color:${pend.length?"#c81d2e":"#1f9d55"};">${pend.length}</b></div>
+    ${S.ultimoErrorSync?`<div class="diag-err">Último error: ${esc(S.ultimoErrorSync)}</div>`:""}
+    ${pend.length?`<button class="btn-sec" id="btnReintentar" style="margin-top:12px;">Reintentar envío</button>`:""}
+  </div>`;
+  const b = document.getElementById("btnReintentar");
+  if(b) b.addEventListener("click", ()=>{ reintentarPendientes(); toast("Reintentando..."); });
+}
+
+document.getElementById("openSync").addEventListener("click",()=>{
+  document.getElementById("syncUrl").value = S.syncUrl;
+  renderPendientes();
+  document.getElementById("syncModal").classList.add("show");
+});
+document.getElementById("btnConectar").addEventListener("click",()=>{
+  S.syncUrl = document.getElementById("syncUrl").value.trim();
+  localStorage.setItem("cp_sync_url", S.syncUrl);
+  actualizarEstadoSync();
+  document.getElementById("syncModal").classList.remove("show");
+  cargarRemoto(); cargarConfig();
+});
+document.getElementById("btnDesconectar").addEventListener("click",()=>{
+  S.syncUrl = ""; localStorage.removeItem("cp_sync_url");
+  actualizarEstadoSync(); marcarConfigSync(false);
+  document.getElementById("syncModal").classList.remove("show");
+});
+document.getElementById("btnSubirTodo").addEventListener("click", async ()=>{
+  if(!S.syncUrl){ toast("Primero conecta la hoja compartida"); return; }
+  toast("Subiendo el catálogo...");
+  for(const f of S.formatos) await enviarConfig("guardarFormato", {formato:f});
+  for(const u of S.usuarios) await enviarConfig("guardarUsuario", {usuario:u});
+  reintentarPendientes();
+  S.pendientesLocal = [];
+  toast("Catálogo subido a la hoja");
+  cargarConfig();
+});
+
+/* ==========================================================================
+   INICIO
+   ========================================================================== */
+document.getElementById("cDesde").value = hoyISO();
+document.getElementById("cHasta").value = hoyISO();
+document.getElementById("bDesde").value = inicioMes();
+document.getElementById("bHasta").value = hoyISO();
+document.getElementById("tDesde").value = inicioMes();
+document.getElementById("tHasta").value = hoyISO();
+document.getElementById("mMes").value   = mesISO();
+document.getElementById("mDia").value   = hoyISO();
+
+refrescarSelectoresConsulta();
+renderSegLineas();
+actualizarEstadoSync();
+actualizarPillCump();
+
+(function iniciarSesion(){
+  let ses = null;
+  try{ ses = JSON.parse(sessionStorage.getItem("cp_sesion") || "null"); }catch(e){}
+  if(ses && S.usuarios.some(u=>u.usuario===ses.usuario)){
+    S.sesion = ses;
+    document.getElementById("loginBg").style.display = "none";
+    aplicarRol();
+    tab("Reg");
+  } else {
+    sessionStorage.removeItem("cp_sesion");
+    document.getElementById("loginBg").style.display = "flex";
+    renderLogin();
+  }
+})();
+
+if(S.syncUrl){ cargarRemoto(); cargarConfig(); reintentarPendientes(); setInterval(cargarRemoto, 15000); }
+else marcarConfigSync(false);
+</script>
+
+</body>
+</html>
