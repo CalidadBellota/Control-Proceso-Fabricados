@@ -699,8 +699,12 @@
       <input type="text" id="syncUrl" placeholder="https://script.google.com/macros/s/..../exec">
     </div>
     <div id="panelPendientes" style="margin-top:16px;"></div>
+    <div style="font-size:.76rem;color:var(--text-dim);margin-top:12px;line-height:1.5;">
+      La hoja de la empresa ya viene configurada. Solo cambia esta dirección si Calidad te lo indica.
+      <button class="btn-sec" id="btnRestaurarSync" style="margin-top:8px;">Restaurar la hoja de la empresa</button>
+    </div>
     <div class="modal-actions">
-      <button id="btnDesconectar">Desconectar</button>
+      <button id="btnDesconectar">Trabajar sin conexión</button>
       <button class="primary" id="btnConectar">Conectar</button>
     </div>
   </div>
@@ -727,13 +731,18 @@ const CAMPOS_ENC = {
   maquina:          {etq:"Máquina",              oblig:false}
 };
 
+/* Hoja compartida de Control de Proceso. Viene puesta para que las tabletas
+   no tengan que configurarla; se puede cambiar desde "Sincronización en tiempo real". */
+const SYNC_POR_DEFECTO = "https://script.google.com/macros/s/AKfycbxHkpqb_tosa0OU596sQixeEbVjHC4yqxYt8n-xIyHj10whlpcjcEMLV00JsvBfTbPO/exec";
+const urlGuardada = localStorage.getItem("cp_sync_url");
+
 const S = {
   formatos:  JSON.parse(localStorage.getItem("cp_formatos")  || "null") || PLANTILLAS_BASE,
   registros: JSON.parse(localStorage.getItem("cp_registros") || "[]"),
   usuarios:  JSON.parse(localStorage.getItem("cp_usuarios")  || "null") ||
              [{usuario:"jefe", nombre:"Jefe de Calidad", pin:"1234", rol:"jefe", activo:"Sí"}],
   sesion: null,
-  syncUrl: localStorage.getItem("cp_sync_url") || "",
+  syncUrl: urlGuardada === null ? SYNC_POR_DEFECTO : urlGuardada,
   lineaActiva: "",
   formatoActivo: null,
   mediciones: {},
@@ -2357,8 +2366,17 @@ document.getElementById("btnConectar").addEventListener("click",()=>{
   document.getElementById("syncModal").classList.remove("show");
   cargarRemoto(); cargarConfig();
 });
+document.getElementById("btnRestaurarSync").addEventListener("click",()=>{
+  document.getElementById("syncUrl").value = SYNC_POR_DEFECTO;
+  S.syncUrl = SYNC_POR_DEFECTO;
+  localStorage.setItem("cp_sync_url", S.syncUrl);
+  actualizarEstadoSync();
+  document.getElementById("syncModal").classList.remove("show");
+  cargarRemoto(); cargarConfig();
+  toast("Conectado a la hoja de la empresa");
+});
 document.getElementById("btnDesconectar").addEventListener("click",()=>{
-  S.syncUrl = ""; localStorage.removeItem("cp_sync_url");
+  S.syncUrl = ""; localStorage.setItem("cp_sync_url", "");
   actualizarEstadoSync(); marcarConfigSync(false);
   document.getElementById("syncModal").classList.remove("show");
 });
