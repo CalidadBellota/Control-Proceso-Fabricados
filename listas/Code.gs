@@ -32,7 +32,7 @@ const H_INSP = ["id","numero","esReinspeccion","estado","aprobadoPor","fechaDeci
   "cantidadRecibida","cantidadMuestra","nivelInspeccion","aql",
   "inspector","lider","decision","observaciones","totalVariables","noConformes"];
 
-const H_DET = ["inspeccionId","orden","producto","fecha","variable","especificacion",
+const H_DET = ["inspeccionId","orden","producto","fecha","variable","critica","especificacion",
   "valorMedido","resultado","observacion"];
 
 /**
@@ -118,7 +118,7 @@ function doGet(e){
     const o = {};
     detHead.forEach((h,k)=> o[h] = fmt_(det[i][k], h));
     (porInsp[o.inspeccionId] = porInsp[o.inspeccionId] || []).push({
-      nombre:o.variable, especificacion:o.especificacion,
+      nombre:o.variable, critica:o.critica, especificacion:o.especificacion,
       valorMedido:o.valorMedido, resultado:o.resultado, observacion:o.observacion
     });
   }
@@ -133,7 +133,7 @@ function doGet(e){
   return json_(rows);
 }
 
-const COLS_TEXTO = ["variable","especificacion","valorMedido","resultado","observacion",
+const COLS_TEXTO = ["variable","critica","especificacion","valorMedido","resultado","observacion",
                     "producto","proveedor","orden","codigoBPCS","codigoDoc","version"];
 
 function fmt_(v, h){
@@ -335,7 +335,7 @@ function guardar_(r){
     const filasDet = (r.resultados||[]).map(function(v){
       return filaSegunHeader_(shD, {
         inspeccionId: r.id, orden: r.orden, producto: r.producto, fecha: r.fecha,
-        variable: v.nombre, especificacion: v.especificacion,
+        variable: v.nombre, critica: v.critica || "", especificacion: v.especificacion,
         valorMedido: v.valorMedido, resultado: v.resultado, observacion: v.observacion
       });
     });
