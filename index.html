@@ -97,6 +97,12 @@ const PROCESOS = [
     descripcion: "Inspección de recepción de comercializados, consulta por orden de compra y PDF de liberación.",
     icono: "&#9989;",
     ruta: "listas/"
+  },
+  {
+    nombre: "Control de Proceso",
+    descripcion: "Control de variables por línea y proceso: limas, machetes, cuchillas y palas. Tendencia, tablero y control de diligenciamiento.",
+    icono: "&#128202;",
+    ruta: "proceso/"
   }
 ];
 
@@ -112,7 +118,8 @@ grid.innerHTML = PROCESOS.map(p => {
       <div class="abrir">${p.proximamente ? "PRÓXIMAMENTE" : "↗ ABRIR"}</div>
     </${tag}>`;
 }).join("");
-document.getElementById("contador").textContent = `${PROCESOS.length} aplicación${PROCESOS.length===1?"":"es"}`;
+document.getElementById("contador").textContent =
+  `${PROCESOS.length} ${PROCESOS.length===1 ? "aplicación" : "aplicaciones"}`;
 </script>
 
 </body>
