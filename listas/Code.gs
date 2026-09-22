@@ -178,7 +178,11 @@ function doPost(e){
     if(p.action === "guardarLista"){   upsert_(SH_LIS, H_LIS, p.lista, "id");        return json_({ok:true}); }
     if(p.action === "guardarOrden"){   upsert_(SH_ORD, H_ORD, p.orden, "numero");    return json_({ok:true}); }
     if(p.action === "borrarLista"){    borrar_(SH_LIS, H_LIS, p.id);                 return json_({ok:true}); }
-    if(p.action === "borrarOrden"){    borrar_(SH_ORD, H_ORD, p.numero);             return json_({ok:true}); }
+    if(p.action === "borrarOrden"){
+      borrar_(SH_ORD, H_ORD, p.numero);
+      if(p.conInspecciones) borrarInspeccionesDeOrden_(p.numero);
+      return json_({ok:true});
+    }
     return json_({ok:false, error:"acción no reconocida"});
   }catch(err){
     return json_({ok:false, error:err.message});
@@ -210,6 +214,71 @@ function decidir_(p){
     }
     return { ok:false, error:"No se encontró la inspección " + p.id };
   } finally { lock.releaseLock(); }
+}
+
+/**
+ * Borra de "Inspecciones" y "Detalle" todo lo que cuelgue de una orden de compra.
+ * Se usa cuando se elimina la orden: sin orden no debe quedar nada pendiente ni aprobado.
+ */
+function borrarInspeccionesDeOrden_(numero){
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try{
+    const objetivo = String(numero).trim();
+    let borradas = 0;
+
+    const sh = getSheet_(SH_INSP, H_INSP);
+    const head = headerDe_(sh);
+    const iOrden = head.indexOf("orden");
+    const iId = head.indexOf("id");
+    const ids = {};
+    if(iOrden !== -1){
+      const d = sh.getDataRange().getValues();
+      for(let i = d.length - 1; i >= 1; i--){
+        if(String(d[i][iOrden]).trim() === objetivo){
+          if(iId !== -1) ids[String(d[i][iId])] = true;
+          sh.deleteRow(i + 1);
+          borradas++;
+        }
+      }
+    }
+
+    const shD = getSheet_(SH_DET, H_DET);
+    const headD = headerDe_(shD);
+    const iOrdD = headD.indexOf("orden");
+    const iIdD  = headD.indexOf("inspeccionId");
+    const dd = shD.getDataRange().getValues();
+    for(let i = dd.length - 1; i >= 1; i--){
+      const porOrden = iOrdD !== -1 && String(dd[i][iOrdD]).trim() === objetivo;
+      const porId    = iIdD  !== -1 && ids[String(dd[i][iIdD])];
+      if(porOrden || porId) shD.deleteRow(i + 1);
+    }
+    return borradas;
+  } finally { lock.releaseLock(); }
+}
+
+/**
+ * Utilidad manual: borra las inspecciones cuya orden de compra ya no existe
+ * en la hoja "Ordenes". Ejecútala desde el editor si quedaron huérfanas.
+ */
+function limpiarInspeccionesHuerfanas(){
+  const shO = getSheet_(SH_ORD, H_ORD);
+  const ords = {};
+  shO.getDataRange().getValues().slice(1).forEach(function(r){
+    if(r[0]) ords[String(r[0]).trim()] = true;
+  });
+  const sh = getSheet_(SH_INSP, H_INSP);
+  const iOrden = headerDe_(sh).indexOf("orden");
+  if(iOrden === -1) return "No se encontró la columna orden";
+  const d = sh.getDataRange().getValues();
+  const sueltas = [];
+  for(let i = 1; i < d.length; i++){
+    const o = String(d[i][iOrden]).trim();
+    if(o && !ords[o] && sueltas.indexOf(o) === -1) sueltas.push(o);
+  }
+  let total = 0;
+  sueltas.forEach(function(o){ total += borrarInspeccionesDeOrden_(o); });
+  return total + " inspección(es) sin orden eliminadas (" + sueltas.join(", ") + ")";
 }
 
 function upsert_(nombre, headers, obj, llave){
