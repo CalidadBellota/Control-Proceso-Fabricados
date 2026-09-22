@@ -120,8 +120,14 @@
   .btn-reintentar:disabled{background:#9aa5b1;}
 
   /* ---- Acceso ---- */
-  .login-bg{position:fixed;inset:0;background:linear-gradient(160deg,#f3f4f6 0%,#e7e9ee 100%);
-    z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;}
+  .login-bg{position:fixed;inset:0;background:var(--bg);z-index:200;display:none;
+    flex-direction:column;overflow-y:auto;}
+  .login-top{background:var(--red);padding:14px 22px;display:flex;align-items:center;gap:16px;flex:none;}
+  .login-top img{height:38px;width:auto;}
+  .login-top div{border-left:1px solid rgba(255,255,255,.35);padding-left:16px;}
+  .login-top b{display:block;color:#fff;font-size:1.05rem;letter-spacing:-.01em;}
+  .login-top span{display:block;color:rgba(255,255,255,.82);font-size:.78rem;margin-top:1px;}
+  .login-mid{flex:1;display:flex;align-items:center;justify-content:center;padding:28px 20px;}
   .login-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:40px 36px 34px;
     width:100%;max-width:680px;box-shadow:0 10px 40px rgba(0,0,0,.08);}
   .login-logo{width:126px;height:126px;border-radius:50%;background:var(--red);margin:0 auto 22px;
@@ -188,7 +194,8 @@
     flex-wrap:wrap;}
   .ap-head .tit{min-width:0;flex:1;}
   .ap-head .tit b{font-size:.92rem;}
-  .ap-head .meta{font-size:.73rem;color:var(--text-dim);margin-top:1px;}
+  .ap-head .meta{font-size:.73rem;color:var(--text-dim);margin-top:2px;}
+  .ap-head .meta b{color:var(--text);font-weight:700;}
   .ap-head .quien{font-size:.72rem;color:var(--text-dim);text-align:right;white-space:nowrap;}
   .ap-tira{display:flex;flex-wrap:wrap;align-items:center;gap:0 0;padding:0 15px 11px;
     font-size:.75rem;color:var(--text-dim);}
@@ -255,10 +262,13 @@
   .lista-item .ind.pend{background:#fff8e1;color:#92660a;}
   .lista-item .ind.ok{background:#e8f8ef;color:#1f9d55;}
   .usr-item{display:flex;align-items:center;justify-content:space-between;gap:12px;
-    padding:12px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:#fff;}
+    padding:13px 2px;border-bottom:1px solid #f0f1f4;background:transparent;}
+  .usr-item:last-child{border-bottom:none;}
+  .usr-item:hover{background:#fafbfc;}
   .usr-item .rolx{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
     padding:3px 9px;border-radius:99px;}
   .usr-item .rolx.jefe{background:#fdeaea;color:#c81d2e;}
+  .usr-item .rolx.coord{background:#eaf0fb;color:#3c5ea8;}
   .usr-item .rolx.inspector{background:#eef2f7;color:#4a5568;}
   .usr-item .inact{opacity:.45;}
   @media(max-width:760px){
@@ -293,8 +303,22 @@
     border-radius:8px;margin-bottom:8px;background:#fff;flex-wrap:wrap;gap:10px;}
   .lista-item .info{font-size:.86rem;}
   .lista-item .info b{display:block;margin-bottom:2px;}
-  .lista-item .meta{font-size:.76rem;color:var(--text-dim);}
+  .lista-item .meta{display:block;font-size:.76rem;color:var(--text-dim);}
+  .lista-item .meta b{color:var(--text);font-weight:700;}
   .lista-item .acciones{display:flex;gap:8px;}
+
+  /* Administrar: barra de herramientas y filas sin doble recuadro */
+  .adm-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+    padding-bottom:14px;margin-bottom:4px;border-bottom:1px solid var(--border);}
+  .adm-tools input[type=text]{flex:1;min-width:220px;}
+  .adm-tools select{max-width:190px;}
+  .adm-lista .lista-item{border:none;border-radius:0;margin:0;background:transparent;
+    padding:13px 2px;border-bottom:1px solid #f0f1f4;}
+  .adm-lista .lista-item:last-child{border-bottom:none;}
+  .adm-lista .lista-item:hover{background:#fafbfc;}
+  .adm-lista .empty-mini{padding:26px 0;}
+  .adm-lista .info b{font-size:.9rem;}
+  .adm-lista .acciones button{padding:7px 12px;font-size:.78rem;}
   .empty-mini{padding:20px;color:var(--text-dim);font-size:.85rem;text-align:center;}
 
   .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1c1f24;color:#fff;padding:11px 18px;
@@ -326,11 +350,20 @@
 
 
 <div class="login-bg" id="loginBg">
+  <div class="login-top">
+    <img src="data:image/png;base64,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" alt="Bellota">
+    <div>
+      <b>Listas de Chequeo</b>
+      <span>Recepción de productos comercializados</span>
+    </div>
+  </div>
+  <div class="login-mid">
   <div class="login-card">
     <div class="login-logo"><img src="data:image/png;base64,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" alt="Bellota"></div>
     <h2>Listas de chequeo de recepción</h2>
     <p class="login-intro">Selecciona tu usuario y escribe tu PIN para entrar. El inspector registra
-      las mediciones de la lista de chequeo; el jefe de calidad aprueba, devuelve o rechaza el lote.</p>
+      las mediciones de la lista de chequeo; el jefe o el coordinador de calidad aprueban,
+      devuelven o rechazan el lote.</p>
     <div class="campo">
       <label for="loginUsuario">Usuario *</label>
       <select id="loginUsuario"><option value="">Seleccionar usuario</option></select>
@@ -342,6 +375,7 @@
     <div class="login-err" id="loginErr" style="display:none;"></div>
     <button class="login-entrar" id="loginEntrar" disabled>Entrar</button>
     <div class="login-nota" id="loginNota"></div>
+  </div>
   </div>
 </div>
 
@@ -400,7 +434,7 @@
 <!-- ============ APROBACIONES ============ -->
 <section id="viewAprob" style="display:none;">
   <div class="panel">
-    <div class="section-title"><h2>BANDEJA DEL JEFE DE CALIDAD</h2>
+    <div class="section-title"><h2>BANDEJA DE APROBACIÓN</h2>
       <span id="aprobResumen" style="font-size:.78rem;color:var(--text-dim);"></span></div>
     <div class="barra-busca">
       <input type="text" id="aprobBuscar" placeholder="Buscar por orden de compra, producto o inspector...">
@@ -540,7 +574,6 @@
     <div class="grid4">
       <div class="campo">
         <label for="cOrden">Orden de compra</label>
-        <input type="text" id="cOrdenBuscar" placeholder="Filtrar órdenes..." style="margin-bottom:6px;">
         <select id="cOrden"><option value="">Todas</option></select>
       </div>
       <div class="campo">
@@ -574,13 +607,13 @@
     <div class="seg" id="admSeg" style="width:fit-content;">
       <button data-a="listas" class="on">Listas de chequeo <span class="n" id="nListas">0</span></button>
       <button data-a="ordenes">Órdenes de compra <span class="n" id="nOrdenes">0</span></button>
-      <button data-a="usuarios">Usuarios <span class="n" id="nUsuarios">0</span></button>
+      <button data-a="usuarios" id="admTabUsuarios">Usuarios <span class="n" id="nUsuarios">0</span></button>
     </div>
   </div>
 
   <!-- listas -->
   <div class="panel" id="admListas">
-    <div class="barra-busca">
+    <div class="adm-tools">
       <input type="text" id="admBuscarListas" placeholder="Buscar por producto, código BPCS o código del documento...">
       <select id="admOrdenarListas" style="max-width:190px;">
         <option value="nombre">Ordenar: A → Z</option>
@@ -590,13 +623,13 @@
       </select>
       <button class="btn-sec" id="btnNuevaLista">+ Nueva lista</button>
     </div>
-    <div id="listasAdmin"></div>
+    <div id="listasAdmin" class="adm-lista"></div>
     <div class="pager" id="pagerListas"></div>
   </div>
 
   <!-- órdenes -->
   <div class="panel" id="admOrdenes" style="display:none;">
-    <div class="barra-busca">
+    <div class="adm-tools">
       <input type="text" id="admBuscarOrdenes" placeholder="Buscar por número de orden o proveedor...">
       <div class="seg" id="admFiltroOrdenes">
         <button data-f="abiertas" class="on">Con pendientes</button>
@@ -604,18 +637,21 @@
       </div>
       <button class="btn-sec" id="btnNuevaOrden">+ Nueva orden</button>
     </div>
-    <div id="ordenesAdmin"></div>
+    <div id="ordenesAdmin" class="adm-lista"></div>
     <div class="pager" id="pagerOrdenes"></div>
   </div>
 
   <!-- usuarios -->
   <div class="panel" id="admUsuarios" style="display:none;">
-    <div class="barra-busca">
+    <div class="adm-tools">
       <input type="text" id="admBuscarUsuarios" placeholder="Buscar por nombre o usuario...">
       <button class="btn-sec" id="btnNuevoUsuario">+ Nuevo usuario</button>
     </div>
-    <div id="usuariosAdmin"></div>
+    <div id="usuariosAdmin" class="adm-lista"></div>
     <div style="font-size:.74rem;color:var(--text-dim);margin-top:10px;line-height:1.5;">
+      El <b>jefe de calidad</b> aprueba, administra y gestiona los usuarios. El <b>coordinador de calidad</b>
+      aprueba y administra igual, pero no puede crear ni cambiar usuarios. El <b>inspector</b> solo registra
+      las mediciones.<br><br>
       El PIN ordena el trabajo y deja constancia de quién inspecciona y quién aprueba.
       No es una contraseña segura: cualquiera con conocimientos técnicos podría saltárselo.
     </div>
@@ -653,6 +689,7 @@
         <label for="muRol">Rol *</label>
         <select id="muRol">
           <option value="inspector">Inspector</option>
+          <option value="coordinador">Coordinador de calidad</option>
           <option value="jefe">Jefe de calidad</option>
         </select>
       </div>
@@ -843,6 +880,37 @@ function mesAnio(v){
   if(m){ const i = +m[2]-1; return `${MESES[i]||m[2]} ${m[1]}`; }
   return t.slice(0,7);
 }
+/** Solo la fecha: recorta cualquier hora que venga pegada desde la hoja. */
+function fFecha(v){
+  const t = String(v==null?"":v).trim();
+  const m = t.match(/(\d{4}-\d{2}-\d{2})/);
+  if(m) return m[1];
+  const d = t && !isNaN(Date.parse(t)) ? new Date(t) : null;
+  return d ? `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}` : (t || "—");
+}
+/** Solo la hora HH:MM, venga como venga. */
+function fHora(v){
+  const t = String(v==null?"":v).trim();
+  const m = t.match(/(\d{1,2}):(\d{2})/);
+  return m ? `${pad(+m[1])}:${m[2]}` : "";
+}
+function fFechaHora(i){
+  const h = fHora(i.hora) || fHora(i.fecha);
+  return fFecha(i.fecha) + (h ? " · " + h : "");
+}
+/** Datos de cabecera confiables: si la hoja devolvió algo raro, se toma de la lista. */
+function datosRef(i){
+  const l = S.listas.find(x => String(x.id) === String(i.listaId));
+  const limpio = v => { const t = String(v==null?"":v).trim();
+    return (!t || t === "undefined" || t === "null") ? "" : t; };
+  return {
+    producto: limpio(i.producto) || (l ? l.nombre : "") || "Producto sin nombre",
+    bpcs:     limpio(i.codigoBPCS) || (l ? l.codigoBPCS : "") || "—",
+    orden:    limpio(i.orden) || "—",
+    proveedor:limpio(i.proveedor)
+  };
+}
+
 function mesAnioISO(v){
   const t = String(v||"").trim();
   const m = t.match(/^(\d{4})-(\d{2})/);
@@ -902,16 +970,14 @@ function refrescarSelectores(){
 function refrescarOrdenesConsulta(){
   const sel = document.getElementById("cOrden");
   if(!sel) return;
-  const q = (document.getElementById("cOrdenBuscar").value || "").trim().toLowerCase();
   const previo = sel.value;
   const ords = S.ordenes.slice()
-    .sort((a,b)=>String(b.numero).localeCompare(String(a.numero)))
-    .filter(o => !q || `${o.numero} ${o.proveedor||""}`.toLowerCase().includes(q));
+    .sort((a,b)=>String(b.numero).localeCompare(String(a.numero)));
   sel.innerHTML = `<option value="">Todas (${S.ordenes.length})</option>` +
     ords.map(o=>`<option value="${o.numero}">${ocTxt(o.numero)}${o.proveedor?" · "+o.proveedor:""}</option>`).join("");
   if(previo && ords.some(o=>String(o.numero)===previo)) sel.value = previo;
 }
-document.getElementById("cOrdenBuscar").addEventListener("input", refrescarOrdenesConsulta);
+
 
 document.getElementById("iOrden").addEventListener("input", e=>{
   S.modo = null; S.reinspeccion = null;
@@ -1236,7 +1302,15 @@ const ESTADOS = {
 // estados que cierran la referencia (ya no aparece en pendientes)
 const ESTADOS_CIERRAN = ["aprobado", "aprobado_condicion"];
 
-function esJefe(){ return !!S.sesion && S.sesion.rol === "jefe"; }
+/* Jefe y coordinador aprueban y administran; solo el jefe gestiona usuarios. */
+const ROLES = {
+  jefe:        "Jefe de calidad",
+  coordinador: "Coordinador de calidad",
+  inspector:   "Inspector"
+};
+function nombreRol(r){ return ROLES[r] || "Inspector"; }
+function esJefe(){ return !!S.sesion && (S.sesion.rol === "jefe" || S.sesion.rol === "coordinador"); }
+function gestionaUsuarios(){ return !!S.sesion && S.sesion.rol === "jefe"; }
 function iniciales(n){
   return String(n||"?").trim().split(/\s+/).slice(0,2).map(p=>p[0]).join("").toUpperCase();
 }
@@ -1246,7 +1320,7 @@ function renderLogin(){
   const previo = sel.value;
   const activos = S.usuarios.filter(u => String(u.activo||"Sí").toLowerCase() !== "no");
   sel.innerHTML = `<option value="">Seleccionar usuario</option>` +
-    activos.map(u=>`<option value="${u.usuario}">${u.nombre} · ${u.rol==="jefe"?"Jefe de calidad":"Inspector"}</option>`).join("");
+    activos.map(u=>`<option value="${u.usuario}">${u.nombre} · ${nombreRol(u.rol)}</option>`).join("");
   if(previo && activos.some(u=>u.usuario===previo)) sel.value = previo;
 
   document.getElementById("loginNota").innerHTML = S.syncUrl
@@ -1324,7 +1398,7 @@ function aplicarRol(){
     chip.style.display = "flex";
     document.getElementById("userIni").textContent = iniciales(S.sesion.nombre);
     document.getElementById("userNom").textContent = S.sesion.nombre;
-    document.getElementById("userRol").textContent = jefe ? "Jefe de calidad" : "Inspector";
+    document.getElementById("userRol").textContent = nombreRol(S.sesion.rol);
     // el inspector siempre firma con su propio nombre
     const ins = document.getElementById("iInspector");
     if(ins && !ins.value){ ins.value = S.sesion.nombre; ins.dispatchEvent(new Event("input",{bubbles:true})); }
@@ -1334,7 +1408,7 @@ function aplicarRol(){
 
 function actualizarPill(){
   const p = document.getElementById("pillAprob");
-  const n = S.inspecciones.filter(i => estadoDe(i) === "pendiente_aprobacion").length;
+  const n = S.inspecciones.filter(i => estadoDe(i) === "pendiente_aprobacion" && ordenViva(i)).length;
   p.textContent = n ? n : "";
   p.style.display = n ? "inline-block" : "none";
 }
@@ -1351,6 +1425,18 @@ function estadoDe(i){
 }
 function textoEstado(i){ return (ESTADOS[estadoDe(i)] || {txt:"—"}).txt; }
 function claseEstado(i){ return (ESTADOS[estadoDe(i)] || {cls:""}).cls; }
+
+/** Inspecciones que cuelgan de una orden de compra. */
+function inspeccionesDeOrden(numero){
+  const n = String(numero).trim();
+  return S.inspecciones.filter(i => String(i.orden).trim() === n);
+}
+/** Una inspección cuya orden ya no existe no debe aparecer en ninguna bandeja. */
+function ordenViva(i){
+  if(!S.ordenes.length) return true;          // catálogo aún sin cargar: no se oculta nada
+  const n = String(i.orden).trim();
+  return S.ordenes.some(o => String(o.numero).trim() === n);
+}
 
 /* ---------- Referencias pendientes de inspección ---------- */
 function referenciasPendientes(){
@@ -1469,7 +1555,7 @@ function generarPDF(insp, guardar){
   doc.setFont("helvetica","bold"); doc.setFontSize(11);
   doc.text(String(insp.producto).toUpperCase().slice(0,34), W-M, 12, {align:"right"});
   doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
-  doc.text(`${insp.orden?ocTxt(insp.orden):"—"}  ·  ${insp.fecha}${insp.numero>1?`  ·  Reinspección ${insp.numero}`:""}`, W-M, 18, {align:"right"});
+  doc.text(`${insp.orden?ocTxt(insp.orden):"—"}  ·  ${fFecha(insp.fecha)}${insp.numero>1?`  ·  Reinspección ${insp.numero}`:""}`, W-M, 18, {align:"right"});
   doc.setFontSize(7);
   doc.text(`${insp.codigoDoc||"—"}  ${insp.version||""}`, W-M, 22.5, {align:"right"});
   doc.setTextColor(28,31,36);
@@ -1569,7 +1655,7 @@ function generarPDF(insp, guardar){
   tabla("DATOS DE RECEPCIÓN", ["Campo","Dato","Campo","Dato"],
     [["Proveedor", insp.proveedor||"—", "Orden de compra", insp.orden||"—"],
      ["Producto", insp.producto, "Código BPCS", insp.codigoBPCS],
-     ["Fecha recepción", insp.fechaRecepcion||"—", "Fecha inspección", `${insp.fecha} ${insp.hora}`],
+     ["Fecha recepción", fFecha(insp.fechaRecepcion), "Fecha inspección", `${fFecha(insp.fecha)} ${fHora(insp.hora)}`],
      ["Mes de trazabilidad", mesAnio(insp.trazabilidad), "Inspeccionado por", insp.inspector||"—"]],
     [32,62,32,W-2*M-126]);
 
@@ -1634,7 +1720,7 @@ function generarPDF(insp, guardar){
   doc.text(insp.inspector||"—", M, y-2);
   doc.text(insp.aprobadoPor || insp.lider || "—", M+80, y-2);
   doc.setFont("helvetica","normal"); doc.setFontSize(6.6); doc.setTextColor(140,148,158);
-  doc.text(`Registrado en la aplicación el ${insp.fecha} a las ${insp.hora}`, M, y+9);
+  doc.text(`Registrado en la aplicación el ${fFecha(insp.fecha)} a las ${fHora(insp.hora)}`, M, y+9);
 
   const total=doc.internal.getNumberOfPages();
   for(let p=1;p<=total;p++){
@@ -1644,7 +1730,7 @@ function generarPDF(insp, guardar){
     doc.text(`Página ${p} de ${total}`, W-M, 291, {align:"right"});
   }
 
-  const nombre = `Liberacion_${insp.orden||"SN"}_${insp.codigoBPCS}_${insp.fecha}.pdf`;
+  const nombre = `Liberacion_${insp.orden||"SN"}_${insp.codigoBPCS}_${fFecha(insp.fecha)}.pdf`;
   if(guardar) doc.save(nombre); else window.open(doc.output("bloburl"),"_blank");
 }
 
@@ -1690,11 +1776,13 @@ document.getElementById("cBuscar").addEventListener("click",()=>{
     </div>
     ${res.map(i=>{
       const nc = i.resultados.filter(r=>r.resultado==="Rechazo").length;
+      const rc = datosRef(i);
       const cl = colorDec(i);
       return `<div class="lista-item dec-${cl}">
         <div class="info">
-          <b>${i.orden?ocTxt(i.orden):"—"} · ${i.producto}${i.numero>1?`<span class="chip-re">Reinspección ${i.numero}</span>`:""}</b>
-          <span class="meta">${i.fecha} ${i.hora} · Inspector: ${i.inspector} · Cant: ${i.cantidadRecibida} (muestra ${i.cantidadMuestra})</span>
+          <b>${rc.producto}${i.numero>1?`<span class="chip-re">Reinspección ${i.numero}</span>`:""}</b>
+          <span class="meta">Orden de compra <b>${rc.orden}</b> · BPCS <b>${rc.bpcs}</b>${rc.proveedor?` · ${rc.proveedor}`:""}</span>
+          <span class="meta">${fFechaHora(i)} · Inspector: ${i.inspector||"—"} · Cantidad ${i.cantidadRecibida||"—"} (muestra ${i.cantidadMuestra||"—"})</span>
           <span class="meta">${nc?`<span style="color:var(--bad-text);">${nc} variable(s) en rechazo</span>`:"todas las variables conformes"}</span>
         </div>
         <div class="acciones">
@@ -1875,6 +1963,13 @@ function pintarPager(id, total, pagina, onIr){
 }
 
 function renderAdmin(){
+  // la gestión de usuarios es solo del jefe de calidad
+  const tabU = document.getElementById("admTabUsuarios");
+  tabU.style.display = gestionaUsuarios() ? "block" : "none";
+  if(!gestionaUsuarios() && admSubvista() === "usuarios"){
+    document.querySelectorAll("#admSeg button").forEach(x=>x.classList.remove("on"));
+    document.querySelector("#admSeg [data-a='listas']").classList.add("on");
+  }
   const vista = admSubvista();
   document.getElementById("admListas").style.display   = vista==="listas"   ? "block":"none";
   document.getElementById("admOrdenes").style.display  = vista==="ordenes"  ? "block":"none";
@@ -1899,10 +1994,6 @@ function renderListasAdmin(){
   const q = (document.getElementById("admBuscarListas").value||"").trim().toLowerCase();
   const orden = document.getElementById("admOrdenarListas").value;
 
-  // índice de uso: en cuántas órdenes está cada lista y cuántas siguen pendientes
-  const pend = {};
-  referenciasPendientes().forEach(r=> pend[r.lista.id] = (pend[r.lista.id]||0)+1);
-
   let items = S.listas.map((l,idx)=>({l, idx}));
   if(q) items = items.filter(({l}) =>
     `${l.nombre} ${l.codigoBPCS||""} ${l.codigoDoc||""} ${l.version||""}`.toLowerCase().includes(q));
@@ -1923,7 +2014,6 @@ function renderListasAdmin(){
     <div class="lista-item">
       <div class="info"><b>${l.nombre}</b>
         <span class="meta">BPCS ${l.codigoBPCS||"—"} · ${(l.variables||[]).length} variables · ${l.codigoDoc||"sin código"}${l.version?" · "+l.version:""} · nivel ${l.nivelInspeccion||"—"} · AQL ${l.aql??"—"}</span></div>
-      ${pend[l.id]?`<span class="ind pend">${pend[l.id]} pendiente(s)</span>`:""}
       <div class="acciones">
         <button class="btn-sec" data-edit="${idx}">Editar</button>
         <button class="btn-sec" data-dup="${idx}">Duplicar</button>
@@ -1977,10 +2067,11 @@ function renderOrdenesAdmin(){
   ob.innerHTML = vis.length ? vis.map(({o,idx})=>{
     const p = pendPorOC[String(o.numero)] || 0;
     const t = (o.productos||[]).length;
+    const insp = inspeccionesDeOrden(o.numero).length;
     return `<div class="lista-item">
       <div class="info"><b>${ocTxt(o.numero)}</b>
-        <span class="meta">${o.proveedor||"sin proveedor"} · ${t} referencia(s)</span></div>
-      <span class="ind ${p?"pend":"ok"}">${p ? `${p} pendiente(s)` : (t ? "cerrada" : "sin referencias")}</span>
+        <span class="meta">${o.proveedor||"sin proveedor"} · ${t} referencia(s)${insp?` · ${insp} inspección(es) registradas`:""}</span></div>
+      <span class="ind ${p?"pend":"ok"}">${t===0 ? "sin referencias" : p ? `faltan ${p} de ${t}` : "todas liberadas"}</span>
       <div class="acciones">
         <button class="btn-sec" data-oedit="${idx}">Editar</button>
         <button class="btn-sec" data-odel="${idx}" style="color:var(--bad-text);">Eliminar</button>
@@ -1997,11 +2088,18 @@ function renderOrdenesAdmin(){
   ob.querySelectorAll("[data-oedit]").forEach(b=>b.addEventListener("click",()=>abrirModalOrden(+b.dataset.oedit)));
   ob.querySelectorAll("[data-odel]").forEach(b=>b.addEventListener("click",()=>{
     const o = S.ordenes[+b.dataset.odel];
-    if(confirm(`¿Eliminar la orden ${ocTxt(o.numero)}?`)){
-      S.ordenes.splice(+b.dataset.odel,1); persist();
-      enviarConfig("borrarOrden", {numero:o.numero});
-      renderAdmin(); refrescarSelectores();
-    }
+    const insp = inspeccionesDeOrden(o.numero);
+    const aviso = insp.length
+      ? `¿Eliminar la orden ${ocTxt(o.numero)}?\n\nSe borrarán también sus ${insp.length} inspección(es): ` +
+        `pendientes, en espera de aprobación, aprobadas y rechazadas. Esto no se puede deshacer.`
+      : `¿Eliminar la orden ${ocTxt(o.numero)}?`;
+    if(!confirm(aviso)) return;
+    S.ordenes.splice(+b.dataset.odel,1);
+    S.inspecciones = S.inspecciones.filter(i => String(i.orden).trim() !== String(o.numero).trim());
+    persist();
+    enviarConfig("borrarOrden", {numero:o.numero, conInspecciones:true});
+    renderAdmin(); refrescarSelectores(); actualizarPill(); actualizarEstadoSync();
+    toast(insp.length ? `Orden e ${insp.length} inspección(es) eliminadas` : "Orden eliminada");
   }));
 }
 document.getElementById("admBuscarOrdenes").addEventListener("input", ()=>{ admPag.ordenes=1; renderOrdenesAdmin(); });
@@ -2254,7 +2352,7 @@ function renderPendientesInsp(){
               <b>${r.lista.nombre}</b>
               <div style="font-size:.74rem;color:var(--text-dim);">
                 BPCS ${r.lista.codigoBPCS||"—"}${r.lista.codigoDoc?` · ${r.lista.codigoDoc}`:""}
-                ${r.ultima?` · última: ${r.ultima.fecha} ${r.ultima.hora||""} · ${r.ultima.inspector||""}`:""}
+                ${r.ultima?` · última: ${fFechaHora(r.ultima)} · ${r.ultima.inspector||""}`:""}
               </div>
               ${motivoUltima(r)}
             </div>
@@ -2322,6 +2420,8 @@ const IC = {
   arriba:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg>'
 };
 
+function txtVars(n){ return n===1 ? "Ver la variable" : `Ver las ${n} variables`; }
+
 function renderAprobaciones(){
   const box  = document.getElementById("aprobLista");
   const boxI = document.getElementById("aprobPorInsp");
@@ -2330,7 +2430,7 @@ function renderAprobaciones(){
   const btnF = document.querySelector("#aprobFiltro button.on");
   const vista = btnF ? btnF.dataset.f : "aprobar";
 
-  const colaTodo = S.inspecciones.filter(i => estadoDe(i) === "pendiente_aprobacion");
+  const colaTodo = S.inspecciones.filter(i => estadoDe(i) === "pendiente_aprobacion" && ordenViva(i));
   const refsTodo = referenciasPendientes().filter(r => !r.ultima || estadoDe(r.ultima) !== "pendiente_aprobacion");
   document.getElementById("nAprobar").textContent      = colaTodo.length;
   document.getElementById("nInspeccionar").textContent = refsTodo.length;
@@ -2360,13 +2460,14 @@ function renderAprobaciones(){
     const nc = (i.resultados||[]).filter(r=>r.resultado==="Rechazo").length;
     const tot = (i.resultados||[]).length;
     const ok = tot - nc;
+    const r = datosRef(i);
     return `<div class="ap-card${nc?" conNC":""}">
       <div class="ap-head">
         <div class="tit">
-          <b>${i.producto}</b>${i.numero>1?` <span class="chip-re">Reinspección ${i.numero}</span>`:""}
-          <div class="meta">${ocTxt(i.orden)}${i.proveedor?` · ${i.proveedor}`:""} · BPCS ${i.codigoBPCS||"—"}</div>
+          <b>${r.producto}</b>${i.numero>1?` <span class="chip-re">Reinspección ${i.numero}</span>`:""}
+          <div class="meta">Orden de compra <b>${r.orden}</b> · BPCS <b>${r.bpcs}</b>${r.proveedor?` · ${r.proveedor}`:""}</div>
         </div>
-        <div class="quien">${i.inspector||"—"}<br>${i.fecha} ${i.hora||""}</div>
+        <div class="quien">Inspector: ${i.inspector||"—"}<br>${fFechaHora(i)}</div>
         <div class="ap-sep"></div>
         <div class="ap-acciones">
           <button class="ok"   data-dec="aprobado"           data-id="${i.id}" title="Aprobar"                aria-label="Aprobar">${IC.ok}</button>
@@ -2385,7 +2486,7 @@ function renderAprobaciones(){
         <div class="d"><span>No conformes</span><b class="${nc?"mal":""}">${nc}</b></div>
         <div class="d"><span>Trazabilidad</span><b>${mesAnio(i.trazabilidad)}</b></div>
         <div style="flex:1;"></div>
-        <button class="ver-mas" data-det="${i.id}">Ver las ${tot} variables ${IC.abajo}</button>
+        <button class="ver-mas" data-det="${i.id}">${txtVars(tot)} ${IC.abajo}</button>
       </div>
       ${i.observaciones?`<div class="ap-motivo">${i.observaciones}</div>`:""}
       <div class="ap-body">
@@ -2407,7 +2508,7 @@ function renderAprobaciones(){
     const abierto = d.classList.toggle("show");
     b.innerHTML = abierto
       ? `Ocultar variables ${IC.arriba}`
-      : `Ver las ${d.querySelectorAll("tbody tr").length} variables ${IC.abajo}`;
+      : `${txtVars(d.querySelectorAll("tbody tr").length)} ${IC.abajo}`;
   }));
   box.querySelectorAll("[data-pdf]").forEach(b=>b.addEventListener("click",()=>{
     const ins = S.inspecciones.find(i=>i.id===b.dataset.pdf);
@@ -2454,7 +2555,7 @@ function renderPorInspeccionarJefe(refs, q, box){
             <b>${r.lista.nombre}</b>
             <div style="font-size:.74rem;color:var(--text-dim);">
               BPCS ${r.lista.codigoBPCS||"—"}
-              ${r.ultima?` · última: ${r.ultima.fecha} ${r.ultima.hora||""} · ${r.ultima.inspector||""}`:""}
+              ${r.ultima?` · última: ${fFechaHora(r.ultima)} · ${r.ultima.inspector||""}`:""}
             </div>
             ${motivoUltima(r)}
           </div>
@@ -2574,7 +2675,7 @@ function renderUsuariosAdmin(){
         <b>${u.nombre||u.usuario}</b>
         <div style="font-size:.74rem;color:var(--text-dim);">usuario: ${u.usuario} · PIN ${String(u.pin||"").replace(/./g,"•")}${act?"":" · inactivo"}</div>
       </div>
-      <span class="rolx ${u.rol==="jefe"?"jefe":"inspector"}">${u.rol==="jefe"?"Jefe":"Inspector"}</span>
+      <span class="rolx ${u.rol==="jefe"?"jefe":u.rol==="coordinador"?"coord":"inspector"}">${nombreRol(u.rol)}</span>
       <div class="acciones">
         <button class="btn-sec" data-uedit="${idx}">Editar</button>
         <button class="btn-sec" data-udel="${idx}" style="color:var(--bad-text);">Eliminar</button>
@@ -2586,6 +2687,7 @@ function renderUsuariosAdmin(){
   box.querySelectorAll("[data-uedit]").forEach(b=>b.addEventListener("click",()=>abrirModalUsuario(+b.dataset.uedit)));
   box.querySelectorAll("[data-udel]").forEach(b=>b.addEventListener("click",()=>{
     const u = S.usuarios[+b.dataset.udel];
+    if(!gestionaUsuarios()){ toast("Solo el jefe de calidad elimina usuarios"); return; }
     if(S.usuarios.filter(x=>x.rol==="jefe").length===1 && u.rol==="jefe"){
       toast("Debe quedar al menos un jefe de calidad"); return;
     }
@@ -2598,6 +2700,7 @@ function renderUsuariosAdmin(){
 document.getElementById("admBuscarUsuarios").addEventListener("input", renderUsuariosAdmin);
 
 function abrirModalUsuario(idx){
+  if(!gestionaUsuarios()){ toast("Solo el jefe de calidad gestiona los usuarios"); return; }
   usuarioEditIdx = (idx==null) ? null : idx;
   const u = usuarioEditIdx!=null ? S.usuarios[usuarioEditIdx] : {usuario:"",nombre:"",pin:"",rol:"inspector",activo:"Sí"};
   document.getElementById("muTitulo").textContent = usuarioEditIdx!=null ? "Editar usuario" : "Nuevo usuario";
@@ -2609,7 +2712,10 @@ function abrirModalUsuario(idx){
   document.getElementById("muActivo").value  = String(u.activo||"Sí").toLowerCase().startsWith("s") ? "Sí" : "No";
   document.getElementById("modalUsuario").classList.add("show");
 }
-document.getElementById("btnNuevoUsuario").addEventListener("click",()=>abrirModalUsuario(null));
+document.getElementById("btnNuevoUsuario").addEventListener("click",()=>{
+  if(!gestionaUsuarios()){ toast("Solo el jefe de calidad crea usuarios"); return; }
+  abrirModalUsuario(null);
+});
 document.getElementById("muCancelar").addEventListener("click",()=>document.getElementById("modalUsuario").classList.remove("show"));
 document.getElementById("muGuardar").addEventListener("click",()=>{
   const usuario = document.getElementById("muUsuario").value.trim().toLowerCase().replace(/\s+/g,"");
