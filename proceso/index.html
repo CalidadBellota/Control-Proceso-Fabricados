@@ -20,7 +20,6 @@
   body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
     background:var(--bg);color:var(--text);}
   h1,h2,h3,h4{margin:0;}
-  button{font-family:inherit;}
   label{display:block;font-size:.76rem;font-weight:600;color:var(--text-dim);margin-bottom:5px;}
   select,input[type=text],input[type=number],input[type=date],input[type=month],
   input[type=password],input[type=time],textarea{
@@ -96,10 +95,22 @@
     padding:18px 20px;margin-bottom:16px;}
   .section-title{display:flex;justify-content:space-between;align-items:center;gap:14px;
     flex-wrap:wrap;margin-bottom:14px;}
-  .section-title h2{font-size:.84rem;font-weight:800;letter-spacing:.05em;color:var(--red-dark);}
+  .section-title h2{margin:0;font-size:.9rem;font-weight:800;letter-spacing:.3px;color:var(--red);}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
   .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  /* encabezado del registro: 12 columnas para repartir a medida */
+  #encabezadoCampos{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;}
+  #encabezadoCampos .campo{grid-column:span 3;}
+  #encabezadoCampos .campo.ancho{grid-column:span 5;}
+  #encabezadoCampos .campo.corto{grid-column:span 2;}
+  #encabezadoCampos .campo.completo{grid-column:1 / -1;}
+  @media(max-width:900px){
+    #encabezadoCampos{grid-template-columns:repeat(6,minmax(0,1fr));}
+    #encabezadoCampos .campo{grid-column:span 3;}
+    #encabezadoCampos .campo.ancho{grid-column:span 6;}
+    #encabezadoCampos .campo.corto{grid-column:span 3;}
+  }
   @media(max-width:900px){.grid3,.grid4{grid-template-columns:1fr 1fr;}}
   @media(max-width:620px){.grid2,.grid3,.grid4{grid-template-columns:1fr;}}
   .empty-mini{padding:26px;color:var(--text-dim);font-size:.85rem;text-align:center;}
@@ -274,7 +285,7 @@
   /* validado, pero el proceso no estuvo trabajando */
   .matriz td.p{background:#eef1f6;color:#5a6270;border:1px dashed #b9c0cb;}
   .matriz .grupo td{padding-top:12px;font-size:.7rem;font-weight:800;letter-spacing:.06em;
-    color:var(--red-dark);text-transform:uppercase;}
+    color:var(--red);text-transform:uppercase;}
 
   /* ---------- Administrar ---------- */
   .adm-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
@@ -976,10 +987,10 @@ function referenciasDe(linea){
 const CAMPOS_ENC = {
   ordenFabricacion: {etq:"Orden de fabricación", oblig:true},
   referencia:       {etq:"Referencia",           oblig:true},
-  tipoAcero:        {etq:"Tipo de acero",        oblig:false},
+  tipoAcero:        {etq:"Acero",                oblig:false},
   proveedor:        {etq:"Proveedor",            oblig:false},
   material:         {etq:"Material / resina",  oblig:false},
-  espesorAcero:     {etq:"Espesor del acero (mm)", oblig:false},
+  espesorAcero:     {etq:"Espesor (mm)",         oblig:false},
   maquina:          {etq:"Máquina",              oblig:false}
 };
 
@@ -1289,7 +1300,7 @@ function renderEncabezado(f){
   const campos = [];
 
   if(f.linea === "Limas"){
-    campos.push(`<div class="campo" style="grid-column:1 / -1;">
+    campos.push(`<div class="campo completo">
       <label>Tipo de lima *</label>
       <div class="seg" id="segLima" style="width:fit-content;">
         <button type="button" data-tl="fabricada" class="on">Fabricada en planta</button>
@@ -1313,19 +1324,19 @@ function renderEncabezado(f){
     } else if(k === "espesorAcero"){
       const es = espesoresDe(f.linea);
       if(!es.length) return;                    // línea sin espesor: el campo no va
-      campos.push(`<div class="campo"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
-        <select id="e_${k}"><option value="">Selecciona</option>${
+      campos.push(`<div class="campo corto"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
+        <select id="e_${k}"><option value="">—</option>${
           es.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")}</select></div>`);
     } else if(k === "tipoAcero"){
-      campos.push(`<div class="campo"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
-        <select id="e_${k}"><option value="">Selecciona</option>${
+      campos.push(`<div class="campo corto"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
+        <select id="e_${k}"><option value="">—</option>${
           ACEROS.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")
-        }<option value="__otra">Otro (escribirlo)</option></select>
+        }<option value="__otra">Otro…</option></select>
         <input type="text" id="e_${k}_otra" placeholder="Escribe el acero"
                style="margin-top:8px;display:none;"></div>`);
     } else if(k === "referencia" && referenciasDe(f.linea).length){
       // buscador con lista filtrada: un select nativo con 256 opciones es inmanejable
-      campos.push(`<div class="campo"><label for="refBusca">${c.etq}${c.oblig?" *":""}</label>
+      campos.push(`<div class="campo ancho"><label for="refBusca">${c.etq}${c.oblig?" *":""}</label>
         <div class="combo" id="comboRef">
           <input type="hidden" id="e_${k}" value="">
           <input type="text" class="combo-busca" id="refBusca" autocomplete="off"
