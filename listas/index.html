@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Listas de Chequeo — Bellota</title>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root{--red:#E2001A;--bg:#f3f4f6;--panel:#fff;--border:#e3e5e9;--text:#1c1f24;--text-dim:#6b7280;
         --ok-bg:#e8f8ef;--ok-text:#1f9d55;--bad-bg:#fdeaea;--bad-text:#c81d2e;--radius:10px;}
@@ -394,13 +395,46 @@
   .modal-actions button.primary{background:var(--red);border-color:var(--red);color:#fff;}
   .footer-link{display:block;text-align:center;color:var(--text-dim);font-size:.78rem;margin-top:4px;text-decoration:underline;cursor:pointer;}
 
+  /* ---------- Dashboard ---------- */
+  .filtros-dash{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;}
+  .filtros-dash .campo{margin:0;min-width:165px;flex:1;}
+  .filtros-dash .btn-sec{height:42px;}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-bottom:16px;}
+  .kpi{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;}
+  .kpi .rot{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:#8b939e;font-weight:700;}
+  .kpi .cifra{font-size:2rem;font-weight:700;line-height:1.1;margin-top:7px;letter-spacing:-.02em;}
+  .kpi .pie{font-size:.75rem;color:var(--text-dim);margin-top:5px;}
+  .kpi .cifra.bien{color:#0e8a5f;} .kpi .cifra.mal{color:#c4142c;} .kpi .cifra.esp{color:#3d6bbf;}
+  .dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px;}
+  .panel.grafico{padding:18px 20px 16px;}
+  .panel.grafico h3{margin:0;font-size:.95rem;font-weight:700;}
+  .panel.grafico .sub{margin:5px 0 0;font-size:.76rem;color:var(--text-dim);line-height:1.45;}
+  .lienzo{position:relative;height:270px;margin-top:14px;}
+  .lienzo.alto{height:300px;}
+  .datos-tabla{margin-top:12px;border-top:1px solid #f0f1f4;padding-top:10px;}
+  .datos-tabla summary{font-size:.75rem;color:var(--text-dim);cursor:pointer;font-weight:600;}
+  .datos-tabla table{width:100%;border-collapse:collapse;font-size:.76rem;margin-top:9px;}
+  .datos-tabla th{text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;
+    color:#8b939e;padding:5px 8px;border-bottom:1px solid var(--border);}
+  .datos-tabla td{padding:5px 8px;border-bottom:1px solid #f4f5f7;}
+  .datos-tabla td.n{text-align:right;font-weight:700;}
+  .datos-tabla .pt{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;}
+  @media(max-width:700px){.dash-grid{grid-template-columns:1fr;}}
+
   .var-edit{display:grid;grid-template-columns:20px 22px 2fr .9fr .9fr .8fr .8fr 54px 46px;gap:8px;
     margin-bottom:8px;align-items:center;background:#fff;border-radius:7px;}
-  .var-edit .agarre{cursor:grab;color:#c2c7cf;text-align:center;font-size:1rem;line-height:1;
-    user-select:none;touch-action:none;}
-  .var-edit .agarre:active{cursor:grabbing;}
-  .var-edit.arrastrando{opacity:.45;}
+  /* agarradera grande: es la única zona que inicia el arrastre, así que debe ser fácil de pillar */
+  .var-edit .agarre{cursor:grab;color:#aeb4bd;display:flex;align-items:center;justify-content:center;
+    font-size:1.05rem;line-height:1;user-select:none;touch-action:none;align-self:stretch;
+    min-height:36px;border-radius:6px;}
+  .var-edit .agarre:hover{background:#eef0f3;color:#6b7280;}
+  .var-edit .agarre:active{cursor:grabbing;background:#e4e7ec;}
+  .var-edit.arrastrando{opacity:.5;background:#f3f4f7;box-shadow:0 2px 10px rgba(0,0,0,.12);}
   .var-edit.destino{box-shadow:0 -2px 0 0 var(--red);}
+  /* mientras se arrastra, nada de selección de texto ni cursores de campo */
+  body.arrastrando-fila{user-select:none;cursor:grabbing;}
+  body.arrastrando-fila .var-edit input,
+  body.arrastrando-fila .var-edit select{pointer-events:none;}
   .var-edit .critbox{display:flex;align-items:center;justify-content:center;}
   .var-edit .critbox input{width:17px;height:17px;accent-color:var(--red);cursor:pointer;margin:0;}
   .var-edit.es-critica{background:#fef7f7;}
@@ -461,6 +495,7 @@
       <nav class="tabs">
         <button id="tabPend" class="active">Pendientes</button>
         <button id="tabAprob">Aprobaciones<span class="pill-n" id="pillAprob"></span></button>
+        <button id="tabDash">Dashboard</button>
         <button id="tabInsp">Inspeccionar</button>
         <button id="tabCons">Consultar</button>
         <button id="tabAdmin">Administrar</button>
@@ -498,6 +533,61 @@
     </div>
   </div>
   <div id="pendLista"></div>
+</section>
+
+<!-- ============ DASHBOARD ============ -->
+<section id="viewDash" style="display:none;">
+  <div class="panel">
+    <div class="section-title"><h2>INDICADORES DE RECEPCIÓN</h2>
+      <span id="dashRango" style="font-size:.74rem;color:var(--text-dim);"></span></div>
+    <div class="filtros-dash">
+      <div class="campo"><label for="dDesde">Desde</label><input type="date" id="dDesde"></div>
+      <div class="campo"><label for="dHasta">Hasta</label><input type="date" id="dHasta"></div>
+      <div class="campo"><label for="dProveedor">Proveedor</label>
+        <select id="dProveedor"><option value="">Todos</option></select></div>
+      <div class="campo"><label for="dProducto">Producto</label>
+        <select id="dProducto"><option value="">Todos</option></select></div>
+      <button class="btn-sec" id="dLimpiar" type="button">Limpiar</button>
+    </div>
+  </div>
+
+  <div id="dashVacio" style="display:none;">
+    <div class="panel"><div class="empty-mini">Todavía no hay inspecciones en ese rango.</div></div>
+  </div>
+
+  <div id="dashCuerpo">
+    <div class="kpis" id="dashKpis"></div>
+
+    <div class="dash-grid">
+      <div class="panel grafico">
+        <h3>En qué terminan los lotes</h3>
+        <p class="sub">Reparto de las decisiones del responsable de revisión y liberación.</p>
+        <div class="lienzo alto"><canvas id="gDecision"></canvas></div>
+        <details class="datos-tabla"><summary>Ver los datos</summary><div id="tDecision"></div></details>
+      </div>
+
+      <div class="panel grafico">
+        <h3>Cómo va mes a mes</h3>
+        <p class="sub">Inspecciones registradas cada mes, partidas por la decisión que recibieron.</p>
+        <div class="lienzo alto"><canvas id="gMes"></canvas></div>
+        <details class="datos-tabla"><summary>Ver los datos</summary><div id="tMes"></div></details>
+      </div>
+
+      <div class="panel grafico">
+        <h3>Qué es lo que más falla</h3>
+        <p class="sub">Variables con más rechazos. Aquí se ve dónde atacar primero.</p>
+        <div class="lienzo"><canvas id="gVars"></canvas></div>
+        <details class="datos-tabla"><summary>Ver los datos</summary><div id="tVars"></div></details>
+      </div>
+
+      <div class="panel grafico">
+        <h3>Quién nos manda los problemas</h3>
+        <p class="sub">Lotes rechazados o bloqueados, por proveedor.</p>
+        <div class="lienzo"><canvas id="gProv"></canvas></div>
+        <details class="datos-tabla"><summary>Ver los datos</summary><div id="tProv"></div></details>
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- ============ APROBACIONES ============ -->
@@ -1508,6 +1598,7 @@ function aplicarRol(){
   const jefe = esJefe();
   document.getElementById("tabAprob").style.display = jefe ? "block" : "none";
   document.getElementById("tabAdmin").style.display = jefe ? "block" : "none";
+  document.getElementById("tabDash").style.display  = jefe ? "block" : "none";
   document.getElementById("tabInsp").style.display  = jefe ? "none"  : "block";
   // jefe y coordinador ven ambas colas dentro de Aprobaciones, no necesitan Pendientes
   document.getElementById("tabPend").style.display  = jefe ? "none"  : "block";
@@ -1974,6 +2065,220 @@ async function limpiarHuerfanasEnHoja(){
 }
 
 
+/* ==========================================================================
+   DASHBOARD  ·  solo jefe y coordinador
+   Paleta de estado validada para daltonismo; el gris de "bloqueado" es
+   deliberadamente neutro y siempre va acompañado de leyenda y tabla.
+   ========================================================================== */
+/* Cinco grupos y no seis: con seis tonos hay parejas que un daltónico no
+   distingue. "En trámite" se abre en sus dos partes en la tabla de datos. */
+const DASH_ESTADOS = [
+  {txt:"Aprobado",       col:"#0e8a5f", ks:["aprobado"]},
+  {txt:"Bajo condición", col:"#c9830a", ks:["aprobado_condicion"]},
+  {txt:"Rechazado",      col:"#c4142c", ks:["rechazado_lote"]},
+  {txt:"En trámite",     col:"#3d6bbf", ks:["pendiente_aprobacion","devuelto"]},
+  {txt:"Bloqueado",      col:"#4a515c", ks:["bloqueado"]}
+];
+const DETALLE_TRAMITE = {pendiente_aprobacion:"esperando revisión y liberación",
+                         devuelto:"devuelta al inspector"};
+const SUPERFICIE = "#ffffff";
+const TINTA = "#1c1f24", TINTA_TENUE = "#6b7280", REJILLA = "#eef0f3";
+const graficos = {};
+
+function mesClave(f){ const m=String(f||"").match(/^(\d{4})-(\d{2})/); return m?`${m[1]}-${m[2]}`:""; }
+function mesTexto(k){ const m=k.match(/^(\d{4})-(\d{2})/); return m?`${MESES[+m[2]-1]} ${m[1]}`:k; }
+function pct(a,b){ return b ? Math.round(a*1000/b)/10 : 0; }
+
+/** Inspecciones que alimentan el tablero, ya filtradas. */
+function inspeccionesDash(){
+  const desde = document.getElementById("dDesde").value;
+  const hasta = document.getElementById("dHasta").value;
+  const prov  = document.getElementById("dProveedor").value;
+  const prod  = document.getElementById("dProducto").value;
+  return S.inspecciones.filter(i=>
+    ordenViva(i) &&
+    (!desde || String(i.fecha) >= desde) &&
+    (!hasta || String(i.fecha) <= hasta) &&
+    (!prov  || (datosRef(i).proveedor || "") === prov) &&
+    (!prod  || String(i.listaId) === prod));
+}
+
+function refrescarFiltrosDash(){
+  const selP = document.getElementById("dProveedor");
+  if(selP){
+    const previo = selP.value;
+    const provs = [...new Set(S.inspecciones.filter(ordenViva)
+      .map(i=>datosRef(i).proveedor).filter(Boolean))].sort();
+    selP.innerHTML = `<option value="">Todos</option>` +
+      provs.map(p=>`<option value="${p}">${p}</option>`).join("");
+    if(provs.includes(previo)) selP.value = previo;
+  }
+  const selL = document.getElementById("dProducto");
+  if(selL){
+    const previo = selL.value;
+    selL.innerHTML = `<option value="">Todos</option>` +
+      S.listas.slice().sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre)))
+        .map(l=>`<option value="${l.id}">${l.nombre}</option>`).join("");
+    if(previo) selL.value = previo;
+  }
+}
+
+function tablaDatos(cols, filas){
+  return `<table><thead><tr>${cols.map((c,k)=>`<th${k?' style="text-align:right;"':''}>${c}</th>`)
+    .join("")}</tr></thead><tbody>${filas.map(f=>`<tr>
+      <td>${f.color?`<span class="pt" style="background:${f.color};"></span>`:""}${f.etq}</td>
+      ${f.vals.map(v=>`<td class="n">${v}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+
+function pintarGrafico(id, cfg){
+  if(graficos[id]) graficos[id].destroy();
+  const cv = document.getElementById(id);
+  if(cv && window.Chart) graficos[id] = new Chart(cv.getContext("2d"), cfg);
+}
+
+function renderDashboard(){
+  if(!document.getElementById("dashKpis")) return;
+  refrescarFiltrosDash();
+  const ins = inspeccionesDash();
+
+  document.getElementById("dashVacio").style.display  = ins.length ? "none"  : "block";
+  document.getElementById("dashCuerpo").style.display = ins.length ? "block" : "none";
+  const rango = document.getElementById("dashRango");
+  if(rango) rango.textContent = ins.length
+    ? `${ins.length} inspección(es) · ${new Set(ins.map(i=>String(i.orden))).size} orden(es) de compra` : "";
+  if(!ins.length){ Object.values(graficos).forEach(g=>g.destroy()); return; }
+
+  /* ---- Indicadores ---- */
+  const porEstado = {};                                   // por estado exacto
+  ins.forEach(i=>{ const e=estadoDe(i); porEstado[e]=(porEstado[e]||0)+1; });
+  const cuenta = g => g.ks.reduce((n,k)=>n+(porEstado[k]||0), 0);
+
+  const primeras  = ins.filter(i=>(+i.numero||1)===1);
+  const decididas = primeras.filter(i=>estadoDe(i)!=="pendiente_aprobacion");
+  const liberadas = decididas.filter(i=>ESTADOS_CIERRAN.includes(estadoDe(i)));
+  const reinsp    = ins.filter(i=>(+i.numero||1)>1);
+  const criticas  = ins.reduce((n,i)=>n+criticasNC(i).length, 0);
+
+  document.getElementById("dashKpis").innerHTML = `
+    <div class="kpi"><div class="rot">Inspecciones</div>
+      <div class="cifra">${ins.length}</div>
+      <div class="pie">${primeras.length} primeras · ${reinsp.length} reinspecciones</div></div>
+    <div class="kpi"><div class="rot">Liberado a la primera</div>
+      <div class="cifra ${pct(liberadas.length,decididas.length)>=90?"bien":"mal"}">${
+        decididas.length?pct(liberadas.length,decididas.length)+"%":"—"}</div>
+      <div class="pie">${liberadas.length} de ${decididas.length} lotes ya decididos</div></div>
+    <div class="kpi"><div class="rot">Reinspecciones</div>
+      <div class="cifra ${reinsp.length?"mal":""}">${reinsp.length}</div>
+      <div class="pie">${pct(reinsp.length,ins.length)}% del total inspeccionado</div></div>
+    <div class="kpi"><div class="rot">Esperando mi firma</div>
+      <div class="cifra ${porEstado.pendiente_aprobacion?"esp":""}">${porEstado.pendiente_aprobacion||0}</div>
+      <div class="pie">${criticas} rechazo(s) en variables críticas</div></div>`;
+
+  /* ---- 1. Dona: en qué terminan los lotes ---- */
+  const vivos = DASH_ESTADOS.filter(e=>cuenta(e) > 0);
+  pintarGrafico("gDecision", {
+    type:"doughnut",
+    data:{ labels: vivos.map(e=>e.txt),
+      datasets:[{ data: vivos.map(e=>cuenta(e)), backgroundColor: vivos.map(e=>e.col),
+        borderColor: SUPERFICIE, borderWidth: 2, hoverOffset: 6 }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:"58%",
+      plugins:{
+        legend:{ position:"right", labels:{ boxWidth:11, boxHeight:11, usePointStyle:true,
+          pointStyle:"rectRounded", color:TINTA, font:{size:12}, padding:13 } },
+        tooltip:{ callbacks:{ label: c => ` ${c.label}: ${c.parsed} (${pct(c.parsed, ins.length)}%)` } }
+      } }
+  });
+  document.getElementById("tDecision").innerHTML = tablaDatos(["Decisión","Lotes","%"],
+    vivos.flatMap(e=>{
+      const fila = [{etq:e.txt, color:e.col, vals:[cuenta(e), pct(cuenta(e),ins.length)+"%"]}];
+      if(e.ks.length > 1) e.ks.forEach(k=>{ if(porEstado[k])
+        fila.push({etq:`&nbsp;&nbsp;&nbsp;de ellas, ${DETALLE_TRAMITE[k]||k}`,
+                   vals:[porEstado[k], pct(porEstado[k],ins.length)+"%"]}); });
+      return fila;
+    }));
+
+  /* ---- 2. Barras apiladas: mes a mes ---- */
+  const meses = [...new Set(ins.map(i=>mesClave(i.fecha)).filter(Boolean))].sort();
+  const porMes = e => meses.map(m => ins.filter(i=>
+    mesClave(i.fecha)===m && e.ks.includes(estadoDe(i))).length);
+  const series = DASH_ESTADOS.filter(e=>cuenta(e) > 0);
+  pintarGrafico("gMes", {
+    type:"bar",
+    data:{ labels: meses.map(mesTexto),
+      datasets: series.map(e=>({ label:e.txt, data:porMes(e), backgroundColor:e.col,
+        borderColor:SUPERFICIE, borderWidth:2, borderRadius:4, borderSkipped:false,
+        maxBarThickness:46 })) },
+    options:{ responsive:true, maintainAspectRatio:false,
+      scales:{ x:{ stacked:true, grid:{display:false}, ticks:{color:TINTA_TENUE, font:{size:11}},
+                   border:{color:REJILLA} },
+               y:{ stacked:true, beginAtZero:true, grid:{color:REJILLA}, border:{display:false},
+                   ticks:{color:TINTA_TENUE, font:{size:11}, precision:0},
+                   title:{display:true, text:"Inspecciones", color:TINTA_TENUE, font:{size:11}} } },
+      plugins:{ legend:{ position:"bottom", labels:{ boxWidth:11, boxHeight:11, usePointStyle:true,
+          pointStyle:"rectRounded", color:TINTA, font:{size:12}, padding:13 } } } }
+  });
+  document.getElementById("tMes").innerHTML = tablaDatos(["Mes", ...series.map(e=>e.txt)],
+    meses.map((m,k)=>({etq:mesTexto(m), vals:series.map(e=>porMes(e)[k])})));
+
+  /* ---- 3. Variables con más rechazos ---- */
+  const cuentaVar = {};
+  ins.forEach(i=>(i.resultados||[]).forEach(r=>{
+    if(r.resultado==="Rechazo" && r.nombre) cuentaVar[r.nombre] = (cuentaVar[r.nombre]||0)+1;
+  }));
+  const topVar = Object.entries(cuentaVar).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  barrasH("gVars", "tVars", topVar, "Rechazos", "Ninguna variable ha sido rechazada en este rango.");
+
+  /* ---- 4. Proveedores con lotes no liberados ---- */
+  const cuentaProv = {};
+  ins.filter(i=>["rechazado_lote","bloqueado"].includes(estadoDe(i))).forEach(i=>{
+    const p = datosRef(i).proveedor || "Sin proveedor";
+    cuentaProv[p] = (cuentaProv[p]||0)+1;
+  });
+  const topProv = Object.entries(cuentaProv).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  barrasH("gProv", "tProv", topProv, "Lotes", "Ningún lote rechazado ni bloqueado en este rango.");
+}
+
+/** Barras horizontales de magnitud: un solo tono, el largo es lo que habla. */
+function barrasH(idCanvas, idTabla, pares, unidad, vacio){
+  const cv = document.getElementById(idCanvas);
+  const caja = cv ? cv.parentNode : null;
+  if(graficos[idCanvas]){ graficos[idCanvas].destroy(); delete graficos[idCanvas]; }
+  if(!pares.length){
+    if(caja) caja.innerHTML = `<div class="empty-mini">${vacio}</div>`;
+    document.getElementById(idTabla).innerHTML = "";
+    return;
+  }
+  if(caja && !caja.querySelector("canvas")) caja.innerHTML = `<canvas id="${idCanvas}"></canvas>`;
+  const corto = t => String(t).length > 34 ? String(t).slice(0,33)+"…" : String(t);
+  pintarGrafico(idCanvas, {
+    type:"bar",
+    data:{ labels: pares.map(p=>corto(p[0])),
+      datasets:[{ data: pares.map(p=>p[1]), backgroundColor:"#c4142c", borderRadius:4,
+        borderSkipped:false, maxBarThickness:22 }] },
+    options:{ indexAxis:"y", responsive:true, maintainAspectRatio:false,
+      scales:{ x:{ beginAtZero:true, grid:{color:REJILLA}, border:{display:false},
+                   ticks:{color:TINTA_TENUE, font:{size:11}, precision:0},
+                   title:{display:true, text:unidad, color:TINTA_TENUE, font:{size:11}} },
+               y:{ grid:{display:false}, border:{color:REJILLA},
+                   ticks:{color:TINTA, font:{size:11}} } },
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ title: c => pares[c[0].dataIndex][0],
+                              label: c => ` ${c.parsed.x} ${unidad.toLowerCase()}` } } } }
+  });
+  document.getElementById(idTabla).innerHTML = tablaDatos(["Concepto", unidad],
+    pares.map(p=>({etq:p[0], vals:[p[1]]})));
+}
+
+["dDesde","dHasta","dProveedor","dProducto"].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener("change", renderDashboard);
+});
+const dLimp = document.getElementById("dLimpiar");
+if(dLimp) dLimp.addEventListener("click", ()=>{
+  ["dDesde","dHasta","dProveedor","dProducto"].forEach(id=>document.getElementById(id).value="");
+  renderDashboard();
+});
+
 /* ---------- Catálogo compartido: listas y órdenes en la Sheet ---------- */
 async function cargarConfig(){
   if(!S.syncUrl){ marcarConfigSync(false); return; }
@@ -2286,7 +2591,7 @@ function filaVarHTML(v={}){
   const ti = v.tolInf!=null ? v.tolInf : (v.tol!=null?v.tol:"");
   const ts = v.tolSup!=null ? v.tolSup : (v.tol!=null?v.tol:"");
   const suf = v.tolTipo==="pct" ? "%" : "";
-  return `<div class="var-edit${v.critica?" es-critica":""}" draggable="true">
+  return `<div class="var-edit${v.critica?" es-critica":""}">
     <span class="agarre" title="Arrastra para cambiar el orden">⠿</span>
     <span class="num"></span>
     <input type="text" class="v-nom" placeholder="Nombre de la variable" value="${(v.nombre||"").replace(/"/g,"&quot;")}">
@@ -2323,59 +2628,80 @@ function abrirModalLista(idx){
   engancharFilasVar();
   document.getElementById("modalLista").classList.add("show");
 }
-/* Arrastre de filas: con el mouse (HTML5) y con el dedo (pointer events). */
-let filaArrastrada = null;
+/* Arrastre de filas desde la agarradera, igual con mouse, dedo o lápiz.
+   El arrastre nativo del navegador daba saltos y peleaba con los campos de texto. */
+let arrastre = null;      // {fila, punteroId, autoScroll}
 
 function limpiarDestinos(){
   document.querySelectorAll("#mlVars .var-edit").forEach(f=>f.classList.remove("destino"));
 }
+/** Primera fila cuyo centro queda por debajo del cursor: ahí se inserta. */
 function filaBajoElPunto(y){
   const filas = [...document.querySelectorAll("#mlVars .var-edit:not(.arrastrando)")];
   return filas.find(f=>{ const r = f.getBoundingClientRect(); return y < r.top + r.height/2; }) || null;
 }
 function moverFilaA(fila, ref){
   const cont = document.getElementById("mlVars");
-  if(ref) cont.insertBefore(fila, ref); else cont.appendChild(fila);
+  if(!cont || ref === fila) return;
+  if(ref){ if(ref.previousElementSibling !== fila) cont.insertBefore(fila, ref); }
+  else   { if(cont.lastElementChild !== fila) cont.appendChild(fila); }
   numerarFilasVar();
+}
+
+/** Acerca el borde del modal: arrastra la lista sola mientras se sostiene la fila. */
+function autoScrollModal(caja, y){
+  if(!caja) return;
+  const r = caja.getBoundingClientRect();
+  const margen = 70, paso = 14;
+  if(y < r.top + margen)         caja.scrollTop -= paso;
+  else if(y > r.bottom - margen) caja.scrollTop += paso;
+}
+
+function terminarArrastre(){
+  document.removeEventListener("pointermove", moverConPuntero);
+  document.removeEventListener("pointerup", terminarArrastre);
+  document.removeEventListener("pointercancel", terminarArrastre);
+  if(!arrastre) return;
+  clearInterval(arrastre.autoScroll);
+  arrastre.fila.classList.remove("arrastrando");
+  document.body.classList.remove("arrastrando-fila");
+  limpiarDestinos();
+  arrastre = null;
+}
+
+/* Los listeners viven en el documento, no en la fila: al reinsertarla en el DOM
+   el navegador suelta la captura del puntero y el arrastre se cortaba a media fila. */
+function moverConPuntero(e){
+  if(!arrastre) return;
+  e.preventDefault();
+  arrastre.y = e.clientY;
+  limpiarDestinos();
+  const ref = filaBajoElPunto(e.clientY);
+  if(ref) ref.classList.add("destino");
+  moverFilaA(arrastre.fila, ref);
 }
 
 function engancharArrastre(){
   document.querySelectorAll("#mlVars .var-edit").forEach(fila=>{
-    fila.ondragstart = e=>{
-      filaArrastrada = fila; fila.classList.add("arrastrando");
-      e.dataTransfer.effectAllowed = "move";
-      try{ e.dataTransfer.setData("text/plain",""); }catch(err){}
-    };
-    fila.ondragend = ()=>{
-      fila.classList.remove("arrastrando"); limpiarDestinos(); filaArrastrada = null;
-    };
-    fila.ondragover = e=>{
-      e.preventDefault();
-      if(!filaArrastrada) return;
-      limpiarDestinos();
-      const ref = filaBajoElPunto(e.clientY);
-      if(ref) ref.classList.add("destino");
-      moverFilaA(filaArrastrada, ref);
-    };
-
-    // en tablet se arrastra desde la agarradera
     const agarre = fila.querySelector(".agarre");
-    if(agarre){
-      agarre.onpointerdown = e=>{
-        if(e.pointerType === "mouse") return;      // el mouse usa el arrastre nativo
-        e.preventDefault();
-        filaArrastrada = fila; fila.classList.add("arrastrando");
-        agarre.setPointerCapture(e.pointerId);
-      };
-      agarre.onpointermove = e=>{
-        if(!filaArrastrada || filaArrastrada !== fila) return;
-        e.preventDefault();
-        moverFilaA(fila, filaBajoElPunto(e.clientY));
-      };
-      agarre.onpointerup = agarre.onpointercancel = ()=>{
-        fila.classList.remove("arrastrando"); limpiarDestinos(); filaArrastrada = null;
-      };
-    }
+    if(!agarre) return;
+    agarre.onpointerdown = e=>{
+      if(e.button) return;                       // solo el clic principal
+      e.preventDefault();
+      const caja = fila.closest(".modal");
+      arrastre = { fila, y: e.clientY,
+        autoScroll: setInterval(()=>{
+          if(!arrastre) return;
+          const antes = caja ? caja.scrollTop : 0;
+          autoScrollModal(caja, arrastre.y);
+          if(caja && caja.scrollTop !== antes) moverFilaA(fila, filaBajoElPunto(arrastre.y));
+        }, 60) };
+      fila.classList.add("arrastrando");
+      document.body.classList.add("arrastrando-fila");
+      document.addEventListener("pointermove", moverConPuntero, {passive:false});
+      document.addEventListener("pointerup", terminarArrastre);
+      document.addEventListener("pointercancel", terminarArrastre);
+    };
   });
 }
 
@@ -2501,10 +2827,10 @@ document.getElementById("moGuardar").addEventListener("click",()=>{
 
 /* ---------- Pestañas ---------- */
 function tab(activo){
-  if((activo==="Aprob" || activo==="Admin") && !esJefe()) activo = "Pend";
+  if((activo==="Aprob" || activo==="Admin" || activo==="Dash") && !esJefe()) activo = "Pend";
   // el jefe y el coordinador no inspeccionan: ven las dos colas dentro de Aprobaciones
   if((activo==="Insp" || activo==="Pend") && esJefe()) activo = "Aprob";
-  ["Pend","Aprob","Insp","Cons","Admin"].forEach(t=>{
+  ["Pend","Aprob","Dash","Insp","Cons","Admin"].forEach(t=>{
     document.getElementById("tab"+t).classList.toggle("active", t===activo);
     document.getElementById("view"+t).style.display = t===activo?"block":"none";
   });
@@ -2513,10 +2839,12 @@ function tab(activo){
   if(activo==="Pend")  renderPendientesInsp();
   if(activo==="Aprob") renderAprobaciones();
   if(activo==="Admin")  renderAdmin();
+  if(activo==="Dash")   renderDashboard();
   if(S.syncUrl){ cargarRemoto(); cargarConfig(); } else marcarConfigSync(false);
 }
 document.getElementById("tabPend").addEventListener("click",()=>tab("Pend"));
 document.getElementById("tabAprob").addEventListener("click",()=>tab("Aprob"));
+document.getElementById("tabDash").addEventListener("click",()=>tab("Dash"));
 document.getElementById("tabInsp").addEventListener("click",()=>tab("Insp"));
 document.getElementById("tabCons").addEventListener("click",()=>tab("Cons"));
 document.getElementById("tabAdmin").addEventListener("click",()=>tab("Admin"));
