@@ -1482,6 +1482,8 @@ function aplicarRol(){
   document.getElementById("tabAprob").style.display = jefe ? "block" : "none";
   document.getElementById("tabAdmin").style.display = jefe ? "block" : "none";
   document.getElementById("tabInsp").style.display  = jefe ? "none"  : "block";
+  // jefe y coordinador ven ambas colas dentro de Aprobaciones, no necesitan Pendientes
+  document.getElementById("tabPend").style.display  = jefe ? "none"  : "block";
   document.querySelectorAll(".solo-jefe").forEach(el=> el.style.display = jefe ? "" : "none");
 
   const chip = document.getElementById("userChip");
@@ -2473,7 +2475,8 @@ document.getElementById("moGuardar").addEventListener("click",()=>{
 /* ---------- Pestañas ---------- */
 function tab(activo){
   if((activo==="Aprob" || activo==="Admin") && !esJefe()) activo = "Pend";
-  if(activo==="Insp" && esJefe()) activo = "Aprob";
+  // el jefe y el coordinador no inspeccionan: ven las dos colas dentro de Aprobaciones
+  if((activo==="Insp" || activo==="Pend") && esJefe()) activo = "Aprob";
   ["Pend","Aprob","Insp","Cons","Admin"].forEach(t=>{
     document.getElementById("tab"+t).classList.toggle("active", t===activo);
     document.getElementById("view"+t).style.display = t===activo?"block":"none";
@@ -2555,7 +2558,10 @@ function renderPendientesInsp(){
           const est  = r.ultima ? estadoDe(r.ultima) : null;
           const txt  = r.ultima ? (ESTADOS[est]||{txt:"—"}).txt : "Sin inspeccionar";
           const cls  = r.ultima ? (ESTADOS[est]||{cls:""}).cls : "nueva";
-          const puede = !r.ultima || est === "devuelto" || est === "rechazado_lote" || est === "bloqueado";
+          // le toca al inspector actuar sobre esta referencia
+          const turnoInsp = !r.ultima || est === "devuelto" || est === "rechazado_lote" || est === "bloqueado";
+          // solo el inspector ve el botón; jefe y coordinador miran sin actuar
+          const puede = turnoInsp && !esJefe();
           const label = !r.ultima ? "Inspeccionar" : `Reinspeccionar (${r.intentos+1})`;
           return `<div class="ref-fila">
             <div class="datos">
@@ -2567,7 +2573,8 @@ function renderPendientesInsp(){
             <div class="final">${puede
               ? `<button class="btn-ir" data-oc="${g.orden.numero}" data-lista="${r.lista.id}"
                     data-re="${r.ultima?r.intentos+1:0}">${label}</button>`
-              : ESPERA_TXT}</div>
+              : turnoInsp ? `En espera del inspector${r.intentos?` · ${r.intentos} intento(s)`:""}`
+                          : ESPERA_TXT}</div>
             ${motivoUltima(r)}
           </div>`;
         }).join("")}
