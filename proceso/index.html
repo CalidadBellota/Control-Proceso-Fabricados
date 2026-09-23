@@ -152,7 +152,9 @@
   .combo-op .cod{font-weight:700;margin-right:7px;}
   .combo-op.otra{border-top:1px solid var(--border);border-radius:0 0 6px 6px;margin-top:4px;
     color:var(--red);font-weight:700;}
-  .combo-vacio{padding:11px 10px;font-size:.8rem;color:var(--text-dim);}
+  .combo-vacio{padding:11px 10px;font-size:.8rem;color:var(--text-dim);line-height:1.5;}
+  .combo-busca.elegida{border-color:var(--ok);background:#f7fdf9;}
+  .combo-aviso{margin-top:6px;font-size:.74rem;color:var(--bad);font-weight:600;}
   .combo-mas{padding:8px 10px;font-size:.74rem;color:var(--text-dim);border-top:1px solid #f0f1f4;}
 
   .banda-notrabajo{display:flex;align-items:center;justify-content:space-between;gap:16px;
@@ -913,7 +915,7 @@ function engancharComboRef(f){
   const busca  = document.getElementById("refBusca");
   const lista  = document.getElementById("refLista");
   const limpiar= document.getElementById("refLimpiar");
-  const otra   = document.getElementById("e_referencia_otra");
+  const aviso  = document.getElementById("refAviso");
   const todas  = referenciasDe(f.linea);
   let marcada  = -1, visibles = [];
 
@@ -936,31 +938,22 @@ function engancharComboRef(f){
     let html = visibles.map((r,i)=>
       `<button type="button" class="combo-op${i===marcada?" marcada":""}" data-i="${i}">
          <span class="cod">${esc(r.n)}</span>${esc(r.d)}</button>`).join("");
-    if(!res.length) html = `<div class="combo-vacio">Ninguna referencia coincide.</div>`;
+    if(!res.length) html = `<div class="combo-vacio">Ninguna referencia coincide.
+      Revisa lo que escribiste; si la referencia es nueva hay que darla de alta en Administrar.</div>`;
     else if(res.length > visibles.length)
       html += `<div class="combo-mas">${res.length - visibles.length} más · sigue escribiendo para afinar</div>`;
-    html += `<button type="button" class="combo-op otra" data-otra="1">Otra (escribirla a mano)</button>`;
     lista.innerHTML = html;
     lista.style.display = "block";
     lista.querySelectorAll("[data-i]").forEach(b=>
       b.addEventListener("mousedown", e=>{ e.preventDefault(); elegir(visibles[+b.dataset.i]); }));
-    const bo = lista.querySelector("[data-otra]");
-    if(bo) bo.addEventListener("mousedown", e=>{ e.preventDefault(); elegirOtra(); });
   };
 
   const elegir = r => {
     if(!r) return;
     oculto.value = `${r.n} · ${r.d}`;
     busca.value  = `${r.n} · ${r.d}`;
-    if(otra){ otra.style.display = "none"; otra.value = ""; }
-    limpiar.style.display = "block";
-    cerrar(); actualizarBarra();
-  };
-
-  const elegirOtra = () => {
-    oculto.value = "__otra";
-    busca.value  = "Otra (escrita a mano)";
-    if(otra){ otra.style.display = "block"; otra.focus(); }
+    busca.classList.add("elegida");
+    aviso.style.display = "none";
     limpiar.style.display = "block";
     cerrar(); actualizarBarra();
   };
@@ -968,7 +961,8 @@ function engancharComboRef(f){
   busca.addEventListener("focus", ()=>{ if(!oculto.value) pintar(); });
   busca.addEventListener("input", ()=>{
     oculto.value = "";                       // al escribir se suelta lo elegido
-    if(otra){ otra.style.display = "none"; otra.value = ""; }
+    busca.classList.remove("elegida");
+    aviso.style.display = "none";
     limpiar.style.display = busca.value ? "block" : "none";
     marcada = -1; pintar(); actualizarBarra();
   });
@@ -985,10 +979,19 @@ function engancharComboRef(f){
     const m = lista.querySelector(".marcada");
     if(m) m.scrollIntoView({block:"nearest"});
   });
-  busca.addEventListener("blur", ()=> setTimeout(cerrar, 120));
+  busca.addEventListener("blur", ()=> setTimeout(()=>{
+    cerrar();
+    if(!oculto.value && busca.value.trim()){
+      busca.value = "";                      // lo tecleado no vale como referencia
+      limpiar.style.display = "none";
+      aviso.style.display = "block";
+      actualizarBarra();
+    }
+  }, 140));
   limpiar.addEventListener("click", ()=>{
     oculto.value = ""; busca.value = "";
-    if(otra){ otra.style.display = "none"; otra.value = ""; }
+    busca.classList.remove("elegida");
+    aviso.style.display = "none";
     limpiar.style.display = "none";
     busca.focus(); pintar(); actualizarBarra();
   });
@@ -1376,8 +1379,8 @@ function renderEncabezado(f){
                   style="display:none;">×</button>
           <div class="combo-lista" id="refLista" style="display:none;"></div>
         </div>
-        <input type="text" id="e_${k}_otra" placeholder="Escribe la referencia"
-               style="margin-top:8px;display:none;"></div>`);
+        <div class="combo-aviso" id="refAviso" style="display:none;">
+          Tienes que elegir una referencia de la lista.</div></div>`);
     } else {
       campos.push(`<div class="campo"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
         <input type="text" id="e_${k}" placeholder="${c.etq}"></div>`);
