@@ -24,8 +24,8 @@
   label{display:block;font-size:.78rem;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
   select,input[type=text],input[type=number],input[type=date],input[type=month],
   input[type=password],input[type=time],textarea{
-    width:100%;padding:10px 11px;font-size:.92rem;background:#fff;border:1px solid var(--border);
-    border-radius:7px;color:var(--text);font-family:inherit;height:42px;}
+    width:100%;padding:8px 10px;font-size:.88rem;background:#fff;border:1px solid var(--border);
+    border-radius:7px;color:var(--text);font-family:inherit;height:38px;}
   textarea{height:auto;}
   select:focus,input:focus,textarea:focus{outline:2px solid var(--red);}
   input[type=date]::-webkit-calendar-picker-indicator,
@@ -407,15 +407,9 @@
         <label for="iObservaciones">Observaciones</label>
         <textarea id="iObservaciones" rows="3" placeholder="Observaciones del control"></textarea>
       </div>
-      <div class="grid2" style="margin-top:6px;">
-        <div class="campo">
-          <label for="iInspector">Registrado por *</label>
-          <input type="text" id="iInspector" readonly style="background:#f8f9fb;">
-        </div>
-        <div class="campo">
-          <label for="iRevisadoPor">Revisado por</label>
-          <input type="text" id="iRevisadoPor" placeholder="Nombre de quien revisa">
-        </div>
+      <div class="campo" style="margin-top:6px;max-width:360px;">
+        <label for="iInspector">Registrado por *</label>
+        <input type="text" id="iInspector" readonly style="background:#f8f9fb;">
       </div>
     </div>
   </div>
@@ -1087,7 +1081,6 @@ function abrirFormato(id){
   renderVariables();
   document.getElementById("formularioProc").style.display = "block";
   document.getElementById("iObservaciones").value = "";
-  document.getElementById("iRevisadoPor").value = "";
   if(S.sesion) document.getElementById("iInspector").value = S.sesion.nombre;
   renderProcesos();
   actualizarBarra();
@@ -1373,7 +1366,6 @@ function construirRegistro(){
     tipoAcero: val("tipoAcero"), proveedor: val("proveedor"),
     espesorAcero: val("espesorAcero"), maquina: val("maquina"),
     inspector: S.sesion ? S.sesion.nombre : "",
-    revisadoPor: document.getElementById("iRevisadoPor").value.trim(),
     observaciones: document.getElementById("iObservaciones").value.trim(),
     resultados: (f.variables||[]).map((v,i)=>{
       const m = S.mediciones[i] || {};
@@ -2056,13 +2048,11 @@ function generarPDF(reg, guardar){
 
   if(y > 276){ doc.addPage(); y = 30; }
   doc.setDrawColor(150,156,164); doc.setLineWidth(0.3);
-  doc.line(M, y, M+62, y); doc.line(M+80, y, M+142, y);
+  doc.line(M, y, M+62, y);
   doc.setFontSize(7); doc.setTextColor(110,118,129);
   doc.text("Registrado por", M, y+4);
-  doc.text("Revisado por", M+80, y+4);
   doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(28,31,36);
   doc.text(reg.inspector || "—", M, y-2);
-  doc.text(reg.revisadoPor || "—", M+80, y-2);
   doc.setFont("helvetica","normal"); doc.setFontSize(6.6); doc.setTextColor(140,148,158);
   doc.text(`Registrado en la aplicación el ${fFecha(reg.fecha)} a las ${fHora(reg.hora)}`, M, y+9);
 
