@@ -25,13 +25,13 @@
 
   main{max-width:1250px;margin:0 auto;padding:20px 20px 100px 20px;}
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:18px;}
-  label{display:block;font-size:.78rem;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
+  label{display:block;font-size:.76rem;font-weight:600;color:var(--text-dim);margin-bottom:5px;}
   select,input[type=text],input[type=number],input[type=date],input[type=month],
   input[type=password],textarea{
-    width:100%;padding:10px 11px;font-size:.92rem;background:#fff;border:1px solid var(--border);
-    border-radius:7px;color:var(--text);font-family:inherit;box-sizing:border-box;height:42px;}
+    width:100%;padding:8px 10px;font-size:.88rem;background:#fff;border:1px solid var(--border);
+    border-radius:7px;color:var(--text);font-family:inherit;box-sizing:border-box;height:38px;}
   textarea{height:auto;}
-  input[type=date],input[type=month]{min-height:42px;}
+  input[type=date],input[type=month]{min-height:38px;}
   input[type=date]::-webkit-datetime-edit,input[type=month]::-webkit-datetime-edit{padding:0;}
   input[type=date]::-webkit-calendar-picker-indicator,
   input[type=month]::-webkit-calendar-picker-indicator{margin-left:auto;opacity:.55;cursor:pointer;}
@@ -398,7 +398,7 @@
   /* ---------- Dashboard ---------- */
   .filtros-dash{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;}
   .filtros-dash .campo{margin:0;min-width:165px;flex:1;}
-  .filtros-dash .btn-sec{height:42px;}
+  .filtros-dash .btn-sec{height:38px;}
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-bottom:16px;}
   .kpi{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;}
   .kpi .rot{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:#8b939e;font-weight:700;}
@@ -1032,6 +1032,10 @@ function persist(){
   localStorage.setItem("lc_insp", JSON.stringify(S.inspecciones));
   localStorage.setItem("lc_usuarios", JSON.stringify(S.usuarios));
 }
+/** Escapa texto que va dentro de un atributo o del HTML. */
+function esc(v){ return String(v==null?"":v)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+  .replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
 function pad(n){return String(n).padStart(2,"0");}
 const MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 /** La trazabilidad se maneja siempre como mes y año, venga como venga de la hoja. */
@@ -1160,6 +1164,17 @@ function recalcMuestra(){
 
 
 /* ---------- Referencias disponibles según la orden seleccionada ---------- */
+/* Lo que se acaba de guardar tarda unos segundos en aparecer en la hoja.
+   Durante ese rato no se puede dejar que la recarga del catálogo lo borre. */
+const RECIEN_GUARDADO = {listas:{}, ordenes:{}};
+const VENTANA_GUARDADO = 90000;   // milisegundos
+function marcarGuardado(tipo, clave){ RECIEN_GUARDADO[tipo][String(clave).trim()] = Date.now(); }
+function esReciente(tipo, clave){
+  const t = RECIEN_GUARDADO[tipo][String(clave).trim()];
+  return !!t && (Date.now() - t) < VENTANA_GUARDADO;
+}
+function olvidarGuardado(tipo, clave){ delete RECIEN_GUARDADO[tipo][String(clave).trim()]; }
+
 function inspeccionEnCurso(){
   return !!S.listaActiva && (Object.keys(S.mediciones).length > 0 || S.modo === "reinspeccion");
 }
@@ -1205,8 +1220,7 @@ function refrescarProductosDeOrden(){
     const b = document.getElementById("btnIrOrden");
     if(b) b.addEventListener("click", ()=>{
       tab("Admin");
-      const idx = S.ordenes.findIndex(o=>String(o.numero)===num);
-      if(idx>=0) abrirModalOrden(idx);
+      abrirModalOrden(num);
     });
   }
 
@@ -2309,15 +2323,20 @@ async function cargarConfig(){
     }
     if(sListas.length){
       const ids = new Set(sListas.map(l=>String(l.id)));
-      S.listas.filter(l=>!ids.has(String(l.id))).forEach(l=>soloLocal.push("lista: "+l.nombre));
-      S.listas = sListas;
+      S.listas.filter(l=>!ids.has(String(l.id)) && !esReciente("listas", l.id))
+              .forEach(l=>soloLocal.push("lista: "+l.nombre));
+      // lo guardado hace un momento sobrevive aunque la hoja todavía no lo devuelva
+      const recL = S.listas.filter(l=>!ids.has(String(l.id)) && esReciente("listas", l.id));
+      S.listas = sListas.concat(recL);
     } else if(S.listas.length){
       S.listas.forEach(l=>soloLocal.push("lista: "+l.nombre));
     }
     if(sOrdenes.length){
       const nums = new Set(sOrdenes.map(o=>String(o.numero)));
-      S.ordenes.filter(o=>!nums.has(String(o.numero))).forEach(o=>soloLocal.push("OC "+o.numero));
-      S.ordenes = sOrdenes;
+      S.ordenes.filter(o=>!nums.has(String(o.numero)) && !esReciente("ordenes", o.numero))
+               .forEach(o=>soloLocal.push("OC "+o.numero));
+      const recO = S.ordenes.filter(o=>!nums.has(String(o.numero)) && esReciente("ordenes", o.numero));
+      S.ordenes = sOrdenes.concat(recO);
     } else if(S.ordenes.length){
       S.ordenes.forEach(o=>soloLocal.push("OC "+o.numero));
     }
@@ -2494,9 +2513,9 @@ function renderListasAdmin(){
       <div class="info"><b>${l.nombre}</b>
         <span class="meta">BPCS ${l.codigoBPCS||"—"} · ${(l.variables||[]).length} variables · ${l.codigoDoc||"sin código"}${l.version?" · "+l.version:""} · nivel ${l.nivelInspeccion||"—"} · AQL ${l.aql??"—"}</span></div>
       <div class="acciones">
-        <button class="btn-sec" data-edit="${idx}">Editar</button>
-        <button class="btn-sec" data-dup="${idx}">Duplicar</button>
-        <button class="btn-sec" data-del="${idx}" style="color:var(--bad-text);">Eliminar</button>
+        <button class="btn-sec" data-edit="${l.id}">Editar</button>
+        <button class="btn-sec" data-dup="${l.id}">Duplicar</button>
+        <button class="btn-sec" data-del="${l.id}" style="color:var(--bad-text);">Eliminar</button>
       </div>
     </div>`).join("")
     : `<div class="empty-mini">${S.listas.length ? "Ninguna lista coincide con la búsqueda." : "No hay listas creadas."}</div>`;
@@ -2504,17 +2523,23 @@ function renderListasAdmin(){
   pintarPager("pagerListas", items.length, pagina, n=>{ admPag.listas = n; renderListasAdmin();
     document.getElementById("admListas").scrollIntoView({behavior:"smooth", block:"start"}); });
 
-  box.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>abrirModalLista(+b.dataset.edit)));
+  box.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>abrirModalLista(b.dataset.edit)));
   box.querySelectorAll("[data-dup]").forEach(b=>b.addEventListener("click",()=>{
-    const c = JSON.parse(JSON.stringify(S.listas[+b.dataset.dup]));
+    const orig = S.listas.find(x=>String(x.id) === String(b.dataset.dup));
+    if(!orig){ toast("Esa lista ya no existe"); renderAdmin(); return; }
+    const c = JSON.parse(JSON.stringify(orig));
     c.id = "L"+Date.now(); c.nombre += " (copia)";
-    S.listas.push(c); persist(); enviarConfig("guardarLista", {lista:c});
+    S.listas.push(c); marcarGuardado("listas", c.id);
+    persist(); enviarConfig("guardarLista", {lista:c});
     renderAdmin(); refrescarSelectores(); toast("Lista duplicada");
   }));
   box.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{
-    const l = S.listas[+b.dataset.del];
+    const l = S.listas.find(x=>String(x.id) === String(b.dataset.del));
+    if(!l){ toast("Esa lista ya no existe"); renderAdmin(); return; }
     if(confirm(`¿Eliminar la lista "${l.nombre}"? Las inspecciones ya guardadas no se borran.`)){
-      S.listas.splice(+b.dataset.del,1); persist();
+      S.listas = S.listas.filter(x=>String(x.id) !== String(l.id));
+      olvidarGuardado("listas", l.id);
+      persist();
       enviarConfig("borrarLista", {id:l.id});
       renderAdmin(); refrescarSelectores();
     }
@@ -2551,8 +2576,8 @@ function renderOrdenesAdmin(){
       <div class="info"><b>${ocTxt(o.numero)}</b>
         <span class="meta">${o.proveedor||"sin proveedor"} · ${t} referencia(s)${insp?` · ${insp} inspección(es) registradas`:""}</span></div>
       <div class="acciones">
-        <button class="btn-sec" data-oedit="${idx}">Editar</button>
-        <button class="btn-sec" data-odel="${idx}" style="color:var(--bad-text);">Eliminar</button>
+        <button class="btn-sec" data-oedit="${esc(o.numero)}">Editar</button>
+        <button class="btn-sec" data-odel="${esc(o.numero)}" style="color:var(--bad-text);">Eliminar</button>
       </div>
     </div>`;
   }).join("")
@@ -2563,16 +2588,18 @@ function renderOrdenesAdmin(){
   pintarPager("pagerOrdenes", items.length, pagina, n=>{ admPag.ordenes = n; renderOrdenesAdmin();
     document.getElementById("admOrdenes").scrollIntoView({behavior:"smooth", block:"start"}); });
 
-  ob.querySelectorAll("[data-oedit]").forEach(b=>b.addEventListener("click",()=>abrirModalOrden(+b.dataset.oedit)));
+  ob.querySelectorAll("[data-oedit]").forEach(b=>b.addEventListener("click",()=>abrirModalOrden(b.dataset.oedit)));
   ob.querySelectorAll("[data-odel]").forEach(b=>b.addEventListener("click",()=>{
-    const o = S.ordenes[+b.dataset.odel];
+    const o = S.ordenes.find(x=>String(x.numero).trim() === String(b.dataset.odel).trim());
+    if(!o){ toast("Esa orden ya no existe"); renderAdmin(); return; }
     const insp = inspeccionesDeOrden(o.numero);
     const aviso = insp.length
       ? `¿Eliminar la orden ${ocTxt(o.numero)}?\n\nSe borrarán también sus ${insp.length} inspección(es): ` +
         `pendientes, en espera de aprobación, aprobadas y rechazadas. Esto no se puede deshacer.`
       : `¿Eliminar la orden ${ocTxt(o.numero)}?`;
     if(!confirm(aviso)) return;
-    S.ordenes.splice(+b.dataset.odel,1);
+    S.ordenes = S.ordenes.filter(x=>String(x.numero).trim() !== String(o.numero).trim());
+    olvidarGuardado("ordenes", o.numero);
     S.inspecciones = S.inspecciones.filter(i => String(i.orden).trim() !== String(o.numero).trim());
     persist();
     enviarConfig("borrarOrden", {numero:o.numero, conInspecciones:true});
@@ -2612,10 +2639,13 @@ function filaVarHTML(v={}){
   </div>`;
 }
 
-function abrirModalLista(idx){
-  S.editIdx = idx;
-  const l = idx!=null ? S.listas[idx] : {nombre:"",codigoBPCS:"",codigoDoc:"",version:"",nivelInspeccion:"S1",aql:10,variables:[]};
-  document.getElementById("mlTitulo").textContent = idx!=null ? "Editar lista de chequeo" : "Nueva lista de chequeo";
+function abrirModalLista(id){
+  const l = id!=null
+    ? S.listas.find(x=>String(x.id) === String(id))
+    : {nombre:"",codigoBPCS:"",codigoDoc:"",version:"",nivelInspeccion:"S1",aql:10,variables:[]};
+  if(!l){ toast("Esa lista ya no existe"); renderAdmin(); return; }
+  S.editIdx = id!=null ? String(l.id) : null;
+  document.getElementById("mlTitulo").textContent = id!=null ? "Editar lista de chequeo" : "Nueva lista de chequeo";
   document.getElementById("mlNombre").value = l.nombre;
   document.getElementById("mlBpcs").value = l.codigoBPCS;
   document.getElementById("mlCodDoc").value = l.codigoDoc||"";
@@ -2784,7 +2814,7 @@ document.getElementById("mlGuardar").addEventListener("click",()=>{
   if(!vars.length){ toast("Agrega al menos una variable"); return; }
 
   const obj = {
-    id: S.editIdx!=null ? S.listas[S.editIdx].id : "L"+Date.now(),
+    id: S.editIdx!=null ? String(S.editIdx) : "L"+Date.now(),
     nombre, codigoBPCS:bpcs,
     codigoDoc: document.getElementById("mlCodDoc").value.trim(),
     version: document.getElementById("mlVersion").value.trim(),
@@ -2792,7 +2822,9 @@ document.getElementById("mlGuardar").addEventListener("click",()=>{
     aql: parseFloat(document.getElementById("mlAql").value)||10,
     variables: vars
   };
-  if(S.editIdx!=null) S.listas[S.editIdx]=obj; else S.listas.push(obj);
+  const i = S.listas.findIndex(x=>String(x.id) === String(obj.id));
+  if(i >= 0) S.listas[i] = obj; else S.listas.push(obj);
+  marcarGuardado("listas", obj.id);
   persist(); enviarConfig("guardarLista", {lista:obj}); renderAdmin(); refrescarSelectores();
   document.getElementById("modalLista").classList.remove("show");
   toast("Lista guardada");
@@ -2800,9 +2832,12 @@ document.getElementById("mlGuardar").addEventListener("click",()=>{
 
 /* ---------- Administrar: órdenes ---------- */
 let ordenEditIdx = null;
-function abrirModalOrden(idx){
-  ordenEditIdx = idx;
-  const o = idx!=null ? S.ordenes[idx] : {numero:"",proveedor:"",productos:[]};
+function abrirModalOrden(numero){
+  const o = numero!=null
+    ? S.ordenes.find(x=>String(x.numero).trim() === String(numero).trim())
+    : {numero:"",proveedor:"",productos:[]};
+  if(!o){ toast("Esa orden ya no existe"); renderAdmin(); return; }
+  ordenEditIdx = numero!=null ? String(o.numero).trim() : null;
   document.getElementById("moNumero").value = o.numero;
   document.getElementById("moProveedor").value = o.proveedor||"";
   document.getElementById("moProductos").innerHTML = S.listas.map(l=>`
@@ -2819,7 +2854,10 @@ document.getElementById("moGuardar").addEventListener("click",()=>{
   if(!numero){ toast("El número de orden es obligatorio"); return; }
   const productos = [...document.querySelectorAll("#moProductos input:checked")].map(c=>c.value);
   const obj = {numero, proveedor:document.getElementById("moProveedor").value.trim(), productos};
-  if(ordenEditIdx!=null) S.ordenes[ordenEditIdx]=obj; else S.ordenes.push(obj);
+  const i = S.ordenes.findIndex(x=>String(x.numero).trim() ===
+                                   String(ordenEditIdx != null ? ordenEditIdx : numero).trim());
+  if(i >= 0) S.ordenes[i] = obj; else S.ordenes.push(obj);
+  marcarGuardado("ordenes", numero);
   persist(); enviarConfig("guardarOrden", {orden:obj}); renderAdmin(); refrescarSelectores();
   document.getElementById("modalOrden").classList.remove("show");
   toast("Orden guardada");
