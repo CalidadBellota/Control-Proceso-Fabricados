@@ -183,6 +183,9 @@ function doPost(e){
       if(p.conInspecciones) borrarInspeccionesDeOrden_(p.numero);
       return json_({ok:true});
     }
+    if(p.action === "limpiarHuerfanas"){
+      return json_({ok:true, detalle: limpiarInspeccionesHuerfanas()});
+    }
     return json_({ok:false, error:"acción no reconocida"});
   }catch(err){
     return json_({ok:false, error:err.message});
