@@ -123,6 +123,25 @@
   .barra-busca{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
   .barra-busca input[type=text]{flex:1;min-width:200px;}
 
+  /* buscador de referencias */
+  .combo{position:relative;}
+  .combo-x{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:none;
+    background:#eef0f3;color:#5a6270;width:22px;height:22px;border-radius:50%;cursor:pointer;
+    font-size:.9rem;line-height:1;font-family:inherit;padding:0;}
+  .combo-x:hover{background:#e0e3e8;color:var(--text);}
+  .combo-lista{position:absolute;z-index:30;left:0;right:0;top:calc(100% + 4px);background:#fff;
+    border:1px solid var(--border);border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.13);
+    max-height:264px;overflow-y:auto;padding:4px;}
+  .combo-op{display:block;width:100%;text-align:left;border:none;background:none;font-family:inherit;
+    font-size:.82rem;color:var(--text);padding:9px 10px;border-radius:6px;cursor:pointer;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .combo-op:hover,.combo-op.marcada{background:#fdf0f0;color:var(--red-dark);}
+  .combo-op .cod{font-weight:700;margin-right:7px;}
+  .combo-op.otra{border-top:1px solid var(--border);border-radius:0 0 6px 6px;margin-top:4px;
+    color:var(--red);font-weight:700;}
+  .combo-vacio{padding:11px 10px;font-size:.8rem;color:var(--text-dim);}
+  .combo-mas{padding:8px 10px;font-size:.74rem;color:var(--text-dim);border-top:1px solid #f0f1f4;}
+
   .banda-notrabajo{display:flex;align-items:center;justify-content:space-between;gap:16px;
     flex-wrap:wrap;border-left:4px solid #8b939e;}
   .banda-notrabajo b{display:block;font-size:.9rem;}
@@ -855,6 +874,98 @@ const ESPESORES = {
 /** Espesores de una línea; vacío significa que el campo no se muestra. */
 function espesoresDe(linea){ return ESPESORES[linea] || []; }
 
+/* ---------- Buscador de referencias ---------- */
+const TOPE_COMBO = 60;          // filas dibujadas a la vez
+
+function engancharComboRef(f){
+  const caja   = document.getElementById("comboRef");
+  if(!caja) return;
+  const oculto = document.getElementById("e_referencia");
+  const busca  = document.getElementById("refBusca");
+  const lista  = document.getElementById("refLista");
+  const limpiar= document.getElementById("refLimpiar");
+  const otra   = document.getElementById("e_referencia_otra");
+  const todas  = referenciasDe(f.linea);
+  let marcada  = -1, visibles = [];
+
+  const cerrar = () => { lista.style.display = "none"; marcada = -1; };
+
+  const filtrar = txt => {
+    const q = String(txt||"").trim().toLowerCase();
+    if(!q) return todas;
+    // basta con que aparezcan todas las palabras, en cualquier orden
+    const partes = q.split(/\s+/);
+    return todas.filter(r=>{
+      const t = `${r.n} ${r.d}`.toLowerCase();
+      return partes.every(x=>t.includes(x));
+    });
+  };
+
+  const pintar = () => {
+    const res = filtrar(busca.value);
+    visibles = res.slice(0, TOPE_COMBO);
+    let html = visibles.map((r,i)=>
+      `<button type="button" class="combo-op${i===marcada?" marcada":""}" data-i="${i}">
+         <span class="cod">${esc(r.n)}</span>${esc(r.d)}</button>`).join("");
+    if(!res.length) html = `<div class="combo-vacio">Ninguna referencia coincide.</div>`;
+    else if(res.length > visibles.length)
+      html += `<div class="combo-mas">${res.length - visibles.length} más · sigue escribiendo para afinar</div>`;
+    html += `<button type="button" class="combo-op otra" data-otra="1">Otra (escribirla a mano)</button>`;
+    lista.innerHTML = html;
+    lista.style.display = "block";
+    lista.querySelectorAll("[data-i]").forEach(b=>
+      b.addEventListener("mousedown", e=>{ e.preventDefault(); elegir(visibles[+b.dataset.i]); }));
+    const bo = lista.querySelector("[data-otra]");
+    if(bo) bo.addEventListener("mousedown", e=>{ e.preventDefault(); elegirOtra(); });
+  };
+
+  const elegir = r => {
+    if(!r) return;
+    oculto.value = `${r.n} · ${r.d}`;
+    busca.value  = `${r.n} · ${r.d}`;
+    if(otra){ otra.style.display = "none"; otra.value = ""; }
+    limpiar.style.display = "block";
+    cerrar(); actualizarBarra();
+  };
+
+  const elegirOtra = () => {
+    oculto.value = "__otra";
+    busca.value  = "Otra (escrita a mano)";
+    if(otra){ otra.style.display = "block"; otra.focus(); }
+    limpiar.style.display = "block";
+    cerrar(); actualizarBarra();
+  };
+
+  busca.addEventListener("focus", ()=>{ if(!oculto.value) pintar(); });
+  busca.addEventListener("input", ()=>{
+    oculto.value = "";                       // al escribir se suelta lo elegido
+    if(otra){ otra.style.display = "none"; otra.value = ""; }
+    limpiar.style.display = busca.value ? "block" : "none";
+    marcada = -1; pintar(); actualizarBarra();
+  });
+  busca.addEventListener("keydown", e=>{
+    if(e.key === "Escape"){ cerrar(); return; }
+    if(lista.style.display === "none" && (e.key==="ArrowDown"||e.key==="ArrowUp")){ pintar(); return; }
+    if(e.key === "ArrowDown"){ e.preventDefault(); marcada = Math.min(marcada+1, visibles.length-1); pintar(); }
+    else if(e.key === "ArrowUp"){ e.preventDefault(); marcada = Math.max(marcada-1, 0); pintar(); }
+    else if(e.key === "Enter"){
+      e.preventDefault();
+      if(marcada >= 0) elegir(visibles[marcada]);
+      else if(visibles.length === 1) elegir(visibles[0]);
+    }
+    const m = lista.querySelector(".marcada");
+    if(m) m.scrollIntoView({block:"nearest"});
+  });
+  busca.addEventListener("blur", ()=> setTimeout(cerrar, 120));
+  limpiar.addEventListener("click", ()=>{
+    oculto.value = ""; busca.value = "";
+    if(otra){ otra.style.display = "none"; otra.value = ""; }
+    limpiar.style.display = "none";
+    busca.focus(); pintar(); actualizarBarra();
+  });
+  document.addEventListener("mousedown", e=>{ if(!caja.contains(e.target)) cerrar(); });
+}
+
 /** Referencias de una línea, ordenadas por descripción. */
 function referenciasDe(linea){
   const c = (S && S.referencias) || REFERENCIAS_BASE;
@@ -1213,13 +1324,16 @@ function renderEncabezado(f){
         <input type="text" id="e_${k}_otra" placeholder="Escribe el acero"
                style="margin-top:8px;display:none;"></div>`);
     } else if(k === "referencia" && referenciasDe(f.linea).length){
-      // desplegable con las referencias de esa línea, más un escape para las nuevas
-      campos.push(`<div class="campo"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
-        <select id="e_${k}"><option value="">Selecciona la referencia</option>${
-          referenciasDe(f.linea).map(r=>{
-            const v = `${r.n} · ${r.d}`;
-            return `<option value="${esc(v)}">${esc(v)}</option>`;
-          }).join("")}<option value="__otra">Otra (escribirla)</option></select>
+      // buscador con lista filtrada: un select nativo con 256 opciones es inmanejable
+      campos.push(`<div class="campo"><label for="refBusca">${c.etq}${c.oblig?" *":""}</label>
+        <div class="combo" id="comboRef">
+          <input type="hidden" id="e_${k}" value="">
+          <input type="text" class="combo-busca" id="refBusca" autocomplete="off"
+                 placeholder="Escribe el código o el nombre…">
+          <button type="button" class="combo-x" id="refLimpiar" aria-label="Borrar la referencia"
+                  style="display:none;">×</button>
+          <div class="combo-lista" id="refLista" style="display:none;"></div>
+        </div>
         <input type="text" id="e_${k}_otra" placeholder="Escribe la referencia"
                style="margin-top:8px;display:none;"></div>`);
     } else {
@@ -1234,6 +1348,8 @@ function renderEncabezado(f){
   });
 
   // "Otra" destapa el campo de texto libre
+  engancharComboRef(f);
+
   const seg = document.getElementById("segLima");
   if(seg) seg.querySelectorAll("[data-tl]").forEach(b=>b.addEventListener("click",()=>{
     seg.querySelectorAll("[data-tl]").forEach(x=>x.classList.remove("on"));
@@ -1247,7 +1363,7 @@ function renderEncabezado(f){
     actualizarBarra();
   }));
 
-  ["referencia","tipoAcero"].forEach(k=>{
+  ["tipoAcero"].forEach(k=>{          // la referencia la maneja su propio buscador
     const sel  = document.getElementById("e_"+k);
     const otro = document.getElementById("e_"+k+"_otra");
     if(!sel || !otro) return;
