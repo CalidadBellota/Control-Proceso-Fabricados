@@ -162,6 +162,15 @@
   .btn-notrabajo{padding:10px 18px;border:1px solid var(--border);background:#fff;border-radius:8px;
     font-size:.84rem;font-weight:700;color:#5a6270;cursor:pointer;font-family:inherit;white-space:nowrap;}
   .btn-notrabajo:hover{background:#f3f4f7;border-color:#c9ced6;color:var(--text);}
+  /* cierre de la ronda: ocupa todo el ancho, no una celda de la rejilla */
+  .ronda-fin{grid-column:1 / -1;text-align:center;padding:34px 20px 30px;}
+  .ronda-fin .tic{display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;
+    border-radius:50%;background:var(--ok-bg);color:var(--ok);margin-bottom:14px;}
+  .ronda-fin h3{margin:0;font-size:1.02rem;font-weight:700;color:var(--text);}
+  .ronda-fin p{margin:7px auto 0;max-width:430px;font-size:.82rem;line-height:1.55;color:var(--text-dim);}
+  .btn-ronda{margin-top:16px;padding:9px 18px;border:1px solid var(--border);background:#fff;
+    border-radius:8px;font-size:.8rem;font-weight:700;color:var(--red);cursor:pointer;font-family:inherit;}
+  .btn-ronda:hover{background:#fdf6f6;border-color:#e7b4ba;}
   .cinta-ronda{grid-column:1 / -1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
     background:#f7f8fa;border:1px solid var(--border);border-radius:9px;padding:9px 13px;
     font-size:.78rem;color:var(--text-dim);margin-bottom:2px;}
@@ -823,6 +832,13 @@ const PLANTILLAS_BASE = [{"id":"LIM-FORJA","linea":"Limas","proceso":"Forja","no
 
 const LINEAS_BASE = ["Limas","Machetes","Cuchillas","Palas","Inyección"];
 const TURNOS = ["1","2","3"];
+/** El turno que viene después del actual; tras el 3 vuelve al 1. */
+function siguienteTurno(t){
+  const i = TURNOS.indexOf(String(t));
+  return i === -1 ? TURNOS[0] : TURNOS[(i + 1) % TURNOS.length];
+}
+const IC_TIC = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+  stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>`;
 /* Referencias de producto por línea, sacadas del archivo plano de rutas de
    fabricación (ART - MDM003QF). Se pueden reemplazar desde la hoja compartida
    creando una pestaña "Referencias" con las columnas linea | codigo | descripcion. */
@@ -1232,7 +1248,8 @@ function renderProcesos(){
     `Turno ${turno} · faltan ${pendientes.length} de ${fs.length} en ${esc(S.lineaActiva||"esta línea")}` +
     (hayCond ? ` <span style="margin-left:10px;"><span class="pt-cond"></span> aplica según la referencia</span>` : "");
 
-  const cinta = hechos.length
+  // con la ronda cerrada la cinta sobra: el bloque de cierre ya tiene su botón
+  const cinta = (hechos.length && (pendientes.length || verYaValidados))
     ? `<div class="cinta-ronda">
          <span>${hechos.length} proceso(s) ya validados en el turno ${turno}.</span>
          <button type="button" id="alternarValidados">${
@@ -1262,15 +1279,27 @@ function renderProcesos(){
       </span>
     </button>`;
   }).join("")
-    : `<div class="empty-mini">${
-        verYaValidados ? "Todavía no has validado ningún proceso en este turno."
-        : (fs.length ? `Ya validaste los ${fs.length} procesos de ${esc(S.lineaActiva)} en el turno ${turno}.`
-                     : "No hay procesos en esta línea.")}</div>`;
+    : (verYaValidados
+        ? `<div class="ronda-fin"><h3>Nada validado todavía</h3>
+             <p>En el turno ${turno} aún no has registrado ningún proceso de
+                ${esc(S.lineaActiva)}. Vuelve a “Ver los que faltan” para empezar.</p></div>`
+      : fs.length
+        ? `<div class="ronda-fin lista">
+             <span class="tic">${IC_TIC}</span>
+             <h3>${esc(S.lineaActiva)} al día</h3>
+             <p>Los ${fs.length} procesos quedaron validados en el turno ${turno}.
+                Vuelven a pedirse cuando empiece el turno ${siguienteTurno(turno)}.</p>
+             <button type="button" class="btn-ronda" id="verLoHecho">Ver lo que registraste</button>
+           </div>`
+        : `<div class="ronda-fin"><h3>Sin procesos</h3>
+             <p>Esta línea todavía no tiene formatos de control.</p></div>`);
 
   box.innerHTML = cinta + box.innerHTML;
 
   const alt = document.getElementById("alternarValidados");
   if(alt) alt.addEventListener("click", ()=>{ verYaValidados = !verYaValidados; renderProcesos(); });
+  const verHecho = document.getElementById("verLoHecho");
+  if(verHecho) verHecho.addEventListener("click", ()=>{ verYaValidados = true; renderProcesos(); });
   box.querySelectorAll("[data-f]").forEach(b=>b.addEventListener("click",()=> abrirFormato(b.dataset.f)));
 }
 document.getElementById("procBuscar").addEventListener("input", renderProcesos);
