@@ -20,6 +20,7 @@ const SH_FOR = "Formatos";
 const SH_REG = "Registros";
 const SH_DET = "Detalle";
 const SH_USR = "Usuarios";
+const SH_REF = "Referencias";
 const TZ = "America/Bogota";
 
 const H_FOR = ["id","linea","proceso","nombre","codigoDoc","condicional","encabezado","maquinas",
@@ -27,7 +28,8 @@ const H_FOR = ["id","linea","proceso","nombre","codigoDoc","condicional","encabe
 
 const H_REG = ["id","fecha","hora","turno","linea","proceso","formatoId","codigoDoc",
                "ordenFabricacion","referencia","tipoAcero","proveedor","espesorAcero","maquina",
-               "inspector","revisadoPor","observaciones",
+               "tipoLima","noTrabajo",
+               "inspector","observaciones",
                "totalVariables","fueraDeRango","criticasFuera"];
 
 const H_DET = ["registroId","fecha","linea","proceso","ordenFabricacion","referencia","maquina",
@@ -35,6 +37,7 @@ const H_DET = ["registroId","fecha","linea","proceso","ordenFabricacion","refere
                "valor","resultado"];
 
 const H_USR = ["usuario","nombre","pin","rol","activo","actualizado"];
+const H_REF = ["linea","codigo","descripcion"];
 
 /** Devuelve la hoja y garantiza que el encabezado tenga todas las columnas. */
 function getSheet_(nombre, headers){
@@ -133,7 +136,23 @@ function doGet(e){
         };
       });
 
-    return json_({formatos:formatos, usuarios:usuarios});
+    // Referencias de producto por línea. Si la hoja está vacía, la app usa
+    // el catálogo que trae embebido.
+    var shR = getSheet_(SH_REF, H_REF);
+    var hR = headerDe_(shR);
+    var iL = hR.indexOf("linea"), iC = hR.indexOf("codigo"), iD = hR.indexOf("descripcion");
+    var referencias = {};
+    if(iL !== -1 && iD !== -1){
+      shR.getDataRange().getValues().slice(1).forEach(function(r){
+        var linea = String(r[iL] || "").trim();
+        var desc  = String(r[iD] || "").trim();
+        if(!linea || !desc) return;
+        (referencias[linea] = referencias[linea] || [])
+          .push({n: String(iC === -1 ? "" : (r[iC] || "")).trim(), d: desc});
+      });
+    }
+
+    return json_({formatos:formatos, usuarios:usuarios, referencias:referencias});
   }
 
   // registros
@@ -181,6 +200,10 @@ function doPost(e){
 
     if(p.action === "borrarRegistro"){ return json_({ok:true, borrados: borrarRegistro_(p.id)}); }
 
+    if(p.action === "guardarReferencias"){
+      return json_({ok:true, filas: guardarReferencias_(p.referencias || [])});
+    }
+
     return json_({ok:false, error:"acción no reconocida"});
   }catch(err){
     return json_({ok:false, error:err.message});
@@ -218,6 +241,25 @@ function guardar_(r){
       });
     });
     anexarComoTexto_(shD, filas);
+  } finally { lock.releaseLock(); }
+}
+
+/** Reemplaza el contenido de la hoja "Referencias" por el catálogo que manda la app. */
+function guardarReferencias_(lista){
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try{
+    const sh = getSheet_(SH_REF, H_REF);
+    if(sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).clearContent();
+    const filas = lista
+      .filter(function(r){ return r && String(r.linea||"").trim() && String(r.descripcion||"").trim(); })
+      .map(function(r){ return filaSegunHeader_(sh, {
+        linea: String(r.linea).trim(),
+        codigo: String(r.codigo||"").trim(),
+        descripcion: String(r.descripcion).trim()
+      }); });
+    anexarComoTexto_(sh, filas);
+    return filas.length;
   } finally { lock.releaseLock(); }
 }
 
