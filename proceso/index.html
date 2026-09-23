@@ -9,19 +9,19 @@
 <style>
   :root{
     --red:#e2001a; --red-dark:#c81d2e;
-    --bg:#f4f5f7; --panel:#fff; --border:#e4e7ec;
-    --text:#1c1f24; --text-dim:#6e7681;
+    --bg:#f3f4f6; --panel:#fff; --border:#e3e5e9;
+    --text:#1c1f24; --text-dim:#6b7280;
     --ok:#1f9d55; --ok-bg:#e8f8ef;
     --warn:#f2b90b; --warn-text:#92660a; --warn-bg:#fff8e1;
     --bad:#c81d2e; --bad-bg:#fdeaea;
     --radius:12px;
   }
   *{box-sizing:border-box;}
-  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    background:var(--bg);color:var(--text);font-size:15px;}
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    background:var(--bg);color:var(--text);}
   h1,h2,h3,h4{margin:0;}
   button{font-family:inherit;}
-  label{display:block;font-size:.78rem;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
+  label{display:block;font-size:.76rem;font-weight:600;color:var(--text-dim);margin-bottom:5px;}
   select,input[type=text],input[type=number],input[type=date],input[type=month],
   input[type=password],input[type=time],textarea{
     width:100%;padding:8px 10px;font-size:.88rem;background:#fff;border:1px solid var(--border);
@@ -123,24 +123,41 @@
   .barra-busca{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
   .barra-busca input[type=text]{flex:1;min-width:200px;}
 
+  .banda-notrabajo{display:flex;align-items:center;justify-content:space-between;gap:16px;
+    flex-wrap:wrap;border-left:4px solid #8b939e;}
+  .banda-notrabajo b{display:block;font-size:.9rem;}
+  .banda-notrabajo span{display:block;font-size:.78rem;color:var(--text-dim);margin-top:3px;}
+  .btn-notrabajo{padding:10px 18px;border:1px solid var(--border);background:#fff;border-radius:8px;
+    font-size:.84rem;font-weight:700;color:#5a6270;cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .btn-notrabajo:hover{background:#f3f4f7;border-color:#c9ced6;color:var(--text);}
+  .cinta-ronda{grid-column:1 / -1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    background:#f7f8fa;border:1px solid var(--border);border-radius:9px;padding:9px 13px;
+    font-size:.78rem;color:var(--text-dim);margin-bottom:2px;}
+  .cinta-ronda button{background:#fff;border:1px solid var(--border);border-radius:6px;padding:5px 12px;
+    font-size:.76rem;font-weight:700;color:var(--red);cursor:pointer;font-family:inherit;}
+  .cinta-ronda button:hover{background:#fdf6f6;border-color:#e7b4ba;}
+  .proc-card.hecho{background:#fbfcfb;}
+  .proc-card.hecho b{color:#5a6270;}
+
   /* ---------- Selector de proceso ---------- */
-  .proc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:11px;}
-  .proc-card{border:1px solid var(--border);background:#fff;border-radius:11px;padding:12px 14px;
+  .proc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;}
+  .proc-card{border:1px solid var(--border);background:#fff;border-radius:10px;padding:10px 12px;
     text-align:left;cursor:pointer;font-family:inherit;border-left:4px solid var(--border);
-    display:flex;align-items:center;gap:12px;min-height:126px;}
+    display:flex;align-items:center;gap:10px;min-height:94px;}
   .proc-card:hover{border-color:#c9ced6;border-left-color:var(--red);background:#fafbfc;}
   .proc-card.sel{border-color:var(--red);border-left-color:var(--red);background:#fdf6f6;}
-  .proc-card .ico{width:42px;height:42px;border-radius:10px;background:#fdeceb;color:var(--red);
+  .proc-card .ico{width:34px;height:34px;border-radius:8px;background:#fdeceb;color:var(--red);
     flex:none;display:flex;align-items:center;justify-content:center;}
   .proc-card.sel .ico{background:#fff;}
   .proc-card .cuerpo{min-width:0;flex:1;}
   /* nombre y pie reservan dos renglones cada uno: todas las tarjetas miden igual */
   /* el nombre nunca se recorta; el bloque va centrado, así no queda hueco abajo */
-  .proc-card b{font-size:.92rem;line-height:1.3;overflow:hidden;
-    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;}
-  .proc-card .meta{display:block;font-size:.73rem;line-height:1.45;color:var(--text-dim);margin-top:4px;}
-  .proc-card .cond-slot{display:block;min-height:17px;margin-top:5px;}
-  .proc-card .cond{display:inline-block;font-size:.62rem;font-weight:800;
+  /* el nombre reserva sus dos renglones: así toda tarjeta mide lo mismo */
+  .proc-card b{font-size:.86rem;line-height:1.25;height:2.5em;overflow:hidden;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+  .proc-card .meta{display:block;font-size:.7rem;line-height:1.4;color:var(--text-dim);margin-top:3px;}
+  .proc-card .cond-slot{display:block;min-height:15px;margin-top:3px;}
+  .proc-card .cond{display:inline-block;font-size:.59rem;font-weight:800;
     letter-spacing:.05em;text-transform:uppercase;background:var(--warn-bg);color:var(--warn-text);
     border-radius:99px;padding:2px 8px;}
 
@@ -214,7 +231,7 @@
   .leyenda-lim span{display:inline-flex;align-items:center;gap:6px;}
   .leyenda-lim i{width:16px;height:0;border-top:2px solid var(--red-dark);display:inline-block;}
   .leyenda-lim i.punteada{border-top-style:dashed;}
-  .leyenda-lim i.pt{width:9px;height:9px;border:none;border-radius:50%;background:var(--red-dark);}
+  .leyenda-lim i.pt{width:9px;height:9px;border:none;border-radius:50%;background:var(--red-dark);flex:none;}
 
   /* ---------- Matriz de cumplimiento ---------- */
   .matriz{width:100%;border-collapse:separate;border-spacing:3px;font-size:.78rem;}
@@ -228,6 +245,8 @@
   .matriz td.r{background:var(--bad-bg);color:var(--bad);}
   .matriz td.a{background:var(--warn-bg);color:var(--warn-text);}
   .matriz td.n{background:#f3f4f7;color:#b9bec6;}
+  /* validado, pero el proceso no estuvo trabajando */
+  .matriz td.p{background:#eef1f6;color:#5a6270;border:1px dashed #b9c0cb;}
   .matriz .grupo td{padding-top:12px;font-size:.7rem;font-weight:800;letter-spacing:.06em;
     color:var(--red-dark);text-transform:uppercase;}
 
@@ -380,6 +399,14 @@
       <div class="section-title"><h2 id="tituloProc">PROCESO</h2>
         <span id="subProc" style="font-size:.74rem;color:var(--text-dim);"></span></div>
       <div class="grid4" id="encabezadoCampos"></div>
+    </div>
+
+    <div class="panel banda-notrabajo" id="bandaNoTrabajo">
+      <div>
+        <b>¿Este proceso no está trabajando?</b>
+        <span>Se deja constancia de que se verificó y la máquina estaba parada. No hay que diligenciar variables.</span>
+      </div>
+      <button type="button" class="btn-notrabajo" id="btnNoTrabajo">Registrar que no trabajó</button>
     </div>
 
     <div class="aviso-crit" id="avisoCriticas" style="display:none;"></div>
@@ -560,6 +587,7 @@
       <span><i class="pt" style="background:#1f9d55;"></i>Registrado</span>
       <span><i class="pt" style="background:#c81d2e;"></i>Sin registro</span>
       <span><i class="pt" style="background:#f2b90b;"></i>Registrado con variables fuera de rango</span>
+      <span><i class="pt" style="background:#eef1f6;border:1px dashed #b9c0cb;"></i>○ Verificado, no estuvo trabajando</span>
       <span><i class="pt" style="background:#d7dbe1;"></i>Aplica según la referencia</span>
     </div>
   </div>
@@ -865,6 +893,11 @@ function persist(){
   localStorage.setItem("cp_usuarios",  JSON.stringify(S.usuarios));
 }
 function pad(n){ return String(n).padStart(2,"0"); }
+/** 2026-09-23 -> 23/09/2026, para leerlo de un vistazo. */
+function fFechaCorta(iso){
+  const m = String(iso||"").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(iso||"");
+}
 function hoyISO(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
 function mesISO(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}`; }
 function horaAhora(){ const d=new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
@@ -1039,6 +1072,17 @@ function renderSegLineas(){
   }));
 }
 
+/* La ronda es el turno de hoy: lo ya validado sale del listado para que
+   el inspector solo vea lo que le falta. */
+let verYaValidados = false;
+
+function registrosDeLaRonda(formatoId){
+  const hoy = hoyISO(), t = turnoDeHora(horaAhora());
+  return S.registros.filter(r => r.formatoId===formatoId &&
+    fFecha(r.fecha)===hoy && String(r.turno)===String(t));
+}
+function validadoEnLaRonda(formatoId){ return registrosDeLaRonda(formatoId).length > 0; }
+
 function renderProcesos(){
   renderSegLineas();
   const box = document.getElementById("procGrid");
@@ -1047,22 +1091,50 @@ function renderProcesos(){
   if(q) fs = fs.filter(f => `${f.proceso} ${f.nombre} ${f.codigoDoc||""}`.toLowerCase().includes(q));
   fs.sort((a,b)=> String(a.proceso).localeCompare(String(b.proceso)));
 
-  const hoy = hoyISO();
-  document.getElementById("regResumen").textContent =
-    `${S.registros.filter(r=>fFecha(r.fecha)===hoy).length} registro(s) hoy en toda la planta`;
+  const hoy = hoyISO(), turno = turnoDeHora(horaAhora());
+  const pendientes = fs.filter(f => !validadoEnLaRonda(f.id));
+  const hechos     = fs.filter(f =>  validadoEnLaRonda(f.id));
+  const aMostrar   = verYaValidados ? hechos : pendientes;
 
-  box.innerHTML = fs.length ? fs.map(f=>{
-    const hoyProc = S.registros.filter(r=> r.formatoId===f.id && fFecha(r.fecha)===hoy).length;
-    return `<button class="proc-card${S.formatoActivo&&S.formatoActivo.id===f.id?" sel":""}" data-f="${esc(f.id)}" title="${esc(f.nombre)}">
+  document.getElementById("regResumen").textContent =
+    `Turno ${turno} · faltan ${pendientes.length} de ${fs.length} en ${S.lineaActiva||"esta línea"}`;
+
+  const cinta = hechos.length
+    ? `<div class="cinta-ronda">
+         <span>${hechos.length} proceso(s) ya validados en el turno ${turno}.</span>
+         <button type="button" id="alternarValidados">${
+           verYaValidados ? "Ver los que faltan" : "Ver los ya validados"}</button>
+       </div>`
+    : "";
+
+  box.innerHTML = aMostrar.length ? aMostrar.map(f=>{
+    const regs = registrosDeLaRonda(f.id);
+    const noTrab = regs.length && regs.every(r=>r.noTrabajo);
+    const nc = regs.reduce((n,r)=>n+ncDe(r), 0);
+    const estado = !regs.length ? ""
+      : noTrab ? `<span class="cond" style="background:#eef0f3;color:#5a6270;">No trabajó</span>`
+      : nc     ? `<span class="cond" style="background:var(--bad-bg);color:var(--bad);">${nc} fuera de rango</span>`
+               : `<span class="cond" style="background:var(--ok-bg);color:var(--ok);">Validado</span>`;
+    return `<button class="proc-card${S.formatoActivo&&S.formatoActivo.id===f.id?" sel":""}${
+        regs.length?" hecho":""}" data-f="${esc(f.id)}" title="${esc(f.nombre)}">
       <span class="ico">${svgProc(f, 21)}</span>
       <span class="cuerpo">
         <b>${esc(f.proceso)}</b>
-        <span class="meta">${(f.variables||[]).length} variables${f.codigoDoc?` · ${esc(f.codigoDoc)}`:""}${hoyProc?` · ${hoyProc} hoy`:""}</span>
-        <span class="cond-slot">${f.condicional?`<span class="cond">Según la referencia</span>`:""}</span>
+        <span class="meta">${(f.variables||[]).length} variables${f.codigoDoc?` · ${esc(f.codigoDoc)}`:""}${
+          regs.length?` · ${regs.length} en este turno`:""}</span>
+        <span class="cond-slot">${estado || (f.condicional?`<span class="cond">Según la referencia</span>`:"")}</span>
       </span>
     </button>`;
-  }).join("") : `<div class="empty-mini">No hay procesos en esta línea.</div>`;
+  }).join("")
+    : `<div class="empty-mini">${
+        verYaValidados ? "Todavía no has validado ningún proceso en este turno."
+        : (fs.length ? `Ya validaste los ${fs.length} procesos de ${esc(S.lineaActiva)} en el turno ${turno}.`
+                     : "No hay procesos en esta línea.")}</div>`;
 
+  box.innerHTML = cinta + box.innerHTML;
+
+  const alt = document.getElementById("alternarValidados");
+  if(alt) alt.addEventListener("click", ()=>{ verYaValidados = !verYaValidados; renderProcesos(); });
   box.querySelectorAll("[data-f]").forEach(b=>b.addEventListener("click",()=> abrirFormato(b.dataset.f)));
 }
 document.getElementById("procBuscar").addEventListener("input", renderProcesos);
@@ -1075,8 +1147,10 @@ function abrirFormato(id){
   S.formatoActivo = f;
   S.mediciones = {};
   document.getElementById("tituloProc").textContent = String(f.nombre || (f.linea+" · "+f.proceso)).toUpperCase();
+  const h = horaAhora();
   document.getElementById("subProc").textContent =
-    `${f.codigoDoc||"sin código"} · ${(f.variables||[]).length} variables${f.condicional?" · aplica según la referencia":""}`;
+    `${f.codigoDoc||"sin código"} · ${(f.variables||[]).length} variables${f.condicional?" · aplica según la referencia":""}`
+    + ` · se registra hoy ${fFechaCorta(hoyISO())} a las ${h}, turno ${turnoDeHora(h)}`;
   renderEncabezado(f);
   renderVariables();
   document.getElementById("formularioProc").style.display = "block";
@@ -1090,15 +1164,25 @@ function abrirFormato(id){
 function renderEncabezado(f){
   const box = document.getElementById("encabezadoCampos");
   const campos = [];
-  campos.push(`<div class="campo"><label for="eFecha">Fecha *</label>
-    <input type="date" id="eFecha" value="${hoyISO()}"></div>`);
-  campos.push(`<div class="campo"><label for="eHora">Hora *</label>
-    <input type="time" id="eHora" value="${horaAhora()}"></div>`);
-  campos.push(`<div class="campo"><label for="eTurno">Turno *</label>
-    <select id="eTurno">${TURNOS.map(t=>`<option value="${t}"${t===turnoDeHora(horaAhora())?" selected":""}>Turno ${t}</option>`).join("")}</select></div>`);
+
+  if(f.linea === "Limas"){
+    campos.push(`<div class="campo" style="grid-column:1 / -1;">
+      <label>Tipo de lima *</label>
+      <div class="seg" id="segLima" style="width:fit-content;">
+        <button type="button" data-tl="fabricada" class="on">Fabricada en planta</button>
+        <button type="button" data-tl="semiterminada">Semiterminada (comprada)</button>
+      </div></div>`);
+  }
 
   (f.encabezado||[]).forEach(k=>{
     const c = CAMPOS_ENC[k]; if(!c) return;
+    // el proveedor solo aplica a la lima semiterminada; para el resto se oculta
+    if(k === "proveedor" && f.linea === "Limas"){
+      campos.push(`<div class="campo" id="campoProveedorLima" style="display:none;">
+        <label for="e_proveedor">Proveedor *</label>
+        <input type="text" id="e_proveedor" placeholder="Quién suministró la lima"></div>`);
+      return;
+    }
     if(k === "maquina" && (f.maquinas||[]).length){
       campos.push(`<div class="campo"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
         <select id="e_${k}"><option value="">Selecciona</option>${
@@ -1138,6 +1222,19 @@ function renderEncabezado(f){
   });
 
   // "Otra" destapa el campo de texto libre
+  const seg = document.getElementById("segLima");
+  if(seg) seg.querySelectorAll("[data-tl]").forEach(b=>b.addEventListener("click",()=>{
+    seg.querySelectorAll("[data-tl]").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    const caja = document.getElementById("campoProveedorLima");
+    if(caja){
+      const semi = b.dataset.tl === "semiterminada";
+      caja.style.display = semi ? "block" : "none";
+      if(!semi){ const i = document.getElementById("e_proveedor"); if(i) i.value = ""; }
+    }
+    actualizarBarra();
+  }));
+
   ["referencia","tipoAcero"].forEach(k=>{
     const sel  = document.getElementById("e_"+k);
     const otro = document.getElementById("e_"+k+"_otra");
@@ -1306,6 +1403,11 @@ function actualizarBarra(){
   document.getElementById("progresoVars").textContent = `${evaluadas} de ${total} diligenciadas`;
 
   const falta = [];
+  const segL = document.getElementById("segLima");
+  if(segL && (segL.querySelector(".on")||{}).dataset?.tl === "semiterminada"){
+    const prov = document.getElementById("e_proveedor");
+    if(prov && !String(prov.value).trim()) falta.push("proveedor de la lima semiterminada");
+  }
   (f.encabezado||[]).forEach(k=>{
     const c = CAMPOS_ENC[k];
     const el = document.getElementById("e_"+k);
@@ -1355,12 +1457,16 @@ function construirRegistro(){
     }
     return v;
   };
-  const hora = document.getElementById("eHora").value || horaAhora();
+  // la fecha, la hora y el turno los pone la aplicación al momento de guardar
+  const hora = horaAhora();
+  const segL = document.getElementById("segLima");
+  const tipoLima = segL ? (segL.querySelector(".on")||{}).dataset?.tl || "" : "";
   return {
     id: "CP-"+Date.now()+"-"+Math.floor(Math.random()*1000),
-    fecha: document.getElementById("eFecha").value || hoyISO(),
+    fecha: hoyISO(),
     hora: hora,
-    turno: document.getElementById("eTurno").value || turnoDeHora(hora),
+    turno: turnoDeHora(hora),
+    tipoLima: tipoLima,
     linea: f.linea, proceso: f.proceso, formatoId: f.id, codigoDoc: f.codigoDoc || "",
     ordenFabricacion: val("ordenFabricacion"), referencia: val("referencia"),
     tipoAcero: val("tipoAcero"), proveedor: val("proveedor"),
@@ -1384,6 +1490,35 @@ function construirRegistro(){
     pendienteSync: !!S.syncUrl
   };
 }
+
+/** Guarda el control como "no trabajó": deja la constancia sin variables. */
+document.getElementById("btnNoTrabajo").addEventListener("click",()=>{
+  if(!S.sesion){ toast("Inicia sesión antes de guardar"); return; }
+  const f = S.formatoActivo;
+  if(!f) return;
+  if(Object.keys(S.mediciones).length &&
+     !confirm("Ya diligenciaste algunas variables. Se van a descartar. ¿Registrar que no trabajó?")) return;
+  const h = horaAhora();
+  const reg = {
+    id: "CP-"+Date.now()+"-"+Math.floor(Math.random()*1000),
+    fecha: hoyISO(), hora: h, turno: turnoDeHora(h),
+    linea: f.linea, proceso: f.proceso, formatoId: f.id, codigoDoc: f.codigoDoc || "",
+    noTrabajo: "Sí",
+    ordenFabricacion: "", referencia: "", tipoAcero: "", proveedor: "",
+    espesorAcero: "", maquina: "", tipoLima: "",
+    inspector: S.sesion ? S.sesion.nombre : "",
+    observaciones: (document.getElementById("iObservaciones").value.trim()
+                    || "El proceso no estuvo trabajando en este turno."),
+    resultados: [],
+    pendienteSync: !!S.syncUrl
+  };
+  S.registros.unshift(reg);
+  persist();
+  if(S.syncUrl) enviarRemoto(reg);
+  toast(`${f.proceso}: registrado como "no trabajó"`);
+  cancelarRegistro(true);
+  actualizarPillCump();
+});
 
 document.getElementById("btnGuardar").addEventListener("click",()=>{
   if(!S.sesion){ toast("Inicia sesión antes de guardar"); return; }
@@ -1849,7 +1984,13 @@ function renderCumplimiento(){
 
   const clase = (regs) => {
     if(!regs.length) return "r";
+    if(regs.every(r=>r.noTrabajo)) return "p";        // validado, pero la máquina estaba parada
     return regs.some(r=>ncDe(r)>0) ? "a" : "v";
+  };
+  const marca = (regs) => {
+    if(!regs.length) return "✗";
+    if(regs.every(r=>r.noTrabajo)) return "○";
+    return regs.length + (regs.some(r=>ncDe(r)>0) ? " ⚠" : " ✓");
   };
 
   let html = "", faltan = 0, total = 0;
@@ -1868,8 +2009,9 @@ function renderCumplimiento(){
         const c = f.condicional && !rs.length ? "n" : clase(rs);
         if(c === "r") faltan++;
         if(!f.condicional) total++;
-        html += `<td class="celda ${c}" title="${esc(f.proceso)} · turno ${t}">${
-          rs.length ? rs.length + (rs.some(r=>ncDe(r)>0) ? " ⚠" : " ✓") : (c==="n" ? "—" : "✗")}</td>`;
+        const tit = c==="p" ? `${f.proceso} · turno ${t} · no trabajó` : `${f.proceso} · turno ${t}`;
+        html += `<td class="celda ${c}" title="${esc(tit)}">${
+          c==="n" && !rs.length ? "—" : marca(rs)}</td>`;
       });
       html += `<td class="celda ${delDia.length?"v":"n"}">${delDia.length}</td></tr>`;
     });
@@ -1894,7 +2036,8 @@ function renderCumplimiento(){
         const c = f.condicional && !rs.length ? "n" : clase(rs);
         if(c === "r") faltan++;
         if(!f.condicional) total++;
-        html += `<td class="celda ${c}" title="${esc(f.proceso)} · ${fechaD}">${rs.length||""}</td>`;
+        html += `<td class="celda ${c}" title="${esc(f.proceso)} · ${fechaD}${c==="p"?" · no trabajó":""}">${
+          c==="p" ? "○" : (rs.length||"")}</td>`;
       }
       html += `<td class="celda ${n?"v":"n"}">${n}</td></tr>`;
     });
