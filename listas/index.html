@@ -212,6 +212,14 @@
   .est.cond{background:#fff4d6;color:#92660a;}
   .est.bad{background:#fdeaea;color:#c81d2e;}
   .est.blk{background:#eef0f3;color:#5a6270;}
+  .est.esp{background:#eaf0fb;color:#3c5ea8;}
+  /* franja de color del estado en las filas de Consultar */
+  .ref-fila.dec-ok{border-left:4px solid #22c55e;background:#f6fdf9;}
+  .ref-fila.dec-cond{border-left:4px solid #f2b90b;background:#fffdf5;}
+  .ref-fila.dec-bad{border-left:4px solid #e53e3e;background:#fef7f7;}
+  .ref-fila.dec-blk{border-left:4px solid #8b939e;background:#f8f9fa;}
+  .ref-fila.dec-esp{border-left:4px solid #5b7cc4;background:#f6f8fd;}
+  .ref-fila .final .btn-sec{font-size:.76rem;padding:7px 13px;}
   .btn-ir{padding:8px 16px;border:none;border-radius:8px;background:var(--red);color:#fff;
     font-weight:700;font-size:.8rem;cursor:pointer;white-space:nowrap;}
   .btn-ir.sec{background:#fff;color:var(--text);border:1px solid var(--border);}
@@ -1833,11 +1841,13 @@ document.getElementById("cBuscar").addEventListener("click",()=>{
   const hasta = document.getElementById("cHasta").value;
 
   const res = S.inspecciones.filter(i=>
+    ordenViva(i) &&                                  // sin orden de compra viva no se muestra
     (!orden || String(i.orden).toLowerCase().includes(orden)) &&
     (!prod || i.listaId===prod) &&
     (!desde || i.fecha>=desde) &&
     (!hasta || i.fecha<=hasta)
   );
+  const huerfanas = S.inspecciones.filter(i=>!ordenViva(i)).length;
 
   const box = document.getElementById("resultadosCons");
   const pend = S.inspecciones.filter(i=>i.pendienteSync).length;
@@ -1851,12 +1861,28 @@ document.getElementById("cBuscar").addEventListener("click",()=>{
 
   const colorDec = i => {
     const c = claseEstado(i);
-    return c==="ok" ? "ok" : c==="cond" ? "warn" : c==="bad" ? "bad" :
+    return c==="ok" ? "ok" : c==="cond" ? "cond" : c==="bad" ? "bad" :
            c==="blk" ? "blk" : "esp";
   };
 
-  box.innerHTML = avisoPend + `<div class="panel cons-panel">
-    <div class="section-title"><h2>${res.length} INSPECCIÓN(ES)</h2>
+  // mismo agrupamiento por orden de compra que en "pendientes por inspeccionar"
+  const grupos = {};
+  res.forEach(i=>{
+    const rc = datosRef(i);
+    const k = String(rc.orden);
+    (grupos[k] = grupos[k] || {orden:rc.orden, proveedor:rc.proveedor, items:[]}).items.push(i);
+    if(!grupos[k].proveedor && rc.proveedor) grupos[k].proveedor = rc.proveedor;
+  });
+
+  const avisoHuerf = (huerfanas && gestionaUsuarios())
+    ? `<div class="banner-alerta warn" style="margin-bottom:14px;">
+         <b>${huerfanas} inspección(es) quedaron sin orden de compra</b> y ya no se muestran aquí,
+         pero siguen ocupando la hoja compartida.
+         <button class="btn-sec" id="btnLimpiarHuerf" style="margin-left:10px;">Borrarlas de la hoja</button>
+       </div>`
+    : "";
+
+  box.innerHTML = avisoPend + avisoHuerf + `<div class="section-title"><h2>${res.length} INSPECCIÓN(ES)</h2>
       <div class="leyenda-dec">
         <span><i class="pt ok"></i>Aprobado</span>
         <span><i class="pt warn"></i>Bajo condición</span>
@@ -1864,31 +1890,59 @@ document.getElementById("cBuscar").addEventListener("click",()=>{
         <span><i class="pt blk"></i>Bloqueado</span>
         <span><i class="pt esp"></i>En espera de revisión y liberación</span>
       </div>
-    </div>
-    <div class="cons-lista">${res.map(i=>{
-      const nc = i.resultados.filter(r=>r.resultado==="Rechazo").length;
-      const rc = datosRef(i);
-      const cl = colorDec(i);
-      return `<div class="lista-item cons-fila dec-${cl}">
-        <div class="info">
-          <b>${rc.producto}${i.numero>1?`<span class="chip-re">Reinspección ${i.numero}</span>`:""}</b>
-          <span class="meta">Orden de compra <b>${rc.orden}</b> · BPCS <b>${rc.bpcs}</b>${rc.proveedor?` · ${rc.proveedor}`:""}</span>
-          <span class="meta">${fFechaHora(i)} · Inspector: ${i.inspector||"—"} · Cantidad ${i.cantidadRecibida||"—"} (muestra ${i.cantidadMuestra||"—"})</span>
-          <span class="meta">${nc?`<span style="color:var(--bad-text);">${nc} variable(s) en rechazo</span>`:"todas las variables conformes"}</span>
+    </div>` + Object.keys(grupos).sort((a,b)=>b.localeCompare(a)).map(k=>{
+      const g = grupos[k];
+      const abiertas = g.items.filter(i=>colorDec(i)==="esp").length;
+      return `<div class="oc-grupo">
+        <div class="oc-head">
+          <div><b>${ocTxt(g.orden)}</b>${g.proveedor?` · ${g.proveedor}`:""}</div>
+          <span>${g.items.length} inspección(es)${abiertas?` · ${abiertas} en espera de revisión`:""}</span>
         </div>
-        <div class="acciones">
-          <span class="badge-dec ${cl}">${textoEstado(i)}</span>
-          <button class="btn-sec" data-pdf="${i.id}">Descargar PDF</button>
-        </div>
+        ${g.items.map(i=>{
+          const nc = i.resultados.filter(r=>r.resultado==="Rechazo").length;
+          const rc = datosRef(i);
+          const cl = colorDec(i);
+          return `<div class="ref-fila dec-${cl}">
+            <div class="datos">
+              <b>${rc.producto}${i.numero>1?`<span class="chip-re">Reinspección ${i.numero}</span>`:""}</b>
+              <div class="sub">BPCS ${rc.bpcs} · ${fFechaHora(i)} · Inspector: ${i.inspector||"—"}
+                · Cantidad ${i.cantidadRecibida||"—"} (muestra ${i.cantidadMuestra||"—"})</div>
+              <div class="sub">${nc?`<span style="color:var(--bad-text);">${nc} variable(s) en rechazo</span>`
+                                    :"todas las variables conformes"}</div>
+            </div>
+            <span class="est ${cl}">${textoEstado(i)}</span>
+            <div class="final"><button class="btn-sec" data-pdf="${i.id}">Descargar PDF</button></div>
+          </div>`;
+        }).join("")}
       </div>`;
-    }).join("")}</div>
-  </div>`;
+    }).join("");
 
   box.querySelectorAll("[data-pdf]").forEach(b=>b.addEventListener("click",()=>{
     const insp = S.inspecciones.find(i=>i.id===b.dataset.pdf);
     if(insp) generarPDF(insp, true);
   }));
+
+  const btnLimp = document.getElementById("btnLimpiarHuerf");
+  if(btnLimp) btnLimp.addEventListener("click", limpiarHuerfanasEnHoja);
 });
+
+/** Borra de la hoja compartida las inspecciones cuya orden de compra ya no existe. */
+async function limpiarHuerfanasEnHoja(){
+  if(!S.syncUrl){ toast("Configura primero la sincronización"); return; }
+  const sueltas = S.inspecciones.filter(i=>!ordenViva(i));
+  if(!sueltas.length){ toast("No hay inspecciones sueltas"); return; }
+  if(!confirm(`Se borrarán definitivamente ${sueltas.length} inspección(es) cuya orden de compra ya no existe.\n\n¿Continuar?`)) return;
+  try{
+    await fetch(S.syncUrl, {method:"POST", mode:"no-cors",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify({action:"limpiarHuerfanas"})});
+    const ids = new Set(sueltas.map(i=>i.id));
+    S.inspecciones = S.inspecciones.filter(i=>!ids.has(i.id));
+    persist();
+    toast(`${sueltas.length} inspección(es) sueltas eliminadas`);
+    document.getElementById("cBuscar").click();
+  }catch(err){ toast("No se pudo limpiar: " + err.message); }
+}
 
 
 /* ---------- Catálogo compartido: listas y órdenes en la Sheet ---------- */
