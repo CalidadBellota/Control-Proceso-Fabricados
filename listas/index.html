@@ -104,6 +104,9 @@
     border-radius:6px;font-size:.74rem;font-weight:700;cursor:pointer;color:#92660a;}
   .btn-ir-admin:hover{background:#fff4d6;}
   .aviso-previa{background:#fff8e1;border:1px solid #f3e3ae;border-radius:10px;padding:14px 16px;margin-bottom:18px;}
+  /* referencia ya liberada: no se reinspecciona, el aviso deja de ser una advertencia */
+  .aviso-previa.cerrada{background:#f1f9f4;border-color:#c6e7d4;}
+  .aviso-previa.cerrada h4{color:#1a7f45;}
   .aviso-previa h4{margin:0 0 4px 0;font-size:.9rem;color:#92660a;display:flex;align-items:center;gap:8px;}
   .aviso-previa p{margin:0;font-size:.82rem;color:var(--text-dim);}
   .aviso-previa .lista{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
@@ -1330,11 +1333,22 @@ function renderAvisoPrevia(){
 
   // hay previas: bloquear hasta que el usuario decida
   const clase = i => { const c = claseEstado(i); return c==="ok" ? "ok" : (c==="bad"||c==="blk") ? "bad" : "warn"; };
+  // solo se reinspecciona si la última quedó devuelta, rechazada o bloqueada
+  const ultima  = prev[0];
+  const puedeRe = permiteReinspeccion(ultima);
+  const espera  = estadoDe(ultima) === "pendiente_aprobacion";
+
   box.style.display="block";
-  box.innerHTML = `<div class="aviso-previa">
-    <h4>⚠ ${lista.nombre} ya fue inspeccionado en la orden ${orden}</h4>
-    <p>Si el lote fue rechazado o hubo que revisarlo otra vez, registra una <b>reinspección</b>.
-       La anterior no se borra: ambas quedan en la trazabilidad.</p>
+  box.innerHTML = `<div class="aviso-previa${(!puedeRe && !espera)?" cerrada":""}">
+    <h4>${puedeRe?"⚠":espera?"⏳":"✓"} ${lista.nombre} ya fue inspeccionado en la orden ${orden}</h4>
+    <p>${puedeRe
+      ? `El lote volvió al inspector, así que registra una <b>reinspección</b>.
+         La anterior no se borra: ambas quedan en la trazabilidad.`
+      : espera
+        ? `La inspección está <b>en espera del responsable de revisión y liberación</b>.
+           Hasta que él decida no se puede volver a inspeccionar esta referencia.`
+        : `El lote ya fue <b>liberado</b>, así que esta referencia no se vuelve a inspeccionar.
+           Si necesitas revisarla otra vez, el responsable de revisión y liberación debe devolverla primero.`}</p>
     <div class="lista">
       ${prev.map((i,idx)=>{
         const nc = i.resultados.filter(r=>r.resultado==="Rechazo").length;
@@ -1344,7 +1358,7 @@ function renderAvisoPrevia(){
           <span style="display:flex;align-items:center;gap:8px;">
             <span class="dec ${clase(i)}">${textoEstado(i)}</span>
             <button type="button" data-pdfprev="${i.id}">PDF</button>
-            ${idx===0?`<button type="button" class="btn-reinsp" data-reinsp="1">Hacer reinspección</button>`:""}
+            ${(idx===0 && puedeRe)?`<button type="button" class="btn-reinsp" data-reinsp="1">Hacer reinspección</button>`:""}
           </span>
         </div>`;
       }).join("")}
@@ -1402,6 +1416,9 @@ const ESTADOS = {
 };
 // estados que cierran la referencia (ya no aparece en pendientes)
 const ESTADOS_CIERRAN = ["aprobado", "aprobado_condicion"];
+/** Solo se reinspecciona lo que volvió al inspector; lo liberado ya no se toca. */
+const ESTADOS_REINSPECCION = ["devuelto", "rechazado_lote", "bloqueado"];
+function permiteReinspeccion(i){ return !!i && ESTADOS_REINSPECCION.includes(estadoDe(i)); }
 
 /* Jefe y coordinador aprueban y administran; solo el jefe gestiona usuarios. */
 const ROLES = {
