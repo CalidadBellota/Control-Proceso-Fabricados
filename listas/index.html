@@ -59,7 +59,7 @@
   .aviso-crit{background:#fdeaea;border:1px solid #f6c9cd;color:#c81d2e;border-radius:9px;
     padding:10px 13px;font-size:.82rem;font-weight:600;margin-top:12px;}
   .ap-alerta{background:#fdeaea;border:1px solid #f6c9cd;color:#c81d2e;border-radius:7px;
-    padding:7px 10px;font-size:.76rem;font-weight:700;margin:0 15px 11px;}
+    padding:10px 13px;font-size:.78rem;font-weight:700;margin:0 24px 16px;}
   .val-input{width:110px;padding:7px 8px;}
   .res-btns{display:flex;gap:4px;}
   .res-btns button{padding:5px 11px;border:1px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;font-weight:700;font-size:.82rem;}
@@ -228,27 +228,33 @@
   .ap-card.conNC{border-left-color:var(--red);}
   .ap-grupo .ap-items{padding:0;}
   .ap-grupo .ap-card{border:none;border-radius:0;margin:0;border-left:4px solid #f2b90b;
-    border-bottom:1px solid #f2f3f5;}
+    border-bottom:1px solid var(--border);}
+  .ap-grupo .oc-head{padding:15px 24px;}
   .ap-grupo .ap-card.conNC{border-left-color:var(--red);}
   .ap-grupo .ap-card:last-child{border-bottom:none;}
-  .ap-head{padding:11px 15px;display:flex;justify-content:space-between;align-items:center;gap:12px;
-    flex-wrap:wrap;}
+  .ap-head{padding:20px 24px 18px;display:flex;justify-content:space-between;align-items:center;
+    gap:28px;flex-wrap:wrap;}
   .ap-head .tit{min-width:0;flex:1;}
-  .ap-head .tit b{font-size:.92rem;}
-  .ap-head .meta{font-size:.73rem;color:var(--text-dim);margin-top:2px;}
+  .ap-head .tit b{font-size:1rem;}
+  .ap-head .meta{font-size:.78rem;color:var(--text-dim);margin-top:6px;}
   .ap-head .meta b{color:var(--text);font-weight:700;}
-  .ap-head .quien{font-size:.72rem;color:var(--text-dim);text-align:right;white-space:nowrap;}
-  .ap-tira{display:flex;flex-wrap:wrap;align-items:center;gap:0 0;padding:0 15px 11px;
-    font-size:.75rem;color:var(--text-dim);}
-  .ap-tira .d{display:flex;align-items:baseline;gap:5px;padding-right:15px;margin-right:15px;
-    border-right:1px solid var(--border);}
-  .ap-tira .d:last-child{border-right:none;margin-right:0;padding-right:0;}
-  .ap-tira .d b{font-size:.86rem;color:var(--text);font-weight:700;}
+  .ap-head .quien{font-size:.78rem;color:var(--text-dim);text-align:right;white-space:nowrap;
+    line-height:1.5;}
+  /* tira de datos: mismo sitio de siempre, con el aire de la opción B */
+  .ap-tira{display:flex;flex-wrap:wrap;align-items:flex-start;gap:0;padding:16px 24px 18px;
+    border-top:1px solid #f2f3f5;font-size:.75rem;color:var(--text-dim);}
+  .ap-tira .d{display:flex;flex-direction:column;align-items:flex-start;gap:3px;
+    padding-right:0;margin-right:0;border-right:none;}
+  .ap-tira .d + .d{margin-left:44px;}
+  .ap-tira .d>span:first-child{font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;
+    color:#8b939e;}
+  .ap-tira .d b{font-size:1rem;color:var(--text);font-weight:700;line-height:1.2;}
   .ap-tira .d b.mal{color:var(--bad-text);}
   .ap-tira .d b.bien{color:#1f9d55;}
+  .ap-tira .d b + span{font-size:.72rem;color:var(--text-dim);}
   .ap-body{padding:0;}
   /* acciones como botones de icono, dentro del encabezado */
-  .ap-acciones{display:flex;gap:7px;align-items:center;flex-shrink:0;}
+  .ap-acciones{display:flex;gap:9px;align-items:center;flex-shrink:0;}
   .ap-acciones button{width:44px;height:44px;padding:0;border:1.5px solid var(--border);background:#fff;
     border-radius:50%;color:#5a6270;display:flex;align-items:center;justify-content:center;
     cursor:pointer;font-family:inherit;flex:none;}
@@ -259,8 +265,8 @@
   .ap-acciones .cond{background:#fffcf2;border-color:#f2b90b;color:#92660a;}
   .ap-acciones .bad{background:#fef6f6;border-color:#e7b4ba;color:var(--red);}
   .ap-acciones .dev{color:#5a6270;}
-  .ap-acciones .sep{width:1px;height:26px;background:var(--border);margin:0 2px;flex:none;}
-  .ap-sep{width:1px;height:36px;background:var(--border);flex:none;}
+  .ap-acciones .sep{width:1px;height:30px;background:var(--border);margin:0 5px;flex:none;}
+  .ap-sep{width:1px;height:44px;background:var(--border);flex:none;}
 
   /* leyenda de los iconos, en el panel de filtros */
   .leyenda-ic{display:flex;align-items:center;gap:18px;flex-wrap:wrap;
@@ -273,12 +279,12 @@
   .leyenda-ic .ic.cond{border-color:#f2b90b;color:#92660a;}
   .leyenda-ic .ic.bad{border-color:#e7b4ba;color:var(--red);}
   .ap-motivo{background:#fff8e1;border:1px solid #f3e3ae;color:#7a5600;border-radius:7px;
-    padding:7px 10px;font-size:.74rem;margin:0 15px 11px;}
-  .ap-detalle{display:none;padding:0 15px 13px;}
+    padding:10px 13px;font-size:.78rem;margin:0 24px 18px;}
+  .ap-detalle{display:none;padding:0 24px 20px;}
   .ap-detalle.show{display:block;}
   .ver-mas{background:none;border:none;color:var(--red);font-size:.78rem;font-weight:700;
     cursor:pointer;padding:0;font-family:inherit;display:inline-flex;align-items:center;gap:5px;
-    white-space:nowrap;margin-left:auto;}
+    white-space:nowrap;margin-left:auto;align-self:center;}
   .seg{display:flex;gap:0;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:#fff;}
   .seg button{padding:9px 14px;border:none;background:#fff;font-size:.78rem;font-weight:600;
     color:var(--text-dim);cursor:pointer;border-right:1px solid var(--border);white-space:nowrap;}
