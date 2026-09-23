@@ -141,22 +141,29 @@
 
   /* ---------- Selector de proceso ---------- */
   .proc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;}
-  .proc-card{border:1px solid var(--border);background:#fff;border-radius:10px;padding:10px 12px;
+  .proc-card{border:1px solid var(--border);background:#fff;border-radius:10px;padding:11px 13px;
     text-align:left;cursor:pointer;font-family:inherit;border-left:4px solid var(--border);
-    display:flex;align-items:center;gap:10px;min-height:94px;}
+    display:flex;align-items:center;gap:11px;}
   .proc-card:hover{border-color:#c9ced6;border-left-color:var(--red);background:#fafbfc;}
   .proc-card.sel{border-color:var(--red);border-left-color:var(--red);background:#fdf6f6;}
-  .proc-card .ico{width:34px;height:34px;border-radius:8px;background:#fdeceb;color:var(--red);
+  .proc-card .ico{width:36px;height:36px;border-radius:9px;background:#fdeceb;color:var(--red);
     flex:none;display:flex;align-items:center;justify-content:center;}
   .proc-card.sel .ico{background:#fff;}
   .proc-card .cuerpo{min-width:0;flex:1;}
   /* nombre y pie reservan dos renglones cada uno: todas las tarjetas miden igual */
   /* el nombre nunca se recorta; el bloque va centrado, así no queda hueco abajo */
-  /* el nombre reserva sus dos renglones: así toda tarjeta mide lo mismo */
-  .proc-card b{font-size:.86rem;line-height:1.25;height:2.5em;overflow:hidden;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
-  .proc-card .meta{display:block;font-size:.7rem;line-height:1.4;color:var(--text-dim);margin-top:3px;}
-  .proc-card .cond-slot{display:block;min-height:15px;margin-top:3px;}
+  /* sin alturas reservadas: la tarjeta mide lo que mide su contenido y la
+     rejilla empareja las de cada fila */
+  .proc-card b{display:block;font-size:.87rem;line-height:1.3;}
+  .proc-card .meta{display:block;font-size:.72rem;line-height:1.35;color:var(--text-dim);margin-top:2px;}
+  .proc-card .cond-slot{display:none;}
+  /* "según la referencia" y los estados van como punto junto al nombre */
+  .pt-cond{display:inline-block;width:7px;height:7px;border-radius:50%;
+    background:#e0b90c;margin-left:6px;vertical-align:middle;flex:none;}
+  #regResumen .pt-cond{margin-left:0;margin-right:4px;}
+  .proc-card .pt-cond.ok{background:var(--ok);}
+  .proc-card .pt-cond.bad{background:var(--bad);}
+  .proc-card .pt-cond.par{background:#8b939e;}
   .proc-card .cond{display:inline-block;font-size:.59rem;font-weight:800;
     letter-spacing:.05em;text-transform:uppercase;background:var(--warn-bg);color:var(--warn-text);
     border-radius:99px;padding:2px 8px;}
@@ -1096,8 +1103,10 @@ function renderProcesos(){
   const hechos     = fs.filter(f =>  validadoEnLaRonda(f.id));
   const aMostrar   = verYaValidados ? hechos : pendientes;
 
-  document.getElementById("regResumen").textContent =
-    `Turno ${turno} · faltan ${pendientes.length} de ${fs.length} en ${S.lineaActiva||"esta línea"}`;
+  const hayCond = fs.some(f=>f.condicional);
+  document.getElementById("regResumen").innerHTML =
+    `Turno ${turno} · faltan ${pendientes.length} de ${fs.length} en ${esc(S.lineaActiva||"esta línea")}` +
+    (hayCond ? ` <span style="margin-left:10px;"><span class="pt-cond"></span> aplica según la referencia</span>` : "");
 
   const cinta = hechos.length
     ? `<div class="cinta-ronda">
@@ -1111,18 +1120,21 @@ function renderProcesos(){
     const regs = registrosDeLaRonda(f.id);
     const noTrab = regs.length && regs.every(r=>r.noTrabajo);
     const nc = regs.reduce((n,r)=>n+ncDe(r), 0);
-    const estado = !regs.length ? ""
-      : noTrab ? `<span class="cond" style="background:#eef0f3;color:#5a6270;">No trabajó</span>`
-      : nc     ? `<span class="cond" style="background:var(--bad-bg);color:var(--bad);">${nc} fuera de rango</span>`
-               : `<span class="cond" style="background:var(--ok-bg);color:var(--ok);">Validado</span>`;
+    const punto = !regs.length
+      ? (f.condicional ? `<span class="pt-cond" title="Aplica según la referencia"></span>` : "")
+      : noTrab ? `<span class="pt-cond par" title="Verificado · no estuvo trabajando"></span>`
+      : nc     ? `<span class="pt-cond bad" title="${nc} variable(s) fuera de rango"></span>`
+               : `<span class="pt-cond ok" title="Validado en este turno"></span>`;
+    // lo condicional lo dice el punto ámbar; el pie solo habla de la ronda
+    const pie = !regs.length ? ""
+      : noTrab ? "no trabajó" : nc ? `${nc} fuera de rango` : "validado";
     return `<button class="proc-card${S.formatoActivo&&S.formatoActivo.id===f.id?" sel":""}${
         regs.length?" hecho":""}" data-f="${esc(f.id)}" title="${esc(f.nombre)}">
       <span class="ico">${svgProc(f, 21)}</span>
       <span class="cuerpo">
-        <b>${esc(f.proceso)}</b>
+        <b>${esc(f.proceso)}${punto}</b>
         <span class="meta">${(f.variables||[]).length} variables${f.codigoDoc?` · ${esc(f.codigoDoc)}`:""}${
-          regs.length?` · ${regs.length} en este turno`:""}</span>
-        <span class="cond-slot">${estado || (f.condicional?`<span class="cond">Según la referencia</span>`:"")}</span>
+          pie?` · ${pie}`:""}</span>
       </span>
     </button>`;
   }).join("")
