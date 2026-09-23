@@ -37,7 +37,9 @@
   .brand img{height:34px;width:auto;display:block;}
   .brand .txt{border-left:1px solid rgba(255,255,255,.4);padding-left:14px;}
   .brand b{display:block;font-size:1.05rem;font-weight:700;}
-  .brand span{display:block;font-size:.78rem;opacity:.85;}
+  /* ojo: .txt también es un span. Si la opacidad se aplica al bloque entero,
+     el título deja de ser blanco puro. Solo el subtítulo se atenúa. */
+  .brand .txt > span{display:block;font-size:.78rem;opacity:.85;}
   nav.tabs{display:flex;gap:6px;margin-left:auto;background:rgba(255,255,255,.15);
     border-radius:8px;padding:3px;flex-wrap:wrap;}
   nav.tabs button{padding:7px 14px;border:none;background:transparent;color:#fff;
