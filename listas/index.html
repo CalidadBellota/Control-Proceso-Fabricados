@@ -791,10 +791,6 @@
   <div class="panel" id="admOrdenes" style="display:none;">
     <div class="adm-tools">
       <input type="text" id="admBuscarOrdenes" placeholder="Buscar por número de orden o proveedor...">
-      <div class="seg" id="admFiltroOrdenes">
-        <button data-f="abiertas" class="on">Con pendientes</button>
-        <button data-f="todas">Todas</button>
-      </div>
       <button class="btn-sec" id="btnNuevaOrden">+ Nueva orden</button>
     </div>
     <div id="ordenesAdmin" class="adm-lista"></div>
@@ -2552,14 +2548,10 @@ document.getElementById("admOrdenarListas").addEventListener("change", ()=>{ adm
 function renderOrdenesAdmin(){
   const ob = document.getElementById("ordenesAdmin");
   const q = (document.getElementById("admBuscarOrdenes").value||"").trim().toLowerCase();
-  const btnF = document.querySelector("#admFiltroOrdenes button.on");
-  const filtro = btnF ? btnF.dataset.f : "abiertas";
 
-  const pendPorOC = {};
-  referenciasPendientes().forEach(r=> pendPorOC[String(r.orden.numero)] = (pendPorOC[String(r.orden.numero)]||0)+1);
-
+  // En Administrar se ven TODAS las órdenes creadas: aquí solo se define
+  // el catálogo (la orden y qué referencias lleva). Lo pendiente vive en las bandejas.
   let items = S.ordenes.map((o,idx)=>({o, idx}));
-  if(filtro==="abiertas") items = items.filter(({o}) => pendPorOC[String(o.numero)] > 0);
   if(q) items = items.filter(({o}) => `${o.numero} ${o.proveedor||""}`.toLowerCase().includes(q));
   items.sort((a,b)=> String(b.o.numero).localeCompare(String(a.o.numero)));
 
@@ -2568,13 +2560,13 @@ function renderOrdenesAdmin(){
   const pagina = admPag.ordenes;
   const vis = items.slice((pagina-1)*POR_PAGINA, pagina*POR_PAGINA);
 
-  ob.innerHTML = vis.length ? vis.map(({o,idx})=>{
-    const p = pendPorOC[String(o.numero)] || 0;
+  ob.innerHTML = (vis.length ? vis.map(({o,idx})=>{
     const t = (o.productos||[]).length;
     const insp = inspeccionesDeOrden(o.numero).length;
+    const nota = !t ? ` · <span style="color:var(--bad-text);">sin referencias asignadas</span>` : "";
     return `<div class="lista-item">
       <div class="info"><b>${ocTxt(o.numero)}</b>
-        <span class="meta">${o.proveedor||"sin proveedor"} · ${t} referencia(s)${insp?` · ${insp} inspección(es) registradas`:""}</span></div>
+        <span class="meta">${o.proveedor||"sin proveedor"} · ${t} referencia(s)${insp?` · ${insp} inspección(es) registradas`:""}${nota}</span></div>
       <div class="acciones">
         <button class="btn-sec" data-oedit="${esc(o.numero)}">Editar</button>
         <button class="btn-sec" data-odel="${esc(o.numero)}" style="color:var(--bad-text);">Eliminar</button>
@@ -2582,8 +2574,8 @@ function renderOrdenesAdmin(){
     </div>`;
   }).join("")
    : `<div class="empty-mini">${S.ordenes.length
-        ? (filtro==="abiertas" ? "No hay órdenes con referencias pendientes. Cambia a «Todas» para verlas." : "Ninguna orden coincide con la búsqueda.")
-        : "No hay órdenes registradas."}</div>`;
+        ? "Ninguna orden coincide con la búsqueda."
+        : "No hay órdenes registradas."}</div>`);
 
   pintarPager("pagerOrdenes", items.length, pagina, n=>{ admPag.ordenes = n; renderOrdenesAdmin();
     document.getElementById("admOrdenes").scrollIntoView({behavior:"smooth", block:"start"}); });
@@ -2608,11 +2600,6 @@ function renderOrdenesAdmin(){
   }));
 }
 document.getElementById("admBuscarOrdenes").addEventListener("input", ()=>{ admPag.ordenes=1; renderOrdenesAdmin(); });
-document.querySelectorAll("#admFiltroOrdenes button").forEach(b=>b.addEventListener("click",()=>{
-  document.querySelectorAll("#admFiltroOrdenes button").forEach(x=>x.classList.remove("on"));
-  b.classList.add("on"); admPag.ordenes=1; renderOrdenesAdmin();
-}));
-
 function filaVarHTML(v={}){
   const t = v.tipo||"numerico";
   const ti = v.tolInf!=null ? v.tolInf : (v.tol!=null?v.tol:"");
