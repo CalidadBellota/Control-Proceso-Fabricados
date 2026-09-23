@@ -942,6 +942,19 @@ function renderSegLineas(){
     return `<button data-l="${esc(l)}" class="${l===S.lineaActiva?"on":""}">${esc(l)} <span class="n">${n}</span></button>`;
   }).join("");
   box.querySelectorAll("[data-l]").forEach(b=>b.addEventListener("click",()=>{
+    if(b.dataset.l === S.lineaActiva) return;
+    // al cambiar de línea se cierra el formato abierto: dejaba en pantalla
+    // el de la línea anterior
+    if(S.formatoActivo && S.formatoActivo.linea !== b.dataset.l){
+      if(Object.keys(S.mediciones).length &&
+         !confirm("Tienes un registro a medias en " + S.formatoActivo.nombre +
+                  ". Se perderán los valores. ¿Cambiar de línea?")) return;
+      S.formatoActivo = null; S.mediciones = {};
+      document.getElementById("formularioProc").style.display = "none";
+      document.getElementById("barraFija").style.display = "none";
+      const av = document.getElementById("avisoCriticas");
+      if(av) av.style.display = "none";
+    }
     S.lineaActiva = b.dataset.l; renderProcesos();
   }));
 }
@@ -1075,6 +1088,31 @@ function juzgar(v, valor){
   return "ok";
 }
 
+/** Guarda el valor de una variable y vuelve a juzgarlo. */
+function anotarMedicion(i, valor){
+  const v = S.formatoActivo.variables[i];
+  S.mediciones[i] = S.mediciones[i] || {};
+  S.mediciones[i].valor = valor;
+  S.mediciones[i].resultado = juzgar(v, valor);
+}
+
+/** Repinta solo el veredicto de una fila, sin tocar el campo que se está escribiendo. */
+function refrescarFila(i){
+  const el = document.querySelector(`.valor[data-i="${i}"]`);
+  const fila = el ? el.closest("tr") : null;
+  if(!fila) return;
+  const v = S.formatoActivo.variables[i];
+  const r = (S.mediciones[i] || {}).resultado;
+  fila.classList.toggle("ok",  r === "ok");
+  fila.classList.toggle("bad", r === "bad");
+  const badge = fila.querySelector(".badge");
+  if(!badge) return;
+  badge.className = "badge " + (r === "ok" ? "ok" : r === "bad" ? "bad" : "neutral");
+  badge.textContent = (v.tipo === "numerico")
+    ? (r === "ok" ? "✓ En rango" : r === "bad" ? "✗ Fuera de rango" : "—")
+    : (r === "ok" ? "✓ Conforme" : r === "bad" ? "✗ No conforme" : r === "na" ? "No aplica" : "—");
+}
+
 function renderVariables(){
   const body = document.getElementById("varsBody");
   if(!S.formatoActivo){ body.innerHTML = ""; return; }
@@ -1125,22 +1163,26 @@ function renderVariables(){
   }).join("");
 
   body.querySelectorAll(".valor").forEach(el=>{
-    const ev = el.tagName==="SELECT" ? "change" : "input";
-    el.addEventListener(ev, ()=>{
-      const i = +el.dataset.i, v = S.formatoActivo.variables[i];
-      S.mediciones[i] = S.mediciones[i] || {};
-      S.mediciones[i].valor = el.value;
-      S.mediciones[i].resultado = juzgar(v, el.value);
-      renderVariables(); actualizarBarra();
-      const otro = document.querySelector(`.valor[data-i="${i}"]`);
-      if(otro && otro.focus && ev==="input"){ otro.focus(); otro.setSelectionRange?.(otro.value.length, otro.value.length); }
+    if(el.tagName === "SELECT"){
+      el.addEventListener("change", ()=>{
+        anotarMedicion(+el.dataset.i, el.value);
+        renderVariables(); actualizarBarra();
+      });
+      return;
+    }
+    // Mientras se escribe NO se repinta la tabla: al reconstruir el input el
+    // cursor volvía al inicio y "45" terminaba escrito "54".
+    el.addEventListener("input", ()=>{
+      const i = +el.dataset.i;
+      anotarMedicion(i, el.value);
+      refrescarFila(i);
+      actualizarBarra();
     });
   });
   body.querySelectorAll(".rb").forEach(b=>b.addEventListener("click",()=>{
-    const i = +b.dataset.i, v = S.formatoActivo.variables[i];
-    S.mediciones[i] = S.mediciones[i] || {};
-    S.mediciones[i].valor = (S.mediciones[i].valor === b.dataset.op) ? "" : b.dataset.op;
-    S.mediciones[i].resultado = juzgar(v, S.mediciones[i].valor);
+    const i = +b.dataset.i;
+    const actual = (S.mediciones[i] || {}).valor;
+    anotarMedicion(i, actual === b.dataset.op ? "" : b.dataset.op);
     renderVariables(); actualizarBarra();
   }));
   body.querySelectorAll(".obs").forEach(el=>el.addEventListener("input",()=>{
