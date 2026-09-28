@@ -369,6 +369,10 @@
     text-decoration:underline;cursor:pointer;}
   .solo-jefe{display:none;}
   .diag{font-size:.84rem;}
+  .diag-tit{font-size:.66rem;font-weight:800;letter-spacing:.6px;color:var(--red);margin-bottom:5px;}
+  .diag-url{font-size:.68rem;color:var(--text-dim);word-break:break-all;background:#f7f8fa;
+    border-radius:6px;padding:7px 9px;line-height:1.4;margin-bottom:6px;font-family:ui-monospace,monospace;}
+  .diag-nota{font-size:.71rem;color:var(--text-dim);line-height:1.45;}
   .diag-fila{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);}
   .diag-err{background:var(--bad-bg);color:var(--bad);border-radius:7px;padding:9px 11px;
     font-size:.78rem;margin-top:10px;word-break:break-word;}
@@ -1178,7 +1182,7 @@ function tab(activo){
   if(activo==="Tab")   renderTablero();
   if(activo==="Cump")  renderCumplimiento();
   if(activo==="Admin") renderAdmin();
-  if(S.syncUrl){ cargarRemoto(); cargarConfig(); } else marcarConfigSync(false);
+  if(S.syncUrl){ cargarRemoto(false); } else marcarConfigSync(false);
 }
 VISTAS.forEach(t=> document.getElementById("tab"+t).addEventListener("click", ()=>tab(t)));
 
@@ -1759,7 +1763,10 @@ function critNCDe(r){
     String(x.critica||"").toLowerCase().indexOf("s")===0).length;
 }
 
-document.getElementById("cBuscar").addEventListener("click",()=>{
+let yaBusco = false;
+document.getElementById("cBuscar").addEventListener("click",()=>{ yaBusco = true; buscarConsulta(); });
+
+function buscarConsulta(){
   const linea = document.getElementById("cLinea").value;
   const proc  = document.getElementById("cProceso").value;
   const desde = document.getElementById("cDesde").value;
@@ -1812,7 +1819,7 @@ document.getElementById("cBuscar").addEventListener("click",()=>{
   box.querySelectorAll("[data-det]").forEach(b=>b.addEventListener("click",()=>{
     const r = S.registros.find(x=>x.id===b.dataset.det); if(r) generarPDF(r, false);
   }));
-});
+}
 
 /* ==========================================================================
    TENDENCIA · una variable en el tiempo con sus límites
@@ -2775,19 +2782,75 @@ function reintentarPendientes(){
   S.registros.filter(r=>r.pendienteSync).forEach(enviarRemoto);
 }
 
-async function cargarRemoto(){
-  if(!S.syncUrl) return;
+/* Qué devolvió la última lectura de la hoja. Sin esto, un fallo de lectura es
+   invisible: los registros propios se ven (están en este equipo) y parece que
+   los de los demás no existieran. */
+const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false, error:null};
+
+/* Sólo el histórico reciente en cada refresco. La carga completa se hace una
+   vez al abrir; después basta con los últimos días, que es donde aparecen los
+   registros nuevos de las otras tabletas. */
+/* Si llegaron registros nuevos, la pantalla que el usuario está mirando se
+   actualiza sola. Antes había que volver a pulsar «Buscar» para verlos, y por
+   eso parecía que la sincronía tardaba una eternidad. */
+function repintarVistaActiva(){
+  const visible = id => document.getElementById(id) &&
+                        document.getElementById(id).style.display !== "none";
   try{
-    const res = await fetch(S.syncUrl);
-    const data = await res.json();
-    if(Array.isArray(data)){
-      const m = new Map();
-      S.registros.forEach(r=>m.set(r.id, r));
-      data.forEach(r=>{ if(r && r.id && !m.has(r.id)) m.set(r.id, r); });
-      S.registros = Array.from(m.values()).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
-      persist(); reintentarPendientes(); actualizarEstadoSync(); actualizarPillCump();
+    if(visible("viewCons") && yaBusco) buscarConsulta();
+    if(visible("viewTab"))  renderTablero();
+    if(visible("viewCump")) renderCumplimiento();
+    if(visible("viewReg"))  renderProcesos();
+  }catch(e){ console.error("repintar:", e); }
+}
+
+function fechaDesde(dias){
+  const d = new Date(); d.setDate(d.getDate() - dias);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+async function cargarRemoto(completo){
+  if(!S.syncUrl){ LECTURA.error = "sin conexión configurada"; return; }
+  const t0 = Date.now();
+  try{
+    const url = completo ? S.syncUrl : S.syncUrl + "?desde=" + fechaDesde(3);
+    const res = await fetch(url);
+    if(!res.ok) throw new Error("La hoja respondió HTTP " + res.status);
+    const txt = await res.text();
+    let data;
+    try{ data = JSON.parse(txt); }
+    catch(err){
+      // Apps Script devuelve HTML cuando la implementación no existe o pide permiso
+      throw new Error(/^\s*</.test(txt)
+        ? "la dirección no devolvió datos (¿implementación borrada o sin permiso para «cualquier usuario»?)"
+        : "respuesta ilegible de la hoja");
     }
-  }catch(e){ console.error("cargarRemoto:", e); }
+    if(!Array.isArray(data)) throw new Error("la hoja no devolvió una lista de registros");
+
+    const m = new Map();
+    S.registros.forEach(r=>m.set(r.id, r));
+    const antes = m.size;
+    data.forEach(r=>{ if(r && r.id && !m.has(r.id)) m.set(r.id, r); });
+    S.registros = Array.from(m.values()).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
+
+    const d = new Date();
+    LECTURA.hora = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    LECTURA.sello = Date.now();
+    LECTURA.ms = Date.now() - t0;
+    LECTURA.recibidos = data.length;
+    LECTURA.nuevos = m.size - antes;
+    LECTURA.completo = !!completo;
+    LECTURA.error = null;
+
+    persist(); reintentarPendientes(); actualizarEstadoSync(); actualizarPillCump();
+    renderPendientes();
+    if(LECTURA.nuevos > 0) repintarVistaActiva();
+  }catch(e){
+    console.error("cargarRemoto:", e);
+    LECTURA.error = e.message || String(e);
+    LECTURA.hora = null;
+    actualizarEstadoSync(); renderPendientes();
+  }
 }
 
 async function cargarConfig(){
@@ -2940,14 +3003,45 @@ function renderPendientes(){
   const box = document.getElementById("panelPendientes"); if(!box) return;
   const pend = S.registros.filter(r=>r.pendienteSync);
   const total = S.registros.length;
+  const propia = S.syncUrl && S.syncUrl !== SYNC_POR_DEFECTO;
   box.innerHTML = `<div class="diag">
+    <div class="diag-tit">ENVÍO</div>
     <div class="diag-fila"><span>Registros en este dispositivo</span><b>${total}</b></div>
     <div class="diag-fila"><span>Enviados a la hoja</span><b style="color:#1f9d55;">${total-pend.length}</b></div>
     <div class="diag-fila"><span>Pendientes de enviar</span>
       <b style="color:${pend.length?"#c81d2e":"#1f9d55"};">${pend.length}</b></div>
-    ${S.ultimoErrorSync?`<div class="diag-err">Último error: ${esc(S.ultimoErrorSync)}</div>`:""}
+    ${S.ultimoErrorSync?`<div class="diag-err">Último error al enviar: ${esc(S.ultimoErrorSync)}</div>`:""}
     ${pend.length?`<button class="btn-sec" id="btnReintentar" style="margin-top:12px;">Reintentar envío</button>`:""}
+
+    <div class="diag-tit" style="margin-top:16px;">LECTURA</div>
+    <div class="diag-fila"><span>Registros que devolvió la hoja</span>
+      <b style="color:${LECTURA.error?"#c81d2e":LECTURA.recibidos?"#1f9d55":"#6b7280"};">
+        ${LECTURA.error ? "—" : (LECTURA.recibidos==null ? "leyendo…" : LECTURA.recibidos)}</b></div>
+    <div class="diag-fila"><span>Última lectura</span><b>${LECTURA.hora
+        ? `${LECTURA.hora} · hace ${Math.max(0,Math.round((Date.now()-LECTURA.sello)/1000))} s` : "—"}</b></div>
+    <div class="diag-fila"><span>Tardó</span><b>${LECTURA.ms ? (LECTURA.ms/1000).toFixed(1)+" s" : "—"}</b></div>
+    ${LECTURA.error
+      ? `<div class="diag-err">No se pudo leer la hoja: ${esc(LECTURA.error)}<br>
+           Lo que registres aquí se guarda en este equipo, pero <b>no verás lo de los demás</b>.</div>`
+      : (LECTURA.recibidos===0
+          ? `<div class="diag-err">La hoja respondió, pero sin ningún registro. Puede ser otra hoja distinta a la de los demás.</div>`
+          : "")}
+    <button class="btn-sec" id="btnLeerAhora" style="margin-top:12px;">Leer la hoja ahora</button>
+
+    <div class="diag-tit" style="margin-top:16px;">CONEXIÓN DE ESTE EQUIPO</div>
+    <div class="diag-url">${esc(S.syncUrl || "sin conexión")}</div>
+    <div class="diag-nota">${propia
+      ? "⚠ Este equipo apunta a una dirección <b>distinta</b> a la que trae la app. Si los demás usan la de fábrica, no se verán entre sí. Usa «Restaurar la hoja de la empresa» de abajo."
+      : "Es la dirección que trae la app de fábrica."}</div>
   </div>`;
+
+  const bl = document.getElementById("btnLeerAhora");
+  if(bl) bl.addEventListener("click", async ()=>{
+    bl.disabled = true; bl.textContent = "Leyendo…";
+    await cargarRemoto(true);
+    renderPendientes();
+    toast(LECTURA.error ? "No se pudo leer la hoja" : `Hoja leída · ${LECTURA.recibidos} registro(s)`);
+  });
   const b = document.getElementById("btnReintentar");
   if(b) b.addEventListener("click", ()=>{ reintentarPendientes(); toast("Reintentando..."); });
 }
@@ -2962,7 +3056,7 @@ document.getElementById("btnConectar").addEventListener("click",()=>{
   localStorage.setItem("cp_sync_url", S.syncUrl);
   actualizarEstadoSync();
   document.getElementById("syncModal").classList.remove("show");
-  cargarRemoto(); cargarConfig();
+  cargarRemoto(true); cargarConfig();
 });
 document.getElementById("btnRestaurarSync").addEventListener("click",()=>{
   document.getElementById("syncUrl").value = SYNC_POR_DEFECTO;
@@ -2970,7 +3064,7 @@ document.getElementById("btnRestaurarSync").addEventListener("click",()=>{
   localStorage.setItem("cp_sync_url", S.syncUrl);
   actualizarEstadoSync();
   document.getElementById("syncModal").classList.remove("show");
-  cargarRemoto(); cargarConfig();
+  cargarRemoto(true); cargarConfig();
   toast("Conectado a la hoja de la empresa");
 });
 document.getElementById("btnDesconectar").addEventListener("click",()=>{
@@ -3021,7 +3115,23 @@ actualizarPillCump();
   }
 })();
 
-if(S.syncUrl){ cargarRemoto(); cargarConfig(); reintentarPendientes(); setInterval(cargarRemoto, 15000); }
+/* Un refresco arranca cuando termina el anterior: con setInterval, si una
+   lectura tardaba más que el intervalo, se encimaban y Apps Script las
+   atendía en fila, haciendo todo más lento todavía. */
+let sondeoActivo = false;
+async function sondear(){
+  if(sondeoActivo) return;
+  sondeoActivo = true;
+  try{ await cargarRemoto(false); }
+  finally{
+    sondeoActivo = false;
+    setTimeout(sondear, document.hidden ? 60000 : 6000);
+  }
+}
+/* Al volver a la pestaña se refresca de una, sin esperar el turno. */
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) sondear(); });
+
+if(S.syncUrl){ cargarRemoto(true); cargarConfig(); reintentarPendientes(); setTimeout(sondear, 4000); }
 else marcarConfigSync(false);
 </script>
 
