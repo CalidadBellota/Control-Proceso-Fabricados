@@ -942,16 +942,9 @@ const EXT_IMAGENES = ".png";
    GitHub Pages distingue mayúsculas, así que la tarjeta prueba varias rutas y
    extensiones antes de rendirse; si ninguna existe, cae al emoji sin romperse. */
 const IMG_LINEA = {"Machetes":"machetes","Cuchillas":"cuchillas","Limas":"limas","Palas":"palas"};
-function rutasLinea(nombre){
-  const cap = nombre.charAt(0).toUpperCase()+nombre.slice(1);
-  const rutas = [];
-  ["imagenes/lineas/","imagenes/","lineas/",""].forEach(dir=>{
-    [nombre, cap].forEach(base=>{
-      [".png",".jpg",".jpeg",".webp",".PNG",".JPG"].forEach(ext=> rutas.push(dir+base+ext));
-    });
-  });
-  return rutas;
-}
+function rutaLinea(nombre){ return "imagenes/" + nombre + ".png"; }
+/* Líneas cuya foto no existe: se anotan una vez y no se vuelven a pedir. */
+const SIN_FOTO = {};
 
 const S = {
   registros: JSON.parse(localStorage.getItem("cd_registros")||"[]"),
@@ -993,25 +986,22 @@ function renderFamilias(){
     <div class="familia-card${S.familia===f?' active':''}" data-familia="${f}">
       <div class="foto" data-linea="${f}"><span class="emoji">${FAMILIA_EMOJI[f]}</span></div>${f}
     </div>`).join("");
-  box.querySelectorAll(".foto").forEach(cajaFoto=>{
-    const arch = IMG_LINEA[cajaFoto.dataset.linea];
-    if(arch) probarFoto(cajaFoto, rutasLinea(arch), 0);
-  });
+  box.querySelectorAll(".foto").forEach(pintarFoto);
   box.querySelectorAll(".familia-card").forEach(c=>c.addEventListener("click",()=>seleccionarFamilia(c.dataset.familia)));
 }
 
-/* Prueba las rutas una por una; la primera que cargue reemplaza al emoji. */
-function probarFoto(caja, rutas, i){
-  if(i >= rutas.length) return;            // ninguna existe: se queda el emoji
+/* Una sola ruta. Si el archivo no está, la tarjeta se queda con el emoji
+   y no se vuelve a pedir en lo que dure la sesión. */
+function pintarFoto(caja){
+  const linea = caja.dataset.linea, arch = IMG_LINEA[linea];
+  if(!arch || SIN_FOTO[linea]) return;
   const img = new Image();
   img.onload = ()=>{
     if(!caja.isConnected) return;
-    caja.innerHTML = "";
-    img.alt = caja.dataset.linea;
-    caja.appendChild(img);
+    caja.innerHTML = ""; img.alt = linea; caja.appendChild(img);
   };
-  img.onerror = ()=> probarFoto(caja, rutas, i+1);
-  img.src = rutas[i];
+  img.onerror = ()=>{ SIN_FOTO[linea] = true; };
+  img.src = rutaLinea(arch);
 }
 
 function seleccionarFamilia(familia){
