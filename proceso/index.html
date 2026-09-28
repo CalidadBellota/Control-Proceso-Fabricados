@@ -373,6 +373,10 @@
     text-decoration:underline;cursor:pointer;}
   .solo-jefe{display:none;}
   .diag{font-size:.84rem;}
+  .prueba{margin-top:10px;font-size:.72rem;font-family:ui-monospace,monospace;}
+  .prueba .pr{padding:6px 9px;border-radius:6px;margin-bottom:4px;line-height:1.4;}
+  .prueba .pr.bien{background:#f2fbf7;color:#1f7a4d;}
+  .prueba .pr.mal{background:#fdf1f1;color:#a01523;}
   .diag-tit{font-size:.66rem;font-weight:800;letter-spacing:.6px;color:var(--red);margin-bottom:5px;}
   .diag-url{font-size:.68rem;color:var(--text-dim);word-break:break-all;background:#f7f8fa;
     border-radius:6px;padding:7px 9px;line-height:1.4;margin-bottom:6px;font-family:ui-monospace,monospace;}
@@ -2869,8 +2873,10 @@ async function cargarRemoto(completo, desdeFecha){
   if(!S.syncUrl){ LECTURA.error = "sin conexión configurada"; return; }
   const t0 = Date.now();
   try{
-    const url = completo ? S.syncUrl
-              : S.syncUrl + "?desde=" + (desdeFecha || fechaDesde(3));
+    // siempre con parámetro: la carga inicial usa una ventana amplia en vez de
+    // pedir la hoja entera, que es la petición más pesada y más frágil
+    const corte = desdeFecha || (completo ? fechaDesde(120) : fechaDesde(3));
+    const url = S.syncUrl + "?desde=" + corte;
     const res = await fetch(url);
     if(!res.ok) throw new Error("La hoja respondió HTTP " + res.status);
     const txt = await res.text();
@@ -2903,7 +2909,6 @@ async function cargarRemoto(completo, desdeFecha){
        el Apps Script todavía es el viejo: ignora ?desde= y manda todo el
        histórico. Funciona, pero es lo que hace lentas las actualizaciones. */
     if(!completo){
-      const corte = desdeFecha || fechaDesde(3);
       LECTURA.backendViejo = data.some(r => r && r.fecha && fFecha(r.fecha) < corte);
     }
 
@@ -3133,6 +3138,8 @@ function renderPendientes(){
           ? `<div class="diag-err">La hoja respondió, pero sin ningún registro. Puede ser otra hoja distinta a la de los demás.</div>`
           : "")}
     <button class="btn-sec" id="btnLeerAhora" style="margin-top:12px;">Leer la hoja ahora</button>
+    <button class="btn-sec" id="btnProbar" style="margin-top:8px;">Probar la conexión</button>
+    <div id="salidaPrueba" class="prueba" style="display:none;"></div>
 
     <div class="diag-tit" style="margin-top:16px;">CONEXIÓN DE ESTE EQUIPO</div>
     <div class="diag-url">${esc(S.syncUrl || "sin conexión")}</div>
@@ -3141,16 +3148,61 @@ function renderPendientes(){
       : "Es la dirección que trae la app de fábrica."}</div>
   </div>`;
 
-  const bl = document.getElementById("btnLeerAhora");
-  if(bl) bl.addEventListener("click", async ()=>{
+  // los manejadores van al contenedor, no a cada botón: el panel se repinta
+  // solo cada pocos segundos y los botones recién creados se quedaban sin acción
+}
+
+function accionPanelSync(id, boton){
+  if(id === "btnProbar")    return probarConexion(boton);
+  if(id === "btnLeerAhora") return leerAhora(boton);
+  if(id === "btnReintentar"){ reintentarPendientes(); toast("Reintentando..."); }
+}
+
+async function probarConexion(bt){
+    const salida = document.getElementById("salidaPrueba");
+    bt.disabled = true; bt.textContent = "Probando…";
+    salida.style.display = "block";
+    salida.innerHTML = "";
+    const pruebas = [
+      ["Catálogo (formatos y usuarios)", "?tipo=config"],
+      ["Registros del día de hoy",       "?desde=" + hoyISO()],
+      ["Registros de los últimos 120 días", "?desde=" + fechaDesde(120)],
+      ["Hoja completa, sin filtro",      ""]
+    ];
+    for(const [etq, qs] of pruebas){
+      const t0 = Date.now();
+      let linea;
+      try{
+        const res = await fetch(S.syncUrl + qs);
+        const txt = await res.text();
+        const ms  = ((Date.now()-t0)/1000).toFixed(1);
+        const kb  = (txt.length/1024).toFixed(0);
+        let tipo = "?";
+        if(/^\s*[\[{]/.test(txt)) tipo = Array.isArray(JSON.parse(txt)) ? JSON.parse(txt).length + " registros" : "datos";
+        else if(/^\s*</.test(txt)) tipo = "página HTML (no son datos)";
+        linea = `<div class="pr ${res.ok && tipo!=="página HTML (no son datos)" ? "bien":"mal"}">
+          <b>${res.status}</b> · ${esc(etq)} · ${tipo} · ${kb} KB · ${ms} s</div>`;
+      }catch(err){
+        linea = `<div class="pr mal"><b>✕</b> · ${esc(etq)} · ${esc(err.message||String(err))}</div>`;
+      }
+      salida.insertAdjacentHTML("beforeend", linea);
+    }
+    bt.disabled = false; bt.textContent = "Probar la conexión";
+}
+
+async function leerAhora(bl){
     bl.disabled = true; bl.textContent = "Leyendo…";
     await cargarRemoto(true);
     renderPendientes();
     toast(LECTURA.error ? "No se pudo leer la hoja" : `Hoja leída · ${LECTURA.recibidos} registro(s)`);
-  });
-  const b = document.getElementById("btnReintentar");
-  if(b) b.addEventListener("click", ()=>{ reintentarPendientes(); toast("Reintentando..."); });
 }
+
+// delegación en el documento: el panel se repinta entero cada pocos segundos
+// y cualquier manejador puesto sobre los botones se perdería
+document.addEventListener("click", e=>{
+  const b = e.target && e.target.closest ? e.target.closest("#panelPendientes button") : null;
+  if(b && b.id) accionPanelSync(b.id, b);
+});
 
 document.getElementById("openSync").addEventListener("click",()=>{
   document.getElementById("syncUrl").value = S.syncUrl;
