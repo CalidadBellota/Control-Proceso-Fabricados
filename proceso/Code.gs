@@ -162,11 +162,33 @@ function doGet(e){
   if(data.length <= 1) return json_([]);
 
   const headers = data[0];
+
+  /* Lectura incremental: con ?desde=AAAA-MM-DD sólo se devuelven los registros
+     de esa fecha en adelante. La app la usa para refrescar cada pocos segundos
+     sin arrastrar todo el histórico, que es lo que hacía lenta la sincronía. */
+  const desde = (e && e.parameter && e.parameter.desde) ? String(e.parameter.desde) : "";
+  const iFecha = headers.indexOf("fecha");
+  const iId    = headers.indexOf("id");
+
+  const filas = [];
+  const quiero = {};
+  for(let i = 1; i < data.length; i++){
+    if(desde && iFecha !== -1){
+      const f = fmt_(data[i][iFecha], "fecha");
+      if(String(f).slice(0,10) < desde) continue;
+    }
+    filas.push(data[i]);
+    if(iId !== -1) quiero[String(data[i][iId])] = true;
+  }
+  if(!filas.length) return json_([]);
+
+  // el detalle sólo de los registros que se van a devolver
   const det = shD.getDataRange().getValues();
   const detHead = det.length ? det[0] : H_DET;
-
+  const iRegId = detHead.indexOf("registroId");
   const porReg = {};
   for(let i = 1; i < det.length; i++){
+    if(desde && iRegId !== -1 && !quiero[String(det[i][iRegId])]) continue;
     const o = {};
     detHead.forEach(function(h,k){ o[h] = fmt_(det[i][k], h); });
     (porReg[o.registroId] = porReg[o.registroId] || []).push({
@@ -175,7 +197,7 @@ function doGet(e){
     });
   }
 
-  const rows = data.slice(1).map(function(r){
+  const rows = filas.map(function(r){
     const o = {};
     headers.forEach(function(h,i){ o[h] = fmt_(r[i], h); });
     o.resultados = porReg[o.id] || [];
