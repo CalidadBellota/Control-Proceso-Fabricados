@@ -31,9 +31,13 @@
 
   .familias{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
   @media(max-width:600px){.familias{grid-template-columns:repeat(2,1fr);}}
-  .familia-card{border:2px solid var(--border);border-radius:var(--radius);padding:14px 10px;text-align:center;cursor:pointer;background:#fff;font-weight:700;font-size:.88rem;}
-  .familia-card .emoji{font-size:1.6rem;display:block;margin-bottom:6px;}
+  .familia-card{border:2px solid var(--border);border-radius:var(--radius);padding:10px 10px 12px;text-align:center;cursor:pointer;background:#fff;font-weight:700;font-size:.88rem;}
+  /* caja de altura fija: las 4 tarjetas miden igual tenga o no imagen la línea */
+  .familia-card .foto{height:66px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;}
+  .familia-card .foto img{max-width:100%;max-height:66px;object-fit:contain;display:block;}
+  .familia-card .emoji{font-size:1.7rem;line-height:1;}
   .familia-card.active{border-color:var(--red);background:#fdeceb;color:var(--red);}
+  @media(max-width:600px){.familia-card .foto,.familia-card .foto img{height:50px;max-height:50px;}}
 
   .puesto-row{display:grid;grid-template-columns:1fr 2fr;gap:14px;align-items:end;}
   @media(max-width:700px){.puesto-row{grid-template-columns:1fr;}}
@@ -44,6 +48,32 @@
   .buscador-row .contador{font-size:.8rem;color:var(--text-dim);}
 
   .defectos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+
+  /* vista lista: una fila por defecto, con el mismo contador de la tarjeta */
+  .defectos-lista{display:flex;flex-direction:column;gap:8px;}
+  .def-fila{display:grid;grid-template-columns:52px 1fr 158px;gap:12px;align-items:center;background:#fff;
+    border:1px solid var(--border);border-left:4px solid #e1e4e9;border-radius:10px;padding:9px 13px;}
+  .def-fila.con-cantidad{border-color:var(--red);border-left-color:var(--red);background:#fffafa;}
+  .def-fila .cod{font-weight:800;color:var(--red);font-size:.85rem;letter-spacing:.2px;}
+  .def-fila .nom{font-weight:700;font-size:.85rem;line-height:1.25;}
+  .def-fila .meta{font-size:.72rem;color:var(--text-dim);line-height:1.3;margin-top:2px;
+    display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;}
+  .def-fila .meta .aj{color:#a8431c;font-weight:700;}
+  .def-fila .cant-row button{width:31px;height:31px;font-size:1rem;}
+  .def-fila .cant-row input{padding:5px;}
+  @media(max-width:620px){
+    .def-fila{grid-template-columns:52px 1fr;row-gap:9px;}
+    .def-fila .cant-row{grid-column:1/-1;}
+  }
+
+  /* aviso mientras faltan proceso o puesto */
+  .pasos{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
+  .paso{display:flex;align-items:center;gap:8px;font-size:.8rem;font-weight:700;color:var(--text-dim);
+    border:1px solid var(--border);border-radius:99px;padding:6px 13px 6px 7px;background:#fff;}
+  .paso i{width:21px;height:21px;border-radius:50%;background:#eef0f3;color:#8b939e;display:flex;
+    align-items:center;justify-content:center;font-size:.7rem;font-style:normal;font-weight:800;}
+  .paso.ok{color:var(--ok);border-color:#bde3d1;background:#f2fbf7;}
+  .paso.ok i{background:var(--ok);color:#fff;}
   .def-card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:border-color .15s,box-shadow .15s;}
   .def-card.con-cantidad{border-color:var(--red);box-shadow:0 0 0 2px rgba(226,0,26,.12);}
   .def-card .cab{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:8px;}
@@ -585,17 +615,26 @@
 
   <div id="zonaDefectos" style="display:none;">
     <div class="aviso">
-      Escribe la cantidad en cada defecto que encuentres en este puesto. El <b>proceso</b> de cada tarjeta viene precargado con el origen típico del defecto — cámbialo si el defecto se originó en otro proceso.
+      Escribe la cantidad en cada defecto que encuentres en este puesto. Cada defecto muestra su <b>origen típico</b>; si el defecto llegó desde otro proceso queda marcado con ⚠.
     </div>
     <div class="buscador-row">
       <input type="text" id="buscador" placeholder="Buscar defecto por código o nombre...">
       <span class="contador" id="contadorDefectos"></span>
+      <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
+        <span style="font-size:.68rem;font-weight:800;color:var(--text-dim);letter-spacing:.5px;">VISTA</span>
+        <div class="vista-tog">
+          <button id="vdCatalogo" class="on">Catálogo</button>
+          <button id="vdLista">Lista</button>
+        </div>
+      </div>
     </div>
     <div class="defectos-grid" id="defectosGrid"></div>
+    <div class="defectos-lista" id="defectosLista" style="display:none;"></div>
   </div>
 
   <div class="panel" id="mensajeInicial">
-    <div class="empty-mini">Selecciona una línea de producto para ver el catálogo de defectos.</div>
+    <div class="empty-mini" id="mensajeInicialTxt">Selecciona una línea de producto para ver el catálogo de defectos.</div>
+    <div class="pasos" id="mensajePasos" style="display:none;"></div>
   </div>
 
   <span class="footer-link" id="openSync">Sincronización en tiempo real</span>
@@ -897,6 +936,11 @@ const FAMILIA_EMOJI = {"Machetes":"🔪","Cuchillas":"🗡️","Limas":"🪚","P
 const RUTA_IMAGENES = "imagenes/";
 const EXT_IMAGENES = ".png";
 
+/* Foto del producto de cada línea: imagenes/lineas/<archivo>.png
+   Si el archivo todavía no existe, la tarjeta cae al emoji sin romperse. */
+const RUTA_LINEAS = "imagenes/lineas/";
+const IMG_LINEA = {"Machetes":"machetes","Cuchillas":"cuchillas","Limas":"limas","Palas":"palas"};
+
 const S = {
   registros: JSON.parse(localStorage.getItem("cd_registros")||"[]"),
   syncUrl: localStorage.getItem("cd_sync_url")||"https://script.google.com/macros/s/AKfycbx8FpJy8kGjLDDCMyD4MLP_08zdrZOSoRfOwD6kCMgdfk_rQltbSI9mOwLlxCwqynInTA/exec",
@@ -933,10 +977,18 @@ function esAjeno(d, proceso, familia){
 /* ---------- Familias ---------- */
 function renderFamilias(){
   const box=document.getElementById("familias");
-  box.innerHTML=FAMILIAS.map(f=>`
+  box.innerHTML=FAMILIAS.map(f=>{
+    const arch = IMG_LINEA[f];
+    const respaldo = `<span class=\\'emoji\\'>${FAMILIA_EMOJI[f]}</span>`;
+    const foto = arch
+      ? `<img src="${RUTA_LINEAS}${arch}${EXT_IMAGENES}" alt="${f}"
+             onerror="this.outerHTML='${respaldo}'">`
+      : `<span class="emoji">${FAMILIA_EMOJI[f]}</span>`;
+    return `
     <div class="familia-card${S.familia===f?' active':''}" data-familia="${f}">
-      <span class="emoji">${FAMILIA_EMOJI[f]}</span>${f}
-    </div>`).join("");
+      <div class="foto">${foto}</div>${f}
+    </div>`;
+  }).join("");
   box.querySelectorAll(".familia-card").forEach(c=>c.addEventListener("click",()=>seleccionarFamilia(c.dataset.familia)));
 }
 
@@ -973,6 +1025,7 @@ function seleccionarProceso(proc){
 
 document.getElementById("puesto").addEventListener("change",e=>{
   S.puesto=e.target.value;
+  renderDefectos();   // el catálogo sólo aparece con el puesto ya elegido
   actualizarBarra();
 });
 
@@ -982,12 +1035,33 @@ function defectosDeFamilia(){
   return DEFECTOS[S.familia.toLowerCase()]||[];
 }
 
+/* Vista del catálogo: tarjetas (con foto) o lista compacta. */
+let VD = {vista: localStorage.getItem("cd_vista_defectos")==="lista" ? "lista" : "catalogo"};
+
+function pintarPasosPendientes(){
+  const caja = document.getElementById("mensajePasos");
+  const txt  = document.getElementById("mensajeInicialTxt");
+  const hechos = [
+    {t:"Línea",           ok:!!S.familia},
+    {t:"Proceso",         ok:!!S.proceso},
+    {t:"Puesto / máquina",ok:!!S.puesto}
+  ];
+  const falta = hechos.find(h=>!h.ok);
+  txt.textContent = falta
+    ? `Selecciona ${falta.t.toLowerCase()} para ver el catálogo de defectos.`
+    : "Selecciona una línea de producto para ver el catálogo de defectos.";
+  caja.style.display = "flex";
+  caja.innerHTML = hechos.map((h,i)=>
+    `<span class="paso${h.ok?' ok':''}"><i>${h.ok?"✓":i+1}</i>${h.t}</span>`).join("");
+}
+
 function renderDefectos(){
-  const listo = !!S.familia;
+  // el catálogo no aparece hasta saber QUÉ proceso y QUÉ puesto se está auditando
+  const listo = !!(S.familia && S.proceso && S.puesto);
   document.getElementById("zonaDefectos").style.display = listo?"block":"none";
   document.getElementById("mensajeInicial").style.display = listo?"none":"block";
   document.getElementById("barraFija").style.display = listo?"flex":"none";
-  if(!listo) return;
+  if(!listo){ pintarPasosPendientes(); return; }
 
   const filtro=(document.getElementById("buscador").value||"").toLowerCase();
   const todos = defectosDeFamilia();
@@ -995,7 +1069,16 @@ function renderDefectos(){
     !filtro || d.code.toLowerCase().includes(filtro) || d.name.toLowerCase().includes(filtro));
   document.getElementById("contadorDefectos").textContent=`${lista.length} de ${todos.length} defectos`;
 
-  const grid=document.getElementById("defectosGrid");
+  const esLista = VD.vista==="lista";
+  const grid  = document.getElementById("defectosGrid");
+  const filas = document.getElementById("defectosLista");
+  grid.style.display  = esLista ? "none" : "grid";
+  filas.style.display = esLista ? "flex" : "none";
+  document.getElementById("vdCatalogo").classList.toggle("on", !esLista);
+  document.getElementById("vdLista").classList.toggle("on", esLista);
+
+  if(esLista){ renderDefectosLista(lista); return; }
+
   grid.innerHTML=lista.map(d=>{
     const cant=S.cantidades[d.code]||"";
     const org=origenDefecto(d);
@@ -1025,27 +1108,67 @@ function renderDefectos(){
     </div>`;
   }).join("");
 
-  grid.querySelectorAll(".def-card").forEach(card=>{
-    const codigo=card.dataset.codigo;
-    const input=card.querySelector(".cant-input");
+  engancharCantidades(grid, ".def-card");
+}
+
+/* Vista lista: el defecto y las unidades a reportar, sin foto ni descripción larga. */
+function renderDefectosLista(lista){
+  const caja = document.getElementById("defectosLista");
+  caja.innerHTML = lista.map(d=>{
+    const cant = S.cantidades[d.code]||"";
+    const org  = origenDefecto(d);
+    const ajeno = S.proceso && esAjeno(d, S.proceso, S.familia);
+    const meta = ajeno
+      ? `<span class="aj">⚠ Origen: ${org} — llegó desde otro proceso</span>`
+      : (org ? `Origen típico: ${org}` : d.description);
+    return `
+    <div class="def-fila${cant?' con-cantidad':''}" data-codigo="${d.code}">
+      <span class="cod">${d.code}</span>
+      <div>
+        <div class="nom">${d.name.toUpperCase()}</div>
+        <div class="meta">${meta}</div>
+      </div>
+      <div class="cant-row">
+        <button type="button" class="btn-menos">-</button>
+        <input type="number" class="cant-input" min="0" placeholder="0" value="${cant}">
+        <button type="button" class="btn-mas">+</button>
+      </div>
+    </div>`;
+  }).join("");
+  engancharCantidades(caja, ".def-fila");
+}
+
+/* Un solo manejador de cantidades para las dos vistas. */
+function engancharCantidades(caja, selector){
+  caja.querySelectorAll(selector).forEach(el=>{
+    const codigo = el.dataset.codigo;
+    const input  = el.querySelector(".cant-input");
     function aplicar(val){
       const n=parseInt(val)||0;
-      if(n>0){ S.cantidades[codigo]=n; card.classList.add("con-cantidad"); }
-      else{ delete S.cantidades[codigo]; card.classList.remove("con-cantidad"); }
+      if(n>0){ S.cantidades[codigo]=n; el.classList.add("con-cantidad"); }
+      else{ delete S.cantidades[codigo]; el.classList.remove("con-cantidad"); }
       actualizarBarra();
     }
     input.addEventListener("input",()=>aplicar(input.value));
-    card.querySelector(".btn-menos").addEventListener("click",()=>{
+    el.querySelector(".btn-menos").addEventListener("click",()=>{
       const n=Math.max(0,(parseInt(input.value)||0)-1);
       input.value=n||""; aplicar(n);
     });
-    card.querySelector(".btn-mas").addEventListener("click",()=>{
+    el.querySelector(".btn-mas").addEventListener("click",()=>{
       const n=(parseInt(input.value)||0)+1;
       input.value=n; aplicar(n);
     });
   });
 }
 document.getElementById("buscador").addEventListener("input",renderDefectos);
+
+[["vdCatalogo","catalogo"],["vdLista","lista"]].forEach(([id,v])=>{
+  document.getElementById(id).addEventListener("click",()=>{
+    VD.vista = v;
+    localStorage.setItem("cd_vista_defectos", v);
+    renderDefectos();
+  });
+});
 
 function actualizarBarra(){
   const codigos=Object.keys(S.cantidades);
