@@ -372,6 +372,9 @@
   .dia-nav button:hover{background:#f3f4f6;color:var(--text);}
   .dia-nav button.lig{width:auto;padding:0 12px;font-size:.79rem;font-weight:700;}
 
+  .dia-sync{font-size:.75rem;margin:10px 0 0;}
+  .sync-ok{color:#1f7a4d;} .sync-esp{color:var(--text-dim);}
+  .sync-mal{color:#a01523;background:#fdf1f1;border-radius:6px;padding:6px 10px;display:inline-block;line-height:1.45;}
   .dia-acciones{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 12px;}
   .dia-acciones .cero{border:1px solid #bde3d1;background:#f2fbf7;color:#1f7a4d;border-radius:8px;
     padding:8px 13px;font-size:.79rem;font-weight:700;cursor:pointer;}
@@ -397,6 +400,17 @@
     .dia-pie .pri{width:100%;margin-left:0;}
     .dia-pie{flex-wrap:wrap;}
   }
+
+  .diag{font-size:.8rem;}
+  .diag-fila{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f1f3;}
+  .diag-fila span{color:var(--text-dim);}
+  .diag-err{margin-top:9px;font-size:.75rem;color:#a01523;background:#fdf1f1;border-radius:6px;padding:7px 10px;line-height:1.45;}
+  .diag-ok{margin-top:9px;font-size:.75rem;color:#1f7a4d;}
+  .diag-nota{font-size:.71rem;color:var(--text-dim);margin-top:7px;line-height:1.45;}
+  .btn-subir{width:100%;margin-top:11px;padding:10px;border:none;border-radius:8px;background:var(--red);
+    color:#fff;font-size:.84rem;font-weight:700;cursor:pointer;font-family:inherit;}
+  .btn-subir:disabled{background:#9aa5b1;cursor:default;}
+  .btn-subir.sec{background:#fff;color:var(--text);border:1px solid var(--border);margin-top:8px;}
 
   .ayer-nota{margin:0 0 13px;font-size:.76rem;line-height:1.5;color:var(--text-dim);
     background:#f7f8fa;border-left:3px solid var(--border);border-radius:0 7px 7px 0;padding:9px 12px;}
@@ -875,8 +889,6 @@
     <div style="font-size:.76rem;color:var(--text-dim);margin-top:10px;" id="cxInfo"></div>
   </div>
 
-  <div id="cxDia" style="display:none;"></div>
-
   <div class="panel" id="panelAyer">
     <div class="section-title"><h2 id="ayerTitulo">CARGUE DEL DÍA ANTERIOR</h2>
       <span id="ayerSub" style="font-size:.76rem;color:var(--text-dim);"></span></div>
@@ -890,11 +902,12 @@
   <div class="panel" style="padding-top:12px;padding-bottom:12px;">
     <div class="seg" id="cxTabs">
       <button data-v="dia" class="on">Cargue del día</button>
-      <button data-v="desp">Corregir por proceso</button>
       <button data-v="emp">Unidades empacadas</button>
       <button data-v="estado">Estado del cargue</button>
     </div>
   </div>
+
+  <div id="cxDia" style="display:none;"></div>
 
   <div id="cxContenido">
     <div class="panel"><div class="empty-mini">Selecciona una línea y el día que vas a cerrar.</div></div>
@@ -1033,6 +1046,7 @@
       <button id="btnDesconectar">Modo local</button>
       <button class="primary" id="btnConectar">Conectar</button>
     </div>
+    <div id="syncDiag" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);"></div>
     <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
       <span class="footer-link" id="btnBorrarLocal" style="margin:0;">Borrar datos locales de este dispositivo</span>
     </div>
@@ -1475,7 +1489,22 @@ function empTurno(fam,turno,fecha){ return leerEmpacadas(fam, `T${turno}-${fecha
 function recTurno(fam,turno,fecha){ return leerEmpacadas(fam, `REC-T${turno}-${fecha}`); }
 // Desperdicio recogido por el patinador POR PROCESO y turno
 function recProcKey(proc,turno,fecha){ return `RECP|${proc}|T${turno}-${fecha}`; }
-function recProc(fam,proc,turno,fecha){ return leerEmpacadas(fam, recProcKey(proc,turno,fecha)); }
+/* Nombres anteriores que desembocan en este proceso. Si otro equipo todavía
+   corre una versión vieja de la app, guarda con el nombre de antes; aquí se
+   busca también por esos alias en vez de mostrar la casilla vacía. */
+function aliasDeProceso(fam, proc){
+  const mapa = EQUIV_PROCESO[fam] || {};
+  return Object.keys(mapa).filter(v => mapa[v] === proc && v !== proc);
+}
+function recProc(fam,proc,turno,fecha){
+  const v = leerEmpacadas(fam, recProcKey(proc,turno,fecha));
+  if(v != null) return v;
+  for(const viejo of aliasDeProceso(fam, proc)){
+    const alt = leerEmpacadas(fam, recProcKey(viejo,turno,fecha));
+    if(alt != null) return alt;
+  }
+  return null;
+}
 function setRecProc(fam,proc,turno,fecha,v){ guardarEmpacadas(fam, recProcKey(proc,turno,fecha), v); }
 // suma de todos los procesos de la línea en un turno
 function recTurnoTotal(fam,turno,fecha){
@@ -1517,24 +1546,131 @@ function fechaDeTurno(r){
   return k.length>3 ? k.slice(3) : feStr(r);
 }
 
-async function enviarEmpacadas(fam, clave, valor){
-  try{
-    await fetch(S.syncUrl,{method:"POST",body:JSON.stringify({action:"empacadas",familia:fam,clave,unidades:valor})});
-  }catch(e){ console.error("empacadas:",e); }
+/* ENVÍO DEL CARGUE A LA SHEET
+   Antes se mandaba una petición por casilla. Guardar un mes eran ~93 peticiones
+   simultáneas peleando por el mismo bloqueo de Apps Script: las que no alcanzaban
+   se perdían sin avisar, y por eso en el otro equipo aparecían casillas vacías.
+   Ahora va todo en un solo POST, se revisa la respuesta y lo que falle queda en
+   una cola que se reintenta. */
+const PENDIENTES_EMP = "cd_emp_pendientes";
+
+function leerPendientes(){ try{ return JSON.parse(localStorage.getItem(PENDIENTES_EMP)||"[]"); }catch(e){ return []; } }
+function escribirPendientes(l){ localStorage.setItem(PENDIENTES_EMP, JSON.stringify(l)); }
+function encolarEmpacadas(fam, items){
+  const cola = leerPendientes();
+  items.forEach(x=>{
+    const i = cola.findIndex(c=>c.familia===fam && c.clave===x.clave);
+    if(i>=0) cola[i].unidades = x.unidades; else cola.push({familia:fam, clave:x.clave, unidades:x.unidades});
+  });
+  escribirPendientes(cola);
+  actualizarEstadoSync();
+  refrescarAvisoCargue();
 }
+
+/* Manda un lote y devuelve true sólo si la Sheet confirmó. */
+async function enviarLoteEmpacadas(fam, items){
+  if(!S.syncUrl || !items.length) return false;
+  try{
+    const res = await fetch(S.syncUrl,{method:"POST",
+      body:JSON.stringify({action:"empacadasLote", familia:fam, items})});
+    const r = await res.json();
+    if(r && r.ok) return true;
+    // backend viejo: no conoce el lote, se cae a una por una
+    if(r && /no reconocida/i.test(r.error||"")) return await enviarUnaAUna(fam, items);
+    return false;
+  }catch(e){ console.error("empacadas lote:",e); return false; }
+}
+
+/* Compatibilidad con la versión anterior del Code.gs: secuencial, nunca en paralelo. */
+async function enviarUnaAUna(fam, items){
+  for(const x of items){
+    try{
+      const res = await fetch(S.syncUrl,{method:"POST",
+        body:JSON.stringify({action:"empacadas",familia:fam,clave:x.clave,unidades:x.unidades})});
+      const r = await res.json();
+      if(!r || !r.ok) return false;
+    }catch(e){ return false; }
+  }
+  return true;
+}
+
+async function enviarEmpacadas(fam, clave, valor){
+  await guardarEnSheet(fam, [{clave, unidades:valor}]);
+}
+
+/* Punto único de salida: intenta, y lo que no confirme queda en la cola. */
+async function guardarEnSheet(fam, items){
+  if(!S.syncUrl){ return false; }
+  const ok = await enviarLoteEmpacadas(fam, items);
+  if(!ok) encolarEmpacadas(fam, items);
+  actualizarEstadoSync();
+  refrescarAvisoCargue();
+  return ok;
+}
+
+/* Repinta el aviso de la pantalla del día sin rehacer la tabla, para no
+   borrar lo que el usuario esté escribiendo. */
+function refrescarAvisoCargue(){
+  const el = document.getElementById("diaSync");
+  if(el) el.innerHTML = textoEstadoCargue();
+}
+
+/* Reintenta lo que quedó pendiente, agrupado por línea. */
+let reintentando = false;
+async function reintentarEmpacadas(){
+  if(reintentando || !S.syncUrl) return;
+  const cola = leerPendientes();
+  if(!cola.length) return;
+  reintentando = true;
+  try{
+    const porLinea = {};
+    cola.forEach(c=> (porLinea[c.familia] = porLinea[c.familia] || []).push({clave:c.clave, unidades:c.unidades}));
+    const quedan = [];
+    for(const fam of Object.keys(porLinea)){
+      const ok = await enviarLoteEmpacadas(fam, porLinea[fam]);
+      if(!ok) porLinea[fam].forEach(x=> quedan.push({familia:fam, ...x}));
+    }
+    escribirPendientes(quedan);
+    actualizarEstadoSync();
+    refrescarAvisoCargue();
+  } finally { reintentando = false; }
+}
+/* Estado de la última lectura del cargue. Si esto falla en silencio, parece
+   que el otro equipo nunca guardó nada, así que se muestra en pantalla. */
+const ESTADO_CARGUE = {hora:null, filas:0, error:null};
+
 async function cargarEmpacadas(){
-  if(!S.syncUrl) return false;
+  if(!S.syncUrl){ ESTADO_CARGUE.error="sin conexión configurada"; return false; }
   try{
     const res=await fetch(S.syncUrl+"?tipo=empacadas");
+    if(!res.ok) throw new Error("HTTP "+res.status);
     const data=await res.json();
-    if(!Array.isArray(data)) return false;
+    if(!Array.isArray(data)) throw new Error("respuesta inesperada de la Sheet");
     const all=JSON.parse(localStorage.getItem("cd_empacadas")||"{}");
     const antes=JSON.stringify(all);
     data.forEach(x=>{ if(x && x.familia && x.clave) all[x.familia+"|"+x.clave]=Number(x.unidades)||0; });
     const despues=JSON.stringify(all);
     localStorage.setItem("cd_empacadas",despues);
+    migrarProcesosUnificados();          // normaliza lo que llegue con nombres viejos
+    const d=new Date();
+    ESTADO_CARGUE.hora = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    ESTADO_CARGUE.filas = data.length;
+    ESTADO_CARGUE.error = null;
     return antes!==despues;      // avisa si llegó algo nuevo de otro equipo
-  }catch(e){ console.error("empacadas get:",e); return false; }
+  }catch(e){
+    console.error("empacadas get:",e);
+    ESTADO_CARGUE.error = e.message || String(e);
+    return false;
+  }
+}
+
+function textoEstadoCargue(){
+  const pend = leerPendientes().length;
+  if(pend) return `<span class="sync-mal">⚠ ${pend} dato(s) aún sin subir a la Sheet. Se reintenta solo; no cierres la pestaña todavía.</span>`;
+  if(ESTADO_CARGUE.error)
+    return `<span class="sync-mal">⚠ No se pudo leer la Sheet (${ESTADO_CARGUE.error}). Lo que cargues se guarda en este equipo, pero no lo verán los demás.</span>`;
+  if(!ESTADO_CARGUE.hora) return `<span class="sync-esp">Leyendo la Sheet…</span>`;
+  return `<span class="sync-ok">Sheet leída a las ${ESTADO_CARGUE.hora} · ${ESTADO_CARGUE.filas} dato(s)</span>`;
 }
 
 /* El cargue lo hace otra persona desde otro computador. Se vuelve a leer al
@@ -1924,18 +2060,18 @@ document.getElementById("cxGuardar").addEventListener("click", ()=>{
   const fam = document.getElementById("cxFamilia").value;
   if(!fam){ toast("Selecciona una línea"); return; }
   const esDesp = CX.vista==="desp";
-  let n=0;
+  const lote = [];
   document.querySelectorAll("#cxBody .cx-in").forEach(inp=>{
     if(inp.value==="") return;
     const val = Math.max(0, parseInt(inp.value)||0);
     const f = inp.dataset.f, t = inp.dataset.t;
-    if(esDesp){
-      if(recProc(fam, CX.proc, t, f)!==val){ setRecProc(fam, CX.proc, t, f, val); n++; }
-    } else {
-      if(empTurno(fam, t, f)!==val){ guardarEmpacadas(fam, `T${t}-${f}`, val); n++; }
-    }
+    const clave = esDesp ? recProcKey(CX.proc, t, f) : `T${t}-${f}`;
+    const actual = esDesp ? recProc(fam, CX.proc, t, f) : empTurno(fam, t, f);
+    if(actual !== val) lote.push({clave, valor:val});
   });
-  toast(n? `Guardado · ${n} dato(s)` : "Sin cambios");
+  if(!lote.length){ toast("Sin cambios"); return; }
+  guardarLoteCargue(fam, lote);     // una sola escritura y un solo envío
+  toast(`Guardado · ${lote.length} dato(s)`);
 });
 
 document.querySelectorAll("#cxTabs button").forEach(b=>
@@ -2025,11 +2161,14 @@ function renderCargueDia(fam){
   caja.innerHTML = `<div class="panel">
     <div class="section-title"><h2>CARGUE DEL DÍA</h2>
       <span class="dia-nav">
+        <button type="button" id="diaRecargar" class="lig" title="Volver a leer la Sheet">↻ Actualizar</button>
         <button type="button" id="diaAnt" title="Día anterior">‹</button>
         <input type="date" id="diaFecha" value="${f}" max="${hoyISO()}">
         <button type="button" id="diaSig" title="Día siguiente">›</button>
         <button type="button" id="diaAyer" class="lig">Ayer</button>
       </span></div>
+
+    <div class="dia-sync" id="diaSync">${textoEstadoCargue()}</div>
 
     <div class="dia-acciones">
       <button type="button" class="cero" data-cero="todo">Marcar todo el día en cero</button>
@@ -2095,6 +2234,13 @@ function renderCargueDia(fam){
     if(sig <= hoyISO()){ CX.dia = sig; renderCargueDia(fam); }
   });
   document.getElementById("diaAyer").addEventListener("click", ()=>{ CX.dia = diaAnterior(hoyISO()); renderCargueDia(fam); });
+  document.getElementById("diaRecargar").addEventListener("click", async ()=>{
+    const b = document.getElementById("diaRecargar");
+    b.disabled = true; b.textContent = "↻ Leyendo…";
+    await cargarEmpacadas();
+    renderCargueDia(fam); renderCargueAyer();
+    toast(ESTADO_CARGUE.error ? "No se pudo leer la Sheet" : `Sheet leída · ${ESTADO_CARGUE.filas} dato(s)`);
+  });
 
   document.getElementById("diaGuardar").addEventListener("click", ()=>{
     const lote = [];
@@ -2118,7 +2264,7 @@ function guardarLoteCargue(fam, lote){
   lote.forEach(x=> all[fam+"|"+x.clave] = x.valor);
   localStorage.setItem("cd_empacadas", JSON.stringify(all));
   if(!S.syncUrl) return;
-  (async ()=>{ for(const x of lote){ await enviarEmpacadas(fam, x.clave, x.valor); } })();
+  guardarEnSheet(fam, lote.map(x=>({clave:x.clave, unidades:x.valor})));
 }
 
 /** Día calendario anterior a una fecha ISO. */
@@ -2267,7 +2413,7 @@ function renderEstadoCargue(){
   box.querySelectorAll("[data-ir]").forEach(el=>{
     el.addEventListener("click", ()=>{
       const [vista, f] = el.dataset.ir.split("|");
-      CX.vista = vista==="emp" ? "emp" : "desp";
+      CX.vista = vista==="emp" ? "emp" : "dia";
       document.getElementById("cxFamilia").value = fam;
       document.getElementById("cxMes").value = f.slice(0,7);
       document.querySelectorAll("#cxTabs button").forEach(b=>b.classList.toggle("on", b.dataset.v===CX.vista));
@@ -3487,10 +3633,10 @@ function marcarSincronizado(id,ok){
   if(r){r.pendienteSync=!ok;localStorage.setItem("cd_registros",JSON.stringify(S.registros));}
   actualizarEstadoSync();
 }
-function reintentarPendientes(){
+async function reintentarPendientes(){
   if(!S.syncUrl) return;
   const p=S.registros.filter(r=>r.pendienteSync);
-  if(p.length) enviarRemotoLote(p);
+  if(p.length) await enviarRemotoLote(p);
 }
 async function cargarRemoto(){
   if(!S.syncUrl) return;
@@ -3511,14 +3657,78 @@ async function cargarRemoto(){
 function actualizarEstadoSync(){
   const dot=document.getElementById("syncDot"),label=document.getElementById("syncLabel");
   if(!S.syncUrl){dot.style.background="rgba(255,255,255,.5)";label.textContent="Modo local";return;}
-  const p=S.registros.filter(r=>r.pendienteSync).length;
+  const p = S.registros.filter(r=>r.pendienteSync).length + leerPendientes().length;
   if(p>0){dot.style.background="#f2b90b";label.textContent=`Sincronizando... (${p})`;}
   else{dot.style.background="#7fe0a4";label.textContent="Sincronizado";}
 }
-document.getElementById("openSync").addEventListener("click",()=>{
+function abrirSync(){
   document.getElementById("syncUrl").value=S.syncUrl;
   document.getElementById("syncModal").classList.add("show");
-});
+  renderDiagSync();
+}
+document.getElementById("openSync").addEventListener("click", abrirSync);
+// el indicador del encabezado también abre el diagnóstico
+document.getElementById("syncLabel").parentElement.style.cursor = "pointer";
+document.getElementById("syncLabel").parentElement.addEventListener("click", abrirSync);
+
+/* Qué hay en este dispositivo y qué falta por subir. */
+function renderDiagSync(){
+  const box = document.getElementById("syncDiag");
+  if(!box) return;
+  const regs = S.registros.length;
+  const regsPend = S.registros.filter(r=>r.pendienteSync).length;
+  const cargue = Object.keys(JSON.parse(localStorage.getItem("cd_empacadas")||"{}")).length;
+  const carguePend = leerPendientes().length;
+  const total = regsPend + carguePend;
+  const verde = "#1f9d55", rojo = "#c81d2e";
+
+  box.innerHTML = `
+    <div class="diag">
+      <div class="diag-fila"><span>Registros del inspector</span><b>${regs}</b></div>
+      <div class="diag-fila"><span>Registros sin subir</span><b style="color:${regsPend?rojo:verde};">${regsPend}</b></div>
+      <div class="diag-fila"><span>Datos de cargue en este equipo</span><b>${cargue}</b></div>
+      <div class="diag-fila"><span>Cargue sin subir</span><b style="color:${carguePend?rojo:verde};">${carguePend}</b></div>
+      ${ESTADO_CARGUE.error?`<div class="diag-err">Última lectura de la Sheet: ${ESTADO_CARGUE.error}</div>`
+        :ESTADO_CARGUE.hora?`<div class="diag-ok">Sheet leída a las ${ESTADO_CARGUE.hora} · ${ESTADO_CARGUE.filas} dato(s)</div>`:""}
+      ${total
+        ? `<button class="btn-subir" id="btnSubirPend">Subir ahora los ${total} pendiente(s)</button>`
+        : `<div class="diag-ok" style="margin-top:8px;">✓ Todo lo de este equipo ya está en la Sheet.</div>`}
+      ${cargue?`<button class="btn-subir sec" id="btnReenviarCargue">Reenviar todo el cargue (${cargue} datos)</button>
+        <div class="diag-nota">Úsalo si borraste filas en la hoja o dudas de que haya llegado todo.
+          No duplica: la Sheet reemplaza el dato de cada llave.</div>`:""}
+    </div>`;
+
+  const bp = document.getElementById("btnSubirPend");
+  if(bp) bp.addEventListener("click", async ()=>{
+    bp.disabled = true; bp.textContent = "Subiendo…";
+    await reintentarPendientes();          // registros del inspector
+    await reintentarEmpacadas();           // cargue
+    const quedan = S.registros.filter(r=>r.pendienteSync).length + leerPendientes().length;
+    renderDiagSync();
+    toast(quedan ? `Quedan ${quedan} sin subir. Revisa la conexión.` : "Todo subido a la Sheet");
+  });
+
+  const br = document.getElementById("btnReenviarCargue");
+  if(br) br.addEventListener("click", async ()=>{
+    if(!confirm("Se vuelve a enviar a la Sheet todo el cargue guardado en este equipo. ¿Continuar?")) return;
+    br.disabled = true;
+    const all = JSON.parse(localStorage.getItem("cd_empacadas")||"{}");
+    const porLinea = {};
+    Object.keys(all).forEach(k=>{
+      const i = k.indexOf("|"); if(i<0) return;
+      (porLinea[k.slice(0,i)] = porLinea[k.slice(0,i)] || []).push({clave:k.slice(i+1), unidades:all[k]});
+    });
+    let fallos = 0, hechas = 0;
+    const lineas = Object.keys(porLinea);
+    for(let i=0;i<lineas.length;i++){
+      br.textContent = `Reenviando ${i+1}/${lineas.length} línea(s)…`;
+      const ok = await guardarEnSheet(lineas[i], porLinea[lineas[i]]);
+      if(ok) hechas += porLinea[lineas[i]].length; else fallos += porLinea[lineas[i]].length;
+    }
+    renderDiagSync();
+    toast(fallos ? `${hechas} subidos, ${fallos} quedaron en cola` : `${hechas} datos reenviados`);
+  });
+}
 document.getElementById("btnConectar").addEventListener("click",()=>{
   S.syncUrl=document.getElementById("syncUrl").value.trim();
   localStorage.setItem("cd_sync_url",S.syncUrl);
@@ -3541,7 +3751,6 @@ document.getElementById("btnBorrarLocal").addEventListener("click",()=>{
    cargado se copia a la llave nueva (la vieja se deja quieta, no se borra nada).
    Corre una sola vez por dispositivo. */
 function migrarProcesosUnificados(){
-  if(localStorage.getItem("cd_migracion_procesos")==="v4") return;
   const all = JSON.parse(localStorage.getItem("cd_empacadas")||"{}");
   const nuevas = [];
   Object.keys(all).forEach(k=>{
@@ -3555,11 +3764,15 @@ function migrarProcesosUnificados(){
     all[llaveNueva] = all[k];
     nuevas.push({familia:fam, clave:`RECP|${destino}|${resto}`, valor:all[k]});
   });
+  if(!nuevas.length) return;
   localStorage.setItem("cd_empacadas", JSON.stringify(all));
-  localStorage.setItem("cd_migracion_procesos","v4");
-  if(nuevas.length){
+  {
     console.log(`Procesos unificados: ${nuevas.length} dato(s) trasladados al nombre nuevo.`);
-    if(S.syncUrl) nuevas.forEach(n=> enviarEmpacadas(n.familia, n.clave, n.valor));
+    if(S.syncUrl){
+      const porLinea = {};
+      nuevas.forEach(n=> (porLinea[n.familia]=porLinea[n.familia]||[]).push({clave:n.clave, unidades:n.valor}));
+      Object.keys(porLinea).forEach(f=> guardarEnSheet(f, porLinea[f]));
+    }
   }
 }
 
@@ -3576,7 +3789,9 @@ document.getElementById("kTurno").value=turnoActual();
 actualizarEstadoSync();
 if(S.syncUrl){cargarRemoto();cargarEmpacadas();cargarRatios();reintentarPendientes();
   setInterval(cargarRemoto,8000);
-  setInterval(()=>sincronizarCargue(false),15000);}
+  setInterval(()=>sincronizarCargue(false),15000);
+  reintentarEmpacadas();
+  setInterval(reintentarEmpacadas,20000);}
 else marcarRatiosSync(false);
 </script>
 
