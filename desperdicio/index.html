@@ -936,10 +936,20 @@ const FAMILIA_EMOJI = {"Machetes":"🔪","Cuchillas":"🗡️","Limas":"🪚","P
 const RUTA_IMAGENES = "imagenes/";
 const EXT_IMAGENES = ".png";
 
-/* Foto del producto de cada línea: imagenes/lineas/<archivo>.png
-   Si el archivo todavía no existe, la tarjeta cae al emoji sin romperse. */
-const RUTA_LINEAS = "imagenes/lineas/";
+/* Foto del producto de cada línea.
+   GitHub Pages distingue mayúsculas, así que la tarjeta prueba varias rutas y
+   extensiones antes de rendirse; si ninguna existe, cae al emoji sin romperse. */
 const IMG_LINEA = {"Machetes":"machetes","Cuchillas":"cuchillas","Limas":"limas","Palas":"palas"};
+function rutasLinea(nombre){
+  const cap = nombre.charAt(0).toUpperCase()+nombre.slice(1);
+  const rutas = [];
+  ["imagenes/lineas/","imagenes/","lineas/",""].forEach(dir=>{
+    [nombre, cap].forEach(base=>{
+      [".png",".jpg",".jpeg",".webp",".PNG",".JPG"].forEach(ext=> rutas.push(dir+base+ext));
+    });
+  });
+  return rutas;
+}
 
 const S = {
   registros: JSON.parse(localStorage.getItem("cd_registros")||"[]"),
@@ -977,19 +987,29 @@ function esAjeno(d, proceso, familia){
 /* ---------- Familias ---------- */
 function renderFamilias(){
   const box=document.getElementById("familias");
-  box.innerHTML=FAMILIAS.map(f=>{
-    const arch = IMG_LINEA[f];
-    const respaldo = `<span class=\\'emoji\\'>${FAMILIA_EMOJI[f]}</span>`;
-    const foto = arch
-      ? `<img src="${RUTA_LINEAS}${arch}${EXT_IMAGENES}" alt="${f}"
-             onerror="this.outerHTML='${respaldo}'">`
-      : `<span class="emoji">${FAMILIA_EMOJI[f]}</span>`;
-    return `
+  box.innerHTML=FAMILIAS.map(f=>`
     <div class="familia-card${S.familia===f?' active':''}" data-familia="${f}">
-      <div class="foto">${foto}</div>${f}
-    </div>`;
-  }).join("");
+      <div class="foto" data-linea="${f}"><span class="emoji">${FAMILIA_EMOJI[f]}</span></div>${f}
+    </div>`).join("");
+  box.querySelectorAll(".foto").forEach(cajaFoto=>{
+    const arch = IMG_LINEA[cajaFoto.dataset.linea];
+    if(arch) probarFoto(cajaFoto, rutasLinea(arch), 0);
+  });
   box.querySelectorAll(".familia-card").forEach(c=>c.addEventListener("click",()=>seleccionarFamilia(c.dataset.familia)));
+}
+
+/* Prueba las rutas una por una; la primera que cargue reemplaza al emoji. */
+function probarFoto(caja, rutas, i){
+  if(i >= rutas.length) return;            // ninguna existe: se queda el emoji
+  const img = new Image();
+  img.onload = ()=>{
+    if(!caja.isConnected) return;
+    caja.innerHTML = "";
+    img.alt = caja.dataset.linea;
+    caja.appendChild(img);
+  };
+  img.onerror = ()=> probarFoto(caja, rutas, i+1);
+  img.src = rutas[i];
 }
 
 function seleccionarFamilia(familia){
