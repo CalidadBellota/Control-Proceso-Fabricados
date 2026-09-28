@@ -27,6 +27,10 @@
   label{display:block;font-size:.78rem;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
   select,input[type=text],input[type=number],input[type=date]{
     width:100%;padding:10px 11px;font-size:.92rem;background:#fff;border:1px solid var(--border);border-radius:7px;color:var(--text);}
+  /* una sola flecha para todos los desplegables de la app */
+  select{appearance:none;-webkit-appearance:none;padding-right:32px;cursor:pointer;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.4' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat:no-repeat;background-position:right 10px center;background-size:16px;}
   select:focus,input:focus{outline:2px solid var(--red);}
 
   .familias{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
@@ -41,9 +45,65 @@
   .familia-card.active{border-color:var(--red);background:#fdeceb;color:var(--red);}
   @media(max-width:600px){.familia-card .foto,.familia-card .foto img{height:52px;}}
 
-  .puesto-row{display:grid;grid-template-columns:1fr 2fr;gap:14px;align-items:end;}
-  @media(max-width:700px){.puesto-row{grid-template-columns:1fr;}}
-  .puesto-hint{font-size:.76rem;color:var(--text-dim);}
+  .puesto-hint{font-size:.76rem;color:var(--text-dim);margin-top:10px;}
+
+  /* ---- Registro por pasos ---- */
+  .cab-reg{display:flex;flex-direction:column;gap:16px;}
+  .cab-reg h1{margin:0;font-size:1.22rem;font-weight:800;letter-spacing:-.2px;}
+  .cab-reg p{margin:3px 0 0;font-size:.82rem;color:var(--text-dim);}
+  .cab-txt{border-left:4px solid var(--red);padding-left:12px;}
+
+  /* la ruta 1-2-3: el trazo va detrás de los círculos y se pinta hasta donde se llegó */
+  .ruta{display:grid;grid-template-columns:repeat(3,1fr);position:relative;}
+  .ruta::before,.ruta::after{content:"";position:absolute;top:15px;left:16.6%;right:16.6%;height:2px;background:var(--border);}
+  .ruta::after{background:var(--red);right:auto;width:0;transition:width .25s;}
+  .ruta[data-hecho="1"]::after{width:33.3%;}
+  .ruta[data-hecho="2"]::after{width:66.6%;}
+  .ruta[data-hecho="3"]::after{width:66.6%;}
+  .ruta .r{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;position:relative;z-index:1;}
+  .ruta .b{width:32px;height:32px;border-radius:50%;background:#fff;border:2px solid var(--border);color:#9aa2ad;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.84rem;}
+  .ruta .t{font-size:.78rem;font-weight:700;color:var(--text-dim);}
+  .ruta .v{font-size:.72rem;color:var(--text-dim);max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .ruta .r.activo .b{border-color:var(--red);color:var(--red);}
+  .ruta .r.activo .t{color:var(--red);}
+  .ruta .r.hecho .b{border-color:var(--red);background:var(--red);color:#fff;}
+  .ruta .r.hecho .t{color:var(--text);}
+  .ruta .r.hecho .v{color:var(--text);font-weight:700;}
+  /* en pantallas angostas el detalle de cada paso no cabe: se deja sólo lo elegido */
+  @media(max-width:560px){
+    .ruta .r:not(.hecho) .v{display:none;}
+    .ruta .t{font-size:.72rem;}
+    .ruta .v{font-size:.7rem;max-width:100px;}
+  }
+
+  .paso{transition:opacity .2s;}
+  .paso.bloqueado{opacity:.5;pointer-events:none;}
+  .paso-cab{display:flex;align-items:flex-start;gap:11px;margin-bottom:14px;}
+  .paso-cab .num{flex:none;width:26px;height:26px;border-radius:50%;background:var(--red);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:800;}
+  .paso.bloqueado .paso-cab .num{background:#c3c9d1;}
+  .paso-cab b{display:block;font-size:.93rem;font-weight:800;}
+  .paso-cab span{display:block;font-size:.77rem;color:var(--text-dim);margin-top:1px;}
+
+  /* desplegable grande, con icono y flecha propia */
+  .sel-grande{position:relative;max-width:460px;}
+  .sel-grande .ic{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:1.05rem;color:var(--red);pointer-events:none;}
+  .sel-grande select{appearance:none;-webkit-appearance:none;width:100%;padding:14px 44px 14px 42px;
+    font-size:.95rem;font-weight:600;border:2px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.4' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat:no-repeat;background-position:right 13px center;background-size:19px;}
+  .sel-grande select:hover{border-color:#c3c9d1;}
+  .sel-grande select:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 3px rgba(226,0,26,.12);}
+  .sel-grande select.elegido{border-color:var(--red);background-color:#fffafa;}
+  @media(max-width:700px){.sel-grande{max-width:none;}}
+
+  /* mes + año como dos desplegables propios: el input type=month nativo
+     traía su propia tipografía y su icono de calendario, que desentonaban */
+  .mes-sel{display:grid;grid-template-columns:1.6fr 1fr;gap:8px;}
+  .mes-sel select{appearance:none;-webkit-appearance:none;padding:10px 30px 10px 11px;cursor:pointer;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.4' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat:no-repeat;background-position:right 9px center;background-size:16px;}
 
   .buscador-row{display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
   .buscador-row input{flex:1;min-width:200px;}
@@ -68,14 +128,6 @@
     .def-fila .cant-row{grid-column:1/-1;}
   }
 
-  /* aviso mientras faltan proceso o puesto */
-  .pasos{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
-  .paso{display:flex;align-items:center;gap:8px;font-size:.8rem;font-weight:700;color:var(--text-dim);
-    border:1px solid var(--border);border-radius:99px;padding:6px 13px 6px 7px;background:#fff;}
-  .paso i{width:21px;height:21px;border-radius:50%;background:#eef0f3;color:#8b939e;display:flex;
-    align-items:center;justify-content:center;font-size:.7rem;font-style:normal;font-weight:800;}
-  .paso.ok{color:var(--ok);border-color:#bde3d1;background:#f2fbf7;}
-  .paso.ok i{background:var(--ok);color:#fff;}
   .def-card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:border-color .15s,box-shadow .15s;}
   .def-card.con-cantidad{border-color:var(--red);box-shadow:0 0 0 2px rgba(226,0,26,.12);}
   .def-card .cab{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:8px;}
@@ -597,21 +649,38 @@
 
 <!-- ============ REGISTRO ============ -->
 <section id="viewRegistro">
-  <div class="panel">
-    <label>Línea de producto *</label>
-    <div class="familias" id="familias"></div>
-    <div id="zonaProceso" style="display:none;">
-      <label>Proceso que estás auditando *</label>
-      <div class="procesos" id="procesos"></div>
+  <div class="panel cab-reg">
+    <div class="cab-txt">
+      <h1>Registro de auditoría</h1>
+      <p>Selecciona el producto, el proceso y el puesto para ver el catálogo de defectos.</p>
     </div>
-    <div class="puesto-row" id="zonaPuesto" style="display:none;">
-      <div>
-        <label for="puesto">Puesto / máquina *</label>
-        <select id="puesto"><option value="">Selecciona un puesto</option></select>
-      </div>
-      <div class="puesto-hint">
-        Al terminar este puesto, guarda y cambia de puesto o de proceso para continuar la auditoría.
-      </div>
+    <div class="ruta" id="rutaPasos"></div>
+  </div>
+
+  <div class="panel paso" id="paso1">
+    <div class="paso-cab"><span class="num">1</span>
+      <div><b>Línea de producto</b><span>Selecciona la línea que estás auditando.</span></div>
+    </div>
+    <div class="familias" id="familias"></div>
+  </div>
+
+  <div class="panel paso bloqueado" id="paso2">
+    <div class="paso-cab"><span class="num">2</span>
+      <div><b>Proceso que estás auditando</b><span id="paso2Sub">Primero elige la línea de producto.</span></div>
+    </div>
+    <div class="procesos" id="procesos"></div>
+  </div>
+
+  <div class="panel paso bloqueado" id="paso3">
+    <div class="paso-cab"><span class="num">3</span>
+      <div><b>Puesto / máquina</b><span id="paso3Sub">Primero elige el proceso.</span></div>
+    </div>
+    <div class="sel-grande">
+      <span class="ic">⚙</span>
+      <select id="puesto"><option value="">Selecciona un puesto</option></select>
+    </div>
+    <div class="puesto-hint" id="puestoHint">
+      Al terminar este puesto, guarda y cambia de puesto o de proceso para continuar la auditoría.
     </div>
   </div>
 
@@ -636,7 +705,6 @@
 
   <div class="panel" id="mensajeInicial">
     <div class="empty-mini" id="mensajeInicialTxt">Selecciona una línea de producto para ver el catálogo de defectos.</div>
-    <div class="pasos" id="mensajePasos" style="display:none;"></div>
   </div>
 
   <span class="footer-link" id="openSync">Sincronización en tiempo real</span>
@@ -742,7 +810,13 @@
           <option value="Palas">Palas</option>
         </select>
       </div>
-      <div><label for="cxMes">Mes</label><input type="month" id="cxMes"></div>
+      <div><label>Mes</label>
+        <div class="mes-sel">
+          <select id="cxMesNom" aria-label="Mes"></select>
+          <select id="cxMesAno" aria-label="Año"></select>
+        </div>
+        <input type="hidden" id="cxMes">
+      </div>
       <button id="cxGuardar" disabled>Guardar cierre</button>
     </div>
     <div style="font-size:.76rem;color:var(--text-dim);margin-top:10px;" id="cxInfo"></div>
@@ -1006,12 +1080,50 @@ function pintarFoto(caja){
 
 function seleccionarFamilia(familia){
   S.familia=familia; S.proceso=""; S.puesto=""; S.cantidades={};
-  renderFamilias();
+  // sólo se mueve el resaltado: si se reconstruyeran las tarjetas, la foto
+  // desaparecería un instante y volvería a verse el emoji
+  document.querySelectorAll("#familias .familia-card")
+    .forEach(c=>c.classList.toggle("active", c.dataset.familia===familia));
   renderProcesos();
-  document.getElementById("zonaProceso").style.display="block";
-  document.getElementById("zonaPuesto").style.display="none";
+  pintarRuta();
   renderDefectos();
   actualizarBarra();
+  irAPaso("paso2");
+}
+
+/* Ruta 1-2-3 y bloqueo de los paneles que todavía no aplican. */
+function pintarRuta(){
+  const pasos = [
+    {t:"Producto",        v:S.familia, vacio:"Selecciona la línea de producto"},
+    {t:"Proceso",         v:S.proceso, vacio:"Selecciona el proceso a auditar"},
+    {t:"Puesto / máquina",v:S.puesto,  vacio:"Selecciona el puesto o máquina"}
+  ];
+  const hechos = pasos.filter(x=>x.v).length;
+  const ruta = document.getElementById("rutaPasos");
+  ruta.dataset.hecho = hechos;
+  ruta.innerHTML = pasos.map((x,i)=>{
+    const cls = x.v ? "hecho" : (i===hechos ? "activo" : "");
+    return `<div class="r ${cls}"><span class="b">${x.v?"✓":i+1}</span>
+      <span class="t">${x.t}</span><span class="v">${x.v||x.vacio}</span></div>`;
+  }).join("");
+
+  document.getElementById("paso2").classList.toggle("bloqueado", !S.familia);
+  document.getElementById("paso3").classList.toggle("bloqueado", !S.proceso);
+  document.getElementById("paso2Sub").textContent = S.familia
+    ? `Procesos de ${S.familia}.` : "Primero elige la línea de producto.";
+  const n = ((ESTRUCTURA[S.familia]||{})[S.proceso]||[]).length;
+  document.getElementById("paso3Sub").textContent = S.proceso
+    ? `${n} puesto(s) en ${S.proceso}.` : "Primero elige el proceso.";
+  document.getElementById("puesto").classList.toggle("elegido", !!S.puesto);
+  document.getElementById("puestoHint").style.display = S.puesto ? "block" : "none";
+}
+
+/* Acerca el siguiente paso sin saltos bruscos (la tablet queda en el sitio). */
+function irAPaso(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const y = el.getBoundingClientRect().top + window.scrollY - 70;
+  window.scrollTo({top:y, behavior:"smooth"});
 }
 
 function renderProcesos(){
@@ -1029,16 +1141,19 @@ function seleccionarProceso(proc){
   const puestos=(ESTRUCTURA[S.familia]||{})[proc]||[];
   document.getElementById("puesto").innerHTML=`<option value="">Selecciona un puesto</option>`+
     puestos.map(p=>`<option value="${p}">${p}</option>`).join("");
-  document.getElementById("zonaPuesto").style.display="grid";
   if(puestos.length===1){ document.getElementById("puesto").value=puestos[0]; S.puesto=puestos[0]; }
+  pintarRuta();
   renderDefectos();
   actualizarBarra();
+  irAPaso(S.puesto ? "zonaDefectos" : "paso3");
 }
 
 document.getElementById("puesto").addEventListener("change",e=>{
   S.puesto=e.target.value;
+  pintarRuta();
   renderDefectos();   // el catálogo sólo aparece con el puesto ya elegido
   actualizarBarra();
+  if(S.puesto) irAPaso("zonaDefectos");
 });
 
 /* ---------- Catálogo ---------- */
@@ -1050,21 +1165,13 @@ function defectosDeFamilia(){
 /* Vista del catálogo: tarjetas (con foto) o lista compacta. */
 let VD = {vista: localStorage.getItem("cd_vista_defectos")==="lista" ? "lista" : "catalogo"};
 
+/* El aviso mientras faltan datos: la ruta de arriba ya lleva el detalle. */
 function pintarPasosPendientes(){
-  const caja = document.getElementById("mensajePasos");
-  const txt  = document.getElementById("mensajeInicialTxt");
-  const hechos = [
-    {t:"Línea",           ok:!!S.familia},
-    {t:"Proceso",         ok:!!S.proceso},
-    {t:"Puesto / máquina",ok:!!S.puesto}
-  ];
-  const falta = hechos.find(h=>!h.ok);
-  txt.textContent = falta
-    ? `Selecciona ${falta.t.toLowerCase()} para ver el catálogo de defectos.`
-    : "Selecciona una línea de producto para ver el catálogo de defectos.";
-  caja.style.display = "flex";
-  caja.innerHTML = hechos.map((h,i)=>
-    `<span class="paso${h.ok?' ok':''}"><i>${h.ok?"✓":i+1}</i>${h.t}</span>`).join("");
+  const falta = !S.familia ? "la línea de producto"
+              : !S.proceso ? "el proceso"
+              : "el puesto o máquina";
+  document.getElementById("mensajeInicialTxt").textContent =
+    `Selecciona ${falta} para ver el catálogo de defectos.`;
 }
 
 function renderDefectos(){
@@ -1701,6 +1808,46 @@ document.querySelectorAll("#cxTabs button").forEach(b=>
     document.querySelectorAll("#cxTabs button").forEach(x=>x.classList.toggle("on", x===b));
     renderCierre();
   }));
+/* Selector de mes propio (mes + año). #cxMes sigue siendo la fuente de verdad
+   con formato YYYY-MM, así que el resto del código no cambia: al asignarle un
+   valor, los dos desplegables se acomodan solos. */
+const MESES_ES = ["enero","febrero","marzo","abril","mayo","junio",
+                  "julio","agosto","septiembre","octubre","noviembre","diciembre"];
+function montarSelectorMes(){
+  const hid = document.getElementById("cxMes");
+  const mes = document.getElementById("cxMesNom");
+  const ano = document.getElementById("cxMesAno");
+
+  mes.innerHTML = MESES_ES.map((m,i)=>
+    `<option value="${pad(i+1)}">${m.charAt(0).toUpperCase()+m.slice(1)}</option>`).join("");
+
+  const anoHoy = new Date().getFullYear();
+  const anos = S.registros.map(r=>+String(r.fecha).slice(0,4)).filter(n=>n>2000);
+  const desde = Math.min(anoHoy-1, ...(anos.length?anos:[anoHoy]));
+  const lista = [];
+  for(let a=desde; a<=anoHoy+1; a++) lista.push(a);
+  ano.innerHTML = lista.map(a=>`<option value="${a}">${a}</option>`).join("");
+
+  function desdeSelects(){
+    hid.value = `${ano.value}-${mes.value}`;          // dispara la sincronía de abajo
+    hid.dispatchEvent(new Event("change"));           // y el redibujado de Data
+  }
+  mes.addEventListener("change", desdeSelects);
+  ano.addEventListener("change", desdeSelects);
+
+  // cuando el código hace cxMes.value = "2026-09", los selects lo siguen
+  const base = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+  Object.defineProperty(hid, "value", {
+    get(){ return base.get.call(this); },
+    set(v){
+      base.set.call(this, v);
+      const [a,m] = String(v||"").split("-");
+      if(a && [...ano.options].some(o=>o.value===a)) ano.value = a;
+      if(m) mes.value = m;
+    }
+  });
+}
+
 document.getElementById("cxMes").addEventListener("change", renderCierre);
 document.getElementById("cxFamilia").addEventListener("change", renderCierre);
 
@@ -3131,9 +3278,11 @@ document.getElementById("btnBorrarLocal").addEventListener("click",()=>{
 
 /* ---------- Init ---------- */
 renderFamilias();
+pintarRuta();
 document.getElementById("dFecha").value=hoyISO();
 document.getElementById("dTurno").value=turnoActual();
 document.getElementById("kFecha").value=hoyISO();
+montarSelectorMes();
 document.getElementById("cxMes").value=hoyISO().slice(0,7);
 document.getElementById("kTurno").value=turnoActual();
 actualizarEstadoSync();
