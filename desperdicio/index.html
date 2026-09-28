@@ -121,7 +121,8 @@
   .prod-head .ic{width:36px;height:36px;border-radius:10px;background:#fdeceb;display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex:none;}
   .prod-head h3{margin:0;font-size:1rem;}
   .prod-head p{margin:2px 0 0 0;font-size:.79rem;color:var(--text-dim);}
-  .prod-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:stretch;}
+  .prod-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;align-items:stretch;}
+  @media(max-width:1400px){.prod-grid{grid-template-columns:repeat(3,1fr);}}
   @media(max-width:1000px){.prod-grid{grid-template-columns:repeat(2,1fr);}}
   @media(max-width:560px){.prod-grid{grid-template-columns:1fr;}}
 
@@ -279,6 +280,21 @@
 
 
   /* ---- Estado de cargue ---- */
+  .ayer-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+  .ayer-b{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;
+    border:1px solid var(--border);border-left:5px solid #c9ced6;background:#fff;border-radius:11px;
+    padding:13px 15px;cursor:pointer;font-family:inherit;}
+  .ayer-b .n{font-size:.95rem;font-weight:700;color:var(--text);}
+  .ayer-b .e{font-size:.78rem;font-weight:700;}
+  .ayer-b .d{font-size:.72rem;color:var(--text-dim);margin-top:2px;}
+  .ayer-b.ok{border-left-color:#1f9d55;background:#f5fdf8;}
+  .ayer-b.ok .e{color:#1f9d55;}
+  .ayer-b.parcial{border-left-color:#e0b90c;background:#fffdf5;}
+  .ayer-b.parcial .e{color:#92660a;}
+  .ayer-b.falta{border-left-color:#c81d2e;background:#fdf7f7;}
+  .ayer-b.falta .e{color:#c81d2e;}
+  .ayer-b.sel{box-shadow:0 0 0 2px rgba(226,0,26,.28);}
+  .ayer-b:hover{border-color:#c9ced6;}
   .ec-leyenda{display:flex;gap:20px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);
     font-size:.76rem;color:var(--text-dim);}
   .ec-leyenda span{display:inline-flex;align-items:center;gap:7px;}
@@ -535,8 +551,7 @@
         <button id="tabRegistro" class="active">Registro</button>
         <button id="tabControl">Control</button>
         <button id="tabDashboard">Dashboard</button>
-        <button id="tabCierre">Cierre</button>
-        <button id="tabEstado">Estado de cargue</button>
+        <button id="tabCierre">Data</button>
       </nav>
       <span style="display:flex;align-items:center;gap:6px;">
         <span id="syncDot" style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5);display:inline-block;"></span>
@@ -692,45 +707,37 @@
     <div style="font-size:.76rem;color:var(--text-dim);margin-top:10px;" id="cxInfo"></div>
   </div>
 
+  <div class="panel" id="panelAyer">
+    <div class="section-title"><h2 id="ayerTitulo">CARGUE DEL DÍA ANTERIOR</h2>
+      <span id="ayerSub" style="font-size:.76rem;color:var(--text-dim);"></span></div>
+    <div class="ayer-grid" id="ayerGrid"></div>
+  </div>
+
   <div class="panel" style="padding-top:12px;padding-bottom:12px;">
     <div class="seg" id="cxTabs">
       <button data-v="desp" class="on">Desperdicio del patinador</button>
       <button data-v="emp">Unidades empacadas</button>
+      <button data-v="estado">Estado del cargue</button>
     </div>
   </div>
 
   <div id="cxContenido">
     <div class="panel"><div class="empty-mini">Selecciona una línea y el día que vas a cerrar.</div></div>
   </div>
-</section>
 
-
-<!-- ============ ESTADO DE CARGUE ============ -->
-<section id="viewEstado" style="display:none;">
-  <div class="panel">
-    <div class="ctrl-top" style="grid-template-columns:1.2fr 1fr auto;">
-      <div>
-        <label for="ecFamilia">Línea de producto *</label>
-        <select id="ecFamilia">
-          <option value="">Selecciona una línea</option>
-          <option value="Machetes">Machetes</option>
-          <option value="Cuchillas">Cuchillas</option>
-          <option value="Limas">Limas</option>
-          <option value="Palas">Palas</option>
-        </select>
+  <div id="cxEstado" style="display:none;">
+    <div class="panel">
+      <div class="ec-leyenda">
+        <span><i class="pt ok"></i>Cargado</span>
+        <span><i class="pt falta"></i>Pendiente</span>
+        <span><i class="pt na"></i>Sin turno / futuro</span>
       </div>
-      <div><label for="ecMes">Mes</label><input type="month" id="ecMes"></div>
-      <button id="ecIrCierre">Ir a Cierre</button>
     </div>
-    <div class="ec-leyenda">
-      <span><i class="pt ok"></i>Cargado</span>
-      <span><i class="pt falta"></i>Pendiente</span>
-      <span><i class="pt na"></i>Sin turno / futuro</span>
-    </div>
+    <div class="kpis" id="ecKpis" style="grid-template-columns:repeat(4,1fr);"></div>
+    <div id="ecContenido"></div>
   </div>
-  <div class="kpis" id="ecKpis" style="grid-template-columns:repeat(4,1fr);"></div>
-  <div id="ecContenido"></div>
 </section>
+
 
 <!-- ============ DETALLE DE MÁQUINA ============ -->
 <section id="viewMaquina" style="display:none;">
@@ -1257,11 +1264,12 @@ function renderEmpBox(fam, periodo, fecha, turno, rango){
   const f2b=n=>n.toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1});
 
   function tarjeta({clase, icono, titulo, sub, valor, unidad, pie, editable, id}){
-    if(valor==null && editable){
+    if(valor==null && id==="emp" && esTurno){
       return `<div class="pc3"><div class="accent"></div><div class="body">
         <div class="tit"><span class="ci">${icono}</span><div><b>${titulo}</b><span>${sub}</span></div></div>
-        <input type="number" id="${id}In" min="0" placeholder="0">
-        <button class="btn pri" id="${id}Save">Guardar</button>
+        <div class="num"><em>—</em></div>
+        <div class="pie"><span>sin cargar</span>
+          <button class="edit" id="empIrData">Cargar en Data</button></div>
       </div></div>`;
     }
     return `<div class="pc3 ${clase}"><div class="accent"></div><div class="body">
@@ -1283,12 +1291,14 @@ function renderEmpBox(fam, periodo, fecha, turno, rango){
       ${tarjeta({clase:"verde", icono:"📦", id:"emp",
         titulo:"Unidades empacadas", sub:"Producción del período",
         valor: emp==null?null:f0(emp), unidad:"unidades",
-        pie: esTurno?"&nbsp;":`<span>${detalleEmp}</span>`, editable:esTurno})}
+        pie: emp==null ? `<span>pendiente · se carga en Data</span>`
+             : (esTurno ? `<span>cargado en Data</span>` : `<span>${detalleEmp}</span>`),
+        editable:false})}
 
       ${tarjeta({clase:"roja", icono:"🗑️", id:"rec",
         titulo:"Desperdicio recolectado", sub:"Patinador · cierre de turno",
         valor: rec==null?null:f0(rec), unidad:"unidades",
-        pie:`<span>${rec==null?"pendiente de cierre":"cargado en la pestaña Cierre"}</span>`, editable:false})}
+        pie:`<span>${rec==null?"pendiente · se carga en Data":"cargado en Data"}</span>`, editable:false})}
 
       ${tarjeta({clase:est, icono:"％", id:"pct",
         titulo:"% Desperdicio", sub:`Meta ${fam} ≤ ${meta}%`,
@@ -1296,6 +1306,11 @@ function renderEmpBox(fam, periodo, fecha, turno, rango){
         pie: pct==null?"<span>faltan datos</span>"
              :`<span>${f0(base)} / ${f0(emp)}</span><span class="estado ${est}">${etqEstado}</span>`,
         editable:false})}
+
+      ${tarjeta({clase:"", icono:"📝", id:"reg",
+        titulo:"Reportado en el registro", sub:"Rondas del inspector",
+        valor: f0(ncRondas), unidad:"unidades",
+        pie: `<span>${desgloseTurnos(fam, fecha)}</span>`, editable:false})}
 
       ${tarjeta({clase:cobEstado, icono:"🔍", id:"cob",
         titulo:"Cobertura de clasificación", sub:"Identificado en rondas",
@@ -1306,30 +1321,27 @@ function renderEmpBox(fam, periodo, fecha, turno, rango){
     </div>
   </div>`;
 
-  if(esTurno){
-    function enganchar(id, clave, etiqueta){
-      const btn=document.getElementById(id+"Save"), inp=document.getElementById(id+"In"), ed=document.getElementById(id+"Edit");
-      if(btn){
-        btn.onclick=()=>{
-          const n=parseInt(inp.value);
-          if(isNaN(n)||n<0){ toast(`Escribe ${etiqueta}`); return; }
-          guardarEmpacadas(fam, clave, n);
-          toast(`Guardado: ${n.toLocaleString("es-CO")} unidades`);
-          renderDashboardTurno();
-        };
-        inp.onkeydown=e=>{ if(e.key==="Enter") btn.click(); };
-      }
-      if(ed) ed.onclick=()=>{
-        const all=JSON.parse(localStorage.getItem("cd_empacadas")||"{}");
-        delete all[fam+"|"+clave];
-        localStorage.setItem("cd_empacadas",JSON.stringify(all));
-        renderDashboardTurno();
-      };
-    }
-    enganchar("emp",`T${turno}-${fecha}`,"las unidades empacadas");
-  }
+  // el dato de empacadas entra por el cargue (pestaña Data), no se edita aquí
+  const irData = document.getElementById("empIrData");
+  if(irData) irData.addEventListener("click", ()=>{
+    document.getElementById("cxFamilia").value = fam;
+    document.getElementById("cxMes").value = fecha.slice(0,7);
+    CX.vista = "emp";
+    document.querySelectorAll("#cxTabs button").forEach(b=>b.classList.toggle("on", b.dataset.v==="emp"));
+    document.getElementById("tabCierre").click();
+  });
 
   return {empacadas:emp, recogidas:rec};
+}
+
+/** Unidades reportadas en el registro ese día, turno por turno. */
+function desgloseTurnos(fam, fecha){
+  const f0 = n => Math.round(n).toLocaleString("es-CO");
+  return ["1","2","3"].map(t=>{
+    const n = S.registros.filter(r=>r.familia===fam && r.turnoKey===llaveTurno(t,fecha))
+                         .reduce((s,r)=>s+r.cantidad, 0);
+    return `T${t} <b>${n?f0(n):"—"}</b>`;
+  }).join(" · ");
 }
 
 function ncClasificadas(fam, periodo, fecha, turno, rango){
@@ -1401,6 +1413,21 @@ function renderCierre(){
   const box = document.getElementById("cxContenido");
   const btn = document.getElementById("cxGuardar");
 
+  renderCargueAyer();
+
+  // la tercera sub-pestaña muestra el seguimiento del mes, no el formulario de cargue
+  const esEstado = CX.vista === "estado";
+  document.getElementById("cxEstado").style.display = esEstado ? "block" : "none";
+  box.style.display = esEstado ? "none" : "block";
+  btn.style.display = esEstado ? "none" : "";
+  if(esEstado){
+    document.getElementById("cxInfo").innerHTML = fam
+      ? `Qué turnos del mes ya tienen cargada la información y cuáles faltan.`
+      : `Selecciona una línea para revisar el estado del cargue.`;
+    renderEstadoCargue();
+    return;
+  }
+
   if(!fam){
     box.innerHTML = `<div class="panel"><div class="empty-mini">Selecciona una línea y el mes que vas a cerrar.</div></div>`;
     document.getElementById("cxInfo").textContent = "";
@@ -1416,7 +1443,7 @@ function renderCierre(){
   if(esDesp){
     const procs = PROCESOS_PATINADOR[fam] || [];
     document.getElementById("cxInfo").innerHTML =
-      `Carga lo que recogió el patinador en cada proceso, por día y turno. El cierre se hace con el día vencido.
+      `Carga lo que recogió el patinador en cada proceso, por día y turno. Se carga con el día vencido: hoy se sube lo de ayer.
        <b>${procs.length}</b> procesos · <b>${dias.length}</b> días.`;
 
     box.innerHTML = `<div class="panel">
@@ -1545,8 +1572,7 @@ document.getElementById("cxFamilia").addEventListener("change", renderCierre);
 document.getElementById("tabCierre").addEventListener("click", ()=>{
   ["tabRegistro","tabControl","tabDashboard"].forEach(t=>document.getElementById(t).classList.remove("active"));
   document.getElementById("tabCierre").classList.add("active");
-  document.getElementById("tabEstado").classList.remove("active");
-  ["viewRegistro","viewControl","viewDashboard","viewMaquina","viewEstado"].forEach(v=>document.getElementById(v).style.display="none");
+  ["viewRegistro","viewControl","viewDashboard","viewMaquina"].forEach(v=>document.getElementById(v).style.display="none");
   document.getElementById("viewCierre").style.display="block";
   document.getElementById("barraFija").style.display="none";
   if(S.syncUrl) cargarRemoto();
@@ -1554,12 +1580,71 @@ document.getElementById("tabCierre").addEventListener("click", ()=>{
 });
 
 
+/** Día calendario anterior a una fecha ISO. */
+function diaAnterior(iso){
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+/** Cuántos de los 3 turnos de un día tienen cargadas las empacadas y el desperdicio. */
+function cargueDelDia(fam, fecha){
+  const procs = PROCESOS_PATINADOR[fam] || [];
+  let emp = 0, desp = 0;
+  ["1","2","3"].forEach(t=>{
+    if(empTurno(fam, t, fecha) != null) emp++;
+    if(procs.length && procs.every(pr => recProc(fam, pr, t, fecha) != null)) desp++;
+  });
+  return {emp, desp, completo: emp===3 && desp===3, vacio: emp===0 && desp===0};
+}
+
+/* Botonera de líneas: de un vistazo, si ya se cargó lo de ayer.
+   El cargue se hace con el día vencido: hoy en la mañana se sube lo de ayer. */
+function renderCargueAyer(){
+  const grid = document.getElementById("ayerGrid");
+  if(!grid) return;
+  const ayer = diaAnterior(hoyISO());
+  const famActual = document.getElementById("cxFamilia").value;
+  const lineas = ["Machetes","Cuchillas","Limas","Palas"];
+
+  const sub = document.getElementById("ayerSub");
+  const pendientes = lineas.filter(l=>!cargueDelDia(l, ayer).completo).length;
+  if(sub) sub.textContent = pendientes
+    ? `${pendientes} línea(s) sin completar el cargue de ayer`
+    : "Todas las líneas al día";
+  const tit = document.getElementById("ayerTitulo");
+  if(tit) tit.textContent = `CARGUE DEL ${fFechaCortaCD(ayer)} · SE SUBE HOY`;
+
+  grid.innerHTML = lineas.map(l=>{
+    const c = cargueDelDia(l, ayer);
+    const est = c.completo ? "ok" : c.vacio ? "falta" : "parcial";
+    const etq = c.completo ? "Completo" : c.vacio ? "Sin cargar" : "Incompleto";
+    return `<button type="button" class="ayer-b ${est}${l===famActual?" sel":""}" data-l="${l}">
+      <span class="n">${l}</span>
+      <span class="e">${etq}</span>
+      <span class="d">Empacadas ${c.emp}/3 · Patinador ${c.desp}/3</span>
+    </button>`;
+  }).join("");
+
+  grid.querySelectorAll("[data-l]").forEach(b=>b.addEventListener("click",()=>{
+    document.getElementById("cxFamilia").value = b.dataset.l;
+    document.getElementById("cxMes").value = ayer.slice(0,7);
+    renderCierre();
+  }));
+}
+
+/** 2026-09-27 -> 27/09 */
+function fFechaCortaCD(iso){
+  const m = String(iso||"").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}` : String(iso||"");
+}
+
 /* ==========================================================================
    ESTADO DE CARGUE — qué falta por cargar en el mes
    ========================================================================== */
 function renderEstadoCargue(){
-  const fam = document.getElementById("ecFamilia").value;
-  const mes = document.getElementById("ecMes").value || hoyISO().slice(0,7);
+  const fam = document.getElementById("cxFamilia").value;
+  const mes = document.getElementById("cxMes").value || hoyISO().slice(0,7);
   const box = document.getElementById("ecContenido");
   const kpis = document.getElementById("ecKpis");
 
@@ -1650,24 +1735,6 @@ function renderEstadoCargue(){
   });
 }
 
-document.getElementById("ecFamilia").addEventListener("change", renderEstadoCargue);
-document.getElementById("ecMes").addEventListener("change", renderEstadoCargue);
-document.getElementById("ecIrCierre").addEventListener("click", ()=>{
-  const fam = document.getElementById("ecFamilia").value;
-  if(fam) document.getElementById("cxFamilia").value = fam;
-  document.getElementById("cxMes").value = document.getElementById("ecMes").value || hoyISO().slice(0,7);
-  document.getElementById("tabCierre").click();
-});
-
-document.getElementById("tabEstado").addEventListener("click", ()=>{
-  ["tabRegistro","tabControl","tabDashboard","tabCierre"].forEach(t=>document.getElementById(t).classList.remove("active"));
-  document.getElementById("tabEstado").classList.add("active");
-  ["viewRegistro","viewControl","viewDashboard","viewMaquina","viewCierre"].forEach(v=>document.getElementById(v).style.display="none");
-  document.getElementById("viewEstado").style.display="block";
-  document.getElementById("barraFija").style.display="none";
-  if(S.syncUrl) cargarRemoto();
-  renderEstadoCargue();
-});
 
 /* ---------- Dashboard ejecutivo ---------- */
 let chartEvol=null, chartDonut=null;
@@ -2215,8 +2282,7 @@ document.getElementById("rGuardar").addEventListener("click", ()=>{
 document.getElementById("tabControl").addEventListener("click",()=>{
   document.getElementById("viewMaquina").style.display="none";
   document.getElementById("viewCierre").style.display="none";
-  document.getElementById("viewEstado").style.display="none";
-  ["tabCierre","tabEstado"].forEach(x=>document.getElementById(x).classList.remove("active"));
+  ["tabCierre"].forEach(x=>document.getElementById(x).classList.remove("active"));
   ["tabRegistro","tabDashboard"].forEach(t=>document.getElementById(t).classList.remove("active"));
   document.getElementById("tabControl").classList.add("active");
   document.getElementById("viewControl").style.display="block";
@@ -2833,8 +2899,7 @@ function aplicarVistaControl(){
 document.getElementById("tabRegistro").addEventListener("click",()=>{
   document.getElementById("viewMaquina").style.display="none";
   document.getElementById("viewCierre").style.display="none";
-  document.getElementById("viewEstado").style.display="none";
-  ["tabCierre","tabEstado"].forEach(x=>document.getElementById(x).classList.remove("active"));
+  ["tabCierre"].forEach(x=>document.getElementById(x).classList.remove("active"));
   document.getElementById("tabRegistro").classList.add("active");
   ["tabDashboard","tabControl"].forEach(t=>document.getElementById(t).classList.remove("active"));
   document.getElementById("viewControl").style.display="none";
@@ -2846,8 +2911,7 @@ document.getElementById("tabRegistro").addEventListener("click",()=>{
 document.getElementById("tabDashboard").addEventListener("click",()=>{
   document.getElementById("viewMaquina").style.display="none";
   document.getElementById("viewCierre").style.display="none";
-  document.getElementById("viewEstado").style.display="none";
-  ["tabCierre","tabEstado"].forEach(x=>document.getElementById(x).classList.remove("active"));
+  ["tabCierre"].forEach(x=>document.getElementById(x).classList.remove("active"));
   document.getElementById("tabDashboard").classList.add("active");
   ["tabRegistro","tabControl"].forEach(t=>document.getElementById(t).classList.remove("active"));
   document.getElementById("viewControl").style.display="none";
@@ -2936,7 +3000,6 @@ document.getElementById("dFecha").value=hoyISO();
 document.getElementById("dTurno").value=turnoActual();
 document.getElementById("kFecha").value=hoyISO();
 document.getElementById("cxMes").value=hoyISO().slice(0,7);
-document.getElementById("ecMes").value=hoyISO().slice(0,7);
 document.getElementById("kTurno").value=turnoActual();
 actualizarEstadoSync();
 if(S.syncUrl){cargarRemoto();cargarEmpacadas();cargarRatios();reintentarPendientes();setInterval(cargarRemoto,8000);}
