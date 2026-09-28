@@ -97,6 +97,10 @@
     padding:18px 20px;margin-bottom:16px;}
   .section-title{display:flex;justify-content:space-between;align-items:center;gap:14px;
     flex-wrap:wrap;margin-bottom:14px;}
+  .btn-actualizar{margin-left:auto;border:1px solid var(--border);background:#fff;color:var(--text-dim);
+    border-radius:8px;padding:7px 13px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .btn-actualizar:hover{background:#f3f4f6;color:var(--text);}
+  .btn-actualizar:disabled{opacity:.6;cursor:default;}
   .section-title h2{margin:0;font-size:.9rem;font-weight:800;letter-spacing:.3px;color:var(--red);}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
@@ -440,7 +444,9 @@
 <section id="viewReg">
   <div class="panel">
     <div class="section-title"><h2>¿QUÉ PROCESO VAS A CONTROLAR?</h2>
-      <span id="regResumen" style="font-size:.78rem;color:var(--text-dim);"></span></div>
+      <span id="regResumen" style="font-size:.78rem;color:var(--text-dim);"></span>
+      <button type="button" class="btn-actualizar" id="btnActualizarReg"
+        title="Volver a leer la hoja compartida">↻ Actualizar</button></div>
     <div class="seg" id="lineaSeg"></div>
     <div class="barra-busca" style="margin-top:12px;">
       <input type="text" id="procBuscar" placeholder="Buscar proceso...">
@@ -467,7 +473,9 @@
 
     <div class="panel">
       <div class="section-title"><h2>VARIABLES DEL PROCESO</h2>
-        <span id="progresoVars" style="font-size:.74rem;color:var(--text-dim);"></span></div>
+        <span id="progresoVars" style="font-size:.74rem;color:var(--text-dim);"></span>
+        <button type="button" class="btn-actualizar" id="btnActualizarDil"
+          title="Volver a leer la hoja compartida">↻ Actualizar</button></div>
       <div style="overflow-x:auto;">
         <table class="tabla-vars">
           <thead><tr>
@@ -1186,6 +1194,11 @@ function tab(activo){
 }
 VISTAS.forEach(t=> document.getElementById("tab"+t).addEventListener("click", ()=>tab(t)));
 
+["btnActualizarReg","btnActualizarDil"].forEach(id=>{
+  const b = document.getElementById(id);
+  if(b) b.addEventListener("click", ()=> actualizarAhora(b));
+});
+
 /* ==========================================================================
    REGISTRAR · selección de proceso
    ========================================================================== */
@@ -1236,6 +1249,19 @@ function registrosDeLaRonda(formatoId){
     fFecha(r.fecha)===hoy && String(r.turno)===String(t));
 }
 function validadoEnLaRonda(formatoId){ return registrosDeLaRonda(formatoId).length > 0; }
+
+/* Relee la hoja y repinta. El sondeo lo hace solo cada pocos segundos, pero
+   tener el botón quita la duda cuando dos inspectores trabajan a la vez. */
+async function actualizarAhora(boton){
+  const txt = boton ? boton.textContent : null;
+  if(boton){ boton.disabled = true; boton.textContent = "↻ Leyendo…"; }
+  await cargarRemoto(false);
+  if(boton){ boton.disabled = false; boton.textContent = txt; }
+  if(S.formatoActivo) renderVariables(); else renderProcesos();
+  toast(LECTURA.error ? "No se pudo leer la hoja"
+        : LECTURA.nuevos ? `${LECTURA.nuevos} registro(s) nuevos`
+        : "Ya estabas al día");
+}
 
 function renderProcesos(){
   renderSegLineas();
@@ -2793,6 +2819,7 @@ const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:fa
 /* Si llegaron registros nuevos, la pantalla que el usuario está mirando se
    actualiza sola. Antes había que volver a pulsar «Buscar» para verlos, y por
    eso parecía que la sincronía tardaba una eternidad. */
+let RONDA_PINTADA = "";
 function repintarVistaActiva(){
   const visible = id => document.getElementById(id) &&
                         document.getElementById(id).style.display !== "none";
@@ -2800,7 +2827,9 @@ function repintarVistaActiva(){
     if(visible("viewCons") && yaBusco) buscarConsulta();
     if(visible("viewTab"))  renderTablero();
     if(visible("viewCump")) renderCumplimiento();
-    if(visible("viewReg"))  renderProcesos();
+    // mientras el inspector está diligenciando no se toca la pantalla,
+    // para no borrarle lo que va escrito
+    if(visible("viewReg") && !S.formatoActivo) renderProcesos();
   }catch(e){ console.error("repintar:", e); }
 }
 
@@ -2844,7 +2873,12 @@ async function cargarRemoto(completo){
 
     persist(); reintentarPendientes(); actualizarEstadoSync(); actualizarPillCump();
     renderPendientes();
-    if(LECTURA.nuevos > 0) repintarVistaActiva();
+    // también al cambiar de turno: los procesos vuelven a pedirse y la lista
+    // debe reflejarlo aunque no haya llegado ningún registro nuevo
+    const ronda = hoyISO() + "-T" + turnoDeHora(horaAhora());
+    const cambioRonda = ronda !== RONDA_PINTADA;
+    RONDA_PINTADA = ronda;
+    if(LECTURA.nuevos > 0 || cambioRonda) repintarVistaActiva();
   }catch(e){
     console.error("cargarRemoto:", e);
     LECTURA.error = e.message || String(e);
