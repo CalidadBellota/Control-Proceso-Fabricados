@@ -2864,6 +2864,34 @@ function repintarVistaActiva(){
   }catch(e){ console.error("repintar:", e); }
 }
 
+/* Google devuelve errores pasajeros con cierta frecuencia (404, 500, cortes).
+   Casi siempre el segundo intento funciona. Antes, un fallo puntual dejaba la
+   app "sin lectura" hasta el siguiente sondeo; ahora se reintenta en el acto y
+   el usuario no llega a enterarse. */
+async function pedirJSON(url, que, intentos){
+  const max = intentos == null ? 3 : intentos;
+  let ultimo = null;
+  for(let i = 0; i < max; i++){
+    if(i) await new Promise(r=>setTimeout(r, 700 * i));   // 0,7 s y 1,4 s
+    try{
+      const res = await fetch(url, {cache:"no-store"});
+      const txt = await res.text();
+      if(!res.ok){ ultimo = new Error(`la hoja respondió HTTP ${res.status}`); continue; }
+      let data;
+      try{ data = JSON.parse(txt); }
+      catch(err){
+        ultimo = new Error(/^\s*</.test(txt)
+          ? "la dirección no devolvió datos (¿implementación borrada o sin permiso para «cualquier usuario»?)"
+          : "respuesta ilegible de la hoja");
+        continue;
+      }
+      if(data && data.error){ ultimo = new Error(String(data.error)); continue; }
+      return data;
+    }catch(err){ ultimo = err; }
+  }
+  throw ultimo || new Error("no se pudo leer " + que);
+}
+
 function fechaDesde(dias){
   const d = new Date(); d.setDate(d.getDate() - dias);
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
@@ -2877,17 +2905,7 @@ async function cargarRemoto(completo, desdeFecha){
     // pedir la hoja entera, que es la petición más pesada y más frágil
     const corte = desdeFecha || (completo ? fechaDesde(120) : fechaDesde(3));
     const url = S.syncUrl + "?desde=" + corte;
-    const res = await fetch(url);
-    if(!res.ok) throw new Error("La hoja respondió HTTP " + res.status);
-    const txt = await res.text();
-    let data;
-    try{ data = JSON.parse(txt); }
-    catch(err){
-      // Apps Script devuelve HTML cuando la implementación no existe o pide permiso
-      throw new Error(/^\s*</.test(txt)
-        ? "la dirección no devolvió datos (¿implementación borrada o sin permiso para «cualquier usuario»?)"
-        : "respuesta ilegible de la hoja");
-    }
+    const data = await pedirJSON(url, "registros");
     if(!Array.isArray(data)) throw new Error("la hoja no devolvió una lista de registros");
 
     const m = new Map();
@@ -2931,8 +2949,7 @@ async function cargarRemoto(completo, desdeFecha){
 async function cargarConfig(){
   if(!S.syncUrl){ marcarConfigSync(false); return; }
   try{
-    const res = await fetch(S.syncUrl + "?tipo=config");
-    const data = await res.json();
+    const data = await pedirJSON(S.syncUrl + "?tipo=config", "el catálogo");
     if(!data) throw new Error("sin datos");
 
     if(Array.isArray(data.usuarios) && data.usuarios.length){
@@ -3084,11 +3101,19 @@ function pintarBanner(){
   banner.className = "banner-alerta";
 
   if(fallaRegistros && fallaCatalogo){
+    const seg = Math.round(proximoSondeo()/1000);
     banner.innerHTML = `<b>La aplicación no está leyendo la hoja compartida.</b> Lo que registres ahora queda
-      solo en este dispositivo y no lo verán los demás. Revisa la conexión antes de continuar.`;
+      solo en este dispositivo y no lo verán los demás.` +
+      (fallosSeguidos >= 3
+        ? ` Si lleva así un buen rato, lo más probable es que la hoja haya agotado su cuota diaria de Google;
+            se restablece sola durante la noche.`
+        : "") +
+      (seg ? ` Se reintenta en ${seg} s.` : "");
   } else if(fallaRegistros){
+    const seg = Math.round(proximoSondeo()/1000);
     banner.innerHTML = `<b>No se están leyendo los registros de la hoja.</b> Puedes registrar —lo tuyo se está
-      guardando—, pero no verás lo que diligencien los demás. ${esc(LECTURA.error||"")}`;
+      guardando—, pero no verás lo que diligencien los demás. ${esc(LECTURA.error||"")}` +
+      (seg ? ` · Se reintenta en ${seg} s.` : "");
   } else {
     banner.innerHTML = `<b>No se pudo leer el catálogo de formatos.</b> Los registros sí se están sincronizando;
       se sigue usando el catálogo guardado en este dispositivo. Se reintenta solo.`;
@@ -3276,17 +3301,41 @@ actualizarPillCump();
 /* Un refresco arranca cuando termina el anterior: con setInterval, si una
    lectura tardaba más que el intervalo, se encimaban y Apps Script las
    atendía en fila, haciendo todo más lento todavía. */
+/* RITMO DEL SONDEO
+   Cada pestaña abierta consume cuota de Apps Script, que es diaria y limitada.
+   Leer cada 6 s con varios equipos la agota en media jornada y la hoja empieza
+   a rechazar peticiones. Por eso: 45 s con la pestaña a la vista, nada cuando
+   está en segundo plano, y espera creciente si la hoja está fallando. */
+const SONDEO_MS = 20000;
+const SONDEO_MAX = 600000;      // 10 min como tope cuando hay fallos seguidos
+let fallosSeguidos = 0;
+
+function proximoSondeo(){
+  if(document.hidden) return 0;                 // en segundo plano no se sondea
+  if(!fallosSeguidos) return SONDEO_MS;
+  return Math.min(SONDEO_MS * Math.pow(2, fallosSeguidos), SONDEO_MAX);
+}
+
+let temporizador = null;
 async function sondear(){
   if(sondeoActivo) return;
+  clearTimeout(temporizador);
   sondeoActivo = true;
-  try{ await cargarRemoto(false); }
+  try{
+    await cargarRemoto(false);
+    fallosSeguidos = LECTURA.error ? Math.min(fallosSeguidos + 1, 4) : 0;
+  }
   finally{
     sondeoActivo = false;
-    setTimeout(sondear, document.hidden ? 60000 : 6000);
+    const ms = proximoSondeo();
+    if(ms) temporizador = setTimeout(sondear, ms);
   }
 }
 /* Al volver a la pestaña se refresca de una, sin esperar el turno. */
-document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) sondear(); });
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden) clearTimeout(temporizador);   // deja de consumir cuota
+  else sondear();
+});
 
 if(S.syncUrl){
   // en serie: en paralelo, Apps Script atiende una y la otra se puede agotar,
