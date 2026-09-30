@@ -1357,10 +1357,12 @@ function tab(activo){
 }
 VISTAS.forEach(t=> document.getElementById("tab"+t).addEventListener("click", ()=>tab(t)));
 
-["btnActualizarReg","btnActualizarDil"].forEach(id=>{
-  const b = document.getElementById(id);
-  if(b) b.addEventListener("click", ()=> actualizarAhora(b));
-});
+/* En Registrar, Actualizar trae también el catálogo: es donde importa que las
+   máquinas y los campos nuevos de un formato editado en otro equipo aparezcan. */
+const bReg = document.getElementById("btnActualizarReg");
+if(bReg) bReg.addEventListener("click", ()=> actualizarAhora(bReg, null, true));
+const bDil = document.getElementById("btnActualizarDil");
+if(bDil) bDil.addEventListener("click", ()=> actualizarAhora(bDil));
 // en Diligenciamiento basta con el día o el mes que se está mirando
 const bCump = document.getElementById("btnActualizarCump");
 if(bCump) bCump.addEventListener("click", async ()=>{
@@ -1454,17 +1456,22 @@ function validadoEnLaRonda(formatoId){ return registrosDeLaRonda(formatoId).leng
 /* El sondeo automático y el botón comparten el mismo canal: si el botón sale
    mientras hay una lectura en curso, Apps Script la pone en fila y el botón
    parece colgado. Se espera a que la de fondo termine y se aprovecha. */
-async function actualizarAhora(boton, desdeFecha){
+async function actualizarAhora(boton, desdeFecha, conCatalogo){
   desdeFecha = desdeFecha || fechaRondaActual();
   const txt = boton ? boton.textContent : null;
   if(boton){ boton.disabled = true; boton.textContent = "↻ Leyendo…"; }
   const t0 = Date.now();
   try{
-    await cargarRemoto(false, desdeFecha, "botón Actualizar");
+    /* En serie, nunca a la vez: Apps Script atiende una petición por usuario.
+       El catálogo primero, porque es el que decide qué campos y qué máquinas
+       se van a pintar. */
+    if(conCatalogo) await cargarConfig(true);
+    await cargarRemoto(false, desdeFecha, conCatalogo ? "botón Actualizar (con catálogo)" : "botón Actualizar");
   } finally {
     if(boton){ boton.disabled = false; boton.textContent = txt; }
   }
   repintarVistaActiva();
+  if(conCatalogo) renderProcesos();
   if(S.formatoActivo) renderVariables();
   const seg = ((Date.now()-t0)/1000).toFixed(1);
   toast(LECTURA.error ? "No se pudo leer la hoja"
@@ -3340,7 +3347,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-09-30-proveedor-acero";
+const APP_VERSION = "2026-09-30-actualizar-catalogo";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -3473,10 +3480,13 @@ async function cargarRemoto(completo, desdeFecha, motivo){
   }
 }
 
-async function cargarConfig(){
+/* fresco = saltarse la caché de 90 s de la hoja. Se usa cuando el usuario pide
+   Actualizar a propósito: si acaba de editar un formato en el PC, tiene que
+   verlo en la tableta ya, no dentro de minuto y medio. */
+async function cargarConfig(fresco){
   if(!S.syncUrl){ marcarConfigSync(false); return; }
   try{
-    const data = await pedirJSON(S.syncUrl + "?tipo=config", "el catálogo");
+    const data = await pedirJSON(S.syncUrl + "?tipo=config" + (fresco ? "&fresco=1" : ""), "el catálogo");
     if(!data) throw new Error("sin datos");
     BACKEND.version = data.backend || null;
 
