@@ -242,6 +242,14 @@
   .badge.neutral{background:#eef0f3;color:var(--text-dim);}
   /* Sin especificación: el dato se captura pero no hay contra qué juzgarlo.
      Gris, nunca verde: que no se lea como aprobado. */
+  .marca-corr{background:#fff3e0;color:#9a5b00;border:1px solid #f0d3a8;
+    padding:1px 7px;border-radius:20px;font-size:.68rem;font-weight:700;cursor:help;}
+  .corr-fila{display:grid;grid-template-columns:1.6fr .9fr .9fr auto;gap:10px;align-items:center;
+    padding:9px 0;border-bottom:1px solid var(--border);font-size:.82rem;}
+  .corr-fila input{padding:8px 10px;border:1px solid var(--border);border-radius:7px;
+    font-family:inherit;font-size:.85rem;width:100%;}
+  .corr-fila.cambiada input{border-color:#e08900;background:#fffaf2;}
+  .corr-antes{color:var(--text-dim);font-size:.76rem;}
   .badge.sin{background:#e9ecef;color:#5c646e;border:1px dashed #b9c0c8;font-weight:600;}
   tr.sin{background:#f6f7f9;}
   tr.sin .badge.sin{background:#eceff2;}
@@ -451,6 +459,13 @@
 
 <!-- ============ REGISTRAR ============ -->
 <section id="viewReg">
+  <div class="panel" id="avisoTurno" style="display:none;border-left:4px solid #e08900;background:#fffaf2;">
+    <div style="font-size:.86rem;line-height:1.55;" id="avisoTurnoTxt"></div>
+    <div style="display:flex;gap:10px;margin-top:12px;">
+      <button class="btn-principal" id="turnoContinuar">Continuar ese control</button>
+      <button class="btn-sec" id="turnoDescartar">Descartarlo</button>
+    </div>
+  </div>
   <div class="panel">
     <div class="section-title"><h2>¿QUÉ PROCESO VAS A CONTROLAR?</h2>
       <span id="regResumen" style="font-size:.78rem;color:var(--text-dim);"></span>
@@ -830,6 +845,28 @@
   </div>
 </div>
 
+<!-- Modal corrección de un registro ya guardado -->
+<div class="modal-bg" id="corrModal">
+  <div class="modal" style="max-width:860px;">
+    <h3>Corregir registro</h3>
+    <div id="corrCabecera" style="font-size:.8rem;color:var(--text-dim);margin-bottom:14px;"></div>
+    <div id="corrVars"></div>
+    <div class="campo" style="margin-top:16px;">
+      <label for="corrMotivo">Motivo de la corrección *</label>
+      <input type="text" id="corrMotivo" placeholder="Por ejemplo: se digitó 70 en vez de 7.0" maxlength="160">
+    </div>
+    <div id="corrHistorial"></div>
+    <div style="font-size:.74rem;color:var(--text-dim);margin-top:12px;line-height:1.5;">
+      El valor original no se borra: queda guardado en el historial de correcciones con tu nombre,
+      la fecha y la hora. Sólo se puede corregir el valor medido, no la fecha ni el proceso.
+    </div>
+    <div class="modal-actions">
+      <button id="corrCancelar">Cancelar</button>
+      <button class="primary" id="corrGuardar">Guardar corrección</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal sincronización -->
 <div class="modal-bg" id="syncModal">
   <div class="modal" style="max-width:600px;">
@@ -1156,12 +1193,94 @@ document.getElementById("loginEntrar").addEventListener("click", intentarEntrar)
 document.getElementById("loginPin").addEventListener("keydown", e=>{ if(e.key==="Enter") intentarEntrar(); });
 
 function abrirSesion(u){
-  S.sesion = {usuario:u.usuario, nombre:u.nombre, rol:u.rol};
+  /* El turno queda pegado a la sesión: si cambia, la sesión no sirve más.
+     Sin esto, el inspector que entra a las 14:00 sobre la sesión abierta del
+     compañero guarda todo el turno con el nombre del otro. */
+  S.sesion = {usuario:u.usuario, nombre:u.nombre, rol:u.rol, turno: turnoDeHora(horaAhora())};
   sessionStorage.setItem("cp_sesion", JSON.stringify(S.sesion));
   document.getElementById("loginBg").style.display = "none";
   aplicarRol();
   tab("Reg");
+  vigilarTurno();
+  ofrecerPendienteTurno();
 }
+
+/* Al entrar el del turno nuevo, se le ofrece el control que quedó a medias en
+   vez de perderlo: él decide si lo continúa (queda a su nombre) o lo descarta. */
+function ofrecerPendienteTurno(){
+  const caja = document.getElementById("avisoTurno");
+  if(!caja) return;
+  if(!PENDIENTE_TURNO){ caja.style.display = "none"; return; }
+  const f = S.formatos.find(x=>x.id===PENDIENTE_TURNO.formatoId);
+  if(!f){ PENDIENTE_TURNO = null; caja.style.display = "none"; return; }
+  const n = Object.keys(PENDIENTE_TURNO.mediciones||{}).length;
+  document.getElementById("avisoTurnoTxt").innerHTML =
+    `Quedó un control a medias del turno anterior: <b>${esc(f.nombre)}</b>, con ${n} variable(s)
+     diligenciada(s) por <b>${esc(PENDIENTE_TURNO.quien||"—")}</b>.
+     Si lo continúas, el registro queda a <b>tu</b> nombre y en el turno actual.`;
+  caja.style.display = "block";
+}
+
+document.getElementById("turnoContinuar").addEventListener("click", ()=>{
+  if(!PENDIENTE_TURNO) return;
+  const f = S.formatos.find(x=>x.id===PENDIENTE_TURNO.formatoId);
+  const med = PENDIENTE_TURNO.mediciones;
+  PENDIENTE_TURNO = null;
+  document.getElementById("avisoTurno").style.display = "none";
+  if(!f) return;
+  abrirFormato(f.id);
+  S.mediciones = med;
+  renderVariables();
+  actualizarBarra();
+  toast("Control retomado · queda a tu nombre");
+});
+document.getElementById("turnoDescartar").addEventListener("click", ()=>{
+  PENDIENTE_TURNO = null;
+  document.getElementById("avisoTurno").style.display = "none";
+  toast("Control descartado");
+});
+
+/* ==========================================================================
+   CIERRE AUTOMÁTICO AL CAMBIAR EL TURNO
+   Turno 1: 6:00–14:00 · Turno 2: 14:00–22:00 · Turno 3: 22:00–6:00
+   ====================================================================== */
+const NOMBRE_TURNO = {"1":"Turno 1 (6:00–14:00)","2":"Turno 2 (14:00–22:00)","3":"Turno 3 (22:00–6:00)"};
+let RELOJ_TURNO = null;
+/* Trabajo sin guardar que quedó del turno anterior, para no tirarlo en silencio. */
+let PENDIENTE_TURNO = null;
+
+/** true si la sesión abierta ya no corresponde al turno que está corriendo. */
+function turnoVencido(){
+  return !!S.sesion && !!S.sesion.turno && S.sesion.turno !== turnoDeHora(horaAhora());
+}
+
+function cerrarPorTurno(){
+  if(!S.sesion) return;
+  const anterior = S.sesion.turno, ahora = turnoDeHora(horaAhora());
+  /* Si había un control a medio diligenciar se guarda aparte: el inspector que
+     entre decide si lo continúa o lo descarta, pero no se pierde solo. */
+  if(S.formatoActivo && Object.keys(S.mediciones||{}).length){
+    PENDIENTE_TURNO = {formatoId: S.formatoActivo.id, mediciones: S.mediciones,
+                       quien: S.sesion.nombre, turno: anterior};
+  }
+  cerrarSesion();
+  const err = document.getElementById("loginErr");
+  if(err){
+    err.style.display = "block";
+    err.innerHTML = `Cambió el turno: terminó el <b>${esc(NOMBRE_TURNO[anterior]||anterior)}</b> y ahora
+      corre el <b>${esc(NOMBRE_TURNO[ahora]||ahora)}</b>. La sesión se cerró para que cada control
+      quede con el nombre de quien realmente lo hizo. Inicia sesión otra vez.`;
+  }
+}
+
+function vigilarTurno(){
+  if(RELOJ_TURNO) clearInterval(RELOJ_TURNO);
+  RELOJ_TURNO = setInterval(()=>{ if(turnoVencido()) cerrarPorTurno(); }, 20000);
+}
+/* Al volver a la pestaña o despertar el equipo, revisar en el acto: el
+   temporizador no corre igual con la tableta dormida. */
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden && turnoVencido()) cerrarPorTurno(); });
+
 function cerrarSesion(){
   S.sesion = null;
   sessionStorage.removeItem("cp_sesion");
@@ -1176,7 +1295,15 @@ document.getElementById("btnSalir").addEventListener("click", cerrarSesion);
 
 function aplicarRol(){
   const adm = administra();
-  document.getElementById("tabAdmin").style.display = adm ? "block" : "none";
+  /* El inspector sólo necesita registrar, consultar lo suyo y ver qué le falta.
+     Tendencia, Tablero y Administrar son de análisis y configuración: se ocultan
+     para que no se pierda entre pestañas que no va a usar. Jefe y coordinador
+     las conservan todas. */
+  ["tabAdmin","tabTend","tabTab"].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = adm ? "block" : "none";
+  });
+  if(!adm && ["Admin","Tend","Tab"].indexOf(VISTA_ACTUAL) !== -1) tab("Reg");
   document.querySelectorAll(".solo-jefe").forEach(el=> el.style.display = adm ? "" : "none");
   const chip = document.getElementById("userChip");
   if(S.sesion){
@@ -1193,8 +1320,12 @@ function aplicarRol(){
    PESTAÑAS
    ========================================================================== */
 const VISTAS = ["Reg","Cons","Tend","Tab","Cump","Admin"];
+let VISTA_ACTUAL = "Reg";
+/* Vistas reservadas a jefe y coordinador. */
+const VISTAS_ADMIN = ["Admin","Tend","Tab"];
 function tab(activo){
-  if(activo === "Admin" && !administra()) activo = "Reg";
+  if(VISTAS_ADMIN.indexOf(activo) !== -1 && !administra()) activo = "Reg";
+  VISTA_ACTUAL = activo;
   VISTAS.forEach(t=>{
     document.getElementById("tab"+t).classList.toggle("active", t===activo);
     document.getElementById("view"+t).style.display = t===activo ? "block" : "none";
@@ -1786,6 +1917,7 @@ function construirRegistro(){
 /** Guarda el control como "no trabajó": deja la constancia sin variables. */
 document.getElementById("btnNoTrabajo").addEventListener("click",()=>{
   if(!S.sesion){ toast("Inicia sesión antes de guardar"); return; }
+  if(turnoVencido()){ cerrarPorTurno(); toast("Cambió el turno: vuelve a iniciar sesión"); return; }
   const f = S.formatoActivo;
   if(!f) return;
   if(Object.keys(S.mediciones).length &&
@@ -1814,6 +1946,10 @@ document.getElementById("btnNoTrabajo").addEventListener("click",()=>{
 
 document.getElementById("btnGuardar").addEventListener("click",()=>{
   if(!S.sesion){ toast("Inicia sesión antes de guardar"); return; }
+  /* Segundo cerrojo: entre que se abrió el formato y se pulsa Guardar puede
+     haber cambiado el turno. Sin esto, un control del turno 1 se guardaría con
+     turno 2 y con el inspector equivocado. */
+  if(turnoVencido()){ cerrarPorTurno(); toast("Cambió el turno: vuelve a iniciar sesión"); return; }
   if(!S.formatoActivo) return;
   const reg = construirRegistro();
   S.registros.unshift(reg);
@@ -1886,6 +2022,172 @@ document.getElementById("cBuscar").addEventListener("click", async (e)=>{
   buscarConsulta();
 });
 
+/* ==========================================================================
+   CORRECCIÓN DE UN REGISTRO YA GUARDADO
+   El inspector se equivoca al digitar y necesita arreglarlo sin volver a
+   levantar el control. El valor viejo NO se pierde: cada cambio queda en
+   r.correcciones con quién, cuándo, qué variable, de qué a qué y por qué.
+   ====================================================================== */
+let CORR = {id:null};
+
+function resumenCorrecciones(r){
+  return (r.correcciones||[]).map(c =>
+    `${c.fecha} ${c.hora} · ${c.usuario}: ${c.variable} ${c.antes||"(vacío)"} → ${c.despues||"(vacío)"}`
+  ).join("\n");
+}
+
+/* Vuelve a juzgar con los límites que quedaron guardados EN EL REGISTRO, no con
+   los del formato de hoy: si alguien cambió la especificación después, el
+   registro debe seguir midiéndose contra lo que regía cuando se tomó el dato. */
+function juzgarCorregido(reg, x, valor){
+  const v = {tipo:x.tipo, min:x.min, max:x.max, opciones:x.opciones};
+  if(x.tipo === "opcion" || x.tipo === "visual"){
+    const f = S.formatos.find(z=>z.id===reg.formatoId);
+    const orig = f && (f.variables||[]).find(z=>z.nombre===x.nombre);
+    if(orig){ v.opciones = orig.opciones; v.conformes = orig.conformes; }
+  }
+  return juzgar(v, valor);
+}
+
+function textoResultado(r){
+  return r==="bad" ? "Fuera de rango" : r==="na" ? "No aplica"
+       : r==="sin" ? "Sin especificación" : r==="ok" ? "Conforme" : "Sin dato";
+}
+
+function abrirCorreccion(id){
+  const r = S.registros.find(x=>x.id===id);
+  if(!r){ toast("No se encontró el registro"); return; }
+  if(!S.sesion){ toast("Inicia sesión para corregir"); return; }
+  CORR.id = id;
+  document.getElementById("corrCabecera").innerHTML =
+    `<b>${esc(r.linea)} · ${esc(r.proceso)}</b> · OF ${esc(r.ordenFabricacion||"—")} ·
+     ${fFecha(r.fecha)} ${fHora(r.hora)} · Turno ${esc(r.turno||"—")} ·
+     registrado por ${esc(r.inspector||"—")}`;
+
+  document.getElementById("corrVars").innerHTML =
+    `<div class="corr-fila" style="font-weight:800;font-size:.7rem;letter-spacing:.4px;
+       color:var(--text-dim);text-transform:uppercase;">
+       <span>Variable</span><span>Especificación</span><span>Valor medido</span><span>Resultado</span></div>` +
+    (r.resultados||[]).map((x,i)=>{
+      /* Las opciones no se guardan dentro del registro, así que para mostrarlas
+         se buscan en el formato. Si el formato ya no existe, se dice así. */
+      const fmt = S.formatos.find(z=>z.id===r.formatoId);
+      const orig = fmt && (fmt.variables||[]).find(z=>z.nombre===x.nombre);
+      const ops = (x.opciones && x.opciones.length) ? x.opciones : (orig ? orig.opciones : null);
+      const conf = orig && orig.conformes && orig.conformes.length ? orig.conformes : null;
+      const espec = x.tipo==="numerico"
+        ? ((x.min===""&&x.max==="") ? "Sin rango definido" : `${x.min===""?"—":x.min} – ${x.max===""?"—":x.max} ${esc(x.unidad||"")}`)
+        : ops ? (ops.join(" · ") + (conf ? ` · conformes: ${conf.join(", ")}` : " · sin conformes definidas"))
+              : "Sin especificación";
+      return `<div class="corr-fila" data-ci="${i}">
+        <span><b>${esc(x.nombre)}</b>${x.critica?' <span class="marca-corr">crítica</span>':""}</span>
+        <span class="corr-antes">${esc(espec)}</span>
+        <input type="text" class="corr-val" data-ci="${i}" value="${esc(x.valor??"")}">
+        <span class="corr-res" data-ci="${i}">${esc(x.resultado||"Sin dato")}</span>
+      </div>`;
+    }).join("");
+
+  // recalcular en vivo mientras escribe, para que vea el efecto antes de guardar
+  document.querySelectorAll("#corrVars .corr-val").forEach(inp=>{
+    inp.addEventListener("input", ()=>{
+      const i = +inp.dataset.ci;
+      const x = r.resultados[i];
+      const nuevo = textoResultado(juzgarCorregido(r, x, inp.value.trim()));
+      document.querySelector(`.corr-res[data-ci="${i}"]`).textContent = nuevo;
+      inp.closest(".corr-fila").classList.toggle("cambiada",
+        String(inp.value).trim() !== String(x.valor??""));
+    });
+  });
+
+  const hist = r.correcciones || [];
+  document.getElementById("corrHistorial").innerHTML = hist.length
+    ? `<div style="margin-top:16px;"><div class="diag-tit">CORRECCIONES ANTERIORES</div>
+       <div style="font-size:.76rem;line-height:1.7;">${hist.map(c=>
+         `<div style="padding:4px 0;border-bottom:1px solid var(--border);">
+           <b>${esc(c.fecha)} ${esc(c.hora)}</b> · ${esc(c.usuario)} —
+           ${esc(c.variable)}: <s>${esc(c.antes||"(vacío)")}</s> → <b>${esc(c.despues||"(vacío)")}</b>
+           ${c.motivo?`<br><span style="color:var(--text-dim);">${esc(c.motivo)}</span>`:""}
+         </div>`).join("")}</div></div>`
+    : "";
+
+  document.getElementById("corrMotivo").value = "";
+  document.getElementById("corrModal").classList.add("show");
+}
+
+document.getElementById("corrCancelar").addEventListener("click", ()=>{
+  document.getElementById("corrModal").classList.remove("show");
+});
+
+document.getElementById("corrGuardar").addEventListener("click", async ()=>{
+  const r = S.registros.find(x=>x.id===CORR.id);
+  if(!r) return;
+  if(turnoVencido()){
+    document.getElementById("corrModal").classList.remove("show");
+    cerrarPorTurno(); toast("Cambió el turno: vuelve a iniciar sesión"); return;
+  }
+  const motivo = document.getElementById("corrMotivo").value.trim();
+
+  const cambios = [];
+  document.querySelectorAll("#corrVars .corr-val").forEach(inp=>{
+    const i = +inp.dataset.ci, x = r.resultados[i];
+    const nuevo = String(inp.value).trim(), viejo = String(x.valor ?? "");
+    if(nuevo !== viejo) cambios.push({i, viejo, nuevo});
+  });
+
+  if(!cambios.length){ toast("No cambiaste ningún valor"); return; }
+  if(!motivo){ toast("Escribe el motivo de la corrección"); document.getElementById("corrMotivo").focus(); return; }
+
+  const h = horaAhora(), f = hoyISO();
+  r.correcciones = r.correcciones || [];
+  cambios.forEach(({i, viejo, nuevo})=>{
+    const x = r.resultados[i];
+    r.correcciones.push({
+      fecha: f, hora: h,
+      usuario: S.sesion ? S.sesion.nombre : "",
+      variable: x.nombre, antes: viejo, despues: nuevo, motivo: motivo
+    });
+    x.valor = nuevo;
+    x.resultado = textoResultado(juzgarCorregido(r, x, nuevo));
+  });
+
+  persist();
+  document.getElementById("corrModal").classList.remove("show");
+  toast(`Corrección guardada · ${cambios.length} variable(s)`);
+  buscarConsulta();
+  actualizarPillCump();
+
+  if(S.syncUrl){
+    try{
+      const res = await fetch(S.syncUrl, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body: JSON.stringify({action:"corregirRegistro", registro:r})});
+      const out = await respuestaGuardado(res);
+      if(out && out.ok) toast("Corrección subida a la hoja");
+      else throw new Error((out && out.error) || "la hoja no confirmó la corrección");
+    }catch(err){
+      /* La corrección ya quedó en este equipo. Se marca para que el reenvío
+         normal la vuelva a intentar en vez de perderse en silencio. */
+      r.correccionPendiente = true;
+      persist();
+      toast("Corrección guardada aquí, pendiente de subir: " + (err.message||err));
+    }
+  }
+});
+
+/* Reintento de las correcciones que no alcanzaron a subir. */
+async function reintentarCorrecciones(){
+  if(!S.syncUrl) return;
+  const p = S.registros.filter(r=>r.correccionPendiente);
+  for(const r of p){
+    try{
+      const res = await fetch(S.syncUrl, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body: JSON.stringify({action:"corregirRegistro", registro:r})});
+      const out = await respuestaGuardado(res);
+      if(out && out.ok){ delete r.correccionPendiente; persist(); }
+    }catch(err){ return; }   // sigue sin red: se reintenta después
+  }
+}
+
+
 function buscarConsulta(){
   const linea = document.getElementById("cLinea").value;
   const proc  = document.getElementById("cProceso").value;
@@ -1922,11 +2224,14 @@ function buscarConsulta(){
           <b>${esc(r.linea)} · ${esc(r.proceso)}</b>
           <div class="sub">OF <b>${esc(r.ordenFabricacion||"—")}</b> · Ref. <b>${esc(r.referencia||"—")}</b>${
             r.maquina?` · Máquina <b>${esc(r.maquina)}</b>`:""}</div>
-          <div class="sub">${fFecha(r.fecha)} · ${fHora(r.hora)} · Turno ${esc(r.turno||"—")} · ${esc(r.inspector||"—")}</div>
+          <div class="sub">${fFecha(r.fecha)} · ${fHora(r.hora)} · Turno ${esc(r.turno||"—")} · ${esc(r.inspector||"—")}${
+            (r.correcciones||[]).length ? ` · <span class="marca-corr" title="${
+              esc(resumenCorrecciones(r))}">corregido ${(r.correcciones||[]).length} vez(ces)</span>` : ""}</div>
         </div>
         <span class="est badge ${nc?"bad":"ok"}">${nc? `${nc} fuera de rango` : "Todo conforme"}${cnc?` · ${cnc} crítica(s)`:""}</span>
         <div class="final">
           <button class="btn-sec" data-det="${esc(r.id)}">Detalle</button>
+          <button class="btn-sec" data-corr="${esc(r.id)}">Corregir</button>
           <button class="btn-sec" data-pdf="${esc(r.id)}">PDF</button>
         </div>
       </div>`;
@@ -1939,6 +2244,7 @@ function buscarConsulta(){
   box.querySelectorAll("[data-det]").forEach(b=>b.addEventListener("click",()=>{
     const r = S.registros.find(x=>x.id===b.dataset.det); if(r) generarPDF(r, false);
   }));
+  box.querySelectorAll("[data-corr]").forEach(b=>b.addEventListener("click",()=> abrirCorreccion(b.dataset.corr)));
 }
 
 /* ==========================================================================
@@ -2952,7 +3258,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-09-30-sin-espec-visible";
+const APP_VERSION = "2026-09-30-sesion-por-turno";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -3337,7 +3643,7 @@ function renderPendientes(){
 function accionPanelSync(id, boton){
   if(id === "btnProbar")    return probarConexion(boton);
   if(id === "btnLeerAhora") return leerAhora(boton);
-  if(id === "btnReintentar"){ reintentarPendientes(); toast("Reintentando..."); }
+  if(id === "btnReintentar"){ reintentarPendientes(); reintentarCorrecciones(); toast("Reintentando..."); }
 }
 
 /* Le pregunta a la hoja qué entendió de la petición. Si el ?desde= no le llega,
@@ -3511,11 +3817,18 @@ actualizarPillCump();
 (function iniciarSesion(){
   let ses = null;
   try{ ses = JSON.parse(sessionStorage.getItem("cp_sesion") || "null"); }catch(e){}
+  /* Una sesión guardada de un turno que ya pasó no se restaura: recargar la
+     página no puede servir para seguir usando el usuario del turno anterior. */
+  if(ses && ses.turno && ses.turno !== turnoDeHora(horaAhora())){
+    sessionStorage.removeItem("cp_sesion");
+    ses = null;
+  }
   if(ses && S.usuarios.some(u=>u.usuario===ses.usuario)){
     S.sesion = ses;
     document.getElementById("loginBg").style.display = "none";
     aplicarRol();
     tab("Reg");
+    vigilarTurno();
   } else {
     sessionStorage.removeItem("cp_sesion");
     document.getElementById("loginBg").style.display = "flex";
@@ -3562,7 +3875,10 @@ if(S.syncUrl){
     await cargarConfig();
     await cargarRonda();          // solo el turno en curso, no el histórico
     reintentarPendientes();
+    reintentarCorrecciones();
   })();
+  /* Sólo reenvíos: si no hay nada pendiente no tocan la red. */
+  setInterval(()=>{ reintentarPendientes(); reintentarCorrecciones(); }, 60000);
 }
 else marcarConfigSync(false);
 </script>
