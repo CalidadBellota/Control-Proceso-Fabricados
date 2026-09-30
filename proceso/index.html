@@ -240,6 +240,11 @@
   .badge.ok{background:var(--ok-bg);color:var(--ok);}
   .badge.bad{background:var(--bad-bg);color:var(--bad);}
   .badge.neutral{background:#eef0f3;color:var(--text-dim);}
+  /* Sin especificación: el dato se captura pero no hay contra qué juzgarlo.
+     Gris, nunca verde: que no se lea como aprobado. */
+  .badge.sin{background:#e9ecef;color:#5c646e;border:1px dashed #b9c0c8;font-weight:600;}
+  tr.sin{background:#f6f7f9;}
+  tr.sin .badge.sin{background:#eceff2;}
 
   /* ---------- Barra fija ---------- */
   .barra-fija{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--border);
@@ -1574,10 +1579,15 @@ function refrescarFila(i){
   const r = (S.mediciones[i] || {}).resultado;
   fila.classList.toggle("ok",  r === "ok");
   fila.classList.toggle("bad", r === "bad");
+  fila.classList.toggle("sin", r === "sin");
   const badge = fila.querySelector(".badge");
   if(!badge) return;
-  badge.className = "badge " + (r === "ok" ? "ok" : r === "bad" ? "bad" : "neutral");
-  badge.textContent = (v.tipo === "numerico")
+  badge.className = "badge " + (r === "ok" ? "ok" : r === "bad" ? "bad" : r === "sin" ? "sin" : "neutral");
+  badge.title = r === "sin" ? (v.tipo === "numerico"
+      ? "No hay límites cargados para esta variable, así que el dato se guarda pero no se juzga"
+      : "Nadie definió qué opciones son conformes, así que el dato se guarda pero no se juzga") : "";
+  badge.textContent = r === "sin" ? "Sin especificación"
+    : (v.tipo === "numerico")
     ? (r === "ok" ? "✓ En rango" : r === "bad" ? "✗ Fuera de rango" : "—")
     : (r === "ok" ? "✓ Conforme" : r === "bad" ? "✗ No conforme" : r === "na" ? "No aplica" : "—");
 }
@@ -1592,7 +1602,7 @@ function renderVariables(){
 
   body.innerHTML = orden.map(({v,i})=>{
     const m = S.mediciones[i] || {};
-    const clase = m.resultado==="ok" ? "ok" : m.resultado==="bad" ? "bad" : "";
+    const clase = m.resultado==="ok" ? "ok" : m.resultado==="bad" ? "bad" : m.resultado==="sin" ? "sin" : "";
     let entrada;
     if(v.tipo === "numerico"){
       entrada = `<input type="number" step="any" class="val-input valor" data-i="${i}" value="${esc(m.valor??"")}" placeholder="0.00">`;
@@ -1609,11 +1619,11 @@ function renderVariables(){
       }).join("")}</div>`;
     }
     const badge = (v.tipo==="numerico")
-      ? `<span class="badge ${m.resultado==="ok"?"ok":m.resultado==="bad"?"bad":"neutral"}" ${
+      ? `<span class="badge ${m.resultado==="ok"?"ok":m.resultado==="bad"?"bad":m.resultado==="sin"?"sin":"neutral"}" ${
           m.resultado==="sin"?'title="No hay límites cargados para esta variable, así que no se puede juzgar"':""}>${
           m.resultado==="ok"?"✓ En rango":m.resultado==="bad"?"✗ Fuera de rango"
           :m.resultado==="sin"?"Sin especificación":"—"}</span>`
-      : `<span class="badge ${m.resultado==="ok"?"ok":m.resultado==="bad"?"bad":"neutral"}" ${
+      : `<span class="badge ${m.resultado==="ok"?"ok":m.resultado==="bad"?"bad":m.resultado==="sin"?"sin":"neutral"}" ${
           m.resultado==="sin"?'title="Nadie definió qué opciones son conformes, así que no se puede juzgar"':""}>${
           m.resultado==="ok"?"✓ Conforme":m.resultado==="bad"?"✗ No conforme":m.resultado==="na"?"No aplica"
           :m.resultado==="sin"?"Sin especificación":"—"}</span>`;
@@ -2942,7 +2952,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-09-30-sin-especificacion";
+const APP_VERSION = "2026-09-30-sin-espec-visible";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
