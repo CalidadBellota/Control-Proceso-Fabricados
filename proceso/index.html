@@ -735,7 +735,8 @@
 <div class="barra-fija" id="barraFija" style="display:none;">
   <div style="font-size:.85rem;">Variables: <b id="rVars">0/0</b> ·
     Conformes: <b id="rOk" style="color:var(--ok);">0</b> ·
-    Fuera de rango: <b id="rBad" style="color:var(--bad);">0</b></div>
+    Fuera de rango: <b id="rBad" style="color:var(--bad);">0</b><span id="rSinWrap" style="display:none;"> ·
+    Sin especificación: <b id="rSin" style="color:#b46a00;">0</b></span></div>
   <div id="faltaGuardar" class="falta-aviso" style="display:none;"></div>
   <div style="flex:1;"></div>
   <button class="btn-sec" id="btnCancelar">Cancelar</button>
@@ -783,8 +784,12 @@
     <div id="mfVars"></div>
     <div style="font-size:.74rem;color:var(--text-dim);margin-top:10px;line-height:1.5;">
       En las variables <b>visuales</b>, escribe las opciones separadas por coma en la columna de unidad
-      (por ejemplo <b>Ok, Nok, No aplica</b>). La primera opción es la que cuenta como conforme.
-      Si dejas los límites vacíos en una variable numérica, la app solo captura el valor sin juzgarlo.
+      (por ejemplo <b>Ok, Nok, No aplica</b>). La primera opción es la que cuenta como conforme.<br>
+      En las de <b>lista de opciones</b>, escribe las opciones en la columna de unidad y, en la columna
+      <b>Límite inferior</b>, cuáles de ellas son <b>conformes</b> (separadas por coma).<br>
+      Si una variable numérica queda sin límites, o una lista de opciones sin conformes, la app
+      <b>captura el valor pero no lo juzga</b>: queda como «Sin especificación» y no cuenta ni como
+      conforme ni como no conforme en los indicadores.
     </div>
     <div class="modal-actions">
       <button id="mfCancelar">Cancelar</button>
@@ -1521,9 +1526,21 @@ function especTexto(v){
   if(hay(max)) return `Máximo ${max}${v.unidad?" "+v.unidad:""}`;
   return v.unidad ? `Sin rango definido · ${v.unidad}` : "Sin rango definido";
 }
+/* Devuelve "ok" | "bad" | "na" | "sin" | undefined.
+   "sin" = se capturó el dato pero NADIE definió contra qué juzgarlo. Antes esto
+   devolvía "ok", así que una medición sin especificación cargada entraba al
+   indicador como conforme: el porcentaje de cumplimiento salía alto porque no
+   se estaba juzgando nada, no porque el proceso estuviera bien. */
 function juzgar(v, valor){
   if(v.tipo === "texto") return undefined;
-  if(v.tipo === "opcion") return valor ? "ok" : undefined;
+  if(v.tipo === "opcion"){
+    if(!valor) return undefined;
+    // v.conformes = las opciones que se consideran conformes. Sin esa lista no
+    // hay criterio, y elegir cualquier opción no puede contar como aprobado.
+    const conf = Array.isArray(v.conformes) ? v.conformes.map(x=>String(x).trim()).filter(Boolean) : [];
+    if(!conf.length) return "sin";
+    return conf.indexOf(String(valor).trim()) !== -1 ? "ok" : "bad";
+  }
   if(v.tipo === "visual"){
     if(!valor) return undefined;
     const ops = v.opciones||["Ok","Nok"];
@@ -1534,7 +1551,7 @@ function juzgar(v, valor){
   const n = parseFloat(String(valor).replace(",","."));
   if(isNaN(n)) return undefined;
   const hay = x => x !== null && x !== undefined && x !== "";
-  if(!hay(v.min) && !hay(v.max)) return "ok";       // sin rango: solo se captura
+  if(!hay(v.min) && !hay(v.max)) return "sin";      // sin rango cargado: se captura, no se juzga
   if(hay(v.min) && n < parseFloat(v.min)) return "bad";
   if(hay(v.max) && n > parseFloat(v.max)) return "bad";
   return "ok";
@@ -1592,10 +1609,14 @@ function renderVariables(){
       }).join("")}</div>`;
     }
     const badge = (v.tipo==="numerico")
-      ? `<span class="badge ${m.resultado==="ok"?"ok":m.resultado==="bad"?"bad":"neutral"}">${
-          m.resultado==="ok"?"✓ En rango":m.resultado==="bad"?"✗ Fuera de rango":"—"}</span>`
-      : `<span class="badge ${m.resultado==="ok"?"ok":m.resultado==="bad"?"bad":"neutral"}">${
-          m.resultado==="ok"?"✓ Conforme":m.resultado==="bad"?"✗ No conforme":m.resultado==="na"?"No aplica":"—"}</span>`;
+      ? `<span class="badge ${m.resultado==="ok"?"ok":m.resultado==="bad"?"bad":"neutral"}" ${
+          m.resultado==="sin"?'title="No hay límites cargados para esta variable, así que no se puede juzgar"':""}>${
+          m.resultado==="ok"?"✓ En rango":m.resultado==="bad"?"✗ Fuera de rango"
+          :m.resultado==="sin"?"Sin especificación":"—"}</span>`
+      : `<span class="badge ${m.resultado==="ok"?"ok":m.resultado==="bad"?"bad":"neutral"}" ${
+          m.resultado==="sin"?'title="Nadie definió qué opciones son conformes, así que no se puede juzgar"':""}>${
+          m.resultado==="ok"?"✓ Conforme":m.resultado==="bad"?"✗ No conforme":m.resultado==="na"?"No aplica"
+          :m.resultado==="sin"?"Sin especificación":"—"}</span>`;
 
     let cabecera = "";
     if(hayCrit){
@@ -1655,8 +1676,11 @@ function actualizarBarra(){
   const ok  = med.filter(m=>m.resultado==="ok" || m.resultado==="na").length;
   const bad = med.filter(m=>m.resultado==="bad").length;
   document.getElementById("rVars").textContent = `${evaluadas}/${total}`;
+  const sinEsp = med.filter(m=>m.resultado==="sin").length;
   document.getElementById("rOk").textContent = ok;
   document.getElementById("rBad").textContent = bad;
+  document.getElementById("rSin").textContent = sinEsp;
+  document.getElementById("rSinWrap").style.display = sinEsp ? "inline" : "none";
   document.getElementById("progresoVars").textContent = `${evaluadas} de ${total} diligenciadas`;
 
   const falta = [];
@@ -1741,6 +1765,7 @@ function construirRegistro(){
         observacion: m.obs || "",
         resultado: m.resultado==="bad" ? "Fuera de rango"
                  : m.resultado==="na"  ? "No aplica"
+                 : m.resultado==="sin" ? "Sin especificación"
                  : m.resultado==="ok"  ? "Conforme" : "Sin dato"
       };
     }),
@@ -2119,7 +2144,7 @@ function renderTablero(){
     const o = porProc[k] = porProc[k] || {reg:0, med:0, fuera:0};
     o.reg++;
     (r.resultados||[]).forEach(x=>{
-      if(x.resultado==="Sin dato" || x.resultado==="No aplica") return;
+      if(x.resultado==="Sin dato" || x.resultado==="No aplica" || x.resultado==="Sin especificación") return;
       o.med++; if(x.resultado==="Fuera de rango") o.fuera++;
     });
   });
@@ -2134,7 +2159,7 @@ function renderTablero(){
     const k = `${r.proceso} · ${m}`;
     const o = porMaq[k] = porMaq[k] || {fuera:0, med:0};
     (r.resultados||[]).forEach(x=>{
-      if(x.resultado==="Sin dato" || x.resultado==="No aplica") return;
+      if(x.resultado==="Sin dato" || x.resultado==="No aplica" || x.resultado==="Sin especificación") return;
       o.med++; if(x.resultado==="Fuera de rango") o.fuera++;
     });
   });
@@ -2601,6 +2626,9 @@ function filaVarHTML(v){
   const t = v.tipo || "numerico";
   const esNum = t === "numerico";
   const unidadOpc = (t==="visual" || t==="opcion") ? (v.opciones||["Ok","Nok"]).join(", ") : (v.unidad||"");
+  /* En las variables de lista, la columna del límite inferior se reutiliza para
+     decir CUÁLES opciones son conformes. Sin eso no hay contra qué juzgarlas. */
+  const valMin = t==="opcion" ? (v.conformes||[]).join(", ") : (v.min ?? "");
   return `<div class="var-edit${v.critica?" es-critica":""}" draggable="true">
     <span class="agarre" title="Arrastra para cambiar el orden">⠿</span>
     <span class="num"></span>
@@ -2612,7 +2640,7 @@ function filaVarHTML(v){
       <option value="texto"${t==="texto"?" selected":""}>Texto libre</option>
     </select>
     <input type="text" class="v-unidad" placeholder="${esNum?"mm, °C, HRC":"Ok, Nok"}" value="${esc(unidadOpc)}">
-    <input type="text" class="v-min" placeholder="mín." value="${esc(v.min??"")}">
+    <input type="text" class="v-min" placeholder="${t==="opcion"?"conformes":"mín."}" value="${esc(valMin)}">
     <input type="text" class="v-max" placeholder="máx." value="${esc(v.max??"")}">
     <span class="critbox"><input type="checkbox" class="v-crit"${v.critica?" checked":""}
       title="Variable crítica" aria-label="Variable crítica"></span>
@@ -2663,15 +2691,22 @@ function engancharFilasVar(){
     tipo.onchange = ()=>{
       const esNum = tipo.value === "numerico";
       const esLista = tipo.value === "visual" || tipo.value === "opcion";
+      const esOpcion = tipo.value === "opcion";
       const u = fila.querySelector(".v-unidad");
       u.placeholder = esNum ? "mm, °C, HRC" : esLista ? "Ok, Nok" : "—";
       u.disabled = tipo.value === "texto";
-      ["v-min","v-max"].forEach(cl=>{
-        const el = fila.querySelector("."+cl);
-        el.disabled = !esNum;
-        el.style.visibility = esNum ? "visible" : "hidden";
-        if(!esNum) el.value = "";
-      });
+      /* El límite inferior sirve para dos cosas: el mínimo de una numérica, o la
+         lista de opciones conformes de una variable de lista de opciones. */
+      const min = fila.querySelector(".v-min");
+      min.disabled = !(esNum || esOpcion);
+      min.style.visibility = (esNum || esOpcion) ? "visible" : "hidden";
+      min.placeholder = esOpcion ? "conformes" : "mín.";
+      min.title = esOpcion ? "Qué opciones cuentan como conformes, separadas por coma" : "";
+      if(!(esNum || esOpcion)) min.value = "";
+      const max = fila.querySelector(".v-max");
+      max.disabled = !esNum;
+      max.style.visibility = esNum ? "visible" : "hidden";
+      if(!esNum) max.value = "";
       if(esLista && !u.value.trim()) u.value = "Ok, Nok";
     };
     tipo.onchange();
@@ -2754,7 +2789,13 @@ document.getElementById("mfGuardar").addEventListener("click",()=>{
     }
     if(tipo === "texto") return {nombre:nom, tipo:"texto", critica:crit};
     const ops = uni.split(",").map(s=>s.trim()).filter(Boolean);
-    return {nombre:nom, tipo:tipo, opciones: ops.length ? ops : ["Ok","Nok"], critica:crit};
+    const base = {nombre:nom, tipo:tipo, opciones: ops.length ? ops : ["Ok","Nok"], critica:crit};
+    if(tipo === "opcion"){
+      // sólo se guardan las conformes que existan de verdad en la lista de opciones
+      const escritas = row.querySelector(".v-min").value.split(",").map(x=>x.trim()).filter(Boolean);
+      base.conformes = escritas.filter(x => base.opciones.indexOf(x) !== -1);
+    }
+    return base;
   }).filter(Boolean);
 
   if(!vars.length){ toast("Agrega al menos una variable"); return; }
@@ -2901,7 +2942,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-09-30-cerrar-no-lee";
+const APP_VERSION = "2026-09-30-sin-especificacion";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
