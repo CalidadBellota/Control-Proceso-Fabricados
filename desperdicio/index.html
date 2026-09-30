@@ -1646,7 +1646,23 @@ async function cargarEmpacadas(){
     if(!Array.isArray(data)) throw new Error("respuesta inesperada de la Sheet");
     const all=JSON.parse(localStorage.getItem("cd_empacadas")||"{}");
     const antes=JSON.stringify(all);
-    data.forEach(x=>{ if(x && x.familia && x.clave) all[x.familia+"|"+x.clave]=Number(x.unidades)||0; });
+    /* OJO: antes esto era Number(x.unidades)||0, y convertía en CERO cualquier
+       celda vacía de la Sheet. El resultado era un "0 unidades · cargado en
+       Data" que parecía un dato real cuando en realidad no se había cargado
+       nada. Un cero de verdad (marcar el día sin desperdicio) sí se conserva. */
+    const pendientes = leerPendientes();
+    const enCola = k => pendientes.some(c => c.familia + "|" + c.clave === k);
+    data.forEach(x=>{
+      if(!x || !x.familia || !x.clave) return;
+      const k = x.familia + "|" + x.clave;
+      const v = x.unidades;
+      if(v === "" || v === null || v === undefined){
+        if(!enCola(k)) delete all[k];         // sin dato: queda "sin cargar"
+        return;
+      }
+      const n = Number(v);
+      if(Number.isFinite(n)) all[k] = n;      // incluye el 0 legítimo
+    });
     const despues=JSON.stringify(all);
     localStorage.setItem("cd_empacadas",despues);
     migrarProcesosUnificados();          // normaliza lo que llegue con nombres viejos
