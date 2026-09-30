@@ -835,7 +835,7 @@
     </div>
     <div class="modal-actions">
       <button id="btnDesconectar">Trabajar sin conexión</button>
-      <button class="primary" id="btnConectar">Conectar</button>
+      <button class="primary" id="btnConectar">Cerrar</button>
     </div>
   </div>
 </div>
@@ -2901,7 +2901,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-09-30-bitacora";
+const APP_VERSION = "2026-09-30-cerrar-no-lee";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -3378,31 +3378,50 @@ document.addEventListener("click", e=>{
   if(b && b.id) accionPanelSync(b.id, b);
 });
 
+/* El botón cambia de nombre según lo que vaya a hacer: si nadie tocó la
+   dirección, cierra y ya; si la cambiaron, entonces sí reconecta. */
+function ajustarBotonSync(){
+  const campo = document.getElementById("syncUrl");
+  const bt = document.getElementById("btnConectar");
+  if(!campo || !bt) return;
+  bt.textContent = (campo.value.trim() !== S.syncUrl) ? "Guardar y conectar" : "Cerrar";
+}
+document.getElementById("syncUrl").addEventListener("input", ajustarBotonSync);
+
 document.getElementById("openSync").addEventListener("click",()=>{
   document.getElementById("syncUrl").value = S.syncUrl;
+  ajustarBotonSync();
   renderPendientes();
   document.getElementById("syncModal").classList.add("show");
 });
-document.getElementById("btnConectar").addEventListener("click",ev=>{
-  S.syncUrl = document.getElementById("syncUrl").value.trim();
+/* Este botón es el que la gente pulsa para CERRAR el panel, porque es el botón
+   grande de abajo. Antes, además de cerrar, reconectaba y volvía a leer: por eso
+   aparecían lecturas que nadie había pedido. Ahora, si la dirección no cambió,
+   sólo cierra. */
+document.getElementById("btnConectar").addEventListener("click", async ev=>{
+  const nueva = document.getElementById("syncUrl").value.trim();
+  const cambio = nueva !== S.syncUrl;
+  S.syncUrl = nueva;
   localStorage.setItem("cp_sync_url", S.syncUrl);
   actualizarEstadoSync();
   document.getElementById("syncModal").classList.remove("show");
-  /* Antes pedía 120 días y tardaba cerca de un minuto. Conectar la hoja no
-     necesita el histórico: basta el turno que se está trabajando, igual que
-     al abrir la app. El histórico se trae cuando alguien lo consulte. */
-  cargarRemoto(false, fechaRondaActual(), origenClic(ev, "al conectar la hoja")); cargarConfig();
+  if(!cambio) return;                       // sólo se cerró el panel: nada que hacer
+  /* En serie, no a la vez: Apps Script atiende una petición por usuario, así que
+     lanzar las dos juntas hacía que la segunda esperara, fallara por saturación
+     y reintentara. Eso es lo que convertía 39 registros en 60 segundos. */
+  await cargarConfig();
+  await cargarRemoto(false, fechaRondaActual(), origenClic(ev, "al cambiar la dirección de la hoja"));
 });
-document.getElementById("btnRestaurarSync").addEventListener("click",ev=>{
+document.getElementById("btnRestaurarSync").addEventListener("click", async ev=>{
+  const cambio = S.syncUrl !== SYNC_POR_DEFECTO;
   document.getElementById("syncUrl").value = SYNC_POR_DEFECTO;
   S.syncUrl = SYNC_POR_DEFECTO;
   localStorage.setItem("cp_sync_url", S.syncUrl);
   actualizarEstadoSync();
   document.getElementById("syncModal").classList.remove("show");
-  /* Antes pedía 120 días y tardaba cerca de un minuto. Conectar la hoja no
-     necesita el histórico: basta el turno que se está trabajando, igual que
-     al abrir la app. El histórico se trae cuando alguien lo consulte. */
-  cargarRemoto(false, fechaRondaActual(), origenClic(ev, "al conectar la hoja")); cargarConfig();
+  if(!cambio){ toast("Ya estabas en la hoja de la empresa"); return; }
+  await cargarConfig();
+  await cargarRemoto(false, fechaRondaActual(), origenClic(ev, "al restaurar la hoja de la empresa"));
   toast("Conectado a la hoja de la empresa");
 });
 document.getElementById("btnDesconectar").addEventListener("click",()=>{
