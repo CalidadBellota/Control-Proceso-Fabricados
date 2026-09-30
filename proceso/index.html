@@ -3258,7 +3258,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-09-30-sesion-por-turno";
+const APP_VERSION = "2026-09-30-reconectar";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -3578,6 +3578,11 @@ function renderPendientes(){
   const total = S.registros.length;
   const propia = S.syncUrl && S.syncUrl !== SYNC_POR_DEFECTO;
   box.innerHTML = `<div class="diag">
+    ${!S.syncUrl ? `<div class="diag-err" style="margin-bottom:14px;">
+      <b>Estás trabajando sin conexión.</b> Los controles se guardan en este equipo pero no suben a la
+      hoja, y no vas a ver lo que registren los demás. Pulsa <b>Volver a conectar</b> aquí abajo.
+      <button class="btn-principal" id="btnVolverConectar" style="margin-top:10px;width:100%;">
+        Volver a conectar con la hoja</button></div>` : ""}
     <div class="diag-tit">ENVÍO</div>
     <div class="diag-fila"><span>Registros en este dispositivo</span><b>${total}</b></div>
     <div class="diag-fila"><span>Enviados a la hoja</span><b style="color:#1f9d55;">${total-pend.length}</b></div>
@@ -3589,7 +3594,8 @@ function renderPendientes(){
     <div class="diag-tit" style="margin-top:16px;">LECTURA</div>
     <div class="diag-fila"><span>Registros que devolvió la hoja</span>
       <b style="color:${LECTURA.error?"#c81d2e":LECTURA.recibidos?"#1f9d55":"#6b7280"};">
-        ${LECTURA.error ? "—" : (LECTURA.recibidos==null ? "leyendo…" : LECTURA.recibidos)}</b></div>
+        ${!S.syncUrl ? "sin conexión" : LECTURA.error ? "—"
+          : (LECTURA.recibidos==null ? "leyendo…" : LECTURA.recibidos)}</b></div>
     <div class="diag-fila"><span>Última lectura</span><b>${LECTURA.hora
         ? `${LECTURA.hora} · hace ${Math.max(0,Math.round((Date.now()-LECTURA.sello)/1000))} s` : "—"}</b></div>
     <div class="diag-fila"><span>Tardó</span><b>${LECTURA.ms ? (LECTURA.ms/1000).toFixed(1)+" s" : "—"}</b></div>
@@ -3741,6 +3747,9 @@ function ajustarBotonSync(){
   const campo = document.getElementById("syncUrl");
   const bt = document.getElementById("btnConectar");
   if(!campo || !bt) return;
+  /* Sin hoja conectada el botón NO puede decir "Cerrar": era la única salida y
+     no se veía como tal. Desconectarse dejaba la app sin camino de vuelta. */
+  if(!S.syncUrl){ bt.textContent = "Conectar con la hoja"; return; }
   bt.textContent = (campo.value.trim() !== S.syncUrl) ? "Guardar y conectar" : "Cerrar";
 }
 document.getElementById("syncUrl").addEventListener("input", ajustarBotonSync);
@@ -3756,7 +3765,9 @@ document.getElementById("openSync").addEventListener("click",()=>{
    aparecían lecturas que nadie había pedido. Ahora, si la dirección no cambió,
    sólo cierra. */
 document.getElementById("btnConectar").addEventListener("click", async ev=>{
-  const nueva = document.getElementById("syncUrl").value.trim();
+  let nueva = document.getElementById("syncUrl").value.trim();
+  // desconectado y sin nada escrito: se vuelve a la hoja de la empresa
+  if(!nueva && !S.syncUrl) nueva = SYNC_POR_DEFECTO;
   const cambio = nueva !== S.syncUrl;
   S.syncUrl = nueva;
   localStorage.setItem("cp_sync_url", S.syncUrl);
@@ -3782,9 +3793,34 @@ document.getElementById("btnRestaurarSync").addEventListener("click", async ev=>
   toast("Conectado a la hoja de la empresa");
 });
 document.getElementById("btnDesconectar").addEventListener("click",()=>{
+  if(!confirm("Sin conexión los controles se guardan sólo en este equipo y no suben a la hoja.\n\n¿Trabajar sin conexión?")) return;
   S.syncUrl = ""; localStorage.setItem("cp_sync_url", "");
+  document.getElementById("syncUrl").value = "";
   actualizarEstadoSync(); marcarConfigSync(false);
-  document.getElementById("syncModal").classList.remove("show");
+  /* El panel se queda abierto a propósito: así se ve el aviso con el botón para
+     volver, en vez de cerrarse y dejar al usuario sin saber cómo regresar. */
+  renderPendientes();
+  ajustarBotonSync();
+  toast("Trabajando sin conexión");
+});
+
+/* El botón del aviso se pinta con el panel, así que se atiende por delegación. */
+document.addEventListener("click", e=>{
+  const b = e.target && e.target.closest ? e.target.closest("#btnVolverConectar") : null;
+  if(!b) return;
+  S.syncUrl = SYNC_POR_DEFECTO;
+  localStorage.setItem("cp_sync_url", S.syncUrl);
+  document.getElementById("syncUrl").value = S.syncUrl;
+  actualizarEstadoSync();
+  ajustarBotonSync();
+  toast("Conectando con la hoja de la empresa\u2026");
+  (async ()=>{
+    await cargarConfig();
+    await cargarRemoto(false, fechaRondaActual(), "al volver a conectar");
+    reintentarPendientes(); reintentarCorrecciones();
+    renderPendientes();
+    toast(LECTURA.error ? "No se pudo leer la hoja" : "Conectado a la hoja de la empresa");
+  })();
 });
 document.getElementById("btnSubirTodo").addEventListener("click", async ()=>{
   if(!S.syncUrl){ toast("Primero conecta la hoja compartida"); return; }
