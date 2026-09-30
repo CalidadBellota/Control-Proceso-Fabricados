@@ -967,6 +967,13 @@ function svgProc(f, size){
 
 /* Aceros y espesores que realmente se manejan, por línea. */
 const ACEROS = ["SAE 1074", "50MN", "65MN"];
+
+/* Proveedores del acero. Aplica a Cuchillas y Machetes, que parten de fleje de
+   acero comprado; en Limas el campo "Proveedor" significa otra cosa (quién
+   suministró la lima semiterminada) y se maneja aparte. */
+const PROVEEDORES_ACERO = ["Shunda", "Steel N Future", "Manuchar", "Ferromac"];
+const LINEAS_ACERO = ["Cuchillas", "Machetes"];
+function pideProveedorAcero(linea){ return LINEAS_ACERO.indexOf(linea) !== -1; }
 const ESPESORES = {
   "Machetes":  ["1.3","1.6","1.8","1.9","2.0","2.2","2.4"],
   "Cuchillas": ["1.6","2.4"],
@@ -1574,13 +1581,31 @@ function renderEncabezado(f){
       </div></div>`);
   }
 
-  (f.encabezado||[]).forEach(k=>{
+  /* En Cuchillas y Machetes el proveedor del acero se pide siempre, aunque el
+     formato no lo traiga en su encabezado: así no hay que editar uno por uno
+     los 29 formatos de esas dos líneas para que aparezca. */
+  const enc = (f.encabezado||[]).slice();
+  if(pideProveedorAcero(f.linea) && enc.indexOf("proveedor") === -1){
+    const tras = enc.indexOf("tipoAcero");
+    if(tras !== -1) enc.splice(tras + 1, 0, "proveedor"); else enc.push("proveedor");
+  }
+
+  enc.forEach(k=>{
     const c = CAMPOS_ENC[k]; if(!c) return;
     // el proveedor solo aplica a la lima semiterminada; para el resto se oculta
     if(k === "proveedor" && f.linea === "Limas"){
       campos.push(`<div class="campo" id="campoProveedorLima" style="display:none;">
         <label for="e_proveedor">Proveedor *</label>
         <input type="text" id="e_proveedor" placeholder="Quién suministró la lima"></div>`);
+      return;
+    }
+    if(k === "proveedor" && pideProveedorAcero(f.linea)){
+      campos.push(`<div class="campo"><label for="e_proveedor">Proveedor del acero</label>
+        <select id="e_proveedor"><option value="">Selecciona</option>${
+          PROVEEDORES_ACERO.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")
+        }<option value="__otra">Otro…</option></select>
+        <input type="text" id="e_proveedor_otra" placeholder="Escribe el proveedor"
+               style="margin-top:8px;display:none;"></div>`);
       return;
     }
     if(k === "maquina" && (f.maquinas||[]).length){
@@ -1640,7 +1665,7 @@ function renderEncabezado(f){
     actualizarBarra();
   }));
 
-  ["tipoAcero"].forEach(k=>{          // la referencia la maneja su propio buscador
+  ["tipoAcero","proveedor"].forEach(k=>{   // la referencia la maneja su propio buscador
     const sel  = document.getElementById("e_"+k);
     const otro = document.getElementById("e_"+k+"_otra");
     if(!sel || !otro) return;
@@ -3315,7 +3340,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-09-30-eliminar";
+const APP_VERSION = "2026-09-30-proveedor-acero";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
