@@ -1196,10 +1196,9 @@ function tab(activo){
   if(activo==="Tab")   renderTablero();
   if(activo==="Cump")  renderCumplimiento();
   if(activo==="Admin") renderAdmin();
-  if(S.syncUrl){
-    cargarRemoto(false);
-    if(!CONFIG_OK) cargarConfig();   // reintenta el catálogo si la última vez falló
-  } else marcarConfigSync(false);
+  // cambiar de pestaña no consulta la hoja: cada pantalla tiene su botón
+  if(S.syncUrl && !CONFIG_OK) cargarConfig();
+  else if(!S.syncUrl) marcarConfigSync(false);
 }
 VISTAS.forEach(t=> document.getElementById("tab"+t).addEventListener("click", ()=>tab(t)));
 
@@ -1209,10 +1208,16 @@ VISTAS.forEach(t=> document.getElementById("tab"+t).addEventListener("click", ()
 });
 // en Diligenciamiento basta con el día o el mes que se está mirando
 const bCump = document.getElementById("btnActualizarCump");
-if(bCump) bCump.addEventListener("click", ()=>{
+if(bCump) bCump.addEventListener("click", async ()=>{
   const dia = document.getElementById("mDia").value;
   const mes = document.getElementById("mMes").value;
-  actualizarAhora(bCump, dia || (mes ? mes + "-01" : null));
+  const vista = document.getElementById("mVista").value;
+  // la vista de mes necesita el mes entero; la de día, solo ese día
+  const desde = (vista && vista.indexOf("mes") !== -1)
+    ? (mes ? mes + "-01" : fechaRondaActual())
+    : (dia || fechaRondaActual());
+  await traerRango(desde, bCump, "diligenciamiento");
+  renderCumplimiento();
 });
 
 /* ==========================================================================
@@ -1259,10 +1264,33 @@ function renderSegLineas(){
    el inspector solo vea lo que le falta. */
 let verYaValidados = false;
 
+/* FECHA DE TURNO
+   El turno 3 va de 22:00 a 06:00, o sea que cruza la medianoche. Si la ronda
+   se identifica con la fecha del calendario, a las 00:00 empieza una ronda
+   nueva y el inspector de la noche tiene que repetir todo lo que ya controló.
+   La ronda se identifica entonces con la fecha en que ARRANCÓ el turno. */
+function fechaDeTurno(fechaISO, hora, turno){
+  const h = parseInt(String(hora||"").slice(0,2), 10);
+  if(String(turno) === "3" && h >= 0 && h < 6){
+    const d = new Date(fechaISO + "T12:00:00");
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+  return fechaISO;
+}
+/* La fecha del turno en curso ahora mismo. */
+function fechaRondaActual(){
+  return fechaDeTurno(hoyISO(), horaAhora(), turnoDeHora(horaAhora()));
+}
+/* La fecha del turno a la que pertenece un registro ya guardado. */
+function fechaTurnoDe(r){
+  return fechaDeTurno(fFecha(r.fecha), r.hora, r.turno);
+}
+
 function registrosDeLaRonda(formatoId){
-  const hoy = hoyISO(), t = turnoDeHora(horaAhora());
+  const fecha = fechaRondaActual(), t = turnoDeHora(horaAhora());
   return S.registros.filter(r => r.formatoId===formatoId &&
-    fFecha(r.fecha)===hoy && String(r.turno)===String(t));
+    fechaTurnoDe(r)===fecha && String(r.turno)===String(t));
 }
 function validadoEnLaRonda(formatoId){ return registrosDeLaRonda(formatoId).length > 0; }
 
@@ -1272,16 +1300,12 @@ function validadoEnLaRonda(formatoId){ return registrosDeLaRonda(formatoId).leng
    mientras hay una lectura en curso, Apps Script la pone en fila y el botón
    parece colgado. Se espera a que la de fondo termine y se aprovecha. */
 async function actualizarAhora(boton, desdeFecha){
+  desdeFecha = desdeFecha || fechaRondaActual();
   const txt = boton ? boton.textContent : null;
   if(boton){ boton.disabled = true; boton.textContent = "↻ Leyendo…"; }
   const t0 = Date.now();
   try{
-    let espera = 0;
-    while(sondeoActivo && espera < 4000){ await new Promise(r=>setTimeout(r,120)); espera += 120; }
-    if(!sondeoActivo){
-      sondeoActivo = true;
-      try{ await cargarRemoto(false, desdeFecha); } finally{ sondeoActivo = false; }
-    }
+    await cargarRemoto(false, desdeFecha);
   } finally {
     if(boton){ boton.disabled = false; boton.textContent = txt; }
   }
@@ -1820,7 +1844,12 @@ function critNCDe(r){
 }
 
 let yaBusco = false;
-document.getElementById("cBuscar").addEventListener("click",()=>{ yaBusco = true; buscarConsulta(); });
+document.getElementById("cBuscar").addEventListener("click", async (e)=>{
+  yaBusco = true;
+  const desde = document.getElementById("cDesde").value;
+  if(S.syncUrl) await traerRango(desde || fechaDesde(30), e.target, "consulta");
+  buscarConsulta();
+});
 
 function buscarConsulta(){
   const linea = document.getElementById("cLinea").value;
@@ -1916,7 +1945,11 @@ function refrescarSelectoresTendencia(){
 }
 document.getElementById("tProceso").addEventListener("change", refrescarSelectoresTendencia);
 
-document.getElementById("tBuscar").addEventListener("click", renderTendencia);
+document.getElementById("tBuscar").addEventListener("click", async (e)=>{
+  const desde = document.getElementById("tDesde").value;
+  if(S.syncUrl) await traerRango(desde || fechaDesde(30), e.target, "tendencia");
+  renderTendencia();
+});
 
 function renderTendencia(){
   const box = document.getElementById("tendResultado");
@@ -2199,7 +2232,11 @@ function renderTablero(){
     });
   }
 }
-document.getElementById("bBuscar").addEventListener("click", renderTablero);
+document.getElementById("bBuscar").addEventListener("click", async (e)=>{
+  const desde = document.getElementById("bDesde").value;
+  if(S.syncUrl) await traerRango(desde || fechaDesde(30), e.target, "tablero");
+  renderTablero();
+});
 
 /* ==========================================================================
    CONTROL DE DILIGENCIAMIENTO
@@ -2238,7 +2275,7 @@ function renderCumplimiento(){
     fs.forEach(f=>{
       if(f.linea !== lineaPrev){ lineaPrev = f.linea;
         html += `<tr class="grupo"><td colspan="${TURNOS.length+2}">${esc(f.linea)}</td></tr>`; }
-      const delDia = S.registros.filter(r=> r.formatoId===f.id && fFecha(r.fecha)===dia);
+      const delDia = S.registros.filter(r=> r.formatoId===f.id && fechaTurnoDe(r)===dia);
       html += `<tr><td class="proc">${esc(f.proceso)}${f.condicional?` <span style="color:var(--text-dim);font-size:.7rem;">(según referencia)</span>`:""}</td>`;
       TURNOS.forEach(t=>{
         const rs = delDia.filter(r=>String(r.turno)===t);
@@ -2267,7 +2304,7 @@ function renderCumplimiento(){
       let n = 0;
       for(let d=1; d<=dias; d++){
         const fechaD = `${mes}-${pad(d)}`;
-        const rs = S.registros.filter(r=> r.formatoId===f.id && fFecha(r.fecha)===fechaD);
+        const rs = S.registros.filter(r=> r.formatoId===f.id && fechaTurnoDe(r)===fechaD);
         n += rs.length;
         const c = f.condicional && !rs.length ? "n" : clase(rs);
         if(c === "r") faltan++;
@@ -2291,7 +2328,7 @@ function actualizarPillCump(){
   const hoy = hoyISO();
   const t = turnoDeHora(horaAhora());
   const faltan = S.formatos.filter(f=>!f.condicional &&
-    !S.registros.some(r=> r.formatoId===f.id && fFecha(r.fecha)===hoy && String(r.turno)===t)).length;
+    !S.registros.some(r=> r.formatoId===f.id && fechaTurnoDe(r)===fechaRondaActual() && String(r.turno)===t)).length;
   p.textContent = faltan ? faltan : "";
   p.style.display = faltan ? "inline-block" : "none";
   p.title = `${faltan} proceso(s) sin control en el turno ${t} de hoy`;
@@ -2867,7 +2904,6 @@ const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:fa
    actualiza sola. Antes había que volver a pulsar «Buscar» para verlos, y por
    eso parecía que la sincronía tardaba una eternidad. */
 let RONDA_PINTADA = "";
-let sondeoActivo = false;
 function repintarVistaActiva(){
   const visible = id => document.getElementById(id) &&
                         document.getElementById(id).style.display !== "none";
@@ -3119,19 +3155,13 @@ function pintarBanner(){
   banner.className = "banner-alerta";
 
   if(fallaRegistros && fallaCatalogo){
-    const seg = Math.round(proximoSondeo()/1000);
-    banner.innerHTML = `<b>La aplicación no está leyendo la hoja compartida.</b> Lo que registres ahora queda
-      solo en este dispositivo y no lo verán los demás.` +
-      (fallosSeguidos >= 3
-        ? ` Si lleva así un buen rato, lo más probable es que la hoja haya agotado su cuota diaria de Google;
-            se restablece sola durante la noche.`
-        : "") +
-      (seg ? ` Se reintenta en ${seg} s.` : "");
+    banner.innerHTML = `<b>No hay conexión con la hoja compartida.</b> Puedes registrar con normalidad: todo queda
+      guardado en este equipo y se sube solo en cuanto la hoja vuelva a responder. Pulsa <b>Actualizar</b> para
+      reintentarlo.`;
   } else if(fallaRegistros){
-    const seg = Math.round(proximoSondeo()/1000);
-    banner.innerHTML = `<b>No se están leyendo los registros de la hoja.</b> Puedes registrar —lo tuyo se está
-      guardando—, pero no verás lo que diligencien los demás. ${esc(LECTURA.error||"")}` +
-      (seg ? ` · Se reintenta en ${seg} s.` : "");
+    banner.innerHTML = `<b>No se pudo leer la hoja en este momento.</b> Puedes seguir registrando con normalidad
+      —todo se guarda y se sube—; solo puede que no veas lo que acaban de diligenciar en otra tableta.
+      Pulsa <b>Actualizar</b> cuando quieras reintentarlo. ${esc(LECTURA.error||"")}`;
   } else {
     banner.innerHTML = `<b>No se pudo leer el catálogo de formatos.</b> Los registros sí se están sincronizando;
       se sigue usando el catálogo guardado en este dispositivo. Se reintenta solo.`;
@@ -3327,50 +3357,42 @@ actualizarPillCump();
 /* Un refresco arranca cuando termina el anterior: con setInterval, si una
    lectura tardaba más que el intervalo, se encimaban y Apps Script las
    atendía en fila, haciendo todo más lento todavía. */
-/* RITMO DEL SONDEO
-   Cada pestaña abierta consume cuota de Apps Script, que es diaria y limitada.
-   Leer cada 6 s con varios equipos la agota en media jornada y la hoja empieza
-   a rechazar peticiones. Por eso: 45 s con la pestaña a la vista, nada cuando
-   está en segundo plano, y espera creciente si la hoja está fallando. */
-const SONDEO_MS = 20000;
-const SONDEO_MAX = 600000;      // 10 min como tope cuando hay fallos seguidos
-let fallosSeguidos = 0;
+/* LECTURAS: SOLO CUANDO HACEN FALTA
+   Este es el cambio de fondo. Antes la app le preguntaba a la hoja cada pocos
+   segundos y traía 120 días cada vez; eso agotaba la cuota diaria de Apps
+   Script y dejaba la app sin lectura a media jornada.
+   Ahora la tableta escribe siempre y lee en tres momentos: al abrir (solo el
+   turno en curso), cuando el inspector pulsa Actualizar, y cuando alguien pide
+   expresamente un rango en Consultar, Tendencia, Tablero o Diligenciamiento. */
 
-function proximoSondeo(){
-  if(document.hidden) return 0;                 // en segundo plano no se sondea
-  if(!fallosSeguidos) return SONDEO_MS;
-  return Math.min(SONDEO_MS * Math.pow(2, fallosSeguidos), SONDEO_MAX);
+/* El turno en curso son unas decenas de filas, no 120 días. */
+async function cargarRonda(){
+  await cargarRemoto(false, fechaRondaActual());
 }
 
-let temporizador = null;
-async function sondear(){
-  if(sondeoActivo) return;
-  clearTimeout(temporizador);
-  sondeoActivo = true;
+/* Trae un rango concreto para las pantallas de análisis. Devuelve si pudo. */
+async function traerRango(desdeISO, boton, etiqueta){
+  const txt = boton ? boton.textContent : null;
+  if(boton){ boton.disabled = true; boton.textContent = "Consultando\u2026"; }
   try{
-    await cargarRemoto(false);
-    fallosSeguidos = LECTURA.error ? Math.min(fallosSeguidos + 1, 4) : 0;
+    await cargarRemoto(false, desdeISO);
+  } finally {
+    if(boton){ boton.disabled = false; boton.textContent = txt; }
   }
-  finally{
-    sondeoActivo = false;
-    const ms = proximoSondeo();
-    if(ms) temporizador = setTimeout(sondear, ms);
+  if(LECTURA.error){
+    toast("No se pudo leer la hoja \u00b7 se muestra lo que hay en este equipo");
+    return false;
   }
+  toast(`${LECTURA.recibidos} registro(s) de la hoja${etiqueta?" \u00b7 "+etiqueta:""}`);
+  return true;
 }
-/* Al volver a la pestaña se refresca de una, sin esperar el turno. */
-document.addEventListener("visibilitychange", ()=>{
-  if(document.hidden) clearTimeout(temporizador);   // deja de consumir cuota
-  else sondear();
-});
 
 if(S.syncUrl){
-  // en serie: en paralelo, Apps Script atiende una y la otra se puede agotar,
-  // que es lo que dejaba el aviso encendido desde el arranque
+  // en serie: Apps Script atiende una petición a la vez
   (async ()=>{
     await cargarConfig();
-    await cargarRemoto(true);
+    await cargarRonda();          // solo el turno en curso, no el histórico
     reintentarPendientes();
-    setTimeout(sondear, 4000);
   })();
 }
 else marcarConfigSync(false);
