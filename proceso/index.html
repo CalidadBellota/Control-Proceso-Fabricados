@@ -2901,10 +2901,32 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-09-30-lectura-bajo-demanda";
+const APP_VERSION = "2026-09-30-bitacora";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
+
+/* Bitácora de las últimas lecturas. Existe porque "la app leyó sola" y "alguien
+   pulsó un botón" se ven idénticos en un panel que sólo muestra la última:
+   aquí queda la hora de cada una y quién la pidió, y se puede comparar con lo
+   que el usuario estaba haciendo en ese momento. */
+const BITACORA = [];
+function anotarLectura(){
+  BITACORA.unshift({
+    hora: LECTURA.hora || "—",
+    motivo: LECTURA.motivo || "sin identificar",
+    corte: LECTURA.corte || "—",
+    recibidos: LECTURA.error ? "falló" : LECTURA.recibidos,
+    ms: LECTURA.ms
+  });
+  if(BITACORA.length > 8) BITACORA.length = 8;
+}
+
+/* Un clic hecho por una persona llega con isTrusted = true. Si alguna vez sale
+   "disparo automático", entonces sí hay código pulsando el botón solo. */
+function origenClic(e, texto){
+  return texto + (e && e.isTrusted === false ? " · DISPARO AUTOMÁTICO" : "");
+}
 
 /* Sólo el histórico reciente en cada refresco. La carga completa se hace una
    vez al abrir; después basta con los últimos días, que es donde aparecen los
@@ -2986,6 +3008,7 @@ async function cargarRemoto(completo, desdeFecha, motivo){
     LECTURA.nuevos = m.size - antes;
     LECTURA.completo = !!completo;
     LECTURA.error = null;
+    anotarLectura();
 
     /* Si pedimos sólo desde una fecha y la hoja devolvió registros anteriores,
        el Apps Script todavía es el viejo: ignora ?desde= y manda todo el
@@ -3006,6 +3029,7 @@ async function cargarRemoto(completo, desdeFecha, motivo){
     console.error("cargarRemoto:", e);
     LECTURA.error = e.message || String(e);
     LECTURA.hora = null;
+    anotarLectura();
     actualizarEstadoSync(); renderPendientes();
   }
 }
@@ -3228,7 +3252,19 @@ function renderPendientes(){
     <button class="btn-sec" id="btnProbar" style="margin-top:8px;">Probar la conexión</button>
     <div id="salidaPrueba" class="prueba" style="display:none;"></div>
 
-    <div class="diag-fila"><span>Código de esta app</span><b style="color:#1f9d55;">${esc(APP_VERSION)}</b></div>
+    ${BITACORA.length ? `<div class="diag-tit" style="margin-top:16px;">ÚLTIMAS LECTURAS</div>
+      <div style="font-size:.72rem;line-height:1.6;">
+      ${BITACORA.map(b=>`<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid var(--border);">
+          <b style="min-width:42px;">${esc(b.hora)}</b>
+          <span style="color:var(--text-dim);min-width:74px;">${esc(String(b.recibidos))} reg.</span>
+          <span style="flex:1;${/AUTOM/.test(b.motivo)?"color:#c81d2e;font-weight:700;":""}">${esc(b.motivo)}</span>
+          <span style="color:var(--text-dim);">${b.ms?(b.ms/1000).toFixed(1)+" s":""}</span>
+        </div>`).join("")}
+      </div>
+      <div style="font-size:.7rem;color:var(--text-dim);margin-top:6px;">
+        Si alguna dice «sin identificar» o «DISPARO AUTOMÁTICO», hay algo leyendo por su cuenta.</div>` : ""}
+
+    <div class="diag-fila" style="margin-top:16px;"><span>Código de esta app</span><b style="color:#1f9d55;">${esc(APP_VERSION)}</b></div>
     <div class="diag-fila"><span>Código de la hoja</span><b style="color:${
       BACKEND.version ? "#1f9d55" : "#c81d2e"};">${
       BACKEND.version ? esc(BACKEND.version) : "versión anterior"}</b></div>
@@ -3347,20 +3383,26 @@ document.getElementById("openSync").addEventListener("click",()=>{
   renderPendientes();
   document.getElementById("syncModal").classList.add("show");
 });
-document.getElementById("btnConectar").addEventListener("click",()=>{
+document.getElementById("btnConectar").addEventListener("click",ev=>{
   S.syncUrl = document.getElementById("syncUrl").value.trim();
   localStorage.setItem("cp_sync_url", S.syncUrl);
   actualizarEstadoSync();
   document.getElementById("syncModal").classList.remove("show");
-  cargarRemoto(true, null, "al conectar la hoja (trae 120 días)"); cargarConfig();
+  /* Antes pedía 120 días y tardaba cerca de un minuto. Conectar la hoja no
+     necesita el histórico: basta el turno que se está trabajando, igual que
+     al abrir la app. El histórico se trae cuando alguien lo consulte. */
+  cargarRemoto(false, fechaRondaActual(), origenClic(ev, "al conectar la hoja")); cargarConfig();
 });
-document.getElementById("btnRestaurarSync").addEventListener("click",()=>{
+document.getElementById("btnRestaurarSync").addEventListener("click",ev=>{
   document.getElementById("syncUrl").value = SYNC_POR_DEFECTO;
   S.syncUrl = SYNC_POR_DEFECTO;
   localStorage.setItem("cp_sync_url", S.syncUrl);
   actualizarEstadoSync();
   document.getElementById("syncModal").classList.remove("show");
-  cargarRemoto(true, null, "al conectar la hoja (trae 120 días)"); cargarConfig();
+  /* Antes pedía 120 días y tardaba cerca de un minuto. Conectar la hoja no
+     necesita el histórico: basta el turno que se está trabajando, igual que
+     al abrir la app. El histórico se trae cuando alguien lo consulte. */
+  cargarRemoto(false, fechaRondaActual(), origenClic(ev, "al conectar la hoja")); cargarConfig();
   toast("Conectado a la hoja de la empresa");
 });
 document.getElementById("btnDesconectar").addEventListener("click",()=>{
