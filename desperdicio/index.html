@@ -1642,9 +1642,7 @@ const ESTADO_CARGUE = {hora:null, filas:0, error:null};
 async function cargarEmpacadas(){
   if(!S.syncUrl){ ESTADO_CARGUE.error="sin conexión configurada"; return false; }
   try{
-    const res=await fetch(S.syncUrl+"?tipo=empacadas");
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    const data=await res.json();
+    const data = await pedirJSON(S.syncUrl+"?tipo=empacadas", "el cargue");
     if(!Array.isArray(data)) throw new Error("respuesta inesperada de la Sheet");
     const all=JSON.parse(localStorage.getItem("cd_empacadas")||"{}");
     const antes=JSON.stringify(all);
@@ -2120,7 +2118,12 @@ function montarSelectorMes(){
   });
 }
 
-document.getElementById("cxMes").addEventListener("change", renderCierre);
+document.getElementById("cxMes").addEventListener("change", async ()=>{
+  renderCierre();
+  // si el mes elegido es anterior a lo cargado, se va a buscar y se repinta
+  const mes = document.getElementById("cxMes").value;
+  if(mes){ await asegurarHistorico(mes + "-01"); renderCierre(); }
+});
 document.getElementById("cxFamilia").addEventListener("change", renderCierre);
 
 document.getElementById("tabCierre").addEventListener("click", ()=>{
@@ -2666,7 +2669,11 @@ document.getElementById("dPeriodo").addEventListener("change",()=>{
     document.getElementById("dPeriodo").value==="turno" ? "block":"none";
   renderDashboardTurno();
 });
-document.getElementById("dFecha").addEventListener("change",renderDashboardTurno);
+document.getElementById("dFecha").addEventListener("change", async ()=>{
+  renderDashboardTurno();
+  const f = document.getElementById("dFecha").value;
+  if(f){ await asegurarHistorico(f); renderDashboardTurno(); }
+});
 document.getElementById("dTurno").addEventListener("change",renderDashboardTurno);
 
 
@@ -2700,8 +2707,7 @@ async function enviarRatio(fam, maq, cfg){
 async function cargarRatios(){
   if(!S.syncUrl) return;
   try{
-    const res=await fetch(S.syncUrl+"?tipo=ratios");
-    const data=await res.json();
+    const data = await pedirJSON(S.syncUrl+"?tipo=ratios", "los ratios");
     if(Array.isArray(data)){
       const all=JSON.parse(localStorage.getItem("cd_maquinas")||"{}");
       data.forEach(x=>{
@@ -3638,12 +3644,56 @@ async function reintentarPendientes(){
   const p=S.registros.filter(r=>r.pendienteSync);
   if(p.length) await enviarRemotoLote(p);
 }
-async function cargarRemoto(){
+/* Google devuelve errores pasajeros con cierta frecuencia (404, 500, cortes).
+   Casi siempre el segundo intento funciona, así que se reintenta en el acto
+   antes de dar la lectura por fallida. */
+async function pedirJSON(url, que){
+  let ultimo = null;
+  for(let i = 0; i < 3; i++){
+    if(i) await new Promise(r=>setTimeout(r, 700 * i));
+    try{
+      const res = await fetch(url, {cache:"no-store"});
+      const txt = await res.text();
+      if(!res.ok){ ultimo = new Error("la hoja respondió HTTP " + res.status); continue; }
+      let data;
+      try{ data = JSON.parse(txt); }
+      catch(err){
+        ultimo = new Error(/^\s*</.test(txt)
+          ? "la dirección no devolvió datos (¿implementación borrada o sin permiso?)"
+          : "respuesta ilegible de la hoja");
+        continue;
+      }
+      if(data && data.error){ ultimo = new Error(String(data.error)); continue; }
+      return data;
+    }catch(err){ ultimo = err; }
+  }
+  throw ultimo || new Error("no se pudo leer " + que);
+}
+
+/* Sólo el histórico reciente en cada refresco. */
+function fechaDesdeCD(dias){
+  const d = new Date(); d.setDate(d.getDate() - dias);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+/* Hasta dónde atrás se ha traído el histórico en esta sesión. La carga normal
+   son 60 días; si el usuario consulta un mes anterior hay que ir a buscarlo,
+   o la pantalla saldría vacía como si no hubiera datos. */
+let CARGADO_DESDE = null;
+
+async function asegurarHistorico(desdeISO){
+  if(!S.syncUrl || !desdeISO) return;
+  if(CARGADO_DESDE && desdeISO >= CARGADO_DESDE) return;   // ya está en memoria
+  await cargarRemoto(desdeISO);
+}
+
+async function cargarRemoto(desdeISO){
   if(!S.syncUrl) return;
   try{
-    const res=await fetch(S.syncUrl);
-    const data=await res.json();
+    const corte = desdeISO || fechaDesdeCD(60);
+    const data = await pedirJSON(S.syncUrl + "?desde=" + corte, "los registros");
     if(Array.isArray(data)){
+      if(!CARGADO_DESDE || corte < CARGADO_DESDE) CARGADO_DESDE = corte;
       const m=new Map();
       S.registros.forEach(r=>m.set(r.id,r));
       data.forEach(r=>m.set(r.id,r));
@@ -3788,10 +3838,15 @@ document.getElementById("cxMes").value=hoyISO().slice(0,7);
 document.getElementById("kTurno").value=turnoActual();
 actualizarEstadoSync();
 if(S.syncUrl){cargarRemoto();cargarEmpacadas();cargarRatios();reintentarPendientes();
-  setInterval(cargarRemoto,8000);
-  setInterval(()=>sincronizarCargue(false),15000);
+  // ritmo bajo: cada pestaña abierta consume cuota diaria de Apps Script y
+  // leer cada pocos segundos desde varios equipos la agota en media jornada
+  setInterval(()=>{ if(!document.hidden) cargarRemoto(); }, 45000);
+  setInterval(()=>{ if(!document.hidden) sincronizarCargue(false); }, 60000);
   reintentarEmpacadas();
-  setInterval(reintentarEmpacadas,20000);}
+  setInterval(reintentarEmpacadas, 60000);
+  document.addEventListener("visibilitychange", ()=>{
+    if(!document.hidden){ cargarRemoto(); sincronizarCargue(false); }
+  });}
 else marcarRatiosSync(false);
 </script>
 
