@@ -1638,6 +1638,16 @@ async function reintentarEmpacadas(){
 /* Estado de la última lectura del cargue. Si esto falla en silencio, parece
    que el otro equipo nunca guardó nada, así que se muestra en pantalla. */
 const ESTADO_CARGUE = {hora:null, filas:0, error:null};
+const BACKEND = {version:null};
+
+/* Consulta barata: dice qué Apps Script está publicado en la hoja. */
+async function comprobarBackend(){
+  if(!S.syncUrl) return;
+  try{ const d = await pedirJSON(S.syncUrl + "?tipo=version", "la versión");
+       BACKEND.version = d && d.backend ? d.backend : null; }
+  catch(e){ BACKEND.version = null; }
+  refrescarAvisoCargue();
+}
 
 async function cargarEmpacadas(){
   if(!S.syncUrl){ ESTADO_CARGUE.error="sin conexión configurada"; return false; }
@@ -1679,6 +1689,9 @@ async function cargarEmpacadas(){
 }
 
 function textoEstadoCargue(){
+  if(S.syncUrl && BACKEND.version === null && ESTADO_CARGUE.hora)
+    return `<span class="sync-mal">⚠ La hoja está corriendo un Apps Script anterior: lee todo el histórico en
+      cada petición, por eso tarda y falla. Hay que publicar el Code.gs nuevo.</span>`;
   const pend = leerPendientes().length;
   if(pend) return `<span class="sync-mal">⚠ ${pend} dato(s) aún sin subir a la Sheet. Se reintenta solo; no cierres la pestaña todavía.</span>`;
   if(ESTADO_CARGUE.error)
@@ -3853,7 +3866,7 @@ montarSelectorMes();
 document.getElementById("cxMes").value=hoyISO().slice(0,7);
 document.getElementById("kTurno").value=turnoActual();
 actualizarEstadoSync();
-if(S.syncUrl){cargarRemoto();cargarEmpacadas();cargarRatios();reintentarPendientes();
+if(S.syncUrl){comprobarBackend();cargarRemoto();cargarEmpacadas();cargarRatios();reintentarPendientes();
   // ritmo bajo: cada pestaña abierta consume cuota diaria de Apps Script y
   // leer cada pocos segundos desde varios equipos la agota en media jornada
   setInterval(()=>{ if(!document.hidden) cargarRemoto(); }, 45000);
