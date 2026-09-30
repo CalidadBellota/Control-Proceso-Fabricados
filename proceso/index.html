@@ -1305,7 +1305,7 @@ async function actualizarAhora(boton, desdeFecha){
   if(boton){ boton.disabled = true; boton.textContent = "↻ Leyendo…"; }
   const t0 = Date.now();
   try{
-    await cargarRemoto(false, desdeFecha);
+    await cargarRemoto(false, desdeFecha, "botón Actualizar");
   } finally {
     if(boton){ boton.disabled = false; boton.textContent = txt; }
   }
@@ -2895,7 +2895,16 @@ function reintentarPendientes(){
    de saber desde el puesto de trabajo si el Code.gs nuevo quedó publicado. */
 const BACKEND = {version:null};
 
-const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false, backendViejo:false, error:null};
+/* corte y motivo quedan guardados para poder responder en pantalla la pregunta
+   "¿por qué leyó tantos registros?": el panel dice desde qué fecha se pidió y
+   quién la disparó, en vez de dejarlo a la memoria de quien lo vio. */
+/* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
+   hoja, pero no la de la app, así que no había forma de saber si el navegador
+   estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
+const APP_VERSION = "2026-09-30-lectura-bajo-demanda";
+
+const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
+                 backendViejo:false, error:null, corte:null, motivo:null};
 
 /* Sólo el histórico reciente en cada refresco. La carga completa se hace una
    vez al abrir; después basta con los últimos días, que es donde aparecen los
@@ -2950,13 +2959,15 @@ function fechaDesde(dias){
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 }
 
-async function cargarRemoto(completo, desdeFecha){
+async function cargarRemoto(completo, desdeFecha, motivo){
   if(!S.syncUrl){ LECTURA.error = "sin conexión configurada"; return; }
   const t0 = Date.now();
+  LECTURA.motivo = motivo || "sin identificar";
   try{
     // siempre con parámetro: la carga inicial usa una ventana amplia en vez de
     // pedir la hoja entera, que es la petición más pesada y más frágil
     const corte = desdeFecha || (completo ? fechaDesde(120) : fechaDesde(3));
+    LECTURA.corte = corte;
     const url = S.syncUrl + "?desde=" + corte;
     const data = await pedirJSON(url, "registros");
     if(!Array.isArray(data)) throw new Error("la hoja no devolvió una lista de registros");
@@ -3201,6 +3212,9 @@ function renderPendientes(){
     <div class="diag-fila"><span>Última lectura</span><b>${LECTURA.hora
         ? `${LECTURA.hora} · hace ${Math.max(0,Math.round((Date.now()-LECTURA.sello)/1000))} s` : "—"}</b></div>
     <div class="diag-fila"><span>Tardó</span><b>${LECTURA.ms ? (LECTURA.ms/1000).toFixed(1)+" s" : "—"}</b></div>
+    <div class="diag-fila"><span>Desde qué fecha se pidió</span><b>${LECTURA.corte ? esc(LECTURA.corte) : "—"}</b></div>
+    <div class="diag-fila"><span>Qué la disparó</span><b style="font-weight:600;">${
+        LECTURA.motivo ? esc(LECTURA.motivo) : "—"}</b></div>
     ${LECTURA.backendViejo ? `<div class="diag-err">El Apps Script de la hoja está desactualizado: manda todo el
       histórico en cada lectura y por eso las actualizaciones tardan. Sube el <b>Code.gs</b> nuevo y publica una
       versión nueva desde «Implementar → Gestionar implementaciones».</div>` : ""}
@@ -3214,6 +3228,7 @@ function renderPendientes(){
     <button class="btn-sec" id="btnProbar" style="margin-top:8px;">Probar la conexión</button>
     <div id="salidaPrueba" class="prueba" style="display:none;"></div>
 
+    <div class="diag-fila"><span>Código de esta app</span><b style="color:#1f9d55;">${esc(APP_VERSION)}</b></div>
     <div class="diag-fila"><span>Código de la hoja</span><b style="color:${
       BACKEND.version ? "#1f9d55" : "#c81d2e"};">${
       BACKEND.version ? esc(BACKEND.version) : "versión anterior"}</b></div>
@@ -3238,6 +3253,47 @@ function accionPanelSync(id, boton){
   if(id === "btnReintentar"){ reintentarPendientes(); toast("Reintentando..."); }
 }
 
+/* Le pregunta a la hoja qué entendió de la petición. Si el ?desde= no le llega,
+   o no encuentra la columna de fecha, devuelve el histórico entero: por fuera
+   eso se ve igual que una lectura normal, sólo que lenta. */
+async function diagnosticoHoja(salida){
+  const hoy = hoyISO();
+  try{
+    const res = await fetch(S.syncUrl + "?tipo=diagnostico&desde=" + hoy);
+    const txt = await res.text();
+    if(!/^\s*[\[{]/.test(txt)){
+      salida.insertAdjacentHTML("beforeend",
+        `<div class="pr mal"><b>✕</b> · Diagnóstico · la hoja respondió una página, no datos.
+         El código de la hoja está desactualizado: falta publicar una versión nueva.</div>`);
+      return;
+    }
+    const d = JSON.parse(txt);
+    if(d.error){
+      salida.insertAdjacentHTML("beforeend",
+        `<div class="pr mal"><b>✕</b> · Diagnóstico · ${esc(d.error)}</div>`);
+      return;
+    }
+    const filas = [];
+    filas.push(d.llegoElFiltro
+      ? `<div class="pr bien"><b>✓</b> · El filtro de fecha sí le llega a la hoja (pidió desde ${esc(d.desdeRecibido)})</div>`
+      : `<div class="pr mal"><b>✕</b> · <b>La hoja no está recibiendo el filtro de fecha</b>:
+          por eso devuelve el histórico completo en cada lectura.</div>`);
+    filas.push(d.columnaFechaEncontrada
+      ? `<div class="pr bien"><b>✓</b> · Encuentra la columna «fecha» en la hoja Registros</div>`
+      : `<div class="pr mal"><b>✕</b> · <b>No encuentra la columna «fecha»</b> en la hoja Registros.
+          Sin ella no puede filtrar y manda todo. Encabezados: ${esc((d.encabezados||[]).join(", "))}</div>`);
+    filas.push(`<div class="pr bien"><b>i</b> · La hoja tiene ${d.filasEnLaHoja} registro(s) en total</div>`);
+    (d.ultimasFechas||[]).forEach(f=>{
+      filas.push(`<div class="pr ${f.normalizado && /^\d{4}-\d{2}-\d{2}$/.test(f.normalizado) ? "bien":"mal"}">
+        <b>·</b> Última fecha guardada: «${esc(f.crudo)}» (${esc(f.tipo)}) → se entiende como ${esc(f.normalizado)}</div>`);
+    });
+    salida.insertAdjacentHTML("beforeend", filas.join(""));
+  }catch(err){
+    salida.insertAdjacentHTML("beforeend",
+      `<div class="pr mal"><b>✕</b> · Diagnóstico · ${esc(err.message||String(err))}</div>`);
+  }
+}
+
 async function probarConexion(bt){
     const salida = document.getElementById("salidaPrueba");
     bt.disabled = true; bt.textContent = "Probando…";
@@ -3250,6 +3306,7 @@ async function probarConexion(bt){
       ["Registros de los últimos 120 días", "?desde=" + fechaDesde(120)],
       ["Hoja completa, sin filtro",      ""]
     ];
+    await diagnosticoHoja(salida);
     for(const [etq, qs] of pruebas){
       const t0 = Date.now();
       let linea;
@@ -3273,7 +3330,7 @@ async function probarConexion(bt){
 
 async function leerAhora(bl){
     bl.disabled = true; bl.textContent = "Leyendo…";
-    await cargarRemoto(true);
+    await cargarRemoto(true, null, "botón «Leer la hoja ahora» (trae 120 días)");
     renderPendientes();
     toast(LECTURA.error ? "No se pudo leer la hoja" : `Hoja leída · ${LECTURA.recibidos} registro(s)`);
 }
@@ -3295,7 +3352,7 @@ document.getElementById("btnConectar").addEventListener("click",()=>{
   localStorage.setItem("cp_sync_url", S.syncUrl);
   actualizarEstadoSync();
   document.getElementById("syncModal").classList.remove("show");
-  cargarRemoto(true); cargarConfig();
+  cargarRemoto(true, null, "al conectar la hoja (trae 120 días)"); cargarConfig();
 });
 document.getElementById("btnRestaurarSync").addEventListener("click",()=>{
   document.getElementById("syncUrl").value = SYNC_POR_DEFECTO;
@@ -3303,7 +3360,7 @@ document.getElementById("btnRestaurarSync").addEventListener("click",()=>{
   localStorage.setItem("cp_sync_url", S.syncUrl);
   actualizarEstadoSync();
   document.getElementById("syncModal").classList.remove("show");
-  cargarRemoto(true); cargarConfig();
+  cargarRemoto(true, null, "al conectar la hoja (trae 120 días)"); cargarConfig();
   toast("Conectado a la hoja de la empresa");
 });
 document.getElementById("btnDesconectar").addEventListener("click",()=>{
@@ -3367,7 +3424,7 @@ actualizarPillCump();
 
 /* El turno en curso son unas decenas de filas, no 120 días. */
 async function cargarRonda(){
-  await cargarRemoto(false, fechaRondaActual());
+  await cargarRemoto(false, fechaRondaActual(), "apertura de la app (turno actual)");
 }
 
 /* Trae un rango concreto para las pantallas de análisis. Devuelve si pudo. */
@@ -3375,7 +3432,7 @@ async function traerRango(desdeISO, boton, etiqueta){
   const txt = boton ? boton.textContent : null;
   if(boton){ boton.disabled = true; boton.textContent = "Consultando\u2026"; }
   try{
-    await cargarRemoto(false, desdeISO);
+    await cargarRemoto(false, desdeISO, "consulta por rango de fechas");
   } finally {
     if(boton){ boton.disabled = false; boton.textContent = txt; }
   }
