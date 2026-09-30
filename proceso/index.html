@@ -2817,7 +2817,7 @@ async function enviarRemoto(reg){
   enviosEnCurso.add(reg.id);
   try{
     const res = await fetch(S.syncUrl, {method:"POST", body: JSON.stringify({action:"create", registro:reg})});
-    const d = await res.json();
+    const d = await respuestaGuardado(res);
     if(!d || d.ok !== true) throw new Error(d && d.error ? d.error : "el servidor respondió sin ok");
     S.ultimoErrorSync = null;
     marcarSync(reg.id, true);
@@ -2828,6 +2828,19 @@ async function enviarRemoto(reg){
     toast("⚠ Guardado en este dispositivo. No llegó a la hoja — reintentando...");
   }finally{ enviosEnCurso.delete(reg.id); }
 }
+/* La hoja a veces contesta una página de error de Google en vez de JSON. El
+   mensaje crudo ("Unexpected token '<'...") no le dice nada a nadie: aquí se
+   traduce a lo que de verdad pasó. */
+async function respuestaGuardado(res){
+  const txt = await res.text();
+  if(/^\s*</.test(txt))
+    throw new Error(res.status === 404
+      ? "la hoja devolvió una página de error 404 en vez de guardar (suele ser el Apps Script saturado o sin publicar)"
+      : `la hoja devolvió una página de error (HTTP ${res.status})`);
+  try{ return JSON.parse(txt); }
+  catch(err){ throw new Error("la hoja respondió algo que no son datos"); }
+}
+
 function marcarSync(id, ok){
   const r = S.registros.find(x=>x.id===id);
   if(r){ r.pendienteSync = !ok; persist(); }
@@ -2841,6 +2854,10 @@ function reintentarPendientes(){
 /* Qué devolvió la última lectura de la hoja. Sin esto, un fallo de lectura es
    invisible: los registros propios se ven (están en este equipo) y parece que
    los de los demás no existieran. */
+/* Qué versión del Apps Script está sirviendo la hoja. Sin esto no hay forma
+   de saber desde el puesto de trabajo si el Code.gs nuevo quedó publicado. */
+const BACKEND = {version:null};
+
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false, backendViejo:false, error:null};
 
 /* Sólo el histórico reciente en cada refresco. La carga completa se hace una
@@ -2951,6 +2968,7 @@ async function cargarConfig(){
   try{
     const data = await pedirJSON(S.syncUrl + "?tipo=config", "el catálogo");
     if(!data) throw new Error("sin datos");
+    BACKEND.version = data.backend || null;
 
     if(Array.isArray(data.usuarios) && data.usuarios.length){
       S.usuarios = data.usuarios.filter(u=>u && u.usuario);
@@ -3002,7 +3020,7 @@ async function subirFormatosFaltantes(){
     try{
       const res = await fetch(S.syncUrl, {method:"POST",
         body: JSON.stringify({action:"guardarFormato", formato:f})});
-      const d = await res.json();
+      const d = await respuestaGuardado(res);
       if(d && d.ok === true){ ok++; S.formatos.push(f); } else err++;
     }catch(e){ err++; }
   }
@@ -3030,7 +3048,7 @@ async function subirReferencias(){
   try{
     const res = await fetch(S.syncUrl, {method:"POST",
       body: JSON.stringify({action:"guardarReferencias", referencias:filas})});
-    const d = await res.json();
+    const d = await respuestaGuardado(res);
     if(!d || d.ok !== true) throw new Error(d && d.error ? d.error : "la hoja no confirmó");
     estado.textContent = `Listo: ${filas.length} referencias en la hoja. De ahora en adelante mandan las de allá.`;
     marcarConfigSync(true);
@@ -3047,7 +3065,7 @@ async function enviarConfig(accion, payload){
   try{
     const res = await fetch(S.syncUrl, {method:"POST",
       body: JSON.stringify(Object.assign({action:accion}, payload))});
-    const d = await res.json();
+    const d = await respuestaGuardado(res);
     if(!d || d.ok !== true) throw new Error("no ok");
     marcarConfigSync(true);
   }catch(e){
@@ -3166,6 +3184,13 @@ function renderPendientes(){
     <button class="btn-sec" id="btnProbar" style="margin-top:8px;">Probar la conexión</button>
     <div id="salidaPrueba" class="prueba" style="display:none;"></div>
 
+    <div class="diag-fila"><span>Código de la hoja</span><b style="color:${
+      BACKEND.version ? "#1f9d55" : "#c81d2e"};">${
+      BACKEND.version ? esc(BACKEND.version) : "versión anterior"}</b></div>
+    ${BACKEND.version ? "" : `<div class="diag-err">La hoja está corriendo un Apps Script anterior: lee todo el
+      histórico en cada petición, por eso tarda y falla. Hay que pegar el <b>Code.gs</b> nuevo y publicar una
+      <b>versión nueva</b> desde «Implementar → Gestionar implementaciones».</div>`}
+
     <div class="diag-tit" style="margin-top:16px;">CONEXIÓN DE ESTE EQUIPO</div>
     <div class="diag-url">${esc(S.syncUrl || "sin conexión")}</div>
     <div class="diag-nota">${propia
@@ -3189,6 +3214,7 @@ async function probarConexion(bt){
     salida.style.display = "block";
     salida.innerHTML = "";
     const pruebas = [
+      ["Versión del código de la hoja", "?tipo=version"],
       ["Catálogo (formatos y usuarios)", "?tipo=config"],
       ["Registros del día de hoy",       "?desde=" + hoyISO()],
       ["Registros de los últimos 120 días", "?desde=" + fechaDesde(120)],
