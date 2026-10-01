@@ -1145,12 +1145,68 @@ function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,
   .replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
 /** El turno se deduce de la hora, pero el inspector lo puede cambiar. */
-function turnoDeHora(h){
-  const m = String(h||"").match(/^(\d{1,2})/);
-  const hh = m ? +m[1] : new Date().getHours();
-  if(hh >= 6  && hh < 14) return "1";
-  if(hh >= 14 && hh < 22) return "2";
-  return "3";
+/* ==========================================================================
+   HORARIOS DE LA PLANTA
+   Los turnos ya no son iguales todos los días: jueves y viernes la planta sale
+   más temprano y el turno 3 entra a las 21:00, y el sábado se trabaja medio
+   día. Todo en minutos desde medianoche para no pelear con los ":30".
+   El turno 3 siempre termina a las 6:00 del día siguiente.
+   ====================================================================== */
+const MIN = (h, m) => h*60 + (m||0);
+/* día de la semana: 0 domingo ... 6 sábado */
+const HORARIOS = {
+  1: {t1:[MIN(6),MIN(14)], t2:[MIN(14),MIN(22)], t3:MIN(22)},   // lunes
+  2: {t1:[MIN(6),MIN(14)], t2:[MIN(14),MIN(22)], t3:MIN(22)},   // martes
+  3: {t1:[MIN(6),MIN(14)], t2:[MIN(14),MIN(22)], t3:MIN(22)},   // miércoles
+  4: {t1:[MIN(6),MIN(13)], t2:[MIN(13),MIN(20)], t3:MIN(21)},   // jueves
+  5: {t1:[MIN(6),MIN(13)], t2:[MIN(13),MIN(20)], t3:MIN(21)},   // viernes
+  6: {t1:[MIN(6),MIN(10)], t2:[MIN(10),MIN(14)], t3:null},      // sábado: no entra turno 3
+  0: null                                                        // domingo: no se trabaja
+};
+const FIN_T3 = MIN(6);   // el turno 3 siempre sale a las 6:00
+
+function minutosDe(h){
+  const m = String(h||"").match(/^(\d{1,2}):?(\d{2})?/);
+  if(!m) { const d = new Date(); return d.getHours()*60 + d.getMinutes(); }
+  return (+m[1])*60 + (+(m[2]||0));
+}
+function diaDe(fechaISO){
+  if(!fechaISO) return new Date().getDay();
+  const d = new Date(String(fechaISO).slice(0,10) + "T12:00:00");
+  return isNaN(d) ? new Date().getDay() : d.getDay();
+}
+
+/* Devuelve "1", "2" o "3". Nunca devuelve vacío: si la hora cae en un hueco
+   —jueves entre 20:00 y 21:00, o sábado después de las 14:00— se asigna al
+   turno que acaba de terminar, que es a quien pertenece el trabajo. */
+function turnoDeHora(h, fechaISO){
+  const min = minutosDe(h);
+  const hoy = diaDe(fechaISO);
+  const ayer = (hoy + 6) % 7;
+
+  // madrugada: pertenece al turno 3 que arrancó ayer, si ayer lo hubo
+  if(min < FIN_T3){
+    const hAyer = HORARIOS[ayer];
+    if(hAyer && hAyer.t3 != null) return "3";
+    return "1";                       // madrugada sin turno 3: lo más cercano
+  }
+  const hh = HORARIOS[hoy];
+  if(!hh) return "1";                 // domingo: no hay turnos definidos
+  if(min >= hh.t1[0] && min < hh.t1[1]) return "1";
+  if(min >= hh.t2[0] && min < hh.t2[1]) return "2";
+  if(hh.t3 != null && min >= hh.t3)     return "3";
+  if(min < hh.t1[0]) return "1";      // antes de las 6:00 pero después del fin del t3
+  return "2";                         // hueco tras el turno 2: se queda en el 2
+}
+
+/* Texto del horario que rige hoy, para mostrarlo sin inventar. */
+function horarioDelDia(turno, fechaISO){
+  const d = diaDe(fechaISO), hh = HORARIOS[d];
+  const fmt = m => `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;
+  if(!hh) return "no se trabaja";
+  if(turno === "1") return `${fmt(hh.t1[0])}–${fmt(hh.t1[1])}`;
+  if(turno === "2") return `${fmt(hh.t2[0])}–${fmt(hh.t2[1])}`;
+  return hh.t3 == null ? "no entra hoy" : `${fmt(hh.t3)}–06:00`;
 }
 function fFecha(v){
   const t = String(v==null?"":v).trim();
@@ -1265,9 +1321,9 @@ document.getElementById("turnoDescartar").addEventListener("click", ()=>{
 
 /* ==========================================================================
    CIERRE AUTOMÁTICO AL CAMBIAR EL TURNO
-   Turno 1: 6:00–14:00 · Turno 2: 14:00–22:00 · Turno 3: 22:00–6:00
+   El horario depende del día: ver HORARIOS arriba.
    ====================================================================== */
-const NOMBRE_TURNO = {"1":"Turno 1 (6:00–14:00)","2":"Turno 2 (14:00–22:00)","3":"Turno 3 (22:00–6:00)"};
+function nombreTurno(t, fechaISO){ return `Turno ${t} (${horarioDelDia(String(t), fechaISO)})`; }
 let RELOJ_TURNO = null;
 /* Trabajo sin guardar que quedó del turno anterior, para no tirarlo en silencio. */
 let PENDIENTE_TURNO = null;
@@ -1290,8 +1346,8 @@ function cerrarPorTurno(){
   const err = document.getElementById("loginErr");
   if(err){
     err.style.display = "block";
-    err.innerHTML = `Cambió el turno: terminó el <b>${esc(NOMBRE_TURNO[anterior]||anterior)}</b> y ahora
-      corre el <b>${esc(NOMBRE_TURNO[ahora]||ahora)}</b>. La sesión se cerró para que cada control
+    err.innerHTML = `Cambió el turno: terminó el <b>${esc(nombreTurno(anterior))}</b> y ahora
+      corre el <b>${esc(nombreTurno(ahora))}</b>. La sesión se cerró para que cada control
       quede con el nombre de quien realmente lo hizo. Inicia sesión otra vez.`;
   }
 }
@@ -1754,7 +1810,7 @@ function renderEncabezado(f){
   const hora = document.getElementById("eHora");
   if(hora) hora.addEventListener("change", ()=>{
     const t = document.getElementById("eTurno");
-    if(t) t.value = turnoDeHora(hora.value);
+    if(t) t.value = turnoDeHora(hora.value, hoyISO());
   });
 }
 
@@ -1994,7 +2050,7 @@ function construirRegistro(){
     id: "CP-"+Date.now()+"-"+Math.floor(Math.random()*1000),
     fecha: hoyISO(),
     hora: hora,
-    turno: turnoDeHora(hora),
+    turno: turnoDeHora(hora, hoyISO()),
     tipoLima: tipoLima,
     linea: f.linea, proceso: f.proceso, formatoId: f.id, codigoDoc: f.codigoDoc || "",
     ordenFabricacion: val("ordenFabricacion"), referencia: val("referencia"),
@@ -2032,7 +2088,7 @@ document.getElementById("btnNoTrabajo").addEventListener("click",()=>{
   const h = horaAhora();
   const reg = {
     id: "CP-"+Date.now()+"-"+Math.floor(Math.random()*1000),
-    fecha: hoyISO(), hora: h, turno: turnoDeHora(h),
+    fecha: hoyISO(), hora: h, turno: turnoDeHora(h, hoyISO()),
     linea: f.linea, proceso: f.proceso, formatoId: f.id, codigoDoc: f.codigoDoc || "",
     noTrabajo: "Sí",
     ordenFabricacion: "", referencia: "", tipoAcero: "", proveedor: "",
@@ -3417,7 +3473,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-01-linea-dureza";
+const APP_VERSION = "2026-10-01-horarios-planta";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
