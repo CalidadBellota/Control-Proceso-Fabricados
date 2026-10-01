@@ -793,11 +793,6 @@
         <input type="text" id="mfCodDoc" placeholder="CC/RE/16"></div>
       <div class="campo"><label for="mfMaquinas">Máquinas (separadas por coma)</label>
         <input type="text" id="mfMaquinas" placeholder="1, 2, 3"></div>
-      <div class="campo"><label for="mfGrupo" title="Deja «Ronda de línea» para los controles normales">Dónde aparece</label>
-        <select id="mfGrupo">
-          <option value="">Ronda de línea (se controla 1 vez por turno)</option>
-          <option value="Dureza">Dureza (por lote, la tarjeta no desaparece)</option>
-        </select></div>
     </div>
     <div class="grid2" style="margin-top:12px;">
       <div class="campo">
@@ -1009,7 +1004,7 @@ function engancharComboRef(f){
   const lista  = document.getElementById("refLista");
   const limpiar= document.getElementById("refLimpiar");
   const aviso  = document.getElementById("refAviso");
-  const todas  = referenciasDe(f.linea);
+  const todas  = referenciasDe(lineaDeReferencias(f));
   let marcada  = -1, visibles = [];
 
   const cerrar = () => { lista.style.display = "none"; marcada = -1; };
@@ -1400,37 +1395,31 @@ function ordenLinea(l){
   return i === -1 ? LINEAS_BASE.length : i;
 }
 /* ==========================================================================
-   GRUPOS DE CONTROL
-   Un formato pertenece a su línea (Machetes, Cuchillas...) y, opcionalmente, a
-   un GRUPO aparte. La dureza es el primero: no la toma el inspector en su
-   ronda sino tratamiento térmico, por lote y no por turno. El formato conserva
-   su línea real —si no, se rompen el buscador de referencias, la Tendencia y
-   el Tablero, que agrupan por línea— y el grupo sólo decide en qué chip sale.
+   LÍNEAS SIN RONDA
+   Dureza es una línea más —sale como un chip igual que Machetes o Palas— pero
+   no se controla una vez por turno: tratamiento térmico toma varias muestras
+   por lote, o ninguna. Por eso sus tarjetas no desaparecen al diligenciar y
+   en vez de "faltan N de M" llevan el contador de tomas del turno.
    ====================================================================== */
-const GRUPO_DUREZA = "Dureza";
-function grupoDe(f){ return String((f && f.grupo) || "").trim(); }
-function esDureza(f){ return grupoDe(f) === GRUPO_DUREZA; }
-/* Los grupos no llevan ronda: la tarjeta no desaparece al diligenciar, porque
-   se toman varias muestras en el mismo turno (o ninguna). */
-function conRonda(f){ return !grupoDe(f); }
+const LINEAS_SIN_RONDA = ["Dureza"];
+function sinRonda(linea){ return LINEAS_SIN_RONDA.indexOf(String(linea||"").trim()) !== -1; }
+function conRonda(f){ return !sinRonda(f && f.linea); }
+
+/* El buscador de referencias trabaja por línea, y "Dureza" no tiene catálogo
+   propio. Se deduce del nombre del proceso: "Machetes · Temple" usa las
+   referencias de Machetes. Así no hay que configurar nada aparte. */
+function lineaDeReferencias(f){
+  if(!f) return "";
+  if(!sinRonda(f.linea)) return f.linea;
+  const txt = String(f.proceso || "");
+  const hit = LINEAS_BASE.filter(l => txt.toLowerCase().indexOf(String(l).toLowerCase()) === 0)[0];
+  return hit || "";
+}
 
 function lineas(){
   const set = [];
-  S.formatos.forEach(f=>{ if(!grupoDe(f) && f.linea && set.indexOf(f.linea)===-1) set.push(f.linea); });
-  set.sort((a,b)=> ordenLinea(a) - ordenLinea(b) || String(a).localeCompare(String(b)));
-  // los grupos van al final, después de las líneas
-  const gs = [];
-  S.formatos.forEach(f=>{ const g = grupoDe(f); if(g && gs.indexOf(g)===-1) gs.push(g); });
-  return set.concat(gs.sort());
-}
-function esGrupo(nombre){
-  return S.formatos.some(f => grupoDe(f) === nombre);
-}
-/* Formatos del chip activo: por grupo si es un grupo, por línea si no. */
-function formatosDelChip(){
-  return esGrupo(S.lineaActiva)
-    ? S.formatos.filter(f => grupoDe(f) === S.lineaActiva)
-    : S.formatos.filter(f => !grupoDe(f) && f.linea === S.lineaActiva);
+  S.formatos.forEach(f=>{ if(f.linea && set.indexOf(f.linea)===-1) set.push(f.linea); });
+  return set.sort((a,b)=> ordenLinea(a) - ordenLinea(b) || String(a).localeCompare(String(b)));
 }
 /* Tomas de este formato en el turno que corre (para el contador de la tarjeta). */
 function tomasEnElTurno(formatoId){ return registrosDeLaRonda(formatoId).length; }
@@ -1440,8 +1429,7 @@ function renderSegLineas(){
   const ls = lineas();
   if(!S.lineaActiva || ls.indexOf(S.lineaActiva)===-1) S.lineaActiva = ls[0] || "";
   box.innerHTML = ls.map(l=>{
-    const n = esGrupo(l) ? S.formatos.filter(f=>grupoDe(f)===l).length
-                         : S.formatos.filter(f=>!grupoDe(f) && f.linea===l).length;
+    const n = S.formatos.filter(f=>f.linea===l).length;
     return `<button data-l="${esc(l)}" class="${l===S.lineaActiva?"on":""}">${esc(l)} <span class="n">${n}</span></button>`;
   }).join("");
   box.querySelectorAll("[data-l]").forEach(b=>b.addEventListener("click",()=>{
@@ -1528,16 +1516,19 @@ function renderProcesos(){
   renderSegLineas();
   const box = document.getElementById("procGrid");
   const q = (document.getElementById("procBuscar").value||"").trim().toLowerCase();
-  let fs = formatosDelChip();
-  const enGrupo = esGrupo(S.lineaActiva);
+  let fs = S.formatos.filter(f => f.linea === S.lineaActiva);
+  const enGrupo = sinRonda(S.lineaActiva);   // Dureza: sin ronda, tarjetas fijas
   if(q) fs = fs.filter(f => `${f.proceso} ${f.nombre} ${f.codigoDoc||""}`.toLowerCase().includes(q));
   if(enGrupo){
     /* En el grupo manda el orden del proceso real, no el alfabético: el temple
        va antes que el revenido porque así ocurre en la planta. */
-    const ORDEN_TT = {"Temple":1, "Hidrotemple":1, "Revenido":2};
-    fs.sort((a,b)=> ordenLinea(a.linea) - ordenLinea(b.linea)
-                 || (ORDEN_TT[a.proceso]||9) - (ORDEN_TT[b.proceso]||9)
-                 || String(a.proceso).localeCompare(String(b.proceso)));
+    const orden = f => {
+      const t = String(f.proceso||"");
+      const li = ordenLinea(lineaDeReferencias(f));
+      const tt = /revenido/i.test(t) ? 2 : /temple/i.test(t) ? 1 : 9;
+      return li * 10 + tt;
+    };
+    fs.sort((a,b)=> orden(a) - orden(b) || String(a.proceso).localeCompare(String(b.proceso)));
   } else {
     fs.sort((a,b)=> String(a.proceso).localeCompare(String(b.proceso)));
   }
@@ -1579,7 +1570,7 @@ function renderProcesos(){
           data-f="${esc(f.id)}" title="${esc(f.nombre)}">
         <span class="ico">${svgProc(f, 21)}</span>
         <span class="cuerpo">
-          <b>${esc(f.linea)} · ${esc(f.proceso)}</b>
+          <b>${esc(f.proceso)}</b>
           <span class="meta">${(f.variables||[]).length} variables${
             f.codigoDoc?` · ${esc(f.codigoDoc)}`:""}${nc?` · ${nc} fuera de rango`:""}</span>
         </span>
@@ -1709,7 +1700,7 @@ function renderEncabezado(f){
         }<option value="__otra">Otro…</option></select>
         <input type="text" id="e_${k}_otra" placeholder="Escribe el acero"
                style="margin-top:8px;display:none;"></div>`);
-    } else if(k === "referencia" && referenciasDe(f.linea).length){
+    } else if(k === "referencia" && referenciasDe(lineaDeReferencias(f)).length){
       // buscador con lista filtrada: un select nativo con 256 opciones es inmanejable
       campos.push(`<div class="campo ancho"><label for="refBusca">${c.etq}${c.oblig?" *":""}</label>
         <div class="combo" id="comboRef">
@@ -3237,7 +3228,6 @@ function abrirModalFormato(idx){
   document.getElementById("mfProceso").value  = f.proceso || "";
   document.getElementById("mfCodDoc").value   = f.codigoDoc || "";
   document.getElementById("mfMaquinas").value = (f.maquinas||[]).join(", ");
-  document.getElementById("mfGrupo").value = (f.grupo || "");
   document.getElementById("mfCondicional").checked = !!f.condicional;
   document.getElementById("mfEncabezado").innerHTML = Object.keys(CAMPOS_ENC).map(k=>`
     <label style="display:flex;align-items:center;gap:7px;font-weight:600;color:var(--text);margin:0;">
@@ -3293,7 +3283,6 @@ document.getElementById("mfGuardar").addEventListener("click",()=>{
     condicional: document.getElementById("mfCondicional").checked,
     encabezado: enc,
     maquinas: document.getElementById("mfMaquinas").value.split(",").map(s=>s.trim()).filter(Boolean),
-    grupo: document.getElementById("mfGrupo").value || "",
     variables: vars
   };
   if(S.editIdx!=null) S.formatos[S.editIdx] = obj; else S.formatos.push(obj);
@@ -3428,7 +3417,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-01-grupo-dureza";
+const APP_VERSION = "2026-10-01-linea-dureza";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
