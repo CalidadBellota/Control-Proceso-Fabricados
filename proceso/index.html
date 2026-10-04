@@ -3199,8 +3199,12 @@ function renderCumplimiento(){
   const dia   = document.getElementById("mDia").value || hoyISO();
   document.getElementById("campoDiaCump").style.display = vista==="dia" ? "block" : "none";
 
-  const fs = S.formatos.filter(f=> conRonda(f) && (!linea || f.linea===linea))
-    .sort((a,b)=> ordenLinea(a.linea) - ordenLinea(b.linea) ||
+  /* La dureza también se ve, pero no se exige por turno: se toma por lote, así
+     que sus celdas muestran cuántas tomas hubo y nunca salen como "sin
+     diligenciar". Si se contaran como pendientes serían una alarma permanente. */
+  const fs = S.formatos.filter(f=> !linea || f.linea===linea)
+    .sort((a,b)=> (conRonda(a)?0:1) - (conRonda(b)?0:1) ||
+                  ordenLinea(a.linea) - ordenLinea(b.linea) ||
                   String(a.proceso).localeCompare(String(b.proceso)));
   const box = document.getElementById("matrizCump");
   if(!fs.length){ box.innerHTML = `<div class="empty-mini">No hay formatos en esta línea.</div>`; return; }
@@ -3216,18 +3220,22 @@ function renderCumplimiento(){
     let lineaPrev = "";
     fs.forEach(f=>{
       if(f.linea !== lineaPrev){ lineaPrev = f.linea;
-        html += `<tr class="grupo"><td colspan="${TURNOS.length+2}">${esc(f.linea)}</td></tr>`; }
+        html += `<tr class="grupo"><td colspan="${TURNOS.length+2}">${esc(f.linea)}${
+          conRonda(f) ? "" : ` <span style="font-weight:600;text-transform:none;color:var(--text-dim);">· por lote, no se exige por turno</span>`}</td></tr>`; }
       const delDia = S.registros.filter(r=> r.formatoId===f.id && fechaTurnoDe(r)===dia);
       html += `<tr><td class="proc">${esc(f.proceso)}${f.condicional?` <span style="color:var(--text-dim);font-size:.7rem;">(según referencia)</span>`:""}</td>`;
       TURNOS.forEach(t=>{
         const rs = delDia.filter(r=>String(r.turno)===t);
         let c;
-        if(!turnoExiste(dia, t))           c = "x";
+        if(!turnoExiste(dia, t))                      c = "x";
+        else if(!conRonda(f))                         c = rs.length ? clase(rs, f) : "x";
         else if(!rs.length && !turnoYaEmpezo(dia, t)) c = "e";
-        else                                c = clase(rs, f);
+        else                                          c = clase(rs, f);
         if(c === "r") faltan++;
-        if(!f.condicional && c !== "x" && c !== "e") total++;
-        html += `<td class="celda ${c}" title="${esc(`${f.proceso} · turno ${t} · ${ESTADOS_CELDA[c].txt}`)}">${
+        if(!f.condicional && conRonda(f) && c !== "x" && c !== "e") total++;
+        const tit = conRonda(f) ? `${f.proceso} · turno ${t} · ${ESTADOS_CELDA[c].txt}`
+                                : `${f.proceso} · turno ${t} · ${rs.length} toma(s) de dureza`;
+        html += `<td class="celda ${c}" title="${esc(tit)}">${
           (c==="x"||c==="e") ? ESTADOS_CELDA[c].marca : marca(rs, c)}</td>`;
       });
       /* El total ya no es un "1" suelto: dice cuántos turnos de los 3 se
@@ -3237,8 +3245,11 @@ function renderCumplimiento(){
       html += `<td class="celda ${delDia.length?"v":"n"}">${delDia.length}</td></tr>`;
     });
     html += `</tbody></table>`;
-    document.getElementById("cumpResumen").textContent =
-      `${dia} · faltan ${faltan} de ${total} controles por turno`;
+    const NOMBRE_DIA = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+    const hayJornada = TURNOS.some(t => turnoExiste(dia, t));
+    document.getElementById("cumpResumen").textContent = !hayJornada
+      ? `${fFechaCorta(dia)} · ${NOMBRE_DIA[diaDe(dia)]}: no se trabaja, no hay controles que exigir`
+      : `${fFechaCorta(dia)} · faltan ${faltan} de ${total} controles por turno`;
   } else {
     const [y,m] = mes.split("-").map(Number);
     const dias = new Date(y, m, 0).getDate();
@@ -3247,7 +3258,8 @@ function renderCumplimiento(){
     let lineaPrev = "";
     fs.forEach(f=>{
       if(f.linea !== lineaPrev){ lineaPrev = f.linea;
-        html += `<tr class="grupo"><td colspan="${dias+2}">${esc(f.linea)}</td></tr>`; }
+        html += `<tr class="grupo"><td colspan="${dias+2}">${esc(f.linea)}${
+          conRonda(f) ? "" : ` <span style="font-weight:600;text-transform:none;color:var(--text-dim);">· por lote</span>`}</td></tr>`; }
       html += `<tr><td class="proc">${esc(f.proceso)}</td>`;
       let n = 0;
       for(let d=1; d<=dias; d++){
@@ -3255,9 +3267,11 @@ function renderCumplimiento(){
         const rs = S.registros.filter(r=> r.formatoId===f.id && fechaTurnoDe(r)===fechaD);
         n += rs.length;
         const hayTurnos = TURNOS.some(t=> turnoExiste(fechaD, t));
-        const c = !hayTurnos ? "x" : (fechaD > hoyISO() ? "e" : clase(rs, f));
+        const c = !hayTurnos ? "x"
+                : !conRonda(f) ? (rs.length ? clase(rs, f) : "x")
+                : (fechaD > hoyISO() ? "e" : clase(rs, f));
         if(c === "r") faltan++;
-        if(!f.condicional && c !== "x" && c !== "e") total++;
+        if(!f.condicional && conRonda(f) && c !== "x" && c !== "e") total++;
         html += `<td class="celda ${c}" title="${esc(`${f.proceso} · ${fechaD} · ${ESTADOS_CELDA[c].txt}`)}">${
           (c==="x"||c==="e") ? "·" : c==="p" ? "○" : (rs.length||"")}</td>`;
       }
@@ -3951,7 +3965,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-04-cumplimiento";
+const APP_VERSION = "2026-10-04-control-dureza";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
