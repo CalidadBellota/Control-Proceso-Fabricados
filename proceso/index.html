@@ -630,7 +630,16 @@
         </div>
       </div>
     </div>
-    <input type="hidden" id="tDesde"><input type="hidden" id="tHasta">
+    <div class="grid3" style="margin-top:12px;">
+      <div class="campo corto"><label for="tDesde">Desde</label>
+        <input type="date" id="tDesde"></div>
+      <div class="campo corto"><label for="tHasta">Hasta</label>
+        <input type="date" id="tHasta"></div>
+      <div class="campo" style="display:flex;align-items:flex-end;gap:10px;">
+        <button class="btn-principal" id="tBuscar" style="flex:1;">Ver el periodo</button>
+        <button class="btn-sec" id="tLimpiar" title="Volver a los últimos 30 días">Limpiar</button>
+      </div>
+    </div>
   </div>
   <div id="tendResultado"></div>
 </section>
@@ -2506,16 +2515,49 @@ function diasDelRango(){
   const b = document.querySelector("#tRango [data-d].on");
   return b ? +b.dataset.d : 30;
 }
+/* El periodo sale de los botones rápidos o de las fechas escritas a mano.
+   Las dos cosas escriben en los mismos campos, así que nunca se contradicen. */
+function periodoTendencia(){
+  const desde = document.getElementById("tDesde").value;
+  const hasta = document.getElementById("tHasta").value;
+  const b = document.querySelector("#tRango [data-d].on");
+  if(b) return {desde: fechaDesde(+b.dataset.d), hasta: "", etq: `últimos ${b.dataset.d} días`};
+  if(desde && hasta) return {desde, hasta, etq: `${fFechaCorta(desde)} a ${fFechaCorta(hasta)}`};
+  if(desde)          return {desde, hasta: "", etq: `desde el ${fFechaCorta(desde)}`};
+  if(hasta)          return {desde: fechaDesde(365), hasta, etq: `hasta el ${fFechaCorta(hasta)}`};
+  return {desde: fechaDesde(30), hasta: "", etq: "últimos 30 días"};
+}
+
 async function consultarTendencia(boton){
-  const dias = diasDelRango();
-  document.getElementById("tDesde").value = fechaDesde(dias);
-  document.getElementById("tHasta").value = "";
+  const r = periodoTendencia();
+  const b = document.querySelector("#tRango [data-d].on");
+  if(b){                                   // un botón rápido manda: rellena las fechas
+    document.getElementById("tDesde").value = r.desde;
+    document.getElementById("tHasta").value = "";
+  }
   if(!document.getElementById("tProceso").value || !document.getElementById("tVariable").value){
     renderTendencia(); return;
   }
-  if(S.syncUrl) await traerRango(fechaDesde(dias), boton, `últimos ${dias} días`);
+  if(S.syncUrl) await traerRango(r.desde, boton, r.etq);
   renderTendencia();
 }
+
+/* Escribir una fecha a mano cancela el botón rápido: si no, el periodo que se
+   ve en los campos no sería el que se está mostrando. */
+["tDesde","tHasta"].forEach(id=>{
+  document.getElementById(id).addEventListener("change", ()=>{
+    document.querySelectorAll("#tRango [data-d]").forEach(x=>x.classList.remove("on"));
+  });
+});
+document.getElementById("tBuscar").addEventListener("click", e=> consultarTendencia(e.target));
+document.getElementById("tLimpiar").addEventListener("click", e=>{
+  document.getElementById("tDesde").value = "";
+  document.getElementById("tHasta").value = "";
+  document.querySelectorAll("#tRango [data-d]").forEach(x=>x.classList.remove("on"));
+  const b30 = document.querySelector('#tRango [data-d="30"]');
+  if(b30) b30.classList.add("on");
+  consultarTendencia(e.target);
+});
 
 function renderTendencia(){
   const box = document.getElementById("tendResultado");
@@ -2527,8 +2569,8 @@ function renderTendencia(){
     return;
   }
   const vDef = (f.variables||[]).find(v=>v.nombre===vNom) || {};
-  const desde = document.getElementById("tDesde").value;
-  const hasta = document.getElementById("tHasta").value;
+  const per = periodoTendencia();
+  const desde = per.desde, hasta = per.hasta;
   const maq = "", ref = "";
 
   const puntos = [];
@@ -2587,7 +2629,7 @@ function renderTendencia(){
     <div class="panel">
       <div class="kpis">
         <div class="kpi"><span>Mediciones</span><b>${puntos.length}</b>
-          <small>en los últimos ${diasDelRango()} días</small></div>
+          <small>${esc(per.etq)}</small></div>
         <div class="kpi"><span>Promedio</span><b>${f1(prom)}</b>
           <small>desviación ${f1(desvia)}${esc(u)}</small></div>
         <div class="kpi ${nCerca?"ojo":""}"><span>Cerca del límite</span><b>${nCerca}</b>
@@ -3615,7 +3657,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-03-tendencia";
+const APP_VERSION = "2026-10-03-tendencia-rango";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
