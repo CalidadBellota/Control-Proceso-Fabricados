@@ -340,12 +340,54 @@
   .matriz td.proc{text-align:left;font-weight:600;padding:5px 8px;font-size:.8rem;}
   .matriz td.celda{text-align:center;border-radius:6px;padding:7px 4px;font-weight:800;font-size:.72rem;
     cursor:default;}
-  .matriz td.v{background:var(--ok-bg);color:var(--ok);}
-  .matriz td.r{background:var(--bad-bg);color:var(--bad);}
-  .matriz td.a{background:var(--warn-bg);color:var(--warn-text);}
-  .matriz td.n{background:#f3f4f7;color:#b9bec6;}
-  /* validado, pero el proceso no estuvo trabajando */
-  .matriz td.p{background:#eef1f6;color:#5a6270;border:1px dashed #b9c0cb;}
+  /* Un dato medido se pinta RELLENO; la ausencia de dato va en contorno. Así no
+     se confunde "nadie lo controló" con "se controló y salió mal". */
+  .matriz td.v{background:#e7f6ec;color:#1f7a44;}                      /* conforme */
+  .matriz td.c{background:#fdf3d8;color:#8a6200;}                      /* cerca del límite */
+  .matriz td.f{background:#c81d2e;color:#fff;}                         /* fuera de especificación */
+  .matriz td.s{background:#eceff2;color:#5c646e;border:1px dashed #b9c0c8;}  /* sin límites */
+  .matriz td.r{background:#fff;color:#c81d2e;border:1px dashed #e9a3ab;}     /* sin diligenciar */
+  .matriz td.n{background:#f3f4f7;color:#b9bec6;}                      /* no aplica */
+  .matriz td.p{background:#eef1f6;color:#5a6270;border:1px dashed #b9c0cb;}  /* no trabajó */
+  .matriz td.x, .matriz td.e{background:#fafbfc;color:#c8cdd4;}
+  .matriz td.tot.tv{background:#e7f6ec;color:#1f7a44;}
+  .matriz td.tot.tc{background:#fdf3d8;color:#8a6200;}
+  .matriz td.tot.tr{background:#fbe9eb;color:#a81626;}
+  .matriz td.tot{padding:6px 7px;line-height:1.25;min-width:62px;}
+  .matriz td.tot b{display:block;font-size:.78rem;}
+  .matriz td.tot small{display:block;font-size:.62rem;font-weight:700;opacity:.8;}
+  .matriz td.tot .barra{display:block;height:3px;border-radius:2px;background:rgba(0,0,0,.12);
+    margin:3px 0 2px;overflow:hidden;}
+  .matriz td.tot .barra i{display:block;height:100%;background:currentColor;}
+  .tabla-insp{font-size:.84rem;}
+  .fila-insp{display:grid;grid-template-columns:1.8fr .7fr .9fr .9fr 1.4fr;gap:12px;align-items:center;
+    padding:10px 0;border-bottom:1px solid var(--border);}
+  .fila-insp.cab{font-size:.68rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--text-dim);border-bottom:2px solid var(--border);padding-bottom:7px;}
+  .fila-insp:last-child{border-bottom:none;}
+  .fila-insp small{color:var(--text-dim);font-weight:400;}
+  .fila-insp .pc{position:relative;display:flex;align-items:center;gap:9px;}
+  .fila-insp .pc i{display:block;height:7px;border-radius:4px;background:currentColor;min-width:2px;
+    max-width:110px;flex:none;}
+  .fila-insp .pc b{font-size:.84rem;}
+  .fila-insp .pc.v{color:#1f7a44;} .fila-insp .pc.c{color:#b46a00;} .fila-insp .pc.f{color:#c81d2e;}
+  .leyenda-mat{display:flex;gap:14px;flex-wrap:wrap;font-size:.72rem;color:var(--text-dim);
+    margin-top:12px;align-items:center;}
+  .leyenda-mat span{display:inline-flex;align-items:center;gap:5px;}
+  /* Avance de la ronda del turno, siempre visible: en Registrar el contador es
+     por línea, así que el inspector que cubre varias no tenía forma de ver
+     cómo va su turno completo sin ir chip por chip sumando de cabeza. */
+  .mi-turno{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.14);
+    border:1px solid rgba(255,255,255,.22);border-radius:9px;padding:5px 11px;margin-left:auto;}
+  .mi-turno .et{font-size:.58rem;font-weight:800;letter-spacing:.08em;color:rgba(255,255,255,.72);}
+  .mi-turno .barra{width:68px;height:5px;border-radius:3px;background:rgba(255,255,255,.26);overflow:hidden;}
+  .mi-turno .barra i{display:block;height:100%;background:#fff;transition:width .3s;}
+  .mi-turno b{font-size:.8rem;color:#fff;white-space:nowrap;}
+  .mi-turno.completo .barra i{background:#7fe0a4;}
+  .mi-turno.completo b{color:#7fe0a4;}
+  @media(max-width:900px){ .mi-turno .et{display:none;} .mi-turno .barra{width:44px;} }
+  .leyenda-mat b{display:inline-flex;align-items:center;justify-content:center;width:22px;height:20px;
+    border-radius:5px;font-size:.68rem;font-weight:800;}
   .matriz .grupo td{padding-top:12px;font-size:.7rem;font-weight:800;letter-spacing:.06em;
     color:var(--red);text-transform:uppercase;}
 
@@ -477,6 +519,11 @@
       <button id="tabCump">Diligenciamiento<span class="pill-n" id="pillCump"></span></button>
       <button id="tabAdmin">Administrar</button>
     </nav>
+    <span class="mi-turno" id="miTurno" style="display:none;" title="Controles de tu turno en todas las líneas">
+      <span class="et">MI TURNO</span>
+      <span class="barra"><i id="miTurnoBarra"></i></span>
+      <b id="miTurnoTxt">0/0</b>
+    </span>
     <span class="user-chip" id="userChip" style="display:none;">
       <span class="ini" id="userIni"></span>
       <span><b id="userNom"></b><span id="userRol"></span></span>
@@ -699,15 +746,19 @@
         <input type="date" id="mDia">
       </div>
     </div>
-    <div class="leyenda-lim" style="margin-top:14px;">
-      <span><i class="pt" style="background:#1f9d55;"></i>Registrado</span>
-      <span><i class="pt" style="background:#c81d2e;"></i>Sin registro</span>
-      <span><i class="pt" style="background:#f2b90b;"></i>Registrado con variables fuera de rango</span>
-      <span><i class="pt" style="background:#eef1f6;border:1px dashed #b9c0cb;"></i>○ Verificado, no estuvo trabajando</span>
-      <span><i class="pt" style="background:#d7dbe1;"></i>Aplica según la referencia</span>
+  </div>
+  <div id="cumpInspectores"></div>
+  <div class="panel" style="overflow-x:auto;"><div id="matrizCump"></div>
+    <div class="leyenda-mat">
+      <span><b class="v" style="background:#e7f6ec;color:#1f7a44;">1 ✓</b>Conforme</span>
+      <span><b class="c" style="background:#fdf3d8;color:#8a6200;">1 !</b>Cerca del límite</span>
+      <span><b class="f" style="background:#c81d2e;color:#fff;">1 ⚠</b>Fuera de especificación</span>
+      <span><b class="s" style="background:#eceff2;color:#5c646e;border:1px dashed #b9c0c8;">1 ?</b>Sin límites cargados</span>
+      <span><b class="p" style="background:#eef1f6;color:#5a6270;border:1px dashed #b9c0cb;">○</b>No trabajó</span>
+      <span><b class="r" style="background:#fff;color:#c81d2e;border:1px dashed #e9a3ab;">✗</b>Sin diligenciar</span>
+      <span><b style="background:#fafbfc;color:#c8cdd4;">·</b>Turno no trabajado o aún sin empezar</span>
     </div>
   </div>
-  <div class="panel" style="overflow-x:auto;"><div id="matrizCump"></div></div>
 </section>
 
 <!-- ============ ADMINISTRAR ============ -->
@@ -1293,7 +1344,53 @@ function abrirSesion(u){
   aplicarRol();
   tab("Reg");
   vigilarTurno();
+  actualizarMiTurno();
   ofrecerPendienteTurno();
+  abrirTurnoEnLaHoja();
+}
+
+/* ==========================================================================
+   APERTURA DE TURNO
+   Deja constancia de que este inspector estuvo en este turno, aunque no
+   registre nada, y congela cuántos controles se le exigían en ese momento.
+   Sin esto, "no vino" y "vino y no registró" son indistinguibles, y el
+   denominador del mes cambiaría cada vez que se añade un formato.
+   ====================================================================== */
+function leerTurnosLocales(){
+  try{ return JSON.parse(localStorage.getItem("cp_turnos") || "[]"); }catch(e){ return []; }
+}
+function guardarTurnosLocales(t){ localStorage.setItem("cp_turnos", JSON.stringify(t)); }
+
+function abrirTurnoEnLaHoja(){
+  if(!S.sesion) return;
+  const fecha = fechaRondaActual(), turno = turnoDeHora(horaAhora());
+  const id = `${S.sesion.usuario}|${fecha}|T${turno}`;
+  const lista = leerTurnosLocales();
+  if(lista.some(x=>x.id === id)) return;            // ya se abrió en este equipo
+  const esperados = S.formatos.filter(f => conRonda(f) && !f.condicional).length;
+  lista.push({
+    id, usuario: S.sesion.usuario, nombre: S.sesion.nombre,
+    fecha, turno: String(turno), horaInicio: horaAhora(),
+    esperados, equipo: (navigator.userAgent||"").slice(0,60), pendiente: true
+  });
+  guardarTurnosLocales(lista);
+  subirTurnos();
+}
+
+async function subirTurnos(){
+  if(!S.syncUrl) return;
+  const lista = leerTurnosLocales();
+  const pend = lista.filter(t=>t.pendiente);
+  for(const t of pend){
+    try{
+      const limpio = Object.assign({}, t); delete limpio.pendiente;
+      const res = await fetch(S.syncUrl, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body: JSON.stringify({action:"abrirTurno", turno: limpio})});
+      const out = await respuestaGuardado(res);
+      if(out && out.ok){ delete t.pendiente; guardarTurnosLocales(lista); }
+      else return;
+    }catch(err){ return; }        // sin red: se reintenta con los demás pendientes
+  }
 }
 
 /* Al entrar el del turno nuevo, se le ofrece el control que quedó a medias en
@@ -1582,6 +1679,7 @@ async function actualizarAhora(boton, desdeFecha, conCatalogo){
 
 function renderProcesos(){
   renderSegLineas();
+  actualizarMiTurno();
   const box = document.getElementById("procGrid");
   const q = (document.getElementById("procBuscar").value||"").trim().toLowerCase();
   let fs = S.formatos.filter(f => f.linea === S.lineaActiva);
@@ -2116,7 +2214,7 @@ document.getElementById("btnNoTrabajo").addEventListener("click",()=>{
   if(S.syncUrl) enviarRemoto(reg);
   toast(`${f.proceso}: registrado como "no trabajó"`);
   cancelarRegistro(true);
-  actualizarPillCump();
+  actualizarPillCump(); actualizarMiTurno();
 });
 
 document.getElementById("btnGuardar").addEventListener("click",()=>{
@@ -2133,7 +2231,7 @@ document.getElementById("btnGuardar").addEventListener("click",()=>{
   const nc = reg.resultados.filter(r=>r.resultado==="Fuera de rango").length;
   toast(nc ? `Registro guardado · ${nc} variable(s) fuera de rango` : "Registro guardado");
   cancelarRegistro(true);
-  actualizarPillCump();
+  actualizarPillCump(); actualizarMiTurno();
 });
 
 function cancelarRegistro(silencioso){
@@ -2329,7 +2427,7 @@ document.getElementById("corrGuardar").addEventListener("click", async ()=>{
   document.getElementById("corrModal").classList.remove("show");
   toast(`Corrección guardada · ${cambios.length} variable(s)`);
   buscarConsulta();
-  actualizarPillCump();
+  actualizarPillCump(); actualizarMiTurno();
 
   if(S.syncUrl){
     try{
@@ -2407,7 +2505,7 @@ async function eliminarRegistro(id, boton){
   persist();
   toast("Registro eliminado");
   buscarConsulta();
-  actualizarPillCump();
+  actualizarPillCump(); actualizarMiTurno();
 }
 
 
@@ -2979,6 +3077,99 @@ document.getElementById("bBuscar").addEventListener("click", async (e)=>{
 /* ==========================================================================
    CONTROL DE DILIGENCIAMIENTO
    ========================================================================== */
+/* ==========================================================================
+   ESTADO DE UNA CELDA DE LA MATRIZ
+   No es lo mismo "nadie lo controló" que "se controló y salió fuera de
+   especificación": el primero es un problema administrativo y el segundo un
+   problema de proceso, con responsables distintos. Hasta ahora la matriz los
+   mezclaba, y encima pintaba el no-diligenciado más rojo que la no conformidad.
+   ====================================================================== */
+function margenDe(x){
+  const hay = v => v!==null && v!==undefined && v!=="";
+  if(!hay(x.min) || !hay(x.max)) return null;
+  const a = parseFloat(x.min), b = parseFloat(x.max);
+  return (isNaN(a)||isNaN(b)) ? null : (b-a)*0.10;
+}
+/* Misma regla que en Tendencia: el 10% de la banda hacia adentro. */
+function cercaDelLimite(x){
+  if(x.resultado !== "Conforme") return false;
+  const m = margenDe(x); if(m===null) return false;
+  const n = parseFloat(String(x.valor).replace(",","."));
+  if(isNaN(n)) return false;
+  return n <= parseFloat(x.min)+m || n >= parseFloat(x.max)-m;
+}
+function regCerca(r){ return (r.resultados||[]).some(cercaDelLimite); }
+function regSinJuzgar(r){
+  const rs = r.resultados||[];
+  return rs.length > 0 && rs.every(x =>
+    x.resultado==="Sin especificación" || x.resultado==="Sin dato" || x.resultado==="No aplica");
+}
+
+/* El sábado no entra turno 3 y el domingo no se trabaja: marcar esos turnos
+   como "sin diligenciar" es una alarma falsa. Y un turno que todavía no ha
+   empezado no se puede reclamar: se muestra aparte, no como incumplimiento. */
+function turnoExiste(fechaISO, t){
+  const hh = HORARIOS[diaDe(fechaISO)];
+  if(!hh) return false;
+  return t === "3" ? hh.t3 != null : true;
+}
+function turnoYaEmpezo(fechaISO, t){
+  if(fechaISO < hoyISO()) return true;          // día pasado: todos empezaron
+  if(fechaISO > hoyISO()) return false;
+  const hh = HORARIOS[diaDe(fechaISO)];
+  if(!hh) return false;
+  const ahora = minutosDe(horaAhora());
+  if(t === "1") return ahora >= hh.t1[0];
+  if(t === "2") return ahora >= hh.t2[0];
+  return hh.t3 != null && (ahora >= hh.t3 || ahora < FIN_T3);
+}
+
+const ESTADOS_CELDA = {
+  v: {marca:"✓", txt:"control conforme"},
+  c: {marca:"!", txt:"conforme, pero cerca del límite"},
+  f: {marca:"⚠", txt:"fuera de especificación"},
+  s: {marca:"?", txt:"no se pudo juzgar: faltan límites"},
+  p: {marca:"○", txt:"no estaba trabajando"},
+  r: {marca:"✗", txt:"sin diligenciar"},
+  n: {marca:"—", txt:"no aplica según la referencia"},
+  x: {marca:"·", txt:"ese turno no se trabaja"},
+  e: {marca:"·", txt:"el turno todavía no ha empezado"}
+};
+function estadoCelda(regs, f){
+  if(!regs.length) return (f && f.condicional) ? "n" : "r";
+  if(regs.every(r=>r.noTrabajo)) return "p";
+  if(regs.some(r=>ncDe(r)>0))    return "f";
+  if(regs.some(regCerca))        return "c";
+  if(regs.every(regSinJuzgar))   return "s";
+  return "v";
+}
+function marcaCelda(regs, e){
+  if(e==="r" || e==="n") return ESTADOS_CELDA[e].marca;
+  if(e==="p") return "○";
+  return regs.length + " " + ESTADOS_CELDA[e].marca;
+}
+
+/* Avance del turno en curso, sumando todas las líneas de ronda. */
+function actualizarMiTurno(){
+  const caja = document.getElementById("miTurno");
+  if(!caja) return;
+  if(!S.sesion){ caja.style.display = "none"; return; }
+  const fs = S.formatos.filter(f => conRonda(f) && !f.condicional);
+  if(!fs.length){ caja.style.display = "none"; return; }
+  const hechos = fs.filter(f => validadoEnLaRonda(f.id)).length;
+  const pc = Math.round(hechos / fs.length * 100);
+  caja.style.display = "flex";
+  caja.classList.toggle("completo", hechos === fs.length);
+  document.getElementById("miTurnoBarra").style.width = pc + "%";
+  document.getElementById("miTurnoTxt").textContent = `${hechos}/${fs.length}`;
+  const faltan = fs.filter(f => !validadoEnLaRonda(f.id));
+  const porLinea = {};
+  faltan.forEach(f=>{ porLinea[f.linea] = (porLinea[f.linea]||0)+1; });
+  caja.title = hechos === fs.length
+    ? `Turno al día: los ${fs.length} controles están hechos`
+    : "Te faltan: " + Object.keys(porLinea).map(l=>`${l} ${porLinea[l]}`).join(" · ");
+}
+
 function renderCumplimiento(){
   refrescarSelectoresConsulta();
   const linea = document.getElementById("mLinea").value;
@@ -2993,16 +3184,8 @@ function renderCumplimiento(){
   const box = document.getElementById("matrizCump");
   if(!fs.length){ box.innerHTML = `<div class="empty-mini">No hay formatos en esta línea.</div>`; return; }
 
-  const clase = (regs) => {
-    if(!regs.length) return "r";
-    if(regs.every(r=>r.noTrabajo)) return "p";        // validado, pero la máquina estaba parada
-    return regs.some(r=>ncDe(r)>0) ? "a" : "v";
-  };
-  const marca = (regs) => {
-    if(!regs.length) return "✗";
-    if(regs.every(r=>r.noTrabajo)) return "○";
-    return regs.length + (regs.some(r=>ncDe(r)>0) ? " ⚠" : " ✓");
-  };
+  const clase = (regs, f) => estadoCelda(regs, f);
+  const marca = (regs, e) => marcaCelda(regs, e);
 
   let html = "", faltan = 0, total = 0;
 
@@ -3017,14 +3200,30 @@ function renderCumplimiento(){
       html += `<tr><td class="proc">${esc(f.proceso)}${f.condicional?` <span style="color:var(--text-dim);font-size:.7rem;">(según referencia)</span>`:""}</td>`;
       TURNOS.forEach(t=>{
         const rs = delDia.filter(r=>String(r.turno)===t);
-        const c = f.condicional && !rs.length ? "n" : clase(rs);
+        let c;
+        if(!turnoExiste(dia, t))           c = "x";
+        else if(!rs.length && !turnoYaEmpezo(dia, t)) c = "e";
+        else                                c = clase(rs, f);
         if(c === "r") faltan++;
-        if(!f.condicional) total++;
-        const tit = c==="p" ? `${f.proceso} · turno ${t} · no trabajó` : `${f.proceso} · turno ${t}`;
-        html += `<td class="celda ${c}" title="${esc(tit)}">${
-          c==="n" && !rs.length ? "—" : marca(rs)}</td>`;
+        if(!f.condicional && c !== "x" && c !== "e") total++;
+        html += `<td class="celda ${c}" title="${esc(`${f.proceso} · turno ${t} · ${ESTADOS_CELDA[c].txt}`)}">${
+          (c==="x"||c==="e") ? ESTADOS_CELDA[c].marca : marca(rs, c)}</td>`;
       });
-      html += `<td class="celda ${delDia.length?"v":"n"}">${delDia.length}</td></tr>`;
+      /* El total ya no es un "1" suelto: dice cuántos turnos de los 3 se
+         atendieron y en qué porcentaje, que es lo que se puede juzgar. */
+      /* Denominador = turnos que ese día existen Y ya empezaron. Si no, el
+         sábado por la mañana todo saldría en 1/3 y parecería incumplimiento. */
+      const exigibles = TURNOS.filter(t=> turnoExiste(dia, t) && turnoYaEmpezo(dia, t));
+      const atendidos = exigibles.filter(t=> delDia.some(r=>String(r.turno)===t)).length;
+      const base = exigibles.length || 1;
+      const pc = Math.round(atendidos / base * 100);
+      /* Cobertura, no conformidad: tonos suaves. El rojo fuerte queda reservado
+         para una no conformidad medida, que es otra cosa. */
+      const cl = !exigibles.length ? "n" : pc===100 ? "tv" : pc>=50 ? "tc" : "tr";
+      html += `<td class="celda tot ${cl}" title="${atendidos} de ${base} turno(s) exigible(s) con control">
+        <b>${atendidos}/${base}</b>
+        <span class="barra"><i style="width:${pc}%;"></i></span>
+        <small>${pc}%</small></td></tr>`;
     });
     html += `</tbody></table>`;
     document.getElementById("cumpResumen").textContent =
@@ -3044,11 +3243,12 @@ function renderCumplimiento(){
         const fechaD = `${mes}-${pad(d)}`;
         const rs = S.registros.filter(r=> r.formatoId===f.id && fechaTurnoDe(r)===fechaD);
         n += rs.length;
-        const c = f.condicional && !rs.length ? "n" : clase(rs);
+        const hayTurnos = TURNOS.some(t=> turnoExiste(fechaD, t));
+        const c = !hayTurnos ? "x" : (fechaD > hoyISO() ? "e" : clase(rs, f));
         if(c === "r") faltan++;
-        if(!f.condicional) total++;
-        html += `<td class="celda ${c}" title="${esc(f.proceso)} · ${fechaD}${c==="p"?" · no trabajó":""}">${
-          c==="p" ? "○" : (rs.length||"")}</td>`;
+        if(!f.condicional && c !== "x" && c !== "e") total++;
+        html += `<td class="celda ${c}" title="${esc(`${f.proceso} · ${fechaD} · ${ESTADOS_CELDA[c].txt}`)}">${
+          (c==="x"||c==="e") ? "·" : c==="p" ? "○" : (rs.length||"")}</td>`;
       }
       html += `<td class="celda ${n?"v":"n"}">${n}</td></tr>`;
     });
@@ -3057,7 +3257,81 @@ function renderCumplimiento(){
       `${mes} · ${faltan} día(s)-proceso sin registro de ${total}`;
   }
   box.innerHTML = html;
+  renderInspectoresDelMes(vista === "mes" ? mes : dia.slice(0,7), vista);
 }
+
+/* ==========================================================================
+   CUMPLIMIENTO POR INSPECTOR
+   Hay un inspector por turno y verifica todas las líneas, así que todo lo del
+   turno es suyo. Los "esperados" salen de la fila de apertura de turno, no de
+   recontar el catálogo de hoy: si mañana se añaden formatos, el mes cerrado no
+   se mueve.
+   ====================================================================== */
+function renderInspectoresDelMes(mes, vista){
+  const caja = document.getElementById("cumpInspectores");
+  if(!caja) return;
+  if(vista !== "mes"){ caja.innerHTML = ""; return; }
+
+  const turnos = leerTurnosLocales().filter(t => String(t.fecha).slice(0,7) === mes);
+  if(!turnos.length){
+    caja.innerHTML = `<div class="panel"><div class="section-title"><h2>CUMPLIMIENTO POR INSPECTOR</h2></div>
+      <div class="empty-mini">Todavía no hay turnos abiertos registrados en ${esc(mes)}.
+      Empieza a contarse desde que cada inspector inicie sesión con esta versión.</div></div>`;
+    return;
+  }
+
+  const porUsuario = {};
+  turnos.forEach(t=>{
+    const u = porUsuario[t.usuario] = porUsuario[t.usuario] ||
+      {nombre: t.nombre || t.usuario, turnos: 0, esperados: 0, hechos: 0, sinNada: 0};
+    u.turnos++;
+    u.esperados += (+t.esperados || 0);
+    /* Controles distintos registrados en ese turno. Se atribuye por el nombre
+       del inspector que quedó en el registro, no sólo por fecha+turno: si
+       alguna vez dos personas comparten turno, cada una se lleva lo suyo. */
+    const ids = new Set();
+    S.registros.forEach(r=>{
+      if(fechaTurnoDe(r) !== t.fecha || String(r.turno) !== String(t.turno)) return;
+      const quien = String(r.inspector||"").trim();
+      if(quien && quien !== String(t.nombre||"").trim()) return;
+      ids.add(r.formatoId);
+    });
+    u.hechos += ids.size;
+    if(!ids.size) u.sinNada++;
+  });
+
+  const filas = Object.keys(porUsuario).map(k=>{
+    const u = porUsuario[k];
+    u.pct = u.esperados ? Math.round(u.hechos / u.esperados * 100) : 0;
+    return u;
+  }).sort((a,b)=> b.pct - a.pct);
+
+  caja.innerHTML = `<div class="panel">
+    <div class="section-title"><h2>CUMPLIMIENTO POR INSPECTOR</h2>
+      <span style="font-size:.74rem;color:var(--text-dim);">${esc(mes)} · un inspector por turno</span></div>
+    <div class="tabla-insp">
+      <div class="fila-insp cab">
+        <span>Inspector</span><span>Turnos</span><span>Controles</span><span>Esperados</span>
+        <span>Cumplimiento</span></div>
+      ${filas.map(u=>{
+        const cl = u.pct>=95 ? "v" : u.pct>=80 ? "c" : "f";
+        return `<div class="fila-insp">
+          <span><b>${esc(u.nombre)}</b>${u.sinNada?`<small> · ${u.sinNada} turno(s) sin registrar nada</small>`:""}</span>
+          <span>${u.turnos}</span>
+          <span>${u.hechos}</span>
+          <span>${u.esperados}</span>
+          <span class="pc ${cl}"><i style="width:${Math.min(100,u.pct)}%;"></i><b>${u.pct}%</b></span>
+        </div>`;
+      }).join("")}
+    </div>
+    <div style="font-size:.72rem;color:var(--text-dim);margin-top:10px;line-height:1.5;">
+      Los esperados se congelan al abrir cada turno, así que añadir formatos después no cambia
+      los meses ya cerrados. Un turno abierto sin ningún control cuenta como turno trabajado
+      con 0 registros, no desaparece.
+    </div>
+  </div>`;
+}
+
 ["mLinea","mVista","mMes","mDia"].forEach(id=>
   document.getElementById(id).addEventListener("change", renderCumplimiento));
 
@@ -3657,7 +3931,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-03-tendencia-rango";
+const APP_VERSION = "2026-10-04-turnos";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -3773,7 +4047,7 @@ async function cargarRemoto(completo, desdeFecha, motivo){
       LECTURA.backendViejo = data.some(r => r && r.fecha && fFecha(r.fecha) < corte);
     }
 
-    persist(); reintentarPendientes(); actualizarEstadoSync(); actualizarPillCump();
+    persist(); reintentarPendientes(); actualizarEstadoSync(); actualizarPillCump(); actualizarMiTurno();
     renderPendientes();
     // también al cambiar de turno: los procesos vuelven a pedirse y la lista
     // debe reflejarlo aunque no haya llegado ningún registro nuevo
@@ -4051,7 +4325,7 @@ function renderPendientes(){
 function accionPanelSync(id, boton){
   if(id === "btnProbar")    return probarConexion(boton);
   if(id === "btnLeerAhora") return leerAhora(boton);
-  if(id === "btnReintentar"){ reintentarPendientes(); reintentarCorrecciones(); toast("Reintentando..."); }
+  if(id === "btnReintentar"){ reintentarPendientes(); reintentarCorrecciones(); subirTurnos(); toast("Reintentando..."); }
 }
 
 /* Le pregunta a la hoja qué entendió de la petición. Si el ?desde= no le llega,
@@ -4250,7 +4524,7 @@ document.getElementById("mDia").value   = hoyISO();
 refrescarSelectoresConsulta();
 renderSegLineas();
 actualizarEstadoSync();
-actualizarPillCump();
+actualizarPillCump(); actualizarMiTurno();
 
 (function iniciarSesion(){
   let ses = null;
@@ -4267,6 +4541,7 @@ actualizarPillCump();
     aplicarRol();
     tab("Reg");
     vigilarTurno();
+    abrirTurnoEnLaHoja();
   } else {
     sessionStorage.removeItem("cp_sesion");
     document.getElementById("loginBg").style.display = "flex";
@@ -4316,7 +4591,7 @@ if(S.syncUrl){
     reintentarCorrecciones();
   })();
   /* Sólo reenvíos: si no hay nada pendiente no tocan la red. */
-  setInterval(()=>{ reintentarPendientes(); reintentarCorrecciones(); }, 60000);
+  setInterval(()=>{ reintentarPendientes(); reintentarCorrecciones(); subirTurnos(); }, 60000);
 }
 else marcarConfigSync(false);
 </script>
