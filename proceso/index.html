@@ -251,6 +251,20 @@
     text-transform:uppercase;margin-top:3px;opacity:.75;}
   .proc-card .tomas.sin{background:#f1f3f5;color:#8a9199;}
   .proc-card .tomas.con{background:#e7f6ec;color:#1f7a44;}
+  /* Tendencia: la distribución y las últimas mediciones, lado a lado. */
+  .grid2-tend{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;}
+  @media(max-width:980px){.grid2-tend{grid-template-columns:1fr;}}
+  .chart-box.chico{height:230px;}
+  .kpi.ojo b{color:#b46a00;}
+  .tabla-ult{font-size:.82rem;}
+  .fila-ult{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;
+    padding:9px 0;border-bottom:1px solid var(--border);}
+  .fila-ult:last-child{border-bottom:none;}
+  .fila-ult .cuando{color:var(--text-dim);font-size:.78rem;}
+  .fila-ult .valor{font-weight:800;}
+  .fila-ult .estado{font-size:.74rem;font-weight:700;white-space:nowrap;display:flex;
+    align-items:center;gap:6px;min-width:118px;}
+  .fila-ult .estado i{width:8px;height:8px;border-radius:50%;display:inline-block;}
   .btn-borrar{color:var(--red);border-color:#f3c9cf;}
   .btn-borrar:hover{background:#fdf2f3;}
   .marca-corr{background:#fff3e0;color:#9a5b00;border:1px solid #f0d3a8;
@@ -315,6 +329,8 @@
   .leyenda-lim i{width:16px;height:0;border-top:2px solid var(--red-dark);display:inline-block;}
   .leyenda-lim i.punteada{border-top-style:dashed;}
   .leyenda-lim i.pt{width:9px;height:9px;border:none;border-radius:50%;background:var(--red-dark);flex:none;}
+  /* punto de color para los estados; va después para ganarle a la regla de línea */
+  .leyenda-lim i.dot{width:10px;height:10px;border:none;border-top:none;border-radius:50%;flex:none;}
 
   /* ---------- Matriz de cumplimiento ---------- */
   .matriz{width:100%;border-collapse:separate;border-spacing:3px;font-size:.78rem;}
@@ -595,8 +611,8 @@
 <section id="viewTend" style="display:none;">
   <div class="panel">
     <div class="section-title"><h2>TENDENCIA DE UNA VARIABLE</h2>
-      <span style="font-size:.74rem;color:var(--text-dim);">Cómo se movió la medición en el tiempo</span></div>
-    <div class="grid4">
+      <span style="font-size:.74rem;color:var(--text-dim);">Cómo se movió la medición frente a su especificación</span></div>
+    <div class="grid3">
       <div class="campo">
         <label for="tProceso">Proceso *</label>
         <select id="tProceso"><option value="">Selecciona un proceso</option></select>
@@ -606,28 +622,15 @@
         <select id="tVariable" disabled><option value="">Selecciona primero el proceso</option></select>
       </div>
       <div class="campo">
-        <label for="tDesde">Desde</label>
-        <input type="date" id="tDesde">
-      </div>
-      <div class="campo">
-        <label for="tHasta">Hasta</label>
-        <input type="date" id="tHasta">
-      </div>
-    </div>
-    <div class="grid3" style="margin-top:12px;">
-      <div class="campo">
-        <label for="tMaquina">Máquina</label>
-        <select id="tMaquina"><option value="">Todas</option></select>
-      </div>
-      <div class="campo">
-        <label for="tRef">Referencia</label>
-        <select id="tRef"><option value="">Todas</option></select>
-      </div>
-      <div class="campo">
-        <label>&nbsp;</label>
-        <button class="btn-principal" id="tBuscar" style="width:100%;">Ver tendencia</button>
+        <label>Periodo</label>
+        <div class="seg" id="tRango">
+          <button type="button" data-d="7">7 días</button>
+          <button type="button" data-d="30" class="on">30 días</button>
+          <button type="button" data-d="90">3 meses</button>
+        </div>
       </div>
     </div>
+    <input type="hidden" id="tDesde"><input type="hidden" id="tHasta">
   </div>
   <div id="tendResultado"></div>
 </section>
@@ -2463,7 +2466,7 @@ function buscarConsulta(){
 /* ==========================================================================
    TENDENCIA · una variable en el tiempo con sus límites
    ========================================================================== */
-let graficaTend = null, graficaProc = null, graficaMaq = null;
+let graficaTend = null, graficaHist = null, graficaProc = null, graficaMaq = null;
 
 function refrescarSelectoresTendencia(){
   refrescarSelectoresConsulta();
@@ -2483,27 +2486,36 @@ function refrescarSelectoresTendencia(){
       : `<option value="">Este proceso no tiene variables numéricas</option>`;
     if(prev && nums.some(v=>v.nombre===prev)) tv.value = prev;
   }
-  // máquinas y referencias vistas en los registros de ese proceso
-  const regs = S.registros.filter(r=>!tp.value || r.formatoId===tp.value);
-  const llenar = (id, campo) => {
-    const s = document.getElementById(id); if(!s) return;
-    const prev = s.value;
-    const vals = [];
-    regs.forEach(r=>{ const v = String(r[campo]||"").trim(); if(v && vals.indexOf(v)===-1) vals.push(v); });
-    vals.sort();
-    s.innerHTML = `<option value="">Todas</option>` + vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
-    if(prev && vals.indexOf(prev)!==-1) s.value = prev;
-  };
-  llenar("tMaquina","maquina");
-  llenar("tRef","referencia");
 }
-document.getElementById("tProceso").addEventListener("change", refrescarSelectoresTendencia);
-
-document.getElementById("tBuscar").addEventListener("click", async (e)=>{
-  const desde = document.getElementById("tDesde").value;
-  if(S.syncUrl) await traerRango(desde || fechaDesde(30), e.target, "tendencia");
-  renderTendencia();
+document.getElementById("tProceso").addEventListener("change", ()=>{
+  refrescarSelectoresTendencia();
+  consultarTendencia();
 });
+document.getElementById("tVariable").addEventListener("change", consultarTendencia);
+
+/* Los botones de periodo son la consulta: en esta app la Tendencia no lee nada
+   al abrir, así que pulsar un rango es lo que dispara la lectura de la hoja. */
+document.getElementById("tRango").addEventListener("click", async e=>{
+  const b = e.target.closest("[data-d]"); if(!b) return;
+  document.querySelectorAll("#tRango [data-d]").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");
+  await consultarTendencia(b);
+});
+
+function diasDelRango(){
+  const b = document.querySelector("#tRango [data-d].on");
+  return b ? +b.dataset.d : 30;
+}
+async function consultarTendencia(boton){
+  const dias = diasDelRango();
+  document.getElementById("tDesde").value = fechaDesde(dias);
+  document.getElementById("tHasta").value = "";
+  if(!document.getElementById("tProceso").value || !document.getElementById("tVariable").value){
+    renderTendencia(); return;
+  }
+  if(S.syncUrl) await traerRango(fechaDesde(dias), boton, `últimos ${dias} días`);
+  renderTendencia();
+}
 
 function renderTendencia(){
   const box = document.getElementById("tendResultado");
@@ -2517,8 +2529,7 @@ function renderTendencia(){
   const vDef = (f.variables||[]).find(v=>v.nombre===vNom) || {};
   const desde = document.getElementById("tDesde").value;
   const hasta = document.getElementById("tHasta").value;
-  const maq   = document.getElementById("tMaquina").value;
-  const ref   = document.getElementById("tRef").value;
+  const maq = "", ref = "";
 
   const puntos = [];
   S.registros.filter(r=> r.formatoId===fId &&
@@ -2542,57 +2553,137 @@ function renderTendencia(){
   const ys = puntos.map(p=>p.y);
   const prom = ys.reduce((a,b)=>a+b,0)/ys.length;
   const desvia = Math.sqrt(ys.reduce((a,b)=>a+Math.pow(b-prom,2),0)/ys.length);
-  const fuera = puntos.filter(p=>p.fuera).length;
   const hay = x => x !== null && x !== undefined && x !== "";
   const lim = {min: hay(vDef.min)?parseFloat(vDef.min):null, max: hay(vDef.max)?parseFloat(vDef.max):null};
   const u = vDef.unidad ? " "+vDef.unidad : "";
-  const f2 = n => (Math.round(n*100)/100).toLocaleString("es-CO");
+  /* Un decimal: las mediciones vienen en enteros, y un promedio con centésimas
+     promete una precisión que el instrumento no tiene. */
+  const f1 = n => (Math.round(n*10)/10).toLocaleString("es-CO", {minimumFractionDigits:1, maximumFractionDigits:1});
+
+  /* "Cerca del límite" con un número, no como etiqueta suelta: el 10% de la
+     banda de especificación medido hacia adentro desde cada límite. Es el aviso
+     que de verdad sirve, porque llega antes de que algo se salga. */
+  const banda = (lim.min!==null && lim.max!==null) ? (lim.max - lim.min) : null;
+  const margen = banda !== null ? banda * 0.10 : null;
+  function estadoDe(y){
+    if(lim.min!==null && y < lim.min) return "fuera";
+    if(lim.max!==null && y > lim.max) return "fuera";
+    if(margen === null) return "ok";
+    if(lim.min!==null && y <= lim.min + margen) return "cerca";
+    if(lim.max!==null && y >= lim.max - margen) return "cerca";
+    return "ok";
+  }
+  puntos.forEach(p=>{ p.estado = estadoDe(p.y); });
+  const nFuera = puntos.filter(p=>p.estado==="fuera").length;
+  const nCerca = puntos.filter(p=>p.estado==="cerca").length;
+  const pct = n => puntos.length ? (n/puntos.length*100).toFixed(1).replace(".",",") : "0,0";
+
+  const COL = {ok:"#1f7a44", cerca:"#e0a800", fuera:"#c81d2e"};
+  const colorDe = e => COL[e] || COL.ok;
+  const sinLimites = lim.min===null && lim.max===null;
 
   box.innerHTML = `
     <div class="panel">
       <div class="kpis">
-        <div class="kpi"><span>Mediciones</span><b>${puntos.length}</b><small>en el periodo filtrado</small></div>
-        <div class="kpi"><span>Promedio</span><b>${f2(prom)}</b><small>${esc(vDef.unidad||"")}</small></div>
-        <div class="kpi"><span>Rango medido</span><b>${f2(Math.min(...ys))} – ${f2(Math.max(...ys))}</b>
-          <small>desviación ${f2(desvia)}</small></div>
-        <div class="kpi ${fuera?"malo":"bueno"}"><span>Fuera de rango</span><b>${fuera}</b>
-          <small>${puntos.length?((fuera/puntos.length)*100).toFixed(1):0}% de las mediciones</small></div>
+        <div class="kpi"><span>Mediciones</span><b>${puntos.length}</b>
+          <small>en los últimos ${diasDelRango()} días</small></div>
+        <div class="kpi"><span>Promedio</span><b>${f1(prom)}</b>
+          <small>desviación ${f1(desvia)}${esc(u)}</small></div>
+        <div class="kpi ${nCerca?"ojo":""}"><span>Cerca del límite</span><b>${nCerca}</b>
+          <small>${margen===null ? "sin banda definida" : `a menos de ${f1(margen)}${esc(u)} del límite`}</small></div>
+        <div class="kpi ${nFuera?"malo":"bueno"}"><span>Fuera de rango</span><b>${nFuera}</b>
+          <small>${pct(nFuera)}% de las mediciones</small></div>
       </div>
     </div>
+
     <div class="panel">
       <div class="section-title"><h2>${esc(vNom).toUpperCase()}${esc(u.toUpperCase())}</h2>
-        <span style="font-size:.74rem;color:var(--text-dim);">${esc(f.linea)} · ${esc(f.proceso)}${
-          maq?` · máquina ${esc(maq)}`:""}${ref?` · ref. ${esc(ref)}`:""}</span></div>
+        <span style="font-size:.74rem;color:var(--text-dim);">${esc(f.linea)} · ${esc(f.proceso)}</span></div>
       <div class="chart-box"><canvas id="cvTend"></canvas></div>
       <div class="leyenda-lim">
-        <span><i></i>Medición</span>
-        ${lim.min!==null||lim.max!==null?`<span><i class="punteada"></i>Límite de especificación</span>`:""}
-        <span><i class="pt"></i>Fuera de rango</span>
-        ${lim.min===null&&lim.max===null?`<span style="color:var(--warn-text);">Esta variable no tiene límites cargados · defínelos en Administrar para que la app juzgue las medidas</span>`:""}
+        <span><i class="dot" style="background:${COL.ok};"></i>En rango</span>
+        ${margen!==null?`<span><i class="dot" style="background:${COL.cerca};"></i>Cerca del límite</span>`:""}
+        <span><i class="dot" style="background:${COL.fuera};"></i>Fuera de rango</span>
+        ${!sinLimites?`<span><i class="punteada"></i>Límite de especificación</span>`:""}
+        ${sinLimites?`<span style="color:var(--warn-text);">Esta variable no tiene límites cargados ·
+          defínelos en Administrar para que la app la juzgue</span>`:""}
+      </div>
+    </div>
+
+    <div class="grid2-tend">
+      <div class="panel">
+        <div class="section-title"><h2>DISTRIBUCIÓN</h2>
+          <span style="font-size:.74rem;color:var(--text-dim);">dónde se concentran las medidas</span></div>
+        <div class="chart-box chico"><canvas id="cvHist"></canvas></div>
+        <div style="font-size:.74rem;color:var(--text-dim);margin-top:8px;line-height:1.5;">
+          ${sinLimites ? "Sin límites cargados no se puede decir si el proceso está centrado."
+            : `Centro de la especificación: <b>${f1((lim.min+lim.max)/2)}${esc(u)}</b> ·
+               promedio medido: <b>${f1(prom)}${esc(u)}</b>
+               (${prom > (lim.min+lim.max)/2 ? "corrido hacia arriba" : "corrido hacia abajo"}
+               ${f1(Math.abs(prom-(lim.min+lim.max)/2))}${esc(u)})`}
+        </div>
+      </div>
+      <div class="panel">
+        <div class="section-title"><h2>ÚLTIMAS MEDICIONES</h2></div>
+        <div class="tabla-ult">
+          ${puntos.slice(-8).reverse().map(p=>`
+            <div class="fila-ult">
+              <span class="cuando">${esc(p.x)}</span>
+              <span class="valor">${f1(p.y)}${esc(u)}</span>
+              <span class="estado" style="color:${colorDe(p.estado)};">
+                <i style="background:${colorDe(p.estado)};"></i>${
+                p.estado==="fuera"?"Fuera de rango":p.estado==="cerca"?"Cerca del límite":"En rango"}</span>
+            </div>`).join("")}
+        </div>
       </div>
     </div>`;
 
+  /* --- gráfica de tendencia: las zonas de especificación pintadas al fondo --- */
   if(graficaTend) graficaTend.destroy();
-  const ctx = document.getElementById("cvTend");
+  const zonas = {
+    id: "zonasEspec",
+    beforeDatasetsDraw(ch){
+      if(sinLimites) return;
+      const {ctx, chartArea:a, scales:{y}} = ch;
+      const yy = v => Math.max(a.top, Math.min(a.bottom, y.getPixelForValue(v)));
+      ctx.save();
+      if(lim.min!==null && lim.max!==null){
+        ctx.fillStyle = "rgba(31,122,68,.06)";                 // dentro de especificación
+        ctx.fillRect(a.left, yy(lim.max), a.right-a.left, yy(lim.min)-yy(lim.max));
+        ctx.fillStyle = "rgba(224,168,0,.12)";                  // franjas de aviso
+        ctx.fillRect(a.left, yy(lim.max), a.right-a.left, yy(lim.max-margen)-yy(lim.max));
+        ctx.fillRect(a.left, yy(lim.min+margen), a.right-a.left, yy(lim.min)-yy(lim.min+margen));
+      }
+      ctx.fillStyle = "rgba(200,29,46,.07)";                    // fuera de especificación
+      if(lim.max!==null) ctx.fillRect(a.left, a.top, a.right-a.left, yy(lim.max)-a.top);
+      if(lim.min!==null) ctx.fillRect(a.left, yy(lim.min), a.right-a.left, a.bottom-yy(lim.min));
+      ctx.restore();
+    }
+  };
   const anot = [];
   if(lim.min!==null) anot.push(lim.min);
   if(lim.max!==null) anot.push(lim.max);
+  /* un respiro arriba y abajo: con el límite pegado al marco no se ve que es una
+     línea de especificación, parece el borde de la gráfica */
+  const extremos = anot.length ? [...ys, ...anot] : ys;
+  const aire = Math.max((Math.max(...extremos) - Math.min(...extremos)) * 0.12, 1);
 
-  graficaTend = new Chart(ctx, {
+  graficaTend = new Chart(document.getElementById("cvTend"), {
     type:"line",
     data:{
       labels: puntos.map(p=>p.x),
-      datasets: [
+      datasets:[
         {label:"Medición", data: ys, borderColor:"#1c1f24", borderWidth:2, tension:.25,
-         pointRadius: puntos.map(p=>p.fuera?6:4),
-         pointBackgroundColor: puntos.map(p=>p.fuera?"#c81d2e":"#1c1f24"),
+         pointRadius: puntos.map(p=>p.estado==="ok"?4:6),
+         pointBackgroundColor: puntos.map(p=>colorDe(p.estado)),
          pointBorderColor:"#fff", pointBorderWidth:2, fill:false, order:1},
-        ...(lim.max!==null?[{label:"Límite superior", data: ys.map(()=>lim.max), borderColor:"#c81d2e",
+        ...(lim.max!==null?[{label:"Límite superior", data: ys.map(()=>lim.max), borderColor:COL.fuera,
             borderWidth:2, borderDash:[7,5], pointRadius:0, fill:false, order:2}]:[]),
-        ...(lim.min!==null?[{label:"Límite inferior", data: ys.map(()=>lim.min), borderColor:"#c81d2e",
+        ...(lim.min!==null?[{label:"Límite inferior", data: ys.map(()=>lim.min), borderColor:COL.fuera,
             borderWidth:2, borderDash:[7,5], pointRadius:0, fill:false, order:2}]:[])
       ]
     },
+    plugins:[zonas],
     options:{
       responsive:true, maintainAspectRatio:false,
       interaction:{mode:"index", intersect:false},
@@ -2603,9 +2694,11 @@ function renderTendencia(){
           callbacks:{
             title: it => puntos[it[0].dataIndex].x,
             label: it => {
-              if(it.datasetIndex !== 0) return `${it.dataset.label}: ${f2(it.parsed.y)}${u}`;
+              if(it.datasetIndex !== 0) return `${it.dataset.label}: ${f1(it.parsed.y)}${u}`;
               const p = puntos[it.dataIndex];
-              return `${f2(p.y)}${u}${p.fuera?"  ·  FUERA DE RANGO":""}`;
+              const et = p.estado==="fuera" ? "  ·  FUERA DE RANGO"
+                       : p.estado==="cerca" ? "  ·  cerca del límite" : "";
+              return `${f1(p.y)}${u}${et}`;
             },
             afterBody: it => {
               const r = puntos[it[0].dataIndex].reg;
@@ -2618,10 +2711,52 @@ function renderTendencia(){
       scales:{
         y:{ grid:{color:"#eef0f3"}, ticks:{color:"#6e7681", font:{size:11}},
             title:{display:!!vDef.unidad, text:vDef.unidad||"", color:"#6e7681", font:{size:11}},
-            suggestedMin: anot.length ? Math.min(...ys, ...anot) : undefined,
-            suggestedMax: anot.length ? Math.max(...ys, ...anot) : undefined },
-        x:{ grid:{display:false}, ticks:{color:"#6e7681", font:{size:10}, maxRotation:60, autoSkip:true,
-            maxTicksLimit:14} }
+            suggestedMin: anot.length ? Math.min(...ys, ...anot) - aire : undefined,
+            suggestedMax: anot.length ? Math.max(...ys, ...anot) + aire : undefined },
+        x:{ grid:{display:false}, ticks:{color:"#6e7681", font:{size:10}, maxRotation:0, autoSkip:true,
+            maxTicksLimit:8, callback(v,i){ return String(this.getLabelForValue(v)).slice(0,10); } } }
+      }
+    }
+  });
+
+  /* --- histograma: dice a la vez si está centrado y qué tan disperso es, que es
+         lo que un velocímetro del promedio no puede mostrar --- */
+  if(graficaHist) graficaHist.destroy();
+  const lo = Math.min(...ys, ...(anot.length?anot:[]));
+  const hi = Math.max(...ys, ...(anot.length?anot:[]));
+  const nb = Math.max(6, Math.min(14, Math.ceil(Math.sqrt(puntos.length))*2));
+  const ancho = (hi - lo) / nb || 1;
+  const bins = Array.from({length:nb}, (_,i)=>({
+    a: lo + i*ancho, b: lo + (i+1)*ancho, n: 0
+  }));
+  ys.forEach(y=>{
+    let i = Math.floor((y - lo) / ancho);
+    if(i < 0) i = 0; if(i >= nb) i = nb-1;
+    bins[i].n++;
+  });
+  graficaHist = new Chart(document.getElementById("cvHist"), {
+    type:"bar",
+    data:{
+      labels: bins.map(b=>f1((b.a+b.b)/2)),
+      datasets:[{
+        data: bins.map(b=>b.n),
+        backgroundColor: bins.map(b=>colorDe(estadoDe((b.a+b.b)/2))),
+        borderRadius:4, borderSkipped:false, categoryPercentage:.96, barPercentage:.92
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{ backgroundColor:"#1c1f24", padding:10,
+          callbacks:{ title: it => `${f1(bins[it[0].dataIndex].a)} – ${f1(bins[it[0].dataIndex].b)}${u}`,
+                      label: it => `${it.parsed.y} medición(es)` } }
+      },
+      scales:{
+        y:{ beginAtZero:true, grid:{color:"#eef0f3"},
+            ticks:{color:"#6e7681", font:{size:11}, precision:0} },
+        x:{ grid:{display:false}, ticks:{color:"#6e7681", font:{size:10}, maxRotation:0, autoSkip:true,
+            maxTicksLimit:7} }
       }
     }
   });
@@ -3473,7 +3608,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-01-horarios-planta";
+const APP_VERSION = "2026-10-03-tendencia";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
