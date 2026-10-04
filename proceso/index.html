@@ -2551,6 +2551,7 @@ function renderTendencia(){
   }
 
   const ys = puntos.map(p=>p.y);
+  const planos = ys.every(y => y === ys[0]);   // todas las medidas iguales
   const prom = ys.reduce((a,b)=>a+b,0)/ys.length;
   const desvia = Math.sqrt(ys.reduce((a,b)=>a+Math.pow(b-prom,2),0)/ys.length);
   const hay = x => x !== null && x !== undefined && x !== "";
@@ -2597,8 +2598,10 @@ function renderTendencia(){
     </div>
 
     <div class="panel">
-      <div class="section-title"><h2>${esc(vNom).toUpperCase()}${esc(u.toUpperCase())}</h2>
-        <span style="font-size:.74rem;color:var(--text-dim);">${esc(f.linea)} · ${esc(f.proceso)}</span></div>
+      <div class="section-title"><h2>${esc(vNom).toUpperCase()}${
+          vDef.unidad?` <span style="font-weight:700;text-transform:none;">(${esc(vDef.unidad)})</span>`:""}</h2>
+        <span style="font-size:.74rem;color:var(--text-dim);">${esc(f.linea)} · ${esc(f.proceso)}${
+          planos?` · todas las medidas valen ${f1(ys[0])}${esc(u)}`:""}</span></div>
       <div class="chart-box"><canvas id="cvTend"></canvas></div>
       <div class="leyenda-lim">
         <span><i class="dot" style="background:${COL.ok};"></i>En rango</span>
@@ -2666,7 +2669,12 @@ function renderTendencia(){
   /* un respiro arriba y abajo: con el límite pegado al marco no se ve que es una
      línea de especificación, parece el borde de la gráfica */
   const extremos = anot.length ? [...ys, ...anot] : ys;
-  const aire = Math.max((Math.max(...extremos) - Math.min(...extremos)) * 0.12, 1);
+  const loE = Math.min(...extremos), hiE = Math.max(...extremos);
+  /* Si todas las medidas y los límites coinciden, el rango es 0 y haría falta
+     inventar una escala: se abre un poco alrededor del valor. */
+  const span = (hiE - loE) || Math.max(Math.abs(hiE) * 0.05, 1);
+  const aire = span * 0.15;
+  const ejeMin = loE - aire, ejeMax = hiE + aire;
 
   graficaTend = new Chart(document.getElementById("cvTend"), {
     type:"line",
@@ -2678,9 +2686,9 @@ function renderTendencia(){
          pointBackgroundColor: puntos.map(p=>colorDe(p.estado)),
          pointBorderColor:"#fff", pointBorderWidth:2, fill:false, order:1},
         ...(lim.max!==null?[{label:"Límite superior", data: ys.map(()=>lim.max), borderColor:COL.fuera,
-            borderWidth:2, borderDash:[7,5], pointRadius:0, fill:false, order:2}]:[]),
+            borderWidth:2, borderDash:[7,5], pointRadius:0, fill:false, order:0}]:[]),
         ...(lim.min!==null?[{label:"Límite inferior", data: ys.map(()=>lim.min), borderColor:COL.fuera,
-            borderWidth:2, borderDash:[7,5], pointRadius:0, fill:false, order:2}]:[])
+            borderWidth:2, borderDash:[7,5], pointRadius:0, fill:false, order:0}]:[])
       ]
     },
     plugins:[zonas],
@@ -2711,8 +2719,7 @@ function renderTendencia(){
       scales:{
         y:{ grid:{color:"#eef0f3"}, ticks:{color:"#6e7681", font:{size:11}},
             title:{display:!!vDef.unidad, text:vDef.unidad||"", color:"#6e7681", font:{size:11}},
-            suggestedMin: anot.length ? Math.min(...ys, ...anot) - aire : undefined,
-            suggestedMax: anot.length ? Math.max(...ys, ...anot) + aire : undefined },
+            min: ejeMin, max: ejeMax },
         x:{ grid:{display:false}, ticks:{color:"#6e7681", font:{size:10}, maxRotation:0, autoSkip:true,
             maxTicksLimit:8, callback(v,i){ return String(this.getLabelForValue(v)).slice(0,10); } } }
       }
