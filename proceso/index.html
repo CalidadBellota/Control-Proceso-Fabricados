@@ -516,7 +516,7 @@
       <button id="tabCons">Consultar</button>
       <button id="tabTend">Tendencia</button>
       <button id="tabTab">Tablero</button>
-      <button id="tabCump">Diligenciamiento<span class="pill-n" id="pillCump"></span></button>
+      <button id="tabCump">Control<span class="pill-n" id="pillCump"></span></button>
       <button id="tabAdmin">Administrar</button>
     </nav>
     <span class="mi-turno" id="miTurno" style="display:none;" title="Controles de tu turno en todas las líneas">
@@ -721,7 +721,7 @@
 <!-- ============ DILIGENCIAMIENTO ============ -->
 <section id="viewCump" style="display:none;">
   <div class="panel">
-    <div class="section-title"><h2>CONTROL DE DILIGENCIAMIENTO</h2>
+    <div class="section-title"><h2>CONTROL DE INSPECCIÓN</h2>
       <span id="cumpResumen" style="font-size:.74rem;color:var(--text-dim);"></span>
       <button type="button" class="btn-actualizar" id="btnActualizarCump"
         title="Volver a leer la hoja compartida">↻ Actualizar</button></div>
@@ -3149,25 +3149,46 @@ function marcaCelda(regs, e){
   return regs.length + " " + ESTADOS_CELDA[e].marca;
 }
 
+/* ==========================================================================
+   CUMPLIMIENTO DE UN TURNO
+   La cobertura manda sobre la cantidad: repetir un proceso no compensa haberse
+   saltado otro. Mientras falte un proceso el porcentaje es la cobertura y no
+   puede llegar a 100; con todos cubiertos cuenta el total, y entonces sí puede
+   pasar de 100 porque reforzar un proceso crítico es trabajo hecho.
+   ====================================================================== */
+function cumplimientoDe(distintos, totalInspecciones, esperados){
+  if(!esperados) return 0;
+  return distintos < esperados
+    ? Math.round(distintos / esperados * 100)          // tope natural: < 100
+    : Math.round(totalInspecciones / esperados * 100); // cubierto todo: puede superar 100
+}
+
 /* Avance del turno en curso, sumando todas las líneas de ronda. */
 function actualizarMiTurno(){
   const caja = document.getElementById("miTurno");
   if(!caja) return;
-  if(!S.sesion){ caja.style.display = "none"; return; }
+  /* Sólo para quien hace la ronda. El jefe y el coordinador no inspeccionan,
+     así que un contador "mi turno" en su barra no significa nada. */
+  if(!S.sesion || administra()){ caja.style.display = "none"; return; }
   const fs = S.formatos.filter(f => conRonda(f) && !f.condicional);
   if(!fs.length){ caja.style.display = "none"; return; }
-  const hechos = fs.filter(f => validadoEnLaRonda(f.id)).length;
-  const pc = Math.round(hechos / fs.length * 100);
+
+  const distintos = fs.filter(f => validadoEnLaRonda(f.id)).length;
+  const total = fs.reduce((n,f)=> n + registrosDeLaRonda(f.id).length, 0);
+  const pc = cumplimientoDe(distintos, total, fs.length);
+
   caja.style.display = "flex";
-  caja.classList.toggle("completo", hechos === fs.length);
-  document.getElementById("miTurnoBarra").style.width = pc + "%";
-  document.getElementById("miTurnoTxt").textContent = `${hechos}/${fs.length}`;
+  caja.classList.toggle("completo", distintos === fs.length);
+  document.getElementById("miTurnoBarra").style.width = Math.min(100, pc) + "%";
+  document.getElementById("miTurnoTxt").textContent = pc + "%";
+
   const faltan = fs.filter(f => !validadoEnLaRonda(f.id));
   const porLinea = {};
   faltan.forEach(f=>{ porLinea[f.linea] = (porLinea[f.linea]||0)+1; });
-  caja.title = hechos === fs.length
-    ? `Turno al día: los ${fs.length} controles están hechos`
-    : "Te faltan: " + Object.keys(porLinea).map(l=>`${l} ${porLinea[l]}`).join(" · ");
+  caja.title = faltan.length
+    ? `${distintos} de ${fs.length} procesos · te faltan: ` +
+      Object.keys(porLinea).map(l=>`${l} ${porLinea[l]}`).join(" · ")
+    : `Todos los ${fs.length} procesos cubiertos · ${total} inspecciones en el turno`;
 }
 
 function renderCumplimiento(){
@@ -3211,19 +3232,9 @@ function renderCumplimiento(){
       });
       /* El total ya no es un "1" suelto: dice cuántos turnos de los 3 se
          atendieron y en qué porcentaje, que es lo que se puede juzgar. */
-      /* Denominador = turnos que ese día existen Y ya empezaron. Si no, el
-         sábado por la mañana todo saldría en 1/3 y parecería incumplimiento. */
-      const exigibles = TURNOS.filter(t=> turnoExiste(dia, t) && turnoYaEmpezo(dia, t));
-      const atendidos = exigibles.filter(t=> delDia.some(r=>String(r.turno)===t)).length;
-      const base = exigibles.length || 1;
-      const pc = Math.round(atendidos / base * 100);
-      /* Cobertura, no conformidad: tonos suaves. El rojo fuerte queda reservado
-         para una no conformidad medida, que es otra cosa. */
-      const cl = !exigibles.length ? "n" : pc===100 ? "tv" : pc>=50 ? "tc" : "tr";
-      html += `<td class="celda tot ${cl}" title="${atendidos} de ${base} turno(s) exigible(s) con control">
-        <b>${atendidos}/${base}</b>
-        <span class="barra"><i style="width:${pc}%;"></i></span>
-        <small>${pc}%</small></td></tr>`;
+      /* Conteo simple: aquí no se juzga el día, se juzga a cada inspector, y
+         eso va en el cumplimiento por inspector, no en esta columna. */
+      html += `<td class="celda ${delDia.length?"v":"n"}">${delDia.length}</td></tr>`;
     });
     html += `</tbody></table>`;
     document.getElementById("cumpResumen").textContent =
@@ -3283,26 +3294,34 @@ function renderInspectoresDelMes(mes, vista){
   const porUsuario = {};
   turnos.forEach(t=>{
     const u = porUsuario[t.usuario] = porUsuario[t.usuario] ||
-      {nombre: t.nombre || t.usuario, turnos: 0, esperados: 0, hechos: 0, sinNada: 0};
+      {nombre: t.nombre || t.usuario, turnos: 0, esperados: 0, distintos: 0,
+       inspecciones: 0, sinNada: 0, suma: 0, completos: 0};
     u.turnos++;
-    u.esperados += (+t.esperados || 0);
-    /* Controles distintos registrados en ese turno. Se atribuye por el nombre
-       del inspector que quedó en el registro, no sólo por fecha+turno: si
-       alguna vez dos personas comparten turno, cada una se lleva lo suyo. */
+    const esp = +t.esperados || 0;
+    u.esperados += esp;
+    /* Se atribuye por el nombre del inspector que quedó en el registro, no sólo
+       por fecha+turno: si alguna vez dos comparten turno, cada uno se lleva lo
+       suyo. */
     const ids = new Set();
+    let total = 0;
     S.registros.forEach(r=>{
       if(fechaTurnoDe(r) !== t.fecha || String(r.turno) !== String(t.turno)) return;
       const quien = String(r.inspector||"").trim();
       if(quien && quien !== String(t.nombre||"").trim()) return;
-      ids.add(r.formatoId);
+      ids.add(r.formatoId); total++;
     });
-    u.hechos += ids.size;
+    u.distintos += ids.size;
+    u.inspecciones += total;
     if(!ids.size) u.sinNada++;
+    if(esp && ids.size >= esp) u.completos++;
+    /* El porcentaje se calcula TURNO A TURNO y luego se promedia. Si se
+       sumara todo el mes, un turno con repeticiones taparía otro incompleto. */
+    u.suma += cumplimientoDe(ids.size, total, esp);
   });
 
   const filas = Object.keys(porUsuario).map(k=>{
     const u = porUsuario[k];
-    u.pct = u.esperados ? Math.round(u.hechos / u.esperados * 100) : 0;
+    u.pct = u.turnos ? Math.round(u.suma / u.turnos) : 0;
     return u;
   }).sort((a,b)=> b.pct - a.pct);
 
@@ -3311,23 +3330,24 @@ function renderInspectoresDelMes(mes, vista){
       <span style="font-size:.74rem;color:var(--text-dim);">${esc(mes)} · un inspector por turno</span></div>
     <div class="tabla-insp">
       <div class="fila-insp cab">
-        <span>Inspector</span><span>Turnos</span><span>Controles</span><span>Esperados</span>
-        <span>Cumplimiento</span></div>
+        <span>Inspector</span><span>Turnos</span><span>Turnos completos</span>
+        <span>Inspecciones</span><span>Cumplimiento</span></div>
       ${filas.map(u=>{
-        const cl = u.pct>=95 ? "v" : u.pct>=80 ? "c" : "f";
+        const cl = u.pct>=100 ? "v" : u.pct>=90 ? "c" : "f";
         return `<div class="fila-insp">
           <span><b>${esc(u.nombre)}</b>${u.sinNada?`<small> · ${u.sinNada} turno(s) sin registrar nada</small>`:""}</span>
           <span>${u.turnos}</span>
-          <span>${u.hechos}</span>
-          <span>${u.esperados}</span>
+          <span>${u.completos}<small> de ${u.turnos}</small></span>
+          <span>${u.inspecciones}<small> · ${u.distintos} procesos distintos</small></span>
           <span class="pc ${cl}"><i style="width:${Math.min(100,u.pct)}%;"></i><b>${u.pct}%</b></span>
         </div>`;
       }).join("")}
     </div>
     <div style="font-size:.72rem;color:var(--text-dim);margin-top:10px;line-height:1.5;">
-      Los esperados se congelan al abrir cada turno, así que añadir formatos después no cambia
-      los meses ya cerrados. Un turno abierto sin ningún control cuenta como turno trabajado
-      con 0 registros, no desaparece.
+      El porcentaje se calcula turno a turno y después se promedia. Mientras falte un proceso
+      no puede llegar a 100%, aunque se repitan otros; con todos cubiertos, repetir un proceso
+      crítico sí suma y puede pasar de 100%. Los esperados se congelan al abrir cada turno, así
+      que añadir formatos después no cambia los meses ya cerrados.
     </div>
   </div>`;
 }
@@ -3931,7 +3951,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-04-turnos";
+const APP_VERSION = "2026-10-04-cumplimiento";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
