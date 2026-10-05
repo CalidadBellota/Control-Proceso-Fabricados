@@ -1184,6 +1184,29 @@ const CAMPOS_ENC = {
 const SYNC_POR_DEFECTO = "https://script.google.com/macros/s/AKfycbxHkpqb_tosa0OU596sQixeEbVjHC4yqxYt8n-xIyHj10whlpcjcEMLV00JsvBfTbPO/exec";
 const urlGuardada = localStorage.getItem("cp_sync_url");
 
+/* ======================================================================
+   TODA petición a la hoja pasa por aquí, y TODA tiene tiempo límite.
+   Sin esto, una petición que nunca contesta deja a la app esperando para
+   siempre: el boton se queda en "Guardando..." y no hay forma de saber que
+   paso. El Apps Script atiende de una en una, asi que una sola atascada
+   bloquea a todas las demas.
+   ====================================================================== */
+let RED_OCUPADA = false;          // hay una tanda larga en curso: que los
+                                  // reintentos automaticos no se metan en medio
+function pedir(url, opts){
+  const esPost = opts && String(opts.method||"").toUpperCase() === "POST";
+  const seg = esPost ? 30 : 60;   // escribir es corto; leer el catalogo puede tardar
+  const ctl = new AbortController();
+  const reloj = setTimeout(()=>ctl.abort(), seg*1000);
+  return fetch(url, Object.assign({}, opts||{}, {signal: ctl.signal}))
+    .catch(e=>{
+      if(e && e.name === "AbortError")
+        throw new Error(`la hoja no respondio en ${seg} s`);
+      throw e;
+    })
+    .finally(()=>clearTimeout(reloj));
+}
+
 function esVariableDureza(v){
   const t = String((v&&v.nombre)||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
   return t.indexOf("dureza") !== -1;
@@ -1431,7 +1454,7 @@ async function subirTurnos(){
   for(const t of pend){
     try{
       const limpio = Object.assign({}, t); delete limpio.pendiente;
-      const res = await fetch(S.syncUrl, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
+      const res = await pedir(S.syncUrl, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
         body: JSON.stringify({action:"abrirTurno", turno: limpio})});
       const out = await respuestaGuardado(res);
       if(out && out.ok){ delete t.pendiente; guardarTurnosLocales(lista); }
@@ -2501,7 +2524,7 @@ document.getElementById("corrGuardar").addEventListener("click", async ()=>{
 
   if(S.syncUrl){
     try{
-      const res = await fetch(S.syncUrl, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
+      const res = await pedir(S.syncUrl, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
         body: JSON.stringify({action:"corregirRegistro", registro:r})});
       const out = await respuestaGuardado(res);
       if(out && out.ok) toast("Corrección subida a la hoja");
@@ -2522,7 +2545,7 @@ async function reintentarCorrecciones(){
   const p = S.registros.filter(r=>r.correccionPendiente);
   for(const r of p){
     try{
-      const res = await fetch(S.syncUrl, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
+      const res = await pedir(S.syncUrl, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
         body: JSON.stringify({action:"corregirRegistro", registro:r})});
       const out = await respuestaGuardado(res);
       if(out && out.ok){ delete r.correccionPendiente; persist(); }
@@ -2558,7 +2581,7 @@ async function eliminarRegistro(id, boton){
 
   if(S.syncUrl){
     try{
-      const res = await fetch(S.syncUrl, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
+      const res = await pedir(S.syncUrl, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
         body: JSON.stringify(Object.assign({action:"borrarRegistro", id:id}, datos))});
       const out = await respuestaGuardado(res);
       if(!out || !out.ok) throw new Error((out && out.error) || "la hoja no confirmó el borrado");
@@ -4027,7 +4050,7 @@ async function enviarRemoto(reg){
   if(enviosEnCurso.has(reg.id)) return;
   enviosEnCurso.add(reg.id);
   try{
-    const res = await fetch(S.syncUrl, {method:"POST", body: JSON.stringify({action:"create", registro:reg})});
+    const res = await pedir(S.syncUrl, {method:"POST", body: JSON.stringify({action:"create", registro:reg})});
     const d = await respuestaGuardado(res);
     if(!d || d.ok !== true) throw new Error(d && d.error ? d.error : "el servidor respondió sin ok");
     S.ultimoErrorSync = null;
@@ -4075,7 +4098,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-04-sin-durezas-2";
+const APP_VERSION = "2026-10-04-timeout";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -4132,7 +4155,7 @@ async function pedirJSON(url, que, intentos){
   for(let i = 0; i < max; i++){
     if(i) await new Promise(r=>setTimeout(r, 700 * i));   // 0,7 s y 1,4 s
     try{
-      const res = await fetch(url, {cache:"no-store"});
+      const res = await pedir(url, {cache:"no-store"});
       const txt = await res.text();
       if(!res.ok){ ultimo = new Error(`la hoja respondió HTTP ${res.status}`); continue; }
       let data;
@@ -4267,7 +4290,7 @@ async function subirFormatosFaltantes(){
   let ok = 0, err = 0;
   for(const f of falt){
     try{
-      const res = await fetch(S.syncUrl, {method:"POST",
+      const res = await pedir(S.syncUrl, {method:"POST",
         body: JSON.stringify({action:"guardarFormato", formato:f})});
       const d = await respuestaGuardado(res);
       if(d && d.ok === true){ ok++; S.formatos.push(f); } else err++;
@@ -4295,7 +4318,7 @@ async function subirReferencias(){
               `Lo que ya esté ahí se reemplaza. ¿Continuar?`)) return;
   btn.disabled = true; estado.textContent = "Subiendo…";
   try{
-    const res = await fetch(S.syncUrl, {method:"POST",
+    const res = await pedir(S.syncUrl, {method:"POST",
       body: JSON.stringify({action:"guardarReferencias", referencias:filas})});
     const d = await respuestaGuardado(res);
     if(!d || d.ok !== true) throw new Error(d && d.error ? d.error : "la hoja no confirmó");
@@ -4315,7 +4338,7 @@ if(btnRefs) btnRefs.addEventListener("click", subirReferencias);
 async function enviarConfig(accion, payload, silencioso){
   if(!S.syncUrl){ marcarConfigSync(false); return false; }
   try{
-    const res = await fetch(S.syncUrl, {method:"POST",
+    const res = await pedir(S.syncUrl, {method:"POST",
       body: JSON.stringify(Object.assign({action:accion}, payload))});
     const d = await respuestaGuardado(res);
     if(!d || d.ok !== true) throw new Error("no ok");
@@ -4506,7 +4529,7 @@ function accionPanelSync(id, boton){
 async function diagnosticoHoja(salida){
   const hoy = hoyISO();
   try{
-    const res = await fetch(S.syncUrl + "?tipo=diagnostico&desde=" + hoy);
+    const res = await pedir(S.syncUrl + "?tipo=diagnostico&desde=" + hoy);
     const txt = await res.text();
     if(!/^\s*[\[{]/.test(txt)){
       salida.insertAdjacentHTML("beforeend",
@@ -4558,7 +4581,7 @@ async function probarConexion(bt){
       const t0 = Date.now();
       let linea;
       try{
-        const res = await fetch(S.syncUrl + qs);
+        const res = await pedir(S.syncUrl + qs);
         const txt = await res.text();
         const ms  = ((Date.now()-t0)/1000).toFixed(1);
         const kb  = (txt.length/1024).toFixed(0);
@@ -4703,19 +4726,40 @@ document.getElementById("btnSacarDurezas").addEventListener("click", async e=>{
     + `Los registros ya guardados no se tocan. ¿Continuar?`;
   if(!confirm(aviso)) return;
 
-  const bt = e.target; bt.disabled = true; const txt = bt.textContent; bt.textContent = "Guardando…";
-  let hechos = 0, fallos = 0;
-  for(const f of afectados){
-    const ok = await enviarConfig("guardarFormato", {formato:f}, true);
-    if(ok) hechos++; else fallos++;
+  const pares = DUREZA_FILTRO.ids.map((id,k)=>({id, txt: DUREZA_FILTRO.nombres[k]}));
+  const bt = e.target; bt.disabled = true;
+  const subidos = [];
+  let fallos = 0, corte = false;
+  RED_OCUPADA = true;               // que los reintentos de cada minuto no se crucen
+  try{
+    let seguidos = 0;
+    for(let k = 0; k < afectados.length; k++){
+      bt.textContent = `Guardando ${k+1} de ${afectados.length}…`;
+      const ok = await enviarConfig("guardarFormato", {formato: afectados[k]}, true);
+      if(ok){ subidos.push(afectados[k].id); seguidos = 0; }
+      else  { fallos++; seguidos++; }
+      /* Tres seguidos sin respuesta: la hoja está caída. Insistir con los que
+         faltan sólo haría esperar al usuario varios minutos para nada. */
+      if(seguidos >= 3){ corte = true; break; }
+    }
+  } finally {
+    /* Pase lo que pase —error, tiempo agotado, la tableta sin señal— el botón
+       vuelve a quedar usable. Nunca se queda en "Guardando…". */
+    RED_OCUPADA = false;
+    bt.disabled = false;
+    persist();
+    /* Sólo se dan por limpios los que la hoja confirmó; los demás siguen en la
+       lista para poder reintentarlos pulsando otra vez. */
+    const quedan = pares.filter(x => subidos.indexOf(x.id) === -1);
+    DUREZA_FILTRO.ids     = quedan.map(x=>x.id);
+    DUREZA_FILTRO.nombres = quedan.map(x=>x.txt);
+    if(!quedan.length) DUREZA_FILTRO.variables = 0;
+    pintarBotonDurezas();
+    renderAdmin(); renderProcesos(); actualizarPillCump(); actualizarMiTurno();
   }
-  persist();
-  bt.disabled = false; bt.textContent = txt;
-  if(!fallos){ DUREZA_FILTRO.ids = []; DUREZA_FILTRO.nombres = []; DUREZA_FILTRO.variables = 0; }
-  pintarBotonDurezas();
-  renderAdmin(); renderProcesos(); actualizarPillCump(); actualizarMiTurno();
-  toast(fallos ? `${hechos} formato(s) guardados, ${fallos} no se pudieron subir a la hoja`
-               : `Listo · la hoja ya no trae durezas en ${hechos} proceso(s)`);
+  if(corte)        toast(`La hoja no está respondiendo · ${subidos.length} guardado(s). Inténtalo más tarde`);
+  else if(fallos)  toast(`${subidos.length} guardado(s), ${fallos} no se pudieron subir · vuelve a pulsar para reintentar`);
+  else             toast(`Listo · la hoja ya no trae durezas en ${subidos.length} proceso(s)`);
 });
 pintarBotonDurezas();   // estado inicial según lo que traiga el navegador
 
@@ -4811,8 +4855,13 @@ if(S.syncUrl){
     reintentarPendientes();
     reintentarCorrecciones();
   })();
-  /* Sólo reenvíos: si no hay nada pendiente no tocan la red. */
-  setInterval(()=>{ reintentarPendientes(); reintentarCorrecciones(); subirTurnos(); }, 60000);
+  /* Sólo reenvíos: si no hay nada pendiente no tocan la red.
+     Si hay una tanda larga en curso se saltan el turno: el Apps Script atiende
+     de una en una y meterles peticiones en medio atasca las dos cosas. */
+  setInterval(()=>{
+    if(RED_OCUPADA) return;
+    reintentarPendientes(); reintentarCorrecciones(); subirTurnos();
+  }, 60000);
 }
 else marcarConfigSync(false);
 </script>
