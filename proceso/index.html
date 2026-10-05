@@ -782,6 +782,7 @@
     <div class="seg" id="admSeg">
       <button data-a="formatos" class="on">Formatos de control <span class="n" id="nFormatos">0</span></button>
       <button data-a="usuarios" id="admTabUsuarios">Usuarios <span class="n" id="nUsuarios">0</span></button>
+      <button data-a="especs">Especificaciones <span class="n" id="nEspecs">0</span></button>
     </div>
   </div>
 
@@ -819,6 +820,41 @@
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
       <button class="btn-sec" id="btnSubirRefs">Subir las referencias a la hoja</button>
       <span id="refEstado" style="font-size:.78rem;color:var(--text-dim);"></span>
+    </div>
+  </div>
+
+
+  <div class="panel" id="admEspecs" style="display:none;">
+    <div class="section-title"><h2>COTAS QUE DEPENDEN DE LA REFERENCIA</h2></div>
+
+    <p style="font-size:.85rem;color:var(--text-dim);margin:0 0 14px;">
+      Se cargan por bloques, un proceso a la vez. Lo que no cargues sigue
+      comportándose igual que hoy: si una variable no tiene cota para la
+      referencia medida, se guarda el dato y no se juzga. Nunca se hereda la
+      cota de otra referencia.
+    </p>
+
+    <div class="grid2" style="margin-bottom:12px;">
+      <div class="campo">
+        <label for="espLinea">Línea del bloque *</label>
+        <select id="espLinea"></select>
+      </div>
+      <div class="campo" style="display:flex;align-items:flex-end;gap:8px;">
+        <button class="btn-sec" id="btnEspRevisar">Revisar el bloque</button>
+        <button class="btn" id="btnEspCargar" disabled>Cargar</button>
+      </div>
+    </div>
+
+    <label for="espPegar">Pega aquí desde el Excel, <b>incluida la fila de títulos</b></label>
+    <textarea id="espPegar" rows="8" style="width:100%;font-family:ui-monospace,monospace;font-size:.78rem;"
+      placeholder="Grupo	Referencias del grupo	Proceso	Variable	Unidad	Mínimo	Máximo	No aplica (X)	Notas
+4041-4.5	454041, 4540412	Forja	Longitud de espigo	mm	62	66		"></textarea>
+
+    <div id="espInforme" style="margin-top:14px;"></div>
+
+    <div style="margin-top:18px;">
+      <h3 style="font-size:.8rem;color:var(--text-dim);letter-spacing:.04em;">CARGADO HASTA AHORA</h3>
+      <div id="espResumen" style="font-size:.85rem;"></div>
     </div>
   </div>
 
@@ -1115,6 +1151,7 @@ function engancharComboRef(f){
   const elegir = r => {
     if(!r) return;
     oculto.value = `${r.n} · ${r.d}`;
+    rejuzgarTodo();            // la cota puede cambiar con la referencia
     busca.value  = `${r.n} · ${r.d}`;
     busca.classList.add("elegida");
     aviso.style.display = "none";
@@ -1125,6 +1162,7 @@ function engancharComboRef(f){
   busca.addEventListener("focus", ()=>{ if(!oculto.value) pintar(); });
   busca.addEventListener("input", ()=>{
     oculto.value = "";                       // al escribir se suelta lo elegido
+    rejuzgarTodo();
     busca.classList.remove("elegida");
     aviso.style.display = "none";
     limpiar.style.display = busca.value ? "block" : "none";
@@ -1153,7 +1191,7 @@ function engancharComboRef(f){
     }
   }, 140));
   limpiar.addEventListener("click", ()=>{
-    oculto.value = ""; busca.value = "";
+    oculto.value = ""; busca.value = ""; rejuzgarTodo();
     busca.classList.remove("elegida");
     aviso.style.display = "none";
     limpiar.style.display = "none";
@@ -1244,6 +1282,7 @@ function depurarDurezas(lista){
 const S = {
   formatos:  depurarDurezas(JSON.parse(localStorage.getItem("cp_formatos") || "null") || PLANTILLAS_BASE),
   referencias: JSON.parse(localStorage.getItem("cp_referencias") || "null") || REFERENCIAS_BASE,
+  especificaciones: JSON.parse(localStorage.getItem("cp_especificaciones") || "{}"),
   registros: JSON.parse(localStorage.getItem("cp_registros") || "[]"),
   usuarios:  JSON.parse(localStorage.getItem("cp_usuarios")  || "null") ||
              [{usuario:"jefe", nombre:"Jefe de Calidad", pin:"1234", rol:"jefe", activo:"Sí"}],
@@ -2009,15 +2048,71 @@ function renderEncabezado(f){
   });
 }
 
+/* ---------- Cotas que dependen de la referencia ----------
+   Hay variables cuya cota cambia con el producto: la longitud de cuerpo de una
+   lima de 4,5" no es la de una de 10". Se guardan aparte, con clave
+   formatoId|variable|referencia.
+
+   LA REGLA QUE HACE SEGURO CARGARLAS POCO A POCO: se busca en este orden y se
+   para en lo primero que haya.
+     1. cota de ESA referencia   -> se juzga contra ella
+     2. cota general del formato -> se juzga contra ella (comportamiento de siempre)
+     3. nada                     -> "sin especificación": se guarda el dato y no se juzga
+   Lo que no esté cargado se comporta exactamente como antes de existir esto.
+   Nunca se inventa una cota ni se hereda la de otra referencia. */
+function claveEsp(formatoId, variable, referencia){
+  return String(formatoId||"") + "|" + String(variable||"") + "|" + String(referencia||"").trim();
+}
+
+/* El campo guarda "código · descripción" (454041 · LIMA 4041-4.5) pero el
+   Excel de especificaciones trae sólo el código. Sin normalizar, ninguna cota
+   casaría nunca y todo seguiría saliendo "sin especificación" sin que nadie
+   entendiera por qué. */
+function codigoRef(txt){
+  const t = String(txt||"").trim();
+  if(!t) return "";
+  const i = t.indexOf(" \u00b7 ");
+  const cod = i === -1 ? t : t.slice(0, i).trim();
+  return cod || t;
+}
+
+/** El código de la referencia elegida ahora mismo en el encabezado. */
+function refActual(){
+  const el = document.getElementById("e_referencia");
+  return el ? codigoRef(el.value) : "";
+}
+
+/** {min, max, porRef} ya resueltos para esta variable y esta referencia. */
+function limitesDe(v, formatoId, referencia){
+  if(formatoId && referencia){
+    const e = S.especificaciones[claveEsp(formatoId, v.nombre, referencia)];
+    if(e) return {min: e[0], max: e[1], porRef: true};
+  }
+  return {min: v.min, max: v.max, porRef: false};
+}
+
+/** Cuántas cotas por referencia hay cargadas para un formato. */
+function cuantasCotas(formatoId){
+  const pre = String(formatoId||"") + "|";
+  return Object.keys(S.especificaciones).filter(k => k.indexOf(pre) === 0).length;
+}
+
 /* ---------- Tabla de variables ---------- */
-function especTexto(v){
+function especTexto(v, formatoId, referencia){
   if(v.tipo === "visual" || v.tipo === "opcion") return (v.opciones||["Ok","Nok"]).join(" · ");
   if(v.tipo === "texto") return "Texto libre";
-  const min = v.min, max = v.max;
+  const L = limitesDe(v, formatoId, referencia);
+  const min = L.min, max = L.max;
   const hay = x => x !== null && x !== undefined && x !== "";
-  if(hay(min) && hay(max)) return `${min} – ${max}${v.unidad?" "+v.unidad:""}`;
-  if(hay(min)) return `Mínimo ${min}${v.unidad?" "+v.unidad:""}`;
-  if(hay(max)) return `Máximo ${max}${v.unidad?" "+v.unidad:""}`;
+  const marca = L.porRef ? " · según referencia" : "";
+  if(hay(min) && hay(max)) return `${min} – ${max}${v.unidad?" "+v.unidad:""}${marca}`;
+  if(hay(min)) return `Mínimo ${min}${v.unidad?" "+v.unidad:""}${marca}`;
+  if(hay(max)) return `Máximo ${max}${v.unidad?" "+v.unidad:""}${marca}`;
+  /* Si el formato TIENE cotas por referencia cargadas pero no para ésta, se
+     dice con esas palabras: no es lo mismo "nadie ha definido esto" que
+     "falta justo esta referencia". */
+  if(formatoId && referencia && cuantasCotas(formatoId))
+    return `Sin cota para ${referencia}${v.unidad?" · "+v.unidad:""}`;
   return v.unidad ? `Sin rango definido · ${v.unidad}` : "Sin rango definido";
 }
 /* Devuelve "ok" | "bad" | "na" | "sin" | undefined.
@@ -2025,7 +2120,7 @@ function especTexto(v){
    devolvía "ok", así que una medición sin especificación cargada entraba al
    indicador como conforme: el porcentaje de cumplimiento salía alto porque no
    se estaba juzgando nada, no porque el proceso estuviera bien. */
-function juzgar(v, valor){
+function juzgar(v, valor, ctx){
   if(v.tipo === "texto") return undefined;
   if(v.tipo === "opcion"){
     if(!valor) return undefined;
@@ -2045,9 +2140,10 @@ function juzgar(v, valor){
   const n = parseFloat(String(valor).replace(",","."));
   if(isNaN(n)) return undefined;
   const hay = x => x !== null && x !== undefined && x !== "";
-  if(!hay(v.min) && !hay(v.max)) return "sin";      // sin rango cargado: se captura, no se juzga
-  if(hay(v.min) && n < parseFloat(v.min)) return "bad";
-  if(hay(v.max) && n > parseFloat(v.max)) return "bad";
+  const L = limitesDe(v, ctx && ctx.formatoId, ctx && ctx.referencia);
+  if(!hay(L.min) && !hay(L.max)) return "sin";      // sin rango cargado: se captura, no se juzga
+  if(hay(L.min) && n < parseFloat(L.min)) return "bad";
+  if(hay(L.max) && n > parseFloat(L.max)) return "bad";
   return "ok";
 }
 
@@ -2056,7 +2152,27 @@ function anotarMedicion(i, valor){
   const v = S.formatoActivo.variables[i];
   S.mediciones[i] = S.mediciones[i] || {};
   S.mediciones[i].valor = valor;
-  S.mediciones[i].resultado = juzgar(v, valor);
+  S.mediciones[i].resultado = juzgar(v, valor, ctxActual());
+}
+
+/** Formato y referencia en curso, para resolver la cota aplicable. */
+function ctxActual(){
+  return {formatoId: S.formatoActivo && S.formatoActivo.id, referencia: refActual()};
+}
+
+/* Cambiar de referencia cambia las cotas, así que hay que volver a juzgar lo
+   ya medido. Sin esto el inspector mide, corrige la referencia y se queda con
+   veredictos calculados contra la cota de otro producto. */
+function rejuzgarTodo(){
+  if(!S.formatoActivo) return;
+  const ctx = ctxActual();
+  (S.formatoActivo.variables||[]).forEach((v,i)=>{
+    const m = S.mediciones[i];
+    if(!m || m.valor === undefined || m.valor === "") return;
+    m.resultado = juzgar(v, m.valor, ctx);
+  });
+  renderVariables();
+  actualizarBarra();
 }
 
 /** Repinta solo el veredicto de una fila, sin tocar el campo que se está escribiendo. */
@@ -2085,6 +2201,7 @@ function renderVariables(){
   const body = document.getElementById("varsBody");
   if(!S.formatoActivo){ body.innerHTML = ""; return; }
   const vars = S.formatoActivo.variables || [];
+  const f = S.formatoActivo, ref = refActual();   // la cota puede depender de la referencia
   const hayCrit = vars.some(v=>v.critica);
   const puesto = {crit:false, resto:false};
   const orden = vars.map((v,i)=>({v,i})).sort((a,b)=> (b.v.critica?1:0) - (a.v.critica?1:0));
@@ -2127,7 +2244,7 @@ function renderVariables(){
     }
     return cabecera + `<tr class="${clase}${v.critica?" fila-crit":""}">
       <td><b>${esc(v.nombre)}</b>${v.critica?`<span class="tag-crit">crítica</span>`:""}</td>
-      <td><div class="spec">${esc(especTexto(v))}</div></td>
+      <td><div class="spec">${esc(especTexto(v, f.id, ref))}</div></td>
       <td>${entrada}</td>
       <td>${badge}</td>
       <td><input type="text" class="obs" data-i="${i}" value="${esc(m.obs??"")}" placeholder="—"></td>
@@ -2406,13 +2523,16 @@ function resumenCorrecciones(r){
    los del formato de hoy: si alguien cambió la especificación después, el
    registro debe seguir midiéndose contra lo que regía cuando se tomó el dato. */
 function juzgarCorregido(reg, x, valor){
-  const v = {tipo:x.tipo, min:x.min, max:x.max, opciones:x.opciones};
+  const v = {nombre:x.nombre, tipo:x.tipo, min:x.min, max:x.max, opciones:x.opciones};
   if(x.tipo === "opcion" || x.tipo === "visual"){
     const f = S.formatos.find(z=>z.id===reg.formatoId);
     const orig = f && (f.variables||[]).find(z=>z.nombre===x.nombre);
     if(orig){ v.opciones = orig.opciones; v.conformes = orig.conformes; }
   }
-  return juzgar(v, valor);
+  /* La cota se busca con la referencia que llevaba ESE registro, no con la que
+     esté elegida en pantalla: corregir un dato de ayer no puede juzgarse con
+     el producto que se esté midiendo ahora. */
+  return juzgar(v, valor, {formatoId: reg.formatoId, referencia: codigoRef(reg.referencia)});
 }
 
 function textoResultado(r){
@@ -3680,6 +3800,9 @@ function renderAdmin(){
   const v = admSubvista();
   document.getElementById("admFormatos").style.display = v==="formatos" ? "block":"none";
   document.getElementById("admUsuarios").style.display = v==="usuarios" ? "block":"none";
+  document.getElementById("admEspecs").style.display   = v==="especs"   ? "block":"none";
+  if(v==="especs") renderEspecs();
+  document.getElementById("nEspecs").textContent = Object.keys(S.especificaciones).length;
   document.getElementById("admReferencias").style.display = v==="formatos" ? "block":"none";
   const falt = formatosFaltantes();
   const cajaF = document.getElementById("admFaltantes");
@@ -4098,7 +4221,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-04-timeout";
+const APP_VERSION = "2026-10-05-cotas-por-referencia";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -4157,7 +4280,18 @@ async function pedirJSON(url, que, intentos){
     try{
       const res = await pedir(url, {cache:"no-store"});
       const txt = await res.text();
-      if(!res.ok){ ultimo = new Error(`la hoja respondió HTTP ${res.status}`); continue; }
+      if(!res.ok){
+        /* 404 no es "la hoja va lenta": es que en esa dirección ya no hay nada
+           publicado. Suele pasar al redesplegar creando una implementación
+           nueva (URL nueva) en vez de una versión nueva de la de siempre.
+           Reintentar no arregla eso, así que se corta el bucle. */
+        if(res.status === 404)
+          throw new Error("esa dirección ya no existe (404). En Apps Script, "
+            + "Implementar → Administrar implementaciones → copia la URL actual, "
+            + "o publica una VERSIÓN nueva de la implementación de siempre para no cambiarla");
+        ultimo = new Error(`la hoja respondió HTTP ${res.status}`);
+        continue;
+      }
       let data;
       try{ data = JSON.parse(txt); }
       catch(err){
@@ -4251,6 +4385,11 @@ async function cargarConfig(fresco){
        && Object.keys(data.referencias).length){
       S.referencias = data.referencias;                 // la hoja manda si trae referencias
       localStorage.setItem("cp_referencias", JSON.stringify(S.referencias));
+    }
+
+    if(data.especificaciones && typeof data.especificaciones === "object"){
+      S.especificaciones = data.especificaciones;
+      try{ localStorage.setItem("cp_especificaciones", JSON.stringify(S.especificaciones)); }catch(e){}
     }
 
     const sF = Array.isArray(data.formatos) ? data.formatos : [];
@@ -4762,6 +4901,186 @@ document.getElementById("btnSacarDurezas").addEventListener("click", async e=>{
   else             toast(`Listo · la hoja ya no trae durezas en ${subidos.length} proceso(s)`);
 });
 pintarBotonDurezas();   // estado inicial según lo que traiga el navegador
+
+
+/* ======================================================================
+   CARGADOR DE COTAS POR REFERENCIA
+   Lee un bloque pegado desde el Excel. Dos decisiones de diseño:
+   - Se identifican las columnas POR SU TÍTULO, no por su posición, para que
+     reordenar el Excel no rompa la carga en silencio.
+   - Primero se revisa y se enseña exactamente qué va a entrar y qué se va a
+     descartar; sólo entonces se habilita Cargar. Una cota mal metida llena la
+     tableta de alarmas falsas, y el inspector deja de creerse el semáforo.
+   ====================================================================== */
+let ESP_LOTE = null;      // lo revisado y listo para subir
+
+function normTit(t){
+  return String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"")
+         .toLowerCase().replace(/\(.*?\)/g,"").trim();
+}
+
+function columnasEsp(titulos){
+  const idx = {};
+  titulos.forEach((t,i)=>{
+    const n = normTit(t);
+    if(n === "variable")                       idx.variable = i;
+    else if(n === "proceso")                   idx.proceso = i;
+    else if(n === "minimo" || n === "min")     idx.min = i;
+    else if(n === "maximo" || n === "max")     idx.max = i;
+    else if(n === "no aplica")                 idx.na = i;
+    else if(n.indexOf("referencia") === 0)     idx.refs = i;   // "Referencias del grupo" o "Referencia"
+  });
+  return idx;
+}
+
+function numeroEsp(t){
+  const x = String(t==null?"":t).trim().replace(",",".");
+  if(!x) return null;
+  const n = parseFloat(x);
+  return isNaN(n) ? undefined : n;        // undefined = había algo y no era un número
+}
+
+function revisarBloqueEsp(){
+  const linea = document.getElementById("espLinea").value;
+  const crudo = document.getElementById("espPegar").value;
+  const caja  = document.getElementById("espInforme");
+  ESP_LOTE = null;
+  document.getElementById("btnEspCargar").disabled = true;
+
+  const lineas = crudo.split(/\r?\n/).filter(x=>x.trim());
+  if(lineas.length < 2){
+    caja.innerHTML = `<div class="falta-aviso">Pega al menos la fila de títulos y una fila de datos.</div>`;
+    return;
+  }
+  const idx = columnasEsp(lineas[0].split("\t"));
+  const faltan = ["variable","proceso","refs","min","max"].filter(k=>idx[k]===undefined);
+  if(faltan.length){
+    caja.innerHTML = `<div class="falta-aviso"><b>No encuentro estas columnas:</b> ${faltan.join(", ")}.
+      Copia desde el Excel incluyendo la fila de títulos, sin quitar columnas.</div>`;
+    return;
+  }
+
+  const delaLinea = S.formatos.filter(f=>f.linea===linea);
+  const especs = [], problemas = [], porProceso = {};
+  let saltadasNA = 0, vacias = 0;
+
+  lineas.slice(1).forEach((ln, k)=>{
+    const c = ln.split("\t");
+    const nFila = k + 2;
+    const proc = String(c[idx.proceso]||"").trim();
+    const vari = String(c[idx.variable]||"").trim();
+    if(!proc && !vari) return;
+
+    if(idx.na !== undefined && String(c[idx.na]||"").trim()){ saltadasNA++; return; }
+
+    const f = delaLinea.find(x=>x.proceso === proc);
+    if(!f){ problemas.push(`fila ${nFila}: no hay proceso «${esc(proc)}» en ${esc(linea)}`); return; }
+    const v = (f.variables||[]).find(x=>x.nombre === vari);
+    if(!v){ problemas.push(`fila ${nFila}: «${esc(vari)}» no es una variable de ${esc(proc)}`); return; }
+    if(v.tipo !== "numerico"){ problemas.push(`fila ${nFila}: «${esc(vari)}» no es numérica`); return; }
+
+    const mn = numeroEsp(c[idx.min]), mx = numeroEsp(c[idx.max]);
+    if(mn === undefined || mx === undefined){
+      problemas.push(`fila ${nFila}: «${esc(String(c[idx.min]||"")+" / "+String(c[idx.max]||""))}» no son números`);
+      return;
+    }
+    if(mn === null && mx === null){ vacias++; return; }
+    if(mn !== null && mx !== null && mn > mx){
+      problemas.push(`fila ${nFila}: el mínimo (${mn}) es mayor que el máximo (${mx})`);
+      return;
+    }
+
+    /* Una fila puede traer varias referencias separadas por coma —así es como
+       sale del Excel por grupos de geometría— y se expande a una cota por
+       cada una. */
+    const refs = String(c[idx.refs]||"").split(/[,;]/).map(x=>codigoRef(x)).filter(Boolean);
+    if(!refs.length){ problemas.push(`fila ${nFila}: sin referencia`); return; }
+    refs.forEach(r=>{
+      especs.push({formatoId:f.id, variable:v.nombre, referencia:r, min:mn, max:mx});
+      porProceso[proc] = (porProceso[proc]||0) + 1;
+    });
+  });
+
+  const resumen = Object.keys(porProceso).sort()
+    .map(k=>`<li><b>${esc(k)}</b>: ${porProceso[k]} cota(s)</li>`).join("");
+
+  caja.innerHTML =
+    (especs.length
+      ? `<div class="falta-aviso listo"><b>Listo para cargar: ${especs.length} cota(s)</b></div>
+         <ul style="font-size:.85rem;margin:10px 0;">${resumen}</ul>`
+      : `<div class="falta-aviso">No hay ninguna cota válida en el bloque.</div>`) +
+    (saltadasNA ? `<p style="font-size:.82rem;color:var(--text-dim);">${saltadasNA} fila(s) marcadas «no aplica»: se omiten.</p>` : "") +
+    (vacias    ? `<p style="font-size:.82rem;color:var(--text-dim);">${vacias} fila(s) sin mínimo ni máximo: se omiten.</p>` : "") +
+    (problemas.length
+      ? `<div class="falta-aviso" style="margin-top:8px;"><b>${problemas.length} fila(s) con problemas, no se cargarán:</b><br>
+         ${problemas.slice(0,12).join("<br>")}${problemas.length>12?`<br>y ${problemas.length-12} más`:""}</div>`
+      : "");
+
+  if(especs.length){ ESP_LOTE = especs; document.getElementById("btnEspCargar").disabled = false; }
+}
+
+async function cargarBloqueEsp(){
+  if(!ESP_LOTE || !ESP_LOTE.length) return;
+  const bt = document.getElementById("btnEspCargar");
+  const txt = bt.textContent;
+  bt.disabled = true; bt.textContent = "Cargando…";
+  RED_OCUPADA = true;
+  try{
+    /* Se aplica primero en el equipo y luego se sube. Si la hoja falla, el
+       inspector ya tiene las cotas y la subida se reintenta a mano; lo que no
+       puede pasar es que la tableta diga que cargó y no haya cargado. */
+    ESP_LOTE.forEach(e=>{
+      S.especificaciones[claveEsp(e.formatoId, e.variable, e.referencia)] = [e.min, e.max];
+    });
+    try{ localStorage.setItem("cp_especificaciones", JSON.stringify(S.especificaciones)); }catch(e){}
+
+    const ok = await enviarConfig("guardarEspecs", {especs: ESP_LOTE}, true);
+    toast(ok ? `${ESP_LOTE.length} cota(s) cargadas y guardadas en la hoja`
+             : `${ESP_LOTE.length} cota(s) cargadas en este equipo · la hoja no respondió, vuelve a cargar el bloque`);
+    if(ok){ document.getElementById("espPegar").value = ""; document.getElementById("espInforme").innerHTML = ""; ESP_LOTE = null; }
+  } finally {
+    RED_OCUPADA = false;
+    bt.disabled = !ESP_LOTE; bt.textContent = txt;
+    renderEspecs();
+    document.getElementById("nEspecs").textContent = Object.keys(S.especificaciones).length;
+    if(S.formatoActivo) rejuzgarTodo();
+  }
+}
+
+/* Cuántas cotas hay por proceso y cuántas referencias cubren: así se ve de un
+   vistazo qué falta sin tener que abrir la hoja. */
+function renderEspecs(){
+  const sel = document.getElementById("espLinea");
+  if(sel && !sel.options.length){
+    const lineas = [];
+    S.formatos.forEach(f=>{ if(f.linea && lineas.indexOf(f.linea)===-1) lineas.push(f.linea); });
+    sel.innerHTML = lineas.map(l=>`<option>${esc(l)}</option>`).join("");
+  }
+  const porF = {};
+  Object.keys(S.especificaciones).forEach(k=>{
+    const fId = k.split("|")[0];
+    (porF[fId] = porF[fId] || {n:0, refs:{}});
+    porF[fId].n++;
+    porF[fId].refs[k.split("|")[2]] = true;
+  });
+  const filas = Object.keys(porF).map(fId=>{
+    const f = S.formatos.find(x=>x.id===fId);
+    const nombre = f ? f.nombre : fId;
+    return `<tr><td>${esc(nombre)}</td><td style="text-align:right;">${porF[fId].n}</td>
+            <td style="text-align:right;">${Object.keys(porF[fId].refs).length}</td></tr>`;
+  }).join("");
+  document.getElementById("espResumen").innerHTML = filas
+    ? `<table class="tabla"><thead><tr><th>Proceso</th><th style="text-align:right;">Cotas</th>
+       <th style="text-align:right;">Referencias</th></tr></thead><tbody>${filas}</tbody></table>`
+    : `<p style="color:var(--text-dim);">Todavía no hay ninguna cota por referencia cargada.</p>`;
+}
+
+document.getElementById("btnEspRevisar").addEventListener("click", revisarBloqueEsp);
+document.getElementById("btnEspCargar").addEventListener("click", cargarBloqueEsp);
+document.getElementById("espPegar").addEventListener("input", ()=>{
+  ESP_LOTE = null;
+  document.getElementById("btnEspCargar").disabled = true;
+});
 
 document.getElementById("btnSubirTodo").addEventListener("click", async ()=>{
   if(!S.syncUrl){ toast("Primero conecta la hoja compartida"); return; }
