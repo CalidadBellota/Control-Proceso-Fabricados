@@ -473,6 +473,8 @@
     border-radius:6px;padding:7px 9px;line-height:1.4;margin-bottom:6px;font-family:ui-monospace,monospace;}
   .diag-nota{font-size:.71rem;color:var(--text-dim);line-height:1.45;}
   .diag-fila{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);}
+  .diag-nota{background:#eef4fb;border:1px solid #cfe0f2;color:#2e5a86;border-radius:8px;
+    padding:9px 11px;font-size:.76rem;line-height:1.5;margin-top:10px;}
   .diag-err{background:var(--bad-bg);color:var(--bad);border-radius:7px;padding:9px 11px;
     font-size:.78rem;margin-top:10px;word-break:break-word;}
 </style>
@@ -4016,7 +4018,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-04-activar-proceso";
+const APP_VERSION = "2026-10-04-aviso-cero";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -4333,6 +4335,30 @@ function actualizarEstadoSync(){
   pintarBanner();
 }
 
+/* Cero registros casi nunca es un problema: lo normal es que el rango pedido
+   esté vacío —un domingo, o el turno recién empezado—. Decir "puede ser otra
+   hoja" en ese caso es una alarma falsa que asusta sin motivo. */
+function avisoCeroRegistros(){
+  const corte = LECTURA.corte || "";
+  const NOMBRE_DIA = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+  if(corte === fechaRondaActual()){
+    const d = diaDe(corte);
+    if(!TURNOS.some(t => turnoExiste(corte, t))){
+      return `<div class="diag-nota">Sin registros porque es <b>${NOMBRE_DIA[d]}</b> y no se trabaja.
+        Es lo esperado, no hay nada mal.</div>`;
+    }
+    return `<div class="diag-nota">Todavía no hay registros del turno en curso.
+      Aparecerán aquí en cuanto alguien guarde el primero.</div>`;
+  }
+  /* Si este equipo tiene registros subidos y la hoja no devuelve ninguno en un
+     rango amplio, entonces sí vale la pena sospechar de la dirección. */
+  const subidos = S.registros.filter(r=>!r.pendienteSync).length;
+  return subidos > 0
+    ? `<div class="diag-err">La hoja respondió sin ningún registro desde ${esc(corte)}, pero este equipo
+         tiene ${subidos} ya enviados. Revisa que la dirección sea la hoja de la empresa.</div>`
+    : `<div class="diag-nota">La hoja respondió sin registros en el rango pedido (desde ${esc(corte)}).</div>`;
+}
+
 function renderPendientes(){
   const box = document.getElementById("panelPendientes"); if(!box) return;
   const pend = S.registros.filter(r=>r.pendienteSync);
@@ -4369,9 +4395,7 @@ function renderPendientes(){
     ${LECTURA.error
       ? `<div class="diag-err">No se pudo leer la hoja: ${esc(LECTURA.error)}<br>
            Lo que registres aquí se guarda en este equipo, pero <b>no verás lo de los demás</b>.</div>`
-      : (LECTURA.recibidos===0
-          ? `<div class="diag-err">La hoja respondió, pero sin ningún registro. Puede ser otra hoja distinta a la de los demás.</div>`
-          : "")}
+      : (LECTURA.recibidos===0 ? avisoCeroRegistros() : "")}
     <button class="btn-sec" id="btnLeerAhora" style="margin-top:12px;">Leer la hoja ahora</button>
     <button class="btn-sec" id="btnProbar" style="margin-top:8px;">Probar la conexión</button>
     <div id="salidaPrueba" class="prueba" style="display:none;"></div>
