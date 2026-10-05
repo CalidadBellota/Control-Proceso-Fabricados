@@ -1184,8 +1184,42 @@ const CAMPOS_ENC = {
 const SYNC_POR_DEFECTO = "https://script.google.com/macros/s/AKfycbxHkpqb_tosa0OU596sQixeEbVjHC4yqxYt8n-xIyHj10whlpcjcEMLV00JsvBfTbPO/exec";
 const urlGuardada = localStorage.getItem("cp_sync_url");
 
+function esVariableDureza(v){
+  const t = String((v&&v.nombre)||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  return t.indexOf("dureza") !== -1;
+}
+/* Lo que hubo que quitar en la ultima carga del catalogo. Si trae algo, es que
+   la hoja todavia las tiene guardadas y conviene limpiarla de una vez. */
+const DUREZA_FILTRO = {ids:[], nombres:[], variables:0};
+
+/* Filtro de entrada: se aplica a TODO catalogo que llegue -de la hoja, del
+   navegador o de las plantillas- antes de que nadie lo dibuje. Asi la dureza
+   no reaparece aunque la hoja siga teniendola y aunque nadie pulse el boton.
+   Va escrito sin depender de sinRonda() ni de ninguna const posterior: esto
+   corre mientras se arma S, antes de que esas constantes existan. */
+function depurarDurezas(lista){
+  const ids = [], nombres = [];
+  let quitadas = 0;
+  (lista||[]).forEach(f=>{
+    if(!f) return;
+    if(String(f.linea||"").trim().toLowerCase() === "dureza") return;   // su propia linea si las conserva
+    const vars = f.variables || [];
+    const quedan = vars.filter(v=>!esVariableDureza(v));
+    if(quedan.length === vars.length) return;                           // nada que quitar
+    if(!quedan.length) return;                                          // nunca dejar un formato vacio
+    quitadas += vars.length - quedan.length;
+    ids.push(f.id);
+    nombres.push(`${f.linea} · ${f.proceso}: quita ${vars.length - quedan.length}, quedan ${quedan.length}`);
+    f.variables = quedan;
+  });
+  DUREZA_FILTRO.ids = ids;
+  DUREZA_FILTRO.nombres = nombres;
+  DUREZA_FILTRO.variables = quitadas;
+  return lista;
+}
+
 const S = {
-  formatos:  JSON.parse(localStorage.getItem("cp_formatos")  || "null") || PLANTILLAS_BASE,
+  formatos:  depurarDurezas(JSON.parse(localStorage.getItem("cp_formatos") || "null") || PLANTILLAS_BASE),
   referencias: JSON.parse(localStorage.getItem("cp_referencias") || "null") || REFERENCIAS_BASE,
   registros: JSON.parse(localStorage.getItem("cp_registros") || "[]"),
   usuarios:  JSON.parse(localStorage.getItem("cp_usuarios")  || "null") ||
@@ -4041,7 +4075,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-04-sin-durezas";
+const APP_VERSION = "2026-10-04-sin-durezas-2";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -4202,10 +4236,11 @@ async function cargarConfig(fresco){
     if(sF.length){
       const ids = new Set(sF.map(f=>String(f.id)));
       S.formatos.filter(f=>!ids.has(String(f.id))).forEach(f=>soloLocal.push(`${f.linea} · ${f.proceso}`));
-      S.formatos = sF;
+      S.formatos = depurarDurezas(sF);   // la hoja puede traerlas todavía; aquí no pasan
     } else if(S.formatos.length){
       S.formatos.forEach(f=>soloLocal.push(`${f.linea} · ${f.proceso}`));
     }
+    pintarBotonDurezas();
     persist();
     S.pendientesLocal = soloLocal;
     marcarConfigSync(true);
@@ -4642,50 +4677,47 @@ document.addEventListener("click", e=>{
    ronda y la contaría dos veces. No toca ningún registro ya guardado: sólo
    cambia la definición de los formatos de aquí en adelante.
    ====================================================================== */
-function esVariableDureza(v){
-  const t = String((v&&v.nombre)||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-  return t.indexOf("dureza") !== -1;
-}
-function formatosConDureza(){
-  return S.formatos.filter(f => f.linea !== "Dureza" && (f.variables||[]).some(esVariableDureza));
+/* El boton ya no quita nada de la pantalla (de eso se encarga el filtro):
+   lo que hace es dejar la limpieza grabada en la hoja compartida. */
+function pintarBotonDurezas(){
+  const bt = document.getElementById("btnSacarDurezas");
+  if(!bt) return;
+  const n = DUREZA_FILTRO.ids.length;
+  bt.style.display = n ? "" : "none";
+  bt.textContent = `Guardar en la hoja la salida de las durezas (${n})`;
+  bt.title = `La hoja todavía guarda ${DUREZA_FILTRO.variables} variable(s) de dureza en ${n} proceso(s). `
+           + `En la tableta ya no aparecen; esto las quita también de la hoja.`;
 }
 
 document.getElementById("btnSacarDurezas").addEventListener("click", async e=>{
-  const afectados = formatosConDureza();
-  if(!afectados.length){ toast("Ningún proceso tiene variables de dureza"); return; }
+  /* Ojo: aquí NO se vuelve a llamar a depurarDurezas. El catálogo ya está
+     filtrado desde que se cargó, así que un segundo pase no encontraría nada
+     y borraría justamente la lista de lo que falta subir a la hoja. */
+  const ids = DUREZA_FILTRO.ids.slice();
+  if(!ids.length){ toast("La hoja ya está limpia: ningún proceso trae durezas"); return; }
+  const afectados = S.formatos.filter(f => ids.indexOf(f.id) !== -1);
 
-  const detalle = [], seDejan = [];
-  let total = 0;
-  afectados.forEach(f=>{
-    const quitar = (f.variables||[]).filter(esVariableDureza);
-    const quedan = (f.variables||[]).length - quitar.length;
-    if(quedan === 0){ seDejan.push(`${f.linea} · ${f.proceso}`); return; }   // no dejar un formato vacío
-    total += quitar.length;
-    detalle.push(`${f.linea} · ${f.proceso}: quita ${quitar.length}, quedan ${quedan}`);
-  });
-  if(!detalle.length){ toast("No se puede: esos formatos quedarían sin variables"); return; }
-
-  const aviso = `Se van a retirar ${total} variable(s) de dureza de ${detalle.length} proceso(s):\n\n` +
-    detalle.join("\n") +
-    (seDejan.length ? `\n\nSe dejan intactos (quedarían sin variables):\n` + seDejan.join("\n") : "") +
-    `\n\nLos registros ya guardados no se tocan. ¿Continuar?`;
+  const aviso = `En la tableta las durezas ya no se piden. Esto las quita también de la hoja `
+    + `compartida, para que no vuelvan a bajar:\n\n` + DUREZA_FILTRO.nombres.join("\n")
+    + `\n\nSon ${DUREZA_FILTRO.variables} variable(s) en ${ids.length} proceso(s). `
+    + `Los registros ya guardados no se tocan. ¿Continuar?`;
   if(!confirm(aviso)) return;
 
-  const bt = e.target; bt.disabled = true; const txt = bt.textContent; bt.textContent = "Retirando\u2026";
+  const bt = e.target; bt.disabled = true; const txt = bt.textContent; bt.textContent = "Guardando…";
   let hechos = 0, fallos = 0;
   for(const f of afectados){
-    const quedan = (f.variables||[]).filter(v=>!esVariableDureza(v));
-    if(!quedan.length) continue;
-    f.variables = quedan;
-    persist();
     const ok = await enviarConfig("guardarFormato", {formato:f}, true);
     if(ok) hechos++; else fallos++;
   }
+  persist();
   bt.disabled = false; bt.textContent = txt;
+  if(!fallos){ DUREZA_FILTRO.ids = []; DUREZA_FILTRO.nombres = []; DUREZA_FILTRO.variables = 0; }
+  pintarBotonDurezas();
   renderAdmin(); renderProcesos(); actualizarPillCump(); actualizarMiTurno();
-  toast(fallos ? `${hechos} formato(s) actualizados, ${fallos} no se pudieron subir`
-               : `${hechos} formato(s) actualizados · ${total} variable(s) de dureza retiradas`);
+  toast(fallos ? `${hechos} formato(s) guardados, ${fallos} no se pudieron subir a la hoja`
+               : `Listo · la hoja ya no trae durezas en ${hechos} proceso(s)`);
 });
+pintarBotonDurezas();   // estado inicial según lo que traiga el navegador
 
 document.getElementById("btnSubirTodo").addEventListener("click", async ()=>{
   if(!S.syncUrl){ toast("Primero conecta la hoja compartida"); return; }
