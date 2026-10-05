@@ -677,7 +677,7 @@
       </div>
       <div class="campo">
         <label>Periodo</label>
-        <div class="seg" id="tRango">
+        <div class="seg" id="tRango" title="Consultan al pulsarlos">
           <button type="button" data-d="7">7 días</button>
           <button type="button" data-d="30" class="on">30 días</button>
           <button type="button" data-d="90">3 meses</button>
@@ -685,12 +685,12 @@
       </div>
     </div>
     <div class="grid3" style="margin-top:12px;">
-      <div class="campo corto"><label for="tDesde">Desde</label>
+      <div class="campo corto"><label for="tDesde" title="Sólo si necesitas un periodo distinto a los botones de arriba">Desde</label>
         <input type="date" id="tDesde"></div>
       <div class="campo corto"><label for="tHasta">Hasta</label>
         <input type="date" id="tHasta"></div>
-      <div class="campo" style="display:flex;align-items:flex-end;gap:10px;">
-        <button class="btn-principal" id="tBuscar" style="flex:1;">Ver el periodo</button>
+      <div class="campo" style="display:flex;align-items:flex-end;gap:8px;">
+        <button class="btn-sec" id="tBuscar" style="flex:1;">Ver estas fechas</button>
         <button class="btn-sec" id="tLimpiar" title="Volver a los últimos 30 días">Limpiar</button>
       </div>
     </div>
@@ -2669,26 +2669,48 @@ async function consultarTendencia(boton){
     document.getElementById("tHasta").value = "";
   }
   if(!document.getElementById("tProceso").value || !document.getElementById("tVariable").value){
+    RANGO_APLICADO = document.getElementById("tDesde").value + "|" + document.getElementById("tHasta").value;
+    marcarBotonFechas();
     renderTendencia(); return;
   }
   if(S.syncUrl) await traerRango(r.desde, boton, r.etq);
+  RANGO_APLICADO = document.getElementById("tDesde").value + "|" + document.getElementById("tHasta").value;
+  marcarBotonFechas();
   renderTendencia();
 }
 
 /* Escribir una fecha a mano cancela el botón rápido: si no, el periodo que se
    ve en los campos no sería el que se está mostrando. */
+let RANGO_APLICADO = "";
+/* El botón de fechas sólo se pone rojo cuando hay un periodo escrito que
+   todavía no se está mostrando. Así nunca compite con los botones rápidos:
+   mientras no cambies nada, no hay nada que pulsar. */
+function marcarBotonFechas(){
+  const bt = document.getElementById("tBuscar");
+  if(!bt) return;
+  const actual = document.getElementById("tDesde").value + "|" + document.getElementById("tHasta").value;
+  const pendiente = actual !== RANGO_APLICADO && actual !== "|";
+  bt.classList.toggle("btn-principal", pendiente);
+  bt.classList.toggle("btn-sec", !pendiente);
+  bt.textContent = pendiente ? "Ver estas fechas" : "Fechas aplicadas";
+  bt.disabled = !pendiente;
+}
 ["tDesde","tHasta"].forEach(id=>{
-  document.getElementById(id).addEventListener("change", ()=>{
+  const el = document.getElementById(id);
+  ["change","input"].forEach(ev => el.addEventListener(ev, ()=>{
     document.querySelectorAll("#tRango [data-d]").forEach(x=>x.classList.remove("on"));
-  });
+    marcarBotonFechas();
+  }));
 });
 document.getElementById("tBuscar").addEventListener("click", e=> consultarTendencia(e.target));
+marcarBotonFechas();
 document.getElementById("tLimpiar").addEventListener("click", e=>{
   document.getElementById("tDesde").value = "";
   document.getElementById("tHasta").value = "";
   document.querySelectorAll("#tRango [data-d]").forEach(x=>x.classList.remove("on"));
   const b30 = document.querySelector('#tRango [data-d="30"]');
   if(b30) b30.classList.add("on");
+  RANGO_APLICADO = "";
   consultarTendencia(e.target);
 });
 
@@ -4018,7 +4040,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-04-aviso-cero";
+const APP_VERSION = "2026-10-04-boton-fechas";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
