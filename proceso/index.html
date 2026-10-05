@@ -2048,26 +2048,39 @@ function renderEncabezado(f){
   });
 }
 
-/* ---------- Cotas que dependen de la referencia ----------
-   Hay variables cuya cota cambia con el producto: la longitud de cuerpo de una
-   lima de 4,5" no es la de una de 10". Se guardan aparte, con clave
-   formatoId|variable|referencia.
+/* ---------- Cotas que dependen de algo del encabezado ----------
+   No todas las cotas cuelgan de lo mismo, y confundir el eje es un error caro:
+     · las dimensionales dependen de la REFERENCIA (la longitud de cuerpo de
+       una lima de 4,5" no es la de una de 10");
+     · la dureza depende del ACERO y del tratamiento, y es transversal a las
+       referencias: el mismo 65MN templado da el mismo rango en cualquier
+       machete.
+   Por eso la clave lleva el campo, no sólo el valor:
+       formatoId|variable|campo=valor
+   Así una misma variable puede regirse por el acero y otra por la referencia
+   sin que haya que decidirlo formato por formato.
 
    LA REGLA QUE HACE SEGURO CARGARLAS POCO A POCO: se busca en este orden y se
    para en lo primero que haya.
-     1. cota de ESA referencia   -> se juzga contra ella
-     2. cota general del formato -> se juzga contra ella (comportamiento de siempre)
-     3. nada                     -> "sin especificación": se guarda el dato y no se juzga
-   Lo que no esté cargado se comporta exactamente como antes de existir esto.
-   Nunca se inventa una cota ni se hereda la de otra referencia. */
-function claveEsp(formatoId, variable, referencia){
-  return String(formatoId||"") + "|" + String(variable||"") + "|" + String(referencia||"").trim();
+     1. cota para el valor que tenga el encabezado   -> se juzga contra ella
+     2. cota general del formato                      -> se juzga contra ella
+     3. nada                                          -> "sin especificación"
+   Lo que no esté cargado se comporta igual que antes de existir esto, y nunca
+   se hereda la cota de otro acero ni de otra referencia. */
+
+/* Campos del encabezado que pueden mandar sobre una cota, en orden de
+   precedencia: de lo más concreto (este producto) a lo más general (este
+   material). En la práctica cada variable usa uno solo. */
+const CAMPOS_COTA = ["referencia", "tipoAcero", "espesorAcero", "material"];
+
+function claveEsp(formatoId, variable, campo, valor){
+  return String(formatoId||"") + "|" + String(variable||"") + "|"
+       + String(campo||"referencia") + "=" + String(valor||"").trim();
 }
 
-/* El campo guarda "código · descripción" (454041 · LIMA 4041-4.5) pero el
-   Excel de especificaciones trae sólo el código. Sin normalizar, ninguna cota
-   casaría nunca y todo seguiría saliendo "sin especificación" sin que nadie
-   entendiera por qué. */
+/* El campo de referencia guarda "código · descripción" (454041 · LIMA 4041-4.5)
+   pero el Excel trae sólo el código. Sin normalizar, ninguna cota casaría y
+   todo seguiría saliendo "sin especificación" sin que nadie entendiera por qué. */
 function codigoRef(txt){
   const t = String(txt||"").trim();
   if(!t) return "";
@@ -2076,43 +2089,66 @@ function codigoRef(txt){
   return cod || t;
 }
 
-/** El código de la referencia elegida ahora mismo en el encabezado. */
-function refActual(){
-  const el = document.getElementById("e_referencia");
-  return el ? codigoRef(el.value) : "";
-}
-
-/** {min, max, porRef} ya resueltos para esta variable y esta referencia. */
-function limitesDe(v, formatoId, referencia){
-  if(formatoId && referencia){
-    const e = S.especificaciones[claveEsp(formatoId, v.nombre, referencia)];
-    if(e) return {min: e[0], max: e[1], porRef: true};
+/** Valor de un campo del encabezado tal como está ahora en pantalla. */
+function valorEnc(k){
+  const el = document.getElementById("e_" + k);
+  if(!el) return "";
+  let v = String(el.value||"").trim();
+  if(v === "__otra"){
+    const libre = document.getElementById("e_" + k + "_otra");
+    v = libre ? String(libre.value||"").trim() : "";
   }
-  return {min: v.min, max: v.max, porRef: false};
+  return k === "referencia" ? codigoRef(v) : v;
 }
 
-/** Cuántas cotas por referencia hay cargadas para un formato. */
+/** Los discriminantes del encabezado, listos para buscar cota. */
+function discActual(){
+  const d = {};
+  CAMPOS_COTA.forEach(k=>{ const v = valorEnc(k); if(v) d[k] = v; });
+  return d;
+}
+
+/** {min, max, campo} ya resueltos para esta variable. campo = null si es la general. */
+function limitesDe(v, formatoId, disc){
+  if(formatoId && disc){
+    for(let i = 0; i < CAMPOS_COTA.length; i++){
+      const k = CAMPOS_COTA[i];
+      if(!disc[k]) continue;
+      const e = S.especificaciones[claveEsp(formatoId, v.nombre, k, disc[k])];
+      if(e) return {min: e[0], max: e[1], campo: k, valor: disc[k]};
+    }
+  }
+  return {min: v.min, max: v.max, campo: null};
+}
+
+/** Cuántas cotas hay cargadas para un formato. */
 function cuantasCotas(formatoId){
   const pre = String(formatoId||"") + "|";
   return Object.keys(S.especificaciones).filter(k => k.indexOf(pre) === 0).length;
 }
 
+const ETQ_COTA = {referencia:"referencia", tipoAcero:"acero",
+                  espesorAcero:"espesor", material:"material"};
+
 /* ---------- Tabla de variables ---------- */
-function especTexto(v, formatoId, referencia){
+/* ---------- Tabla de variables ---------- */
+function especTexto(v, formatoId, disc){
   if(v.tipo === "visual" || v.tipo === "opcion") return (v.opciones||["Ok","Nok"]).join(" · ");
   if(v.tipo === "texto") return "Texto libre";
-  const L = limitesDe(v, formatoId, referencia);
+  const L = limitesDe(v, formatoId, disc);
   const min = L.min, max = L.max;
   const hay = x => x !== null && x !== undefined && x !== "";
-  const marca = L.porRef ? " · según referencia" : "";
+  const marca = L.campo ? ` · según ${ETQ_COTA[L.campo]||L.campo}` : "";
   if(hay(min) && hay(max)) return `${min} – ${max}${v.unidad?" "+v.unidad:""}${marca}`;
   if(hay(min)) return `Mínimo ${min}${v.unidad?" "+v.unidad:""}${marca}`;
   if(hay(max)) return `Máximo ${max}${v.unidad?" "+v.unidad:""}${marca}`;
   /* Si el formato TIENE cotas por referencia cargadas pero no para ésta, se
      dice con esas palabras: no es lo mismo "nadie ha definido esto" que
      "falta justo esta referencia". */
-  if(formatoId && referencia && cuantasCotas(formatoId))
-    return `Sin cota para ${referencia}${v.unidad?" · "+v.unidad:""}`;
+  if(formatoId && disc && cuantasCotas(formatoId)){
+    const k = CAMPOS_COTA.filter(x=>disc[x])[0];
+    if(k) return `Sin cota para ${ETQ_COTA[k]||k} ${disc[k]}${v.unidad?" · "+v.unidad:""}`;
+  }
   return v.unidad ? `Sin rango definido · ${v.unidad}` : "Sin rango definido";
 }
 /* Devuelve "ok" | "bad" | "na" | "sin" | undefined.
@@ -2140,7 +2176,7 @@ function juzgar(v, valor, ctx){
   const n = parseFloat(String(valor).replace(",","."));
   if(isNaN(n)) return undefined;
   const hay = x => x !== null && x !== undefined && x !== "";
-  const L = limitesDe(v, ctx && ctx.formatoId, ctx && ctx.referencia);
+  const L = limitesDe(v, ctx && ctx.formatoId, ctx && ctx.disc);
   if(!hay(L.min) && !hay(L.max)) return "sin";      // sin rango cargado: se captura, no se juzga
   if(hay(L.min) && n < parseFloat(L.min)) return "bad";
   if(hay(L.max) && n > parseFloat(L.max)) return "bad";
@@ -2157,7 +2193,7 @@ function anotarMedicion(i, valor){
 
 /** Formato y referencia en curso, para resolver la cota aplicable. */
 function ctxActual(){
-  return {formatoId: S.formatoActivo && S.formatoActivo.id, referencia: refActual()};
+  return {formatoId: S.formatoActivo && S.formatoActivo.id, disc: discActual()};
 }
 
 /* Cambiar de referencia cambia las cotas, así que hay que volver a juzgar lo
@@ -2201,7 +2237,7 @@ function renderVariables(){
   const body = document.getElementById("varsBody");
   if(!S.formatoActivo){ body.innerHTML = ""; return; }
   const vars = S.formatoActivo.variables || [];
-  const f = S.formatoActivo, ref = refActual();   // la cota puede depender de la referencia
+  const f = S.formatoActivo, disc = discActual();   // la cota puede colgar del encabezado
   const hayCrit = vars.some(v=>v.critica);
   const puesto = {crit:false, resto:false};
   const orden = vars.map((v,i)=>({v,i})).sort((a,b)=> (b.v.critica?1:0) - (a.v.critica?1:0));
@@ -2244,7 +2280,7 @@ function renderVariables(){
     }
     return cabecera + `<tr class="${clase}${v.critica?" fila-crit":""}">
       <td><b>${esc(v.nombre)}</b>${v.critica?`<span class="tag-crit">crítica</span>`:""}</td>
-      <td><div class="spec">${esc(especTexto(v, f.id, ref))}</div></td>
+      <td><div class="spec">${esc(especTexto(v, f.id, disc))}</div></td>
       <td>${entrada}</td>
       <td>${badge}</td>
       <td><input type="text" class="obs" data-i="${i}" value="${esc(m.obs??"")}" placeholder="—"></td>
@@ -2532,7 +2568,9 @@ function juzgarCorregido(reg, x, valor){
   /* La cota se busca con la referencia que llevaba ESE registro, no con la que
      esté elegida en pantalla: corregir un dato de ayer no puede juzgarse con
      el producto que se esté midiendo ahora. */
-  return juzgar(v, valor, {formatoId: reg.formatoId, referencia: codigoRef(reg.referencia)});
+  return juzgar(v, valor, {formatoId: reg.formatoId, disc: {
+    referencia: codigoRef(reg.referencia), tipoAcero: reg.tipoAcero,
+    espesorAcero: reg.espesorAcero, material: reg.material}});
 }
 
 function textoResultado(r){
@@ -4221,7 +4259,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-05-cotas-por-referencia";
+const APP_VERSION = "2026-10-05-cotas-v3";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -4919,6 +4957,17 @@ function normTit(t){
          .toLowerCase().replace(/\(.*?\)/g,"").trim();
 }
 
+/* La columna que manda sobre la cota decide el eje: "Referencia" para las
+   dimensionales, "Acero" para la dureza. Se detecta por el título, así que el
+   mismo cargador sirve para los dos sin cambiar nada. */
+const COL_A_CAMPO = [
+  ["referencia",     "referencia"],      // "Referencia" o "Referencias del grupo"
+  ["acero",          "tipoAcero"],       // "Acero" o "Tipo de acero"
+  ["tipo de acero",  "tipoAcero"],
+  ["espesor",        "espesorAcero"],
+  ["material",       "material"]
+];
+
 function columnasEsp(titulos){
   const idx = {};
   titulos.forEach((t,i)=>{
@@ -4928,7 +4977,10 @@ function columnasEsp(titulos){
     else if(n === "minimo" || n === "min")     idx.min = i;
     else if(n === "maximo" || n === "max")     idx.max = i;
     else if(n === "no aplica")                 idx.na = i;
-    else if(n.indexOf("referencia") === 0)     idx.refs = i;   // "Referencias del grupo" o "Referencia"
+    else if(idx.clave === undefined){
+      const hit = COL_A_CAMPO.filter(par => n.indexOf(par[0]) === 0)[0];
+      if(hit){ idx.clave = i; idx.campo = hit[1]; }
+    }
   });
   return idx;
 }
@@ -4953,9 +5005,10 @@ function revisarBloqueEsp(){
     return;
   }
   const idx = columnasEsp(lineas[0].split("\t"));
-  const faltan = ["variable","proceso","refs","min","max"].filter(k=>idx[k]===undefined);
+  const faltan = ["variable","proceso","clave","min","max"].filter(k=>idx[k]===undefined);
   if(faltan.length){
-    caja.innerHTML = `<div class="falta-aviso"><b>No encuentro estas columnas:</b> ${faltan.join(", ")}.
+    const nombres = faltan.map(k=> k==="clave" ? "Referencia o Acero" : k);
+    caja.innerHTML = `<div class="falta-aviso"><b>No encuentro estas columnas:</b> ${nombres.join(", ")}.
       Copia desde el Excel incluyendo la fila de títulos, sin quitar columnas.</div>`;
     return;
   }
@@ -4969,15 +5022,27 @@ function revisarBloqueEsp(){
     const nFila = k + 2;
     const proc = String(c[idx.proceso]||"").trim();
     const vari = String(c[idx.variable]||"").trim();
-    if(!proc && !vari) return;
+    if(!proc) return;        // la variable SÍ puede ir vacía: significa "todas"
 
     if(idx.na !== undefined && String(c[idx.na]||"").trim()){ saltadasNA++; return; }
 
     const f = delaLinea.find(x=>x.proceso === proc);
     if(!f){ problemas.push(`fila ${nFila}: no hay proceso «${esc(proc)}» en ${esc(linea)}`); return; }
-    const v = (f.variables||[]).find(x=>x.nombre === vari);
-    if(!v){ problemas.push(`fila ${nFila}: «${esc(vari)}» no es una variable de ${esc(proc)}`); return; }
-    if(v.tipo !== "numerico"){ problemas.push(`fila ${nFila}: «${esc(vari)}» no es numérica`); return; }
+
+    /* Variable en blanco = la cota vale para TODAS las numéricas del proceso.
+       Es el caso de la dureza: los 6 puntos de un machete comparten
+       especificación, y sin esto harían falta 6 filas idénticas por cada
+       referencia. */
+    let objetivo;
+    if(!vari){
+      objetivo = (f.variables||[]).filter(x=>x.tipo === "numerico");
+      if(!objetivo.length){ problemas.push(`fila ${nFila}: «${esc(proc)}» no tiene variables numéricas`); return; }
+    } else {
+      const v = (f.variables||[]).find(x=>x.nombre === vari);
+      if(!v){ problemas.push(`fila ${nFila}: «${esc(vari)}» no es una variable de ${esc(proc)}`); return; }
+      if(v.tipo !== "numerico"){ problemas.push(`fila ${nFila}: «${esc(vari)}» no es numérica`); return; }
+      objetivo = [v];
+    }
 
     const mn = numeroEsp(c[idx.min]), mx = numeroEsp(c[idx.max]);
     if(mn === undefined || mx === undefined){
@@ -4993,11 +5058,15 @@ function revisarBloqueEsp(){
     /* Una fila puede traer varias referencias separadas por coma —así es como
        sale del Excel por grupos de geometría— y se expande a una cota por
        cada una. */
-    const refs = String(c[idx.refs]||"").split(/[,;]/).map(x=>codigoRef(x)).filter(Boolean);
-    if(!refs.length){ problemas.push(`fila ${nFila}: sin referencia`); return; }
-    refs.forEach(r=>{
-      especs.push({formatoId:f.id, variable:v.nombre, referencia:r, min:mn, max:mx});
-      porProceso[proc] = (porProceso[proc]||0) + 1;
+    const valores = String(c[idx.clave]||"").split(/[,;]/)
+      .map(x => idx.campo === "referencia" ? codigoRef(x) : String(x).trim())
+      .filter(Boolean);
+    if(!valores.length){ problemas.push(`fila ${nFila}: sin ${ETQ_COTA[idx.campo]||idx.campo}`); return; }
+    valores.forEach(val=>{
+      objetivo.forEach(v=>{
+        especs.push({formatoId:f.id, variable:v.nombre, campo:idx.campo, valor:val, min:mn, max:mx});
+        porProceso[proc] = (porProceso[proc]||0) + 1;
+      });
     });
   });
 
@@ -5030,7 +5099,7 @@ async function cargarBloqueEsp(){
        inspector ya tiene las cotas y la subida se reintenta a mano; lo que no
        puede pasar es que la tableta diga que cargó y no haya cargado. */
     ESP_LOTE.forEach(e=>{
-      S.especificaciones[claveEsp(e.formatoId, e.variable, e.referencia)] = [e.min, e.max];
+      S.especificaciones[claveEsp(e.formatoId, e.variable, e.campo, e.valor)] = [e.min, e.max];
     });
     try{ localStorage.setItem("cp_especificaciones", JSON.stringify(S.especificaciones)); }catch(e){}
 
@@ -5058,20 +5127,23 @@ function renderEspecs(){
   }
   const porF = {};
   Object.keys(S.especificaciones).forEach(k=>{
-    const fId = k.split("|")[0];
-    (porF[fId] = porF[fId] || {n:0, refs:{}});
-    porF[fId].n++;
-    porF[fId].refs[k.split("|")[2]] = true;
+    const p = k.split("|");
+    (porF[p[0]] = porF[p[0]] || {n:0, vals:{}, campo:""});
+    porF[p[0]].n++;
+    porF[p[0]].vals[p[2]] = true;
+    porF[p[0]].campo = String(p[2]||"").split("=")[0];
   });
   const filas = Object.keys(porF).map(fId=>{
     const f = S.formatos.find(x=>x.id===fId);
     const nombre = f ? f.nombre : fId;
-    return `<tr><td>${esc(nombre)}</td><td style="text-align:right;">${porF[fId].n}</td>
-            <td style="text-align:right;">${Object.keys(porF[fId].refs).length}</td></tr>`;
+    return `<tr><td>${esc(nombre)}</td><td>${esc(ETQ_COTA[porF[fId].campo]||porF[fId].campo)}</td>
+            <td style="text-align:right;">${porF[fId].n}</td>
+            <td style="text-align:right;">${Object.keys(porF[fId].vals).length}</td></tr>`;
   }).join("");
   document.getElementById("espResumen").innerHTML = filas
-    ? `<table class="tabla"><thead><tr><th>Proceso</th><th style="text-align:right;">Cotas</th>
-       <th style="text-align:right;">Referencias</th></tr></thead><tbody>${filas}</tbody></table>`
+    ? `<table class="tabla"><thead><tr><th>Proceso</th><th>Depende de</th>
+       <th style="text-align:right;">Cotas</th>
+       <th style="text-align:right;">Valores</th></tr></thead><tbody>${filas}</tbody></table>`
     : `<p style="color:var(--text-dim);">Todavía no hay ninguna cota por referencia cargada.</p>`;
 }
 
