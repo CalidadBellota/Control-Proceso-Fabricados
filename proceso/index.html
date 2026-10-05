@@ -265,6 +265,10 @@
   .fila-ult .estado{font-size:.74rem;font-weight:700;white-space:nowrap;display:flex;
     align-items:center;gap:6px;min-width:118px;}
   .fila-ult .estado i{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .marca-off{background:#eef1f6;color:#5a6270;border:1px solid #cfd6e0;padding:1px 7px;
+    border-radius:20px;font-size:.66rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase;}
+  .item.inactivo{opacity:.62;}
+  .item.inactivo .info b{text-decoration:line-through;text-decoration-color:#b9c0cb;}
   .btn-borrar{color:var(--red);border-color:#f3c9cf;}
   .btn-borrar:hover{background:#fdf2f3;}
   .marca-corr{background:#fff3e0;color:#9a5b00;border:1px solid #f0d3a8;
@@ -663,6 +667,7 @@
       <div class="campo">
         <label for="tProceso">Proceso *</label>
         <select id="tProceso"><option value="">Selecciona un proceso</option></select>
+        <div id="tNotaProcesos" style="font-size:.7rem;color:var(--text-dim);margin-top:5px;"></div>
       </div>
       <div class="campo">
         <label for="tVariable">Variable *</label>
@@ -856,6 +861,11 @@
         <input type="text" id="mfCodDoc" placeholder="CC/RE/16"></div>
       <div class="campo"><label for="mfMaquinas">Máquinas (separadas por coma)</label>
         <input type="text" id="mfMaquinas" placeholder="1, 2, 3"></div>
+      <div class="campo" style="display:flex;align-items:flex-end;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;">
+          <input type="checkbox" id="mfActivo" checked>
+          Proceso activo <span style="font-weight:400;color:var(--text-dim);">(si se desactiva, deja de pedirse)</span>
+        </label></div>
     </div>
     <div class="grid2" style="margin-top:12px;">
       <div class="campo">
@@ -1367,7 +1377,7 @@ function abrirTurnoEnLaHoja(){
   const id = `${S.sesion.usuario}|${fecha}|T${turno}`;
   const lista = leerTurnosLocales();
   if(lista.some(x=>x.id === id)) return;            // ya se abrió en este equipo
-  const esperados = S.formatos.filter(f => conRonda(f) && !f.condicional).length;
+  const esperados = formatosExigibles().length;
   lista.push({
     id, usuario: S.sesion.usuario, nombre: S.sesion.nombre,
     fecha, turno: String(turno), horaInicio: horaAhora(),
@@ -1570,6 +1580,21 @@ const LINEAS_SIN_RONDA = ["Dureza"];
 function sinRonda(linea){ return LINEAS_SIN_RONDA.indexOf(String(linea||"").trim()) !== -1; }
 function conRonda(f){ return !sinRonda(f && f.linea); }
 
+/* Un proceso que la empresa dejó de hacer se DESACTIVA, no se borra: su
+   histórico sigue consultable y se puede reactivar si el proceso vuelve.
+   Sin la columna (formatos viejos) se asume activo. */
+function estaActivo(f){
+  const v = f && f.activo;
+  if(v === undefined || v === null || v === "") return true;
+  if(typeof v === "boolean") return v;
+  return String(v).trim().toLowerCase().indexOf("s") === 0 ||
+         String(v).trim().toLowerCase() === "true";
+}
+/* Los que entran en la ronda del turno: activos y con ronda. */
+function formatosExigibles(){
+  return S.formatos.filter(f => estaActivo(f) && conRonda(f) && !f.condicional);
+}
+
 /* El buscador de referencias trabaja por línea, y "Dureza" no tiene catálogo
    propio. Se deduce del nombre del proceso: "Machetes · Temple" usa las
    referencias de Machetes. Así no hay que configurar nada aparte. */
@@ -1583,7 +1608,7 @@ function lineaDeReferencias(f){
 
 function lineas(){
   const set = [];
-  S.formatos.forEach(f=>{ if(f.linea && set.indexOf(f.linea)===-1) set.push(f.linea); });
+  S.formatos.forEach(f=>{ if(estaActivo(f) && f.linea && set.indexOf(f.linea)===-1) set.push(f.linea); });
   return set.sort((a,b)=> ordenLinea(a) - ordenLinea(b) || String(a).localeCompare(String(b)));
 }
 /* Tomas de este formato en el turno que corre (para el contador de la tarjeta). */
@@ -1594,7 +1619,7 @@ function renderSegLineas(){
   const ls = lineas();
   if(!S.lineaActiva || ls.indexOf(S.lineaActiva)===-1) S.lineaActiva = ls[0] || "";
   box.innerHTML = ls.map(l=>{
-    const n = S.formatos.filter(f=>f.linea===l).length;
+    const n = S.formatos.filter(f=>estaActivo(f) && f.linea===l).length;
     return `<button data-l="${esc(l)}" class="${l===S.lineaActiva?"on":""}">${esc(l)} <span class="n">${n}</span></button>`;
   }).join("");
   box.querySelectorAll("[data-l]").forEach(b=>b.addEventListener("click",()=>{
@@ -1682,7 +1707,7 @@ function renderProcesos(){
   actualizarMiTurno();
   const box = document.getElementById("procGrid");
   const q = (document.getElementById("procBuscar").value||"").trim().toLowerCase();
-  let fs = S.formatos.filter(f => f.linea === S.lineaActiva);
+  let fs = S.formatos.filter(f => estaActivo(f) && f.linea === S.lineaActiva);
   const enGrupo = sinRonda(S.lineaActiva);   // Dureza: sin ronda, tarjetas fijas
   if(q) fs = fs.filter(f => `${f.proceso} ${f.nombre} ${f.codigoDoc||""}`.toLowerCase().includes(q));
   if(enGrupo){
@@ -2267,10 +2292,18 @@ function refrescarSelectoresConsulta(){
 
   const tp = document.getElementById("tProceso");
   const prevT = tp.value;
+  /* Tendencia sólo grafica variables numéricas: ofrecer procesos que no tienen
+     ninguna es ofrecer una pantalla vacía. Se quedan fuera de la lista. */
+  const conNumericas = S.formatos.filter(f => (f.variables||[]).some(v=>v.tipo==="numerico"));
   tp.innerHTML = `<option value="">Selecciona un proceso</option>` +
-    S.formatos.slice().sort((a,b)=>String(a.linea+a.proceso).localeCompare(String(b.linea+b.proceso)))
+    conNumericas.slice().sort((a,b)=>String(a.linea+a.proceso).localeCompare(String(b.linea+b.proceso)))
       .map(f=>`<option value="${esc(f.id)}">${esc(f.linea)} · ${esc(f.proceso)}</option>`).join("");
-  if(prevT) tp.value = prevT;
+  if(prevT && conNumericas.some(f=>f.id===prevT)) tp.value = prevT;
+  const fuera = S.formatos.length - conNumericas.length;
+  const nota = document.getElementById("tNotaProcesos");
+  if(nota) nota.textContent = fuera
+    ? `${fuera} proceso(s) no aparecen: sólo tienen variables visuales o de texto, que no se grafican.`
+    : "";
 
   const fl = document.getElementById("admFiltroLinea");
   if(fl){ const p = fl.value;
@@ -3170,7 +3203,7 @@ function actualizarMiTurno(){
   /* Sólo para quien hace la ronda. El jefe y el coordinador no inspeccionan,
      así que un contador "mi turno" en su barra no significa nada. */
   if(!S.sesion || administra()){ caja.style.display = "none"; return; }
-  const fs = S.formatos.filter(f => conRonda(f) && !f.condicional);
+  const fs = formatosExigibles();
   if(!fs.length){ caja.style.display = "none"; return; }
 
   const distintos = fs.filter(f => validadoEnLaRonda(f.id)).length;
@@ -3202,8 +3235,9 @@ function renderCumplimiento(){
   /* La dureza también se ve, pero no se exige por turno: se toma por lote, así
      que sus celdas muestran cuántas tomas hubo y nunca salen como "sin
      diligenciar". Si se contaran como pendientes serían una alarma permanente. */
-  const fs = S.formatos.filter(f=> !linea || f.linea===linea)
-    .sort((a,b)=> (conRonda(a)?0:1) - (conRonda(b)?0:1) ||
+  const fs = S.formatos.filter(f=> (!linea || f.linea===linea))
+    .sort((a,b)=> (estaActivo(a)?0:1) - (estaActivo(b)?0:1) ||
+                  (conRonda(a)?0:1) - (conRonda(b)?0:1) ||
                   ordenLinea(a.linea) - ordenLinea(b.linea) ||
                   String(a.proceso).localeCompare(String(b.proceso)));
   const box = document.getElementById("matrizCump");
@@ -3223,16 +3257,17 @@ function renderCumplimiento(){
         html += `<tr class="grupo"><td colspan="${TURNOS.length+2}">${esc(f.linea)}${
           conRonda(f) ? "" : ` <span style="font-weight:600;text-transform:none;color:var(--text-dim);">· por lote, no se exige por turno</span>`}</td></tr>`; }
       const delDia = S.registros.filter(r=> r.formatoId===f.id && fechaTurnoDe(r)===dia);
-      html += `<tr><td class="proc">${esc(f.proceso)}${f.condicional?` <span style="color:var(--text-dim);font-size:.7rem;">(según referencia)</span>`:""}</td>`;
+      html += `<tr><td class="proc">${esc(f.proceso)}${f.condicional?` <span style="color:var(--text-dim);font-size:.7rem;">(según referencia)</span>`:""}${
+        estaActivo(f)?"":` <span class="marca-off">desactivado</span>`}</td>`;
       TURNOS.forEach(t=>{
         const rs = delDia.filter(r=>String(r.turno)===t);
         let c;
         if(!turnoExiste(dia, t))                      c = "x";
-        else if(!conRonda(f))                         c = rs.length ? clase(rs, f) : "x";
+        else if(!estaActivo(f) || !conRonda(f))       c = rs.length ? clase(rs, f) : "x";
         else if(!rs.length && !turnoYaEmpezo(dia, t)) c = "e";
         else                                          c = clase(rs, f);
         if(c === "r") faltan++;
-        if(!f.condicional && conRonda(f) && c !== "x" && c !== "e") total++;
+        if(!f.condicional && conRonda(f) && estaActivo(f) && c !== "x" && c !== "e") total++;
         const tit = conRonda(f) ? `${f.proceso} · turno ${t} · ${ESTADOS_CELDA[c].txt}`
                                 : `${f.proceso} · turno ${t} · ${rs.length} toma(s) de dureza`;
         html += `<td class="celda ${c}" title="${esc(tit)}">${
@@ -3268,10 +3303,10 @@ function renderCumplimiento(){
         n += rs.length;
         const hayTurnos = TURNOS.some(t=> turnoExiste(fechaD, t));
         const c = !hayTurnos ? "x"
-                : !conRonda(f) ? (rs.length ? clase(rs, f) : "x")
+                : (!conRonda(f) || !estaActivo(f)) ? (rs.length ? clase(rs, f) : "x")
                 : (fechaD > hoyISO() ? "e" : clase(rs, f));
         if(c === "r") faltan++;
-        if(!f.condicional && conRonda(f) && c !== "x" && c !== "e") total++;
+        if(!f.condicional && conRonda(f) && estaActivo(f) && c !== "x" && c !== "e") total++;
         html += `<td class="celda ${c}" title="${esc(`${f.proceso} · ${fechaD} · ${ESTADOS_CELDA[c].txt}`)}">${
           (c==="x"||c==="e") ? "·" : c==="p" ? "○" : (rs.length||"")}</td>`;
       }
@@ -3375,7 +3410,7 @@ function actualizarPillCump(){
   const t = turnoDeHora(horaAhora());
   /* Los formatos de grupo (Dureza) no entran: se toman por lote, no una vez por
      turno, así que contarlos como "pendientes" sería una alarma falsa permanente. */
-  const faltan = S.formatos.filter(f=>!f.condicional && conRonda(f) &&
+  const faltan = S.formatos.filter(f=>!f.condicional && conRonda(f) && estaActivo(f) &&
     !S.registros.some(r=> r.formatoId===f.id && fechaTurnoDe(r)===fechaRondaActual() && String(r.turno)===t)).length;
   p.textContent = faltan ? faltan : "";
   p.style.display = faltan ? "inline-block" : "none";
@@ -3608,13 +3643,16 @@ function renderFormatosAdmin(){
     const nums = (f.variables||[]).filter(v=>v.tipo==="numerico");
     const conRango = nums.filter(v=> (v.min??"")!=="" || (v.max??"")!=="").length;
     const crit = (f.variables||[]).filter(v=>v.critica).length;
-    return `<div class="item">
-      <div class="info"><b>${esc(f.linea)} · ${esc(f.proceso)}</b>
+    const act = estaActivo(f);
+    return `<div class="item${act?"":" inactivo"}">
+      <div class="info"><b>${esc(f.linea)} · ${esc(f.proceso)}</b>${
+        act?"":` <span class="marca-off">desactivado</span>`}
         <span class="meta">${(f.variables||[]).length} variables · ${nums.length} numéricas${
           nums.length?` (${conRango} con rango)`:""}${crit?` · ${crit} crítica(s)`:""} · ${esc(f.codigoDoc||"sin código")}${
           f.condicional?" · según referencia":""}</span></div>
       <div class="acciones">
         <button class="btn-sec" data-edit="${idx}">Editar</button>
+        <button class="btn-sec" data-act="${idx}">${act?"Desactivar":"Activar"}</button>
         <button class="btn-sec" data-dup="${idx}">Duplicar</button>
         <button class="btn-sec" data-del="${idx}" style="color:var(--bad);">Eliminar</button>
       </div>
@@ -3624,6 +3662,17 @@ function renderFormatosAdmin(){
   pintarPager("pagerFormatos", items.length, pagFormatos, n=>{ pagFormatos=n; renderFormatosAdmin(); });
 
   box.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>abrirModalFormato(+b.dataset.edit)));
+  box.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>{
+    const f = S.formatos[+b.dataset.act];
+    const act = estaActivo(f);
+    if(act && !confirm(`Desactivar «${f.linea} · ${f.proceso}»?\n\n` +
+        "Deja de pedirse en la ronda y no cuenta como incumplimiento.\n" +
+        "El histórico se conserva y se puede volver a activar cuando quieras.")) return;
+    f.activo = act ? "No" : "Sí";
+    persist(); enviarConfig("guardarFormato", {formato:f});
+    renderAdmin(); renderProcesos(); actualizarPillCump(); actualizarMiTurno();
+    toast(act ? "Proceso desactivado" : "Proceso activado");
+  }));
   box.querySelectorAll("[data-dup]").forEach(b=>b.addEventListener("click",()=>{
     const c = JSON.parse(JSON.stringify(S.formatos[+b.dataset.dup]));
     c.id = "F"+Date.now(); c.proceso += " (copia)"; c.nombre = `${c.linea} · ${c.proceso}`;
@@ -3776,6 +3825,7 @@ function abrirModalFormato(idx){
   document.getElementById("mfProceso").value  = f.proceso || "";
   document.getElementById("mfCodDoc").value   = f.codigoDoc || "";
   document.getElementById("mfMaquinas").value = (f.maquinas||[]).join(", ");
+  document.getElementById("mfActivo").checked = estaActivo(f);
   document.getElementById("mfCondicional").checked = !!f.condicional;
   document.getElementById("mfEncabezado").innerHTML = Object.keys(CAMPOS_ENC).map(k=>`
     <label style="display:flex;align-items:center;gap:7px;font-weight:600;color:var(--text);margin:0;">
@@ -3831,6 +3881,7 @@ document.getElementById("mfGuardar").addEventListener("click",()=>{
     condicional: document.getElementById("mfCondicional").checked,
     encabezado: enc,
     maquinas: document.getElementById("mfMaquinas").value.split(",").map(s=>s.trim()).filter(Boolean),
+    activo: document.getElementById("mfActivo").checked ? "Sí" : "No",
     variables: vars
   };
   if(S.editIdx!=null) S.formatos[S.editIdx] = obj; else S.formatos.push(obj);
@@ -3965,7 +4016,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-04-control-dureza";
+const APP_VERSION = "2026-10-04-activar-proceso";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
