@@ -4259,7 +4259,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-05-cotas-v3";
+const APP_VERSION = "2026-10-05-cotas-v4";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -5001,30 +5001,53 @@ function revisarBloqueEsp(){
 
   const lineas = crudo.split(/\r?\n/).filter(x=>x.trim());
   if(lineas.length < 2){
-    caja.innerHTML = `<div class="falta-aviso">Pega al menos la fila de títulos y una fila de datos.</div>`;
+    caja.innerHTML = `<div class="falta-aviso">Pega la fila de títulos y al menos una fila de datos.</div>`;
     return;
   }
-  const idx = columnasEsp(lineas[0].split("\t"));
-  const faltan = ["variable","proceso","clave","min","max"].filter(k=>idx[k]===undefined);
-  if(faltan.length){
-    const nombres = faltan.map(k=> k==="clave" ? "Referencia o Acero" : k);
-    caja.innerHTML = `<div class="falta-aviso"><b>No encuentro estas columnas:</b> ${nombres.join(", ")}.
-      Copia desde el Excel incluyendo la fila de títulos, sin quitar columnas.</div>`;
+
+  /* La fila de títulos se BUSCA, no se exige en primer lugar: lo natural al
+     copiar del Excel es arrastrar desde arriba y arrastrar también el título
+     de la hoja. Se prueba línea por línea hasta dar con una que tenga todas
+     las columnas necesarias; lo de encima se descarta. */
+  const NECESARIAS = ["variable","proceso","clave","min","max"];
+  let idx = null, cabecera = -1;
+  for(let i = 0; i < Math.min(lineas.length, 20); i++){
+    const pru = columnasEsp(lineas[i].split("\t"));
+    if(!NECESARIAS.filter(k=>pru[k]===undefined).length){ idx = pru; cabecera = i; break; }
+  }
+  if(idx === null){
+    /* Para el aviso se usa la línea que más se acercó, que suele ser la de
+       títulos a la que le falta o le sobra algo. */
+    let mejor = {faltan: NECESARIAS.slice()};
+    lineas.slice(0, 20).forEach(ln=>{
+      const pru = columnasEsp(ln.split("\t"));
+      const f = NECESARIAS.filter(k=>pru[k]===undefined);
+      if(f.length < mejor.faltan.length) mejor = {faltan: f};
+    });
+    const nombres = mejor.faltan.map(k=> k==="clave" ? "Referencia o Acero" : k);
+    caja.innerHTML = `<div class="falta-aviso"><b>No encuentro la fila de títulos.</b>
+      Falta${nombres.length>1?"n":""}: ${nombres.join(", ")}.<br>
+      Copia desde el Excel incluyendo la fila de t\u00edtulos (Proceso, Acero o Referencia,
+      Variable, M\u00ednimo, M\u00e1ximo), sin quitar columnas.</div>`;
     return;
   }
 
   const delaLinea = S.formatos.filter(f=>f.linea===linea);
   const especs = [], problemas = [], porProceso = {};
-  let saltadasNA = 0, vacias = 0;
+  let saltadasNA = 0, vacias = 0, ejemplos = 0;
 
-  lineas.slice(1).forEach((ln, k)=>{
+  lineas.slice(cabecera + 1).forEach((ln, k)=>{
     const c = ln.split("\t");
-    const nFila = k + 2;
+    const nFila = cabecera + k + 2;
     const proc = String(c[idx.proceso]||"").trim();
     const vari = String(c[idx.variable]||"").trim();
     if(!proc) return;        // la variable SÍ puede ir vacía: significa "todas"
 
     if(idx.na !== undefined && String(c[idx.na]||"").trim()){ saltadasNA++; return; }
+
+    /* La fila gris de ejemplo que llevan las plantillas se reconoce y se salta:
+       es m\u00e1s seguro ignorarla que confiar en que se acuerden de borrarla. */
+    if(c.some(x => /^\s*\(ejemplo/i.test(String(x||"")))){ ejemplos++; return; }
 
     const f = delaLinea.find(x=>x.proceso === proc);
     if(!f){ problemas.push(`fila ${nFila}: no hay proceso «${esc(proc)}» en ${esc(linea)}`); return; }
@@ -5080,6 +5103,8 @@ function revisarBloqueEsp(){
       : `<div class="falta-aviso">No hay ninguna cota válida en el bloque.</div>`) +
     (saltadasNA ? `<p style="font-size:.82rem;color:var(--text-dim);">${saltadasNA} fila(s) marcadas «no aplica»: se omiten.</p>` : "") +
     (vacias    ? `<p style="font-size:.82rem;color:var(--text-dim);">${vacias} fila(s) sin mínimo ni máximo: se omiten.</p>` : "") +
+    (ejemplos  ? `<p style="font-size:.82rem;color:var(--text-dim);">${ejemplos} fila(s) de ejemplo: se omiten.</p>` : "") +
+    (cabecera  ? `<p style="font-size:.82rem;color:var(--text-dim);">Los títulos estaban en la línea ${cabecera+1}; lo de encima se descartó.</p>` : "") +
     (problemas.length
       ? `<div class="falta-aviso" style="margin-top:8px;"><b>${problemas.length} fila(s) con problemas, no se cargarán:</b><br>
          ${problemas.slice(0,12).join("<br>")}${problemas.length>12?`<br>y ${problemas.length-12} más`:""}</div>`
