@@ -108,7 +108,7 @@
   /* encabezado del registro: 12 columnas para repartir a medida */
   #encabezadoCampos{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;}
   #encabezadoCampos .campo{grid-column:span 3;}
-  #encabezadoCampos .campo.ancho{grid-column:span 5;}
+  #encabezadoCampos .campo.ancho{grid-column:span 6;}   /* la descripción más larga son 66 caracteres */
   #encabezadoCampos .campo.corto{grid-column:span 2;}
   #encabezadoCampos .campo.completo{grid-column:1 / -1;}
   @media(max-width:900px){
@@ -1111,7 +1111,7 @@ function pideProveedorAcero(linea){ return LINEAS_ACERO.indexOf(linea) !== -1; }
 const ESPESORES = {
   "Machetes":  ["1.3","1.6","1.8","1.9","2.0","2.2","2.4"],
   "Cuchillas": ["1.6","2.4"],
-  "Palas":     ["1.3","1.6"],
+  "Palas":     ["1.3","1.6","2.7"],
   "Limas":     [],     // no aplica
   "Inyección": []      // no aplica
 };
@@ -1690,20 +1690,26 @@ function ordenLinea(l){
    ====================================================================== */
 const LINEAS_SIN_RONDA = ["Dureza"];
 
-/* Líneas donde no tiene sentido "este proceso no estaba trabajando": la dureza
-   es un ensayo de laboratorio sobre una muestra, no una máquina que pueda
-   estar parada. */
-const LINEAS_SIN_PARO = ["Dureza"];
+/* La dureza es un ensayo, pero la línea de la que sale la muestra sí puede
+   parar un turno entero, y entonces hay que dejar constancia de que se
+   verificó y no había qué medir. Por eso la banda se queda en todas las
+   líneas. La lista está vacía a propósito, no por olvido. */
+const LINEAS_SIN_PARO = [];
 function admiteNoTrabajo(linea){ return LINEAS_SIN_PARO.indexOf(String(linea||"").trim()) === -1; }
 
 /* Líneas donde no se deja medir hasta que el encabezado diga contra qué
    juzgar. Sin referencia ni acero la cota no existe, y enseñar las casillas
    vacías invita a teclear valores que luego nadie juzga. */
 const LINEAS_EXIGEN_ENC = ["Dureza"];
+/* Campos que hay que elegir antes de poder medir. Los tres que identifican
+   QUÉ se mide y DÓNDE. La orden de fabricación se deja libre a propósito:
+   se teclea, no se elige, y a veces el inspector no la tiene a mano todavía;
+   bloquear por ella pararía el ensayo sin motivo. */
+const ENC_PREVIO = ["referencia", "tipoAcero", "espesorAcero", "material", "maquina"];
 function faltanParaMedir(f){
   if(!f || LINEAS_EXIGEN_ENC.indexOf(String(f.linea||"").trim()) === -1) return [];
   const enc = f.encabezado || [];
-  return CAMPOS_COTA
+  return ENC_PREVIO
     .filter(k => enc.indexOf(k) !== -1 && !valorEnc(k))
     .map(k => (CAMPOS_ENC[k] && CAMPOS_ENC[k].etq) || k);
 }
@@ -2006,7 +2012,7 @@ function renderEncabezado(f){
       return;
     }
     if(k === "maquina" && (f.maquinas||[]).length){
-      campos.push(`<div class="campo"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
+      campos.push(`<div class="campo corto"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
         <select id="e_${k}"><option value="">Selecciona</option>${
           f.maquinas.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join("")}</select></div>`);
     } else if(k === "espesorAcero"){
@@ -2038,6 +2044,11 @@ function renderEncabezado(f){
         </div>
         <div class="combo-aviso" id="refAviso" style="display:none;">
           Tienes que elegir una referencia de la lista.</div></div>`);
+    } else if(k === "ordenFabricacion"){
+      // normalmente son 6 dígitos: una caja ancha sugiere que cabe algo más
+      campos.push(`<div class="campo corto"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
+        <input type="text" id="e_${k}" inputmode="numeric" maxlength="12"
+               placeholder="000000"></div>`);
     } else {
       campos.push(`<div class="campo"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
         <input type="text" id="e_${k}" placeholder="${c.etq}"></div>`);
@@ -2281,9 +2292,9 @@ function renderVariables(){
     body.innerHTML = "";
     caja.style.display = "none";
     aviso.style.display = "block";
-    aviso.innerHTML = `Elige <b>${faltan.join("</b> y <b>")}</b> para ver los puntos a medir. `
-      + `La dureza se juzga contra el acero —y contra la referencia si tiene una cota propia—, `
-      + `as\u00ed que sin eso no hay nada contra qu\u00e9 comparar.`;
+    aviso.innerHTML = `Elige <b>${faltan.join("</b>, <b>")}</b> para ver los puntos a medir. `
+      + `La cota depende del acero \u2014y de la referencia si tiene una propia\u2014, `
+      + `y la m\u00e1quina deja constancia de d\u00f3nde sali\u00f3 la muestra.`;
     document.getElementById("progresoVars").textContent = "";
     return;
   }
@@ -4310,7 +4321,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-05-cotas-v7";
+const APP_VERSION = "2026-10-06-encabezado";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
