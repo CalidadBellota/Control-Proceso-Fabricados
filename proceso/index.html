@@ -1296,6 +1296,9 @@ const S = {
   formatos:  depurarDurezas(JSON.parse(localStorage.getItem("cp_formatos") || "null") || PLANTILLAS_BASE),
   referencias: JSON.parse(localStorage.getItem("cp_referencias") || "null") || REFERENCIAS_BASE,
   especificaciones: JSON.parse(localStorage.getItem("cp_especificaciones") || "{}"),
+  /* Serie de Tendencia: no se guarda en el equipo porque se pide al vuelo y
+     depende del proceso, la variable y el rango elegidos. */
+  serie: {clave:"", puntos:[]},
   registros: JSON.parse(localStorage.getItem("cp_registros") || "[]"),
   usuarios:  JSON.parse(localStorage.getItem("cp_usuarios")  || "null") ||
              [{usuario:"jefe", nombre:"Jefe de Calidad", pin:"1234", rol:"jefe", activo:"Sí"}],
@@ -2954,7 +2957,11 @@ async function consultarTendencia(boton){
     marcarBotonFechas();
     renderTendencia(); return;
   }
-  if(S.syncUrl) await traerRango(r.desde, boton, r.etq);
+  if(S.syncUrl){
+    await traerSerie(document.getElementById("tProceso").value,
+                     document.getElementById("tVariable").value,
+                     r.desde, document.getElementById("tHasta").value || "", boton);
+  }
   RANGO_APLICADO = document.getElementById("tDesde").value + "|" + document.getElementById("tHasta").value;
   marcarBotonFechas();
   renderTendencia();
@@ -3010,6 +3017,20 @@ function renderTendencia(){
   const maq = "", ref = "";
 
   const puntos = [];
+
+  /* Si la hoja nos dio la serie de esta variable y este rango, se usa: son los
+     mismos datos pesando catorce veces menos. Si no, se arma desde lo que haya
+     en el equipo, que es lo que permite ver tendencias sin conexión. */
+  const hayserie = S.serie.clave === claveSerie(fId, vNom, desde, hasta) && S.serie.puntos.length;
+  if(hayserie){
+    S.serie.puntos.slice()
+      .sort((a,b)=> String(a.fecha+a.registroId).localeCompare(String(b.fecha+b.registroId)))
+      .forEach(pt=>{
+        const n = parseFloat(String(pt.valor).replace(",","."));
+        if(isNaN(n)) return;
+        puntos.push({x: fFecha(pt.fecha), y: n, fuera: pt.resultado === "Fuera de rango"});
+      });
+  } else
   S.registros.filter(r=> r.formatoId===fId &&
       (!desde || fFecha(r.fecha)>=desde) && (!hasta || fFecha(r.fecha)<=hasta) &&
       (!maq || String(r.maquina)===maq) && (!ref || String(r.referencia)===ref))
@@ -3021,7 +3042,7 @@ function renderTendencia(){
         puntos.push({x:`${fFecha(r.fecha)} ${fHora(r.hora)}`.trim(), y:n, reg:r, fuera:x.resultado==="Fuera de rango"});
       });
     });
-  puntos.sort((a,b)=> a.x.localeCompare(b.x));
+  if(!hayserie) puntos.sort((a,b)=> a.x.localeCompare(b.x));   // la serie ya viene ordenada
 
   if(!puntos.length){
     box.innerHTML = `<div class="panel"><div class="empty-mini">No hay mediciones de <b>${esc(vNom)}</b> con esos filtros.</div></div>`;
@@ -4335,7 +4356,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-06-maquina";
+const APP_VERSION = "2026-10-06-linea-ambigua";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -5167,12 +5188,18 @@ function revisarBloqueEsp(){
      copiar del Excel es arrastrar desde arriba y arrastrar también el título
      de la hoja. Se prueba línea por línea hasta dar con una que tenga todas
      las columnas necesarias; lo de encima se descarta. */
-  const NECESARIAS = ["variable","proceso","clave","min","max"];
+  /* La columna clave (Referencia, Acero…) es OPCIONAL. Sin ella el bloque trae
+     cotas generales del formato: las de máquina —temperatura, velocidad,
+     potencia— que valen para toda referencia. Ésas no van a la hoja
+     Especificaciones, van al rango del propio formato, que es donde las
+     escribe Administrar: una sola fuente de verdad. */
+  const NECESARIAS = ["variable","proceso","min","max"];
   let idx = null, cabecera = -1;
   for(let i = 0; i < Math.min(lineas.length, 20); i++){
     const pru = columnasEsp(lineas[i].split("\t"));
     if(!NECESARIAS.filter(k=>pru[k]===undefined).length){ idx = pru; cabecera = i; break; }
   }
+  const general = idx && idx.clave === undefined;
   if(idx === null){
     /* Para el aviso se usa la línea que más se acercó, que suele ser la de
        títulos a la que le falta o le sobra algo. */
@@ -5210,8 +5237,23 @@ function revisarBloqueEsp(){
     });
   });
   let cambioLinea = "";
-  const mejor = Object.keys(cobertura).sort((a,b)=>cobertura[b]-cobertura[a])[0];
-  if(mejor && (cobertura[mejor] || 0) > (cobertura[linea] || 0)){
+  const orden = Object.keys(cobertura).sort((a,b)=>cobertura[b]-cobertura[a]);
+  const mejor = orden[0];
+  const tope  = mejor ? cobertura[mejor] : 0;
+  const empatadas = orden.filter(l => cobertura[l] === tope);
+
+  if(empatadas.length > 1 && (cobertura[linea] || 0) < tope){
+    /* El mismo nombre de proceso existe en varias líneas —«Temple · sello y
+       rebabado» está en Cuchillas y en Machetes—. Elegir una al azar cargaría
+       las cotas en la línea equivocada sin que nadie se entere, así que aquí
+       manda el desplegable y se pide que lo confirme. */
+    caja.innerHTML = `<div class="falta-aviso"><b>Ese proceso existe en varias líneas:</b>
+      ${empatadas.map(esc).join(", ")}.<br>
+      Elige arriba a cuál pertenece este bloque y vuelve a revisar. Ahora dice
+      <b>${esc(linea)}</b>, que no tiene esos procesos.</div>`;
+    return;
+  }
+  if(mejor && tope > (cobertura[linea] || 0)){
     cambioLinea = `El bloque es de <b>${esc(mejor)}</b>, no de ${esc(linea)}. Lo cambié por ti.`;
     linea = mejor;
     document.getElementById("espLinea").value = mejor;
@@ -5273,6 +5315,13 @@ function revisarBloqueEsp(){
     /* Una fila puede traer varias referencias separadas por coma —así es como
        sale del Excel por grupos de geometría— y se expande a una cota por
        cada una. */
+    if(general){
+      objetivo.forEach(v=>{
+        especs.push({formatoId:f.id, variable:v.nombre, general:true, min:mn, max:mx});
+        porProceso[proc] = (porProceso[proc]||0) + 1;
+      });
+      return;
+    }
     const valores = String(c[idx.clave]||"").split(/[,;]/)
       .map(x => idx.campo === "referencia" ? codigoRef(x) : String(x).trim())
       .filter(Boolean);
@@ -5291,7 +5340,10 @@ function revisarBloqueEsp(){
   caja.innerHTML =
     (cambioLinea ? `<div class="falta-aviso listo">${cambioLinea}</div>` : "") +
     (especs.length
-      ? `<div class="falta-aviso listo"><b>Listo para cargar: ${especs.length} cota(s)</b></div>
+      ? `<div class="falta-aviso listo"><b>Listo para cargar: ${especs.length} cota(s)</b> \u2014 ${
+            general ? "cotas <b>generales del proceso</b>, v\u00e1lidas para toda referencia"
+                    : "seg\u00fan <b>" + esc(ETQ_COTA[idx.campo]||idx.campo) + "</b>"
+          }</div>
          <ul style="font-size:.85rem;margin:10px 0;">${resumen}</ul>`
       : `<div class="falta-aviso">No hay ninguna cota válida en el bloque.</div>`) +
     (saltadasNA ? `<p style="font-size:.82rem;color:var(--text-dim);">${saltadasNA} fila(s) marcadas «no aplica»: se omiten.</p>` : "") +
@@ -5316,14 +5368,43 @@ async function cargarBloqueEsp(){
     /* Se aplica primero en el equipo y luego se sube. Si la hoja falla, el
        inspector ya tiene las cotas y la subida se reintenta a mano; lo que no
        puede pasar es que la tableta diga que cargó y no haya cargado. */
-    ESP_LOTE.forEach(e=>{
-      S.especificaciones[claveEsp(e.formatoId, e.variable, e.campo, e.valor)] = [e.min, e.max];
-    });
-    try{ localStorage.setItem("cp_especificaciones", JSON.stringify(S.especificaciones)); }catch(e){}
+    const esGeneral = ESP_LOTE.length && ESP_LOTE[0].general;
+    let ok = false;
 
-    const ok = await enviarConfig("guardarEspecs", {especs: ESP_LOTE}, true);
-    toast(ok ? `${ESP_LOTE.length} cota(s) cargadas y guardadas en la hoja`
-             : `${ESP_LOTE.length} cota(s) cargadas en este equipo · la hoja no respondió, vuelve a cargar el bloque`);
+    if(esGeneral){
+      /* Cotas generales: se escriben en la variable del formato, que es donde
+         las pone Administrar. Si fueran a la hoja Especificaciones habría dos
+         sitios con el mismo dato y acabarían discrepando. */
+      const tocados = {};
+      ESP_LOTE.forEach(e=>{
+        const f = S.formatos.find(x=>x.id === e.formatoId);
+        if(!f) return;
+        const v = (f.variables||[]).find(x=>x.nombre === e.variable);
+        if(!v) return;
+        v.min = e.min; v.max = e.max;
+        tocados[f.id] = f;
+      });
+      persist();
+      const lista = Object.keys(tocados);
+      let fallos = 0, hechos = 0, seguidos = 0;
+      for(let i = 0; i < lista.length; i++){
+        bt.textContent = `Guardando ${i+1} de ${lista.length}\u2026`;
+        const r = await enviarConfig("guardarFormato", {formato: tocados[lista[i]]}, true);
+        if(r){ hechos++; seguidos = 0; } else { fallos++; seguidos++; }
+        if(seguidos >= 3) break;          // la hoja no responde: no insistir
+      }
+      ok = !fallos;
+      toast(fallos ? `${ESP_LOTE.length} cota(s) puestas en este equipo \u00b7 ${fallos} proceso(s) no se subieron`
+                   : `${ESP_LOTE.length} cota(s) guardadas en ${hechos} proceso(s)`);
+    } else {
+      ESP_LOTE.forEach(e=>{
+        S.especificaciones[claveEsp(e.formatoId, e.variable, e.campo, e.valor)] = [e.min, e.max];
+      });
+      try{ localStorage.setItem("cp_especificaciones", JSON.stringify(S.especificaciones)); }catch(e){}
+      ok = await enviarConfig("guardarEspecs", {especs: ESP_LOTE}, true);
+      toast(ok ? `${ESP_LOTE.length} cota(s) cargadas y guardadas en la hoja`
+               : `${ESP_LOTE.length} cota(s) cargadas en este equipo \u00b7 la hoja no respondi\u00f3, vuelve a cargar el bloque`);
+    }
     if(ok){ document.getElementById("espPegar").value = ""; document.getElementById("espInforme").innerHTML = ""; ESP_LOTE = null; }
   } finally {
     RED_OCUPADA = false;
@@ -5464,6 +5545,59 @@ async function cargarRonda(){
 }
 
 /* Trae un rango concreto para las pantallas de análisis. Devuelve si pudo. */
+/* ======================================================================
+   SERIE PARA TENDENCIA
+   Graficar una variable no necesita los registros del rango: necesita los
+   valores de ESA variable. Pedir el rango completo traía 640 KB por 25
+   puntos —todos los registros con todo su detalle— y Apps Script devolvía
+   404 antes de llegar a servirlo. La serie pesa 46 KB para los mismos datos.
+   Si la hoja no entiende «tipo=serie» se vuelve al camino de siempre, que
+   funciona aunque sea pesado.
+   ====================================================================== */
+function claveSerie(fId, vNom, desde, hasta){
+  return [fId, vNom, desde||"", hasta||""].join("|");
+}
+
+async function traerSerie(fId, vNom, desde, hasta, boton){
+  const f = S.formatos.find(x=>x.id===fId);
+  if(!f || !vNom) return false;
+  const txt = boton ? boton.textContent : null;
+  if(boton){ boton.disabled = true; boton.textContent = "Consultando\u2026"; }
+  const t0 = Date.now();
+  LECTURA.motivo = "tendencia de una variable";
+  LECTURA.corte  = desde || "";
+  try{
+    /* En la hoja Detalle la columna «proceso» guarda sólo el proceso, sin la
+       línea delante: hay que mandar f.proceso, no f.nombre. */
+    const url = S.syncUrl + "?tipo=serie"
+      + "&proceso="  + encodeURIComponent(f.proceso)
+      + "&variable=" + encodeURIComponent(vNom)
+      + (desde ? "&desde=" + desde : "")
+      + (hasta ? "&hasta=" + hasta : "");
+    const data = await pedirJSON(url, "la serie");
+    if(!Array.isArray(data)) throw new Error("respuesta inesperada");
+
+    /* Un backend sin este endpoint ignora «tipo» y devuelve registros. Se
+       distinguen porque un punto trae «valor» y un registro trae «id». */
+    if(data.length && data[0] && data[0].id !== undefined && data[0].valor === undefined)
+      throw new Error("la hoja no conoce las series");
+
+    S.serie = {clave: claveSerie(fId, vNom, desde, hasta), puntos: data};
+    LECTURA.hora = (function(){ const d=new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; })();
+    LECTURA.sello = Date.now(); LECTURA.ms = Date.now() - t0;
+    LECTURA.recibidos = data.length; LECTURA.nuevos = 0; LECTURA.error = null;
+    anotarLectura(); actualizarEstadoSync(); renderPendientes();
+    return true;
+  }catch(e){
+    console.warn("serie:", e, "\u2014 se intenta con el rango completo");
+    S.serie = {clave:"", puntos:[]};
+    if(boton){ boton.disabled = false; boton.textContent = txt; }
+    return await traerRango(desde, boton, "tendencia (rango completo)");
+  }finally{
+    if(boton){ boton.disabled = false; if(txt) boton.textContent = txt; }
+  }
+}
+
 async function traerRango(desdeISO, boton, etiqueta){
   const txt = boton ? boton.textContent : null;
   if(boton){ boton.disabled = true; boton.textContent = "Consultando\u2026"; }
