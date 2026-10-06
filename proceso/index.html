@@ -4313,7 +4313,18 @@ function reintentarPendientes(){
    los de los demás no existieran. */
 /* Qué versión del Apps Script está sirviendo la hoja. Sin esto no hay forma
    de saber desde el puesto de trabajo si el Code.gs nuevo quedó publicado. */
-const BACKEND = {version:null};
+/* Tres estados, no dos. Antes sólo había "hay versión" o "no hay", y el panel
+   daba por hecho que no haberla significaba hoja vieja. Pero también vale null
+   cuando la lectura todavía no ha terminado o ha fallado, que es lo normal al
+   abrir la app. El aviso rojo salía entonces sin motivo y mandaba a
+   redesplegar un Apps Script que ya estaba al día.
+   'visto' recuerda la última versión confirmada: si una lectura falla, no se
+   borra lo que ya sabíamos. */
+const BACKEND = {
+  version: null,
+  leido: false,
+  visto: (function(){ try{ return localStorage.getItem("cp_backend_visto") || null; }catch(e){ return null; } })()
+};
 
 /* corte y motivo quedan guardados para poder responder en pantalla la pregunta
    "¿por qué leyó tantos registros?": el panel dice desde qué fecha se pidió y
@@ -4321,7 +4332,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-06-encabezado";
+const APP_VERSION = "2026-10-06-diagnostico";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -4474,6 +4485,11 @@ async function cargarConfig(fresco){
     const data = await pedirJSON(S.syncUrl + "?tipo=config" + (fresco ? "&fresco=1" : ""), "el catálogo");
     if(!data) throw new Error("sin datos");
     BACKEND.version = data.backend || null;
+    BACKEND.leido = true;                    // la hoja contestó, sea cual sea su versión
+    if(BACKEND.version){
+      BACKEND.visto = BACKEND.version;
+      try{ localStorage.setItem("cp_backend_visto", BACKEND.version); }catch(e){}
+    }
 
     if(Array.isArray(data.usuarios) && data.usuarios.length){
       S.usuarios = data.usuarios.filter(u=>u && u.usuario);
@@ -4738,12 +4754,25 @@ function renderPendientes(){
         Si alguna dice «sin identificar» o «DISPARO AUTOMÁTICO», hay algo leyendo por su cuenta.</div>` : ""}
 
     <div class="diag-fila" style="margin-top:16px;"><span>Código de esta app</span><b style="color:#1f9d55;">${esc(APP_VERSION)}</b></div>
-    <div class="diag-fila"><span>Código de la hoja</span><b style="color:${
-      BACKEND.version ? "#1f9d55" : "#c81d2e"};">${
-      BACKEND.version ? esc(BACKEND.version) : "versión anterior"}</b></div>
-    ${BACKEND.version ? "" : `<div class="diag-err">La hoja está corriendo un Apps Script anterior: lee todo el
-      histórico en cada petición, por eso tarda y falla. Hay que pegar el <b>Code.gs</b> nuevo y publicar una
-      <b>versión nueva</b> desde «Implementar → Gestionar implementaciones».</div>`}
+    ${(function(){
+      /* Sólo se acusa a la hoja de estar anticuada cuando ha contestado y no ha
+         dicho su versión. Si aún no ha contestado se dice eso y nada más. */
+      if(BACKEND.version)
+        return `<div class="diag-fila"><span>Código de la hoja</span>
+                <b style="color:#1f9d55;">${esc(BACKEND.version)}</b></div>`;
+      if(!BACKEND.leido)
+        return `<div class="diag-fila"><span>Código de la hoja</span>
+                <b style="color:var(--text-dim);">${BACKEND.visto
+                  ? esc(BACKEND.visto) + " \u00b7 sin confirmar a\u00fan"
+                  : "todav\u00eda sin leer"}</b></div>
+          <div class="diag-nota">La hoja no ha contestado todav\u00eda en esta sesi\u00f3n, as\u00ed que esto no
+            dice nada sobre su versi\u00f3n. Pulsa «Probar la conexi\u00f3n» para saberlo.</div>`;
+      return `<div class="diag-fila"><span>Código de la hoja</span>
+              <b style="color:#c81d2e;">versión anterior</b></div>
+        <div class="diag-err">La hoja contest\u00f3 pero no dice su versi\u00f3n: est\u00e1 corriendo un Apps Script
+          anterior, que lee todo el hist\u00f3rico en cada petici\u00f3n. Hay que pegar el <b>Code.gs</b> nuevo y
+          publicar una <b>versión nueva</b> desde «Implementar → Gestionar implementaciones».</div>`;
+    })()}
 
     <div class="diag-tit" style="margin-top:16px;">CONEXIÓN DE ESTE EQUIPO</div>
     <div class="diag-url">${esc(S.syncUrl || "sin conexión")}</div>
