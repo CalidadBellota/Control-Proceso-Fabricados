@@ -585,7 +585,8 @@
         <span id="progresoVars" style="font-size:.74rem;color:var(--text-dim);"></span>
         <button type="button" class="btn-actualizar" id="btnActualizarDil"
           title="Volver a leer la hoja compartida">↻ Actualizar</button></div>
-      <div style="overflow-x:auto;">
+      <div id="avisoFaltaEnc" class="falta-aviso" style="display:none;"></div>
+      <div id="cajaVars" style="overflow-x:auto;">
         <table class="tabla-vars">
           <thead><tr>
             <th style="width:32%;">Variable</th>
@@ -1688,6 +1689,24 @@ function ordenLinea(l){
    en vez de "faltan N de M" llevan el contador de tomas del turno.
    ====================================================================== */
 const LINEAS_SIN_RONDA = ["Dureza"];
+
+/* Líneas donde no tiene sentido "este proceso no estaba trabajando": la dureza
+   es un ensayo de laboratorio sobre una muestra, no una máquina que pueda
+   estar parada. */
+const LINEAS_SIN_PARO = ["Dureza"];
+function admiteNoTrabajo(linea){ return LINEAS_SIN_PARO.indexOf(String(linea||"").trim()) === -1; }
+
+/* Líneas donde no se deja medir hasta que el encabezado diga contra qué
+   juzgar. Sin referencia ni acero la cota no existe, y enseñar las casillas
+   vacías invita a teclear valores que luego nadie juzga. */
+const LINEAS_EXIGEN_ENC = ["Dureza"];
+function faltanParaMedir(f){
+  if(!f || LINEAS_EXIGEN_ENC.indexOf(String(f.linea||"").trim()) === -1) return [];
+  const enc = f.encabezado || [];
+  return CAMPOS_COTA
+    .filter(k => enc.indexOf(k) !== -1 && !valorEnc(k))
+    .map(k => (CAMPOS_ENC[k] && CAMPOS_ENC[k].etq) || k);
+}
 function sinRonda(linea){ return LINEAS_SIN_RONDA.indexOf(String(linea||"").trim()) !== -1; }
 function conRonda(f){ return !sinRonda(f && f.linea); }
 
@@ -1936,6 +1955,7 @@ function abrirFormato(id){
     `${f.codigoDoc||"sin código"} · ${(f.variables||[]).length} variables${f.condicional?" · aplica según la referencia":""}`
     + ` · se registra hoy ${fFechaCorta(hoyISO())} a las ${h}, turno ${turnoDeHora(h)}`;
   renderEncabezado(f);
+  document.getElementById("bandaNoTrabajo").style.display = admiteNoTrabajo(f.linea) ? "" : "none";
   renderVariables();
   document.getElementById("formularioProc").style.display = "block";
   document.getElementById("iObservaciones").value = "";
@@ -2253,6 +2273,22 @@ function renderVariables(){
   if(!S.formatoActivo){ body.innerHTML = ""; return; }
   const vars = S.formatoActivo.variables || [];
   const f = S.formatoActivo, disc = discActual();   // la cota puede colgar del encabezado
+
+  const faltan = faltanParaMedir(f);
+  const aviso = document.getElementById("avisoFaltaEnc");
+  const caja  = document.getElementById("cajaVars");
+  if(faltan.length){
+    body.innerHTML = "";
+    caja.style.display = "none";
+    aviso.style.display = "block";
+    aviso.innerHTML = `Elige <b>${faltan.join("</b> y <b>")}</b> para ver los puntos a medir. `
+      + `La dureza se juzga contra el acero —y contra la referencia si tiene una cota propia—, `
+      + `as\u00ed que sin eso no hay nada contra qu\u00e9 comparar.`;
+    document.getElementById("progresoVars").textContent = "";
+    return;
+  }
+  caja.style.display = "";
+  aviso.style.display = "none";
   const hayCrit = vars.some(v=>v.critica);
   const puesto = {crit:false, resto:false};
   const orden = vars.map((v,i)=>({v,i})).sort((a,b)=> (b.v.critica?1:0) - (a.v.critica?1:0));
@@ -4274,7 +4310,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-05-cotas-v6";
+const APP_VERSION = "2026-10-05-cotas-v7";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
