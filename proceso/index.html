@@ -1648,7 +1648,7 @@ function tab(activo){
   if(activo==="Cump")  renderCumplimiento();
   if(activo==="Admin") renderAdmin();
   // cambiar de pestaña no consulta la hoja: cada pantalla tiene su botón
-  if(S.syncUrl && !CONFIG_OK) cargarConfig();
+  if(S.syncUrl && !CONFIG_OK && !APERTURA_EN_CURSO) cargarConfig();   // la apertura ya lo trae
   else if(!S.syncUrl) marcarConfigSync(false);
 }
 VISTAS.forEach(t=> document.getElementById("tab"+t).addEventListener("click", ()=>tab(t)));
@@ -4332,7 +4332,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-06-diagnostico";
+const APP_VERSION = "2026-10-06-una-peticion";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -4392,14 +4392,17 @@ async function pedirJSON(url, que, intentos){
       const res = await pedir(url, {cache:"no-store"});
       const txt = await res.text();
       if(!res.ok){
-        /* 404 no es "la hoja va lenta": es que en esa dirección ya no hay nada
-           publicado. Suele pasar al redesplegar creando una implementación
-           nueva (URL nueva) en vez de una versión nueva de la de siempre.
-           Reintentar no arregla eso, así que se corta el bucle. */
-        if(res.status === 404)
-          throw new Error("esa dirección ya no existe (404). En Apps Script, "
-            + "Implementar → Administrar implementaciones → copia la URL actual, "
-            + "o publica una VERSIÓN nueva de la implementación de siempre para no cambiarla");
+        /* 404 no es "la hoja va lenta": o esa dirección ya no existe, o el
+           Apps Script no entiende esta petición. Reintentar no arregla
+           ninguna de las dos.
+           Ojo: aquí NO vale lanzar la excepción. El catch del propio bucle la
+           recogería y seguiría intentando igual — que es justo lo que hacía
+           antes, tres veces, con su tiempo de espera cada una. Hay que romper. */
+        if(res.status === 404){
+          ultimo = new Error("la hoja respondió 404. Si acabas de redesplegar, publica una "
+            + "VERSIÓN nueva de la implementación de siempre, no una implementación nueva");
+          break;
+        }
         ultimo = new Error(`la hoja respondió HTTP ${res.status}`);
         continue;
       }
@@ -4427,52 +4430,94 @@ async function cargarRemoto(completo, desdeFecha, motivo){
   if(!S.syncUrl){ LECTURA.error = "sin conexión configurada"; return; }
   const t0 = Date.now();
   LECTURA.motivo = motivo || "sin identificar";
+  // siempre con parámetro: la carga inicial usa una ventana amplia en vez de
+  // pedir la hoja entera, que es la petición más pesada y más frágil
+  const corte = desdeFecha || (completo ? fechaDesde(120) : fechaDesde(3));
+  LECTURA.corte = corte;
   try{
-    // siempre con parámetro: la carga inicial usa una ventana amplia en vez de
-    // pedir la hoja entera, que es la petición más pesada y más frágil
-    const corte = desdeFecha || (completo ? fechaDesde(120) : fechaDesde(3));
-    LECTURA.corte = corte;
-    const url = S.syncUrl + "?desde=" + corte;
-    const data = await pedirJSON(url, "registros");
-    if(!Array.isArray(data)) throw new Error("la hoja no devolvió una lista de registros");
+    const data = await pedirJSON(S.syncUrl + "?desde=" + corte, "registros");
+    aplicarRegistros(data, t0, corte, completo);
+  }catch(e){ fallaLectura(e); }
+}
 
-    const m = new Map();
-    S.registros.forEach(r=>m.set(r.id, r));
-    const antes = m.size;
-    data.forEach(r=>{ if(r && r.id && !m.has(r.id)) m.set(r.id, r); });
-    S.registros = Array.from(m.values()).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
+/* Separado de la petición: la apertura trae catálogo y registros en una sola
+   respuesta y necesita aplicar esta misma lógica sin volver a pedir nada. */
+function aplicarRegistros(data, t0, corte, completo){
+  if(!Array.isArray(data)) throw new Error("la hoja no devolvió una lista de registros");
 
-    const d = new Date();
-    LECTURA.hora = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    LECTURA.sello = Date.now();
-    LECTURA.ms = Date.now() - t0;
-    LECTURA.recibidos = data.length;
-    LECTURA.nuevos = m.size - antes;
-    LECTURA.completo = !!completo;
-    LECTURA.error = null;
-    anotarLectura();
+  const m = new Map();
+  S.registros.forEach(r=>m.set(r.id, r));
+  const antes = m.size;
+  data.forEach(r=>{ if(r && r.id && !m.has(r.id)) m.set(r.id, r); });
+  S.registros = Array.from(m.values()).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
 
-    /* Si pedimos sólo desde una fecha y la hoja devolvió registros anteriores,
-       el Apps Script todavía es el viejo: ignora ?desde= y manda todo el
-       histórico. Funciona, pero es lo que hace lentas las actualizaciones. */
-    if(!completo){
-      LECTURA.backendViejo = data.some(r => r && r.fecha && fFecha(r.fecha) < corte);
-    }
+  const d = new Date();
+  LECTURA.hora = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  LECTURA.sello = Date.now();
+  LECTURA.ms = Date.now() - t0;
+  LECTURA.recibidos = data.length;
+  LECTURA.nuevos = m.size - antes;
+  LECTURA.completo = !!completo;
+  LECTURA.error = null;
+  anotarLectura();
 
-    persist(); reintentarPendientes(); actualizarEstadoSync(); actualizarPillCump(); actualizarMiTurno();
-    renderPendientes();
-    // también al cambiar de turno: los procesos vuelven a pedirse y la lista
-    // debe reflejarlo aunque no haya llegado ningún registro nuevo
-    const ronda = hoyISO() + "-T" + turnoDeHora(horaAhora());
-    const cambioRonda = ronda !== RONDA_PINTADA;
-    RONDA_PINTADA = ronda;
-    if(LECTURA.nuevos > 0 || cambioRonda) repintarVistaActiva();
+  /* Si pedimos sólo desde una fecha y la hoja devolvió registros anteriores,
+     el Apps Script todavía es el viejo: ignora ?desde= y manda todo el
+     histórico. Funciona, pero es lo que hace lentas las actualizaciones. */
+  if(!completo){
+    LECTURA.backendViejo = data.some(r => r && r.fecha && fFecha(r.fecha) < corte);
+  }
+
+  persist(); reintentarPendientes(); actualizarEstadoSync(); actualizarPillCump(); actualizarMiTurno();
+  renderPendientes();
+  // también al cambiar de turno: los procesos vuelven a pedirse y la lista
+  // debe reflejarlo aunque no haya llegado ningún registro nuevo
+  const ronda = hoyISO() + "-T" + turnoDeHora(horaAhora());
+  const cambioRonda = ronda !== RONDA_PINTADA;
+  RONDA_PINTADA = ronda;
+  if(LECTURA.nuevos > 0 || cambioRonda) repintarVistaActiva();
+}
+
+function fallaLectura(e){
+  console.error("lectura:", e);
+  LECTURA.error = e.message || String(e);
+  LECTURA.hora = null;
+  anotarLectura();
+  actualizarEstadoSync(); renderPendientes();
+}
+
+/* ======================================================================
+   APERTURA: catálogo y registros en UNA sola petición.
+   Cada ejecución de Apps Script paga su arranque y la apertura de la hoja
+   —decenas de segundos con el histórico crecido—, así que pedirlos por
+   separado costaba ese precio dos veces: 29 s de catálogo + 45 s de
+   registros eran los 75 s que tardaba abrir.
+   Si la hoja todavía corre un backend sin «tipo=todo», se vuelve al camino
+   de siempre en vez de dejar la app sin datos.
+   ====================================================================== */
+/* Se da por iniciada en cuanto hay hoja configurada: tab("Reg") corre dentro
+   de iniciarSesion(), antes de que arranque la apertura, y sin esto pedía el
+   catálogo por su cuenta justo antes de la petición que ya lo trae. */
+let APERTURA_EN_CURSO = !!S.syncUrl;
+async function cargarApertura(desdeFecha, motivo){
+  if(!S.syncUrl){ LECTURA.error = "sin conexión configurada"; return; }
+  APERTURA_EN_CURSO = true;
+  const t0 = Date.now();
+  LECTURA.motivo = motivo || "apertura de la app";
+  const corte = desdeFecha || fechaRondaActual();
+  LECTURA.corte = corte;
+  try{
+    const data = await pedirJSON(S.syncUrl + "?tipo=todo&desde=" + corte, "catálogo y registros");
+    if(!data || !data.config || !Array.isArray(data.registros))
+      throw new Error("respuesta sin el formato esperado");
+    aplicarConfig(data.config);
+    aplicarRegistros(data.registros, t0, corte, false);
   }catch(e){
-    console.error("cargarRemoto:", e);
-    LECTURA.error = e.message || String(e);
-    LECTURA.hora = null;
-    anotarLectura();
-    actualizarEstadoSync(); renderPendientes();
+    console.warn("apertura en una petición falló, se vuelve al camino de dos:", e);
+    await cargarConfig();
+    await cargarRemoto(false, corte, motivo);
+  } finally {
+    APERTURA_EN_CURSO = false;
   }
 }
 
@@ -4483,6 +4528,14 @@ async function cargarConfig(fresco){
   if(!S.syncUrl){ marcarConfigSync(false); return; }
   try{
     const data = await pedirJSON(S.syncUrl + "?tipo=config" + (fresco ? "&fresco=1" : ""), "el catálogo");
+    aplicarConfig(data);
+  }catch(e){ console.error("config:", e); marcarConfigSync(false); }
+}
+
+/* Separado de la petición para poder reutilizarlo cuando el catálogo llega
+   dentro de la respuesta conjunta de apertura. */
+function aplicarConfig(data){
+  try{
     if(!data) throw new Error("sin datos");
     BACKEND.version = data.backend || null;
     BACKEND.leido = true;                    // la hoja contestó, sea cual sea su versión
@@ -4524,7 +4577,7 @@ async function cargarConfig(fresco){
     marcarConfigSync(true);
     if(document.getElementById("viewAdmin").style.display !== "none") renderAdmin();
     if(document.getElementById("viewReg").style.display  !== "none") renderProcesos();
-  }catch(e){ console.error("config:", e); marcarConfigSync(false); }
+  }catch(e){ console.error("aplicar config:", e); marcarConfigSync(false); }
 }
 
 /** Formatos que trae el archivo y la hoja todavía no tiene. */
@@ -5387,7 +5440,7 @@ actualizarPillCump(); actualizarMiTurno();
 
 /* El turno en curso son unas decenas de filas, no 120 días. */
 async function cargarRonda(){
-  await cargarRemoto(false, fechaRondaActual(), "apertura de la app (turno actual)");
+  await cargarApertura(fechaRondaActual(), "apertura de la app (turno actual)");
 }
 
 /* Trae un rango concreto para las pantallas de análisis. Devuelve si pudo. */
@@ -5408,10 +5461,11 @@ async function traerRango(desdeISO, boton, etiqueta){
 }
 
 if(S.syncUrl){
-  // en serie: Apps Script atiende una petición a la vez
+  /* UNA sola petición: trae catálogo y registros del turno juntos. Pedirlos por
+     separado hacía pagar dos veces el arranque de Apps Script y la apertura de
+     la hoja, que es lo caro: 29 s + 45 s eran los 75 s de apertura. */
   (async ()=>{
-    await cargarConfig();
-    await cargarRonda();          // solo el turno en curso, no el histórico
+    await cargarRonda();          // catálogo + turno en curso, no el histórico
     reintentarPendientes();
     reintentarCorrecciones();
   })();
