@@ -1087,7 +1087,19 @@ function svgProc(f, size){
 }
 
 /* Aceros y espesores que realmente se manejan, por línea. */
-const ACEROS = ["SAE 1074", "50MN", "65MN"];
+const ACEROS = ["SAE 1074", "50MN", "65MN"];     // lista completa
+
+/* Qué aceros se ofrecen en cada línea. No es cosmética: enseñar un acero que
+   esa línea no usa invita a elegirlo, y entonces la dureza se juzga contra la
+   cota de un material que nunca pasó por ahí. "Otro…" sigue estando para no
+   bloquear un caso nuevo. */
+const ACEROS_POR_LINEA = {
+  "Palas": ["50MN"],
+  "*":     ["SAE 1074", "65MN"]
+};
+function acerosDe(linea){
+  return ACEROS_POR_LINEA[String(linea||"").trim()] || ACEROS_POR_LINEA["*"];
+}
 
 /* Proveedores del acero. Aplica a Cuchillas y Machetes, que parten de fleje de
    acero comprado; en Limas el campo "Proveedor" significa otra cosa (quién
@@ -1984,9 +1996,12 @@ function renderEncabezado(f){
         <select id="e_${k}"><option value="">—</option>${
           es.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")}</select></div>`);
     } else if(k === "tipoAcero"){
+      /* En la línea Dureza el proceso dice de qué línea viene ("Palas ·
+         Revenido"), así que el acero se filtra por esa línea base. */
+      const acs = acerosDe(lineaDeReferencias(f));
       campos.push(`<div class="campo corto"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
         <select id="e_${k}"><option value="">—</option>${
-          ACEROS.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")
+          acs.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")
         }<option value="__otra">Otro…</option></select>
         <input type="text" id="e_${k}_otra" placeholder="Escribe el acero"
                style="margin-top:8px;display:none;"></div>`);
@@ -4259,7 +4274,7 @@ const BACKEND = {version:null};
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-05-cotas-v4";
+const APP_VERSION = "2026-10-05-cotas-v6";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -4993,7 +5008,7 @@ function numeroEsp(t){
 }
 
 function revisarBloqueEsp(){
-  const linea = document.getElementById("espLinea").value;
+  let linea = document.getElementById("espLinea").value;   // puede corregirse según el bloque
   const crudo = document.getElementById("espPegar").value;
   const caja  = document.getElementById("espInforme");
   ESP_LOTE = null;
@@ -5032,6 +5047,33 @@ function revisarBloqueEsp(){
     return;
   }
 
+  /* La línea se DEDUCE de los procesos del bloque. El desplegable existe para
+     desempatar cuando un mismo nombre de proceso vive en dos líneas, no para
+     que el usuario tenga que acordarse de cambiarlo: olvidarlo sólo producía
+     un muro de "no hay proceso X en Y" que no decía lo que de verdad pasaba. */
+  const procsBloque = [];
+  lineas.slice(cabecera + 1).forEach(ln=>{
+    const pr = String(ln.split("\t")[idx.proceso]||"").trim();
+    if(pr && procsBloque.indexOf(pr) === -1) procsBloque.push(pr);
+  });
+  const cobertura = {};
+  procsBloque.forEach(pr=>{
+    const vistas = [];
+    S.formatos.forEach(f=>{
+      if(f.proceso === pr && vistas.indexOf(f.linea) === -1){
+        vistas.push(f.linea);
+        cobertura[f.linea] = (cobertura[f.linea] || 0) + 1;
+      }
+    });
+  });
+  let cambioLinea = "";
+  const mejor = Object.keys(cobertura).sort((a,b)=>cobertura[b]-cobertura[a])[0];
+  if(mejor && (cobertura[mejor] || 0) > (cobertura[linea] || 0)){
+    cambioLinea = `El bloque es de <b>${esc(mejor)}</b>, no de ${esc(linea)}. Lo cambié por ti.`;
+    linea = mejor;
+    document.getElementById("espLinea").value = mejor;
+  }
+
   const delaLinea = S.formatos.filter(f=>f.linea===linea);
   const especs = [], problemas = [], porProceso = {};
   let saltadasNA = 0, vacias = 0, ejemplos = 0;
@@ -5050,7 +5092,14 @@ function revisarBloqueEsp(){
     if(c.some(x => /^\s*\(ejemplo/i.test(String(x||"")))){ ejemplos++; return; }
 
     const f = delaLinea.find(x=>x.proceso === proc);
-    if(!f){ problemas.push(`fila ${nFila}: no hay proceso «${esc(proc)}» en ${esc(linea)}`); return; }
+    if(!f){
+      const otras = [];
+      S.formatos.forEach(x=>{ if(x.proceso === proc && otras.indexOf(x.linea) === -1) otras.push(x.linea); });
+      problemas.push(otras.length
+        ? `fila ${nFila}: «${esc(proc)}» est\u00e1 en ${esc(otras.join(" o "))}, no en ${esc(linea)}`
+        : `fila ${nFila}: no existe el proceso «${esc(proc)}» en ning\u00fan formato`);
+      return;
+    }
 
     /* Variable en blanco = la cota vale para TODAS las numéricas del proceso.
        Es el caso de la dureza: los 6 puntos de un machete comparten
@@ -5097,6 +5146,7 @@ function revisarBloqueEsp(){
     .map(k=>`<li><b>${esc(k)}</b>: ${porProceso[k]} cota(s)</li>`).join("");
 
   caja.innerHTML =
+    (cambioLinea ? `<div class="falta-aviso listo">${cambioLinea}</div>` : "") +
     (especs.length
       ? `<div class="falta-aviso listo"><b>Listo para cargar: ${especs.length} cota(s)</b></div>
          <ul style="font-size:.85rem;margin:10px 0;">${resumen}</ul>`
@@ -5177,6 +5227,24 @@ document.getElementById("btnEspCargar").addEventListener("click", cargarBloqueEs
 document.getElementById("espPegar").addEventListener("input", ()=>{
   ESP_LOTE = null;
   document.getElementById("btnEspCargar").disabled = true;
+});
+
+/* ======================================================================
+   Cualquier campo del encabezado que mande sobre una cota obliga a volver a
+   juzgar lo ya medido. Antes sólo lo hacía la referencia: al elegir el acero
+   DESPUÉS de teclear el valor, el veredicto se quedaba con el que se calculó
+   sin acero, y la pantalla acababa contradiciéndose — la columna
+   ESPECIFICACIÓN mostrando "61 – 66 HRC · según acero" y el resultado
+   diciendo "Sin especificación" sobre la misma fila.
+   ====================================================================== */
+const CAJA_ENC = document.getElementById("encabezadoCampos");
+const MANDA_COTA = /^e_(referencia|tipoAcero|espesorAcero|material)(_otra)?$/;
+CAJA_ENC.addEventListener("change", e=>{
+  if(MANDA_COTA.test(String((e.target||{}).id||""))) rejuzgarTodo();
+});
+CAJA_ENC.addEventListener("input", e=>{
+  // el campo libre de "Otro…" se escribe a mano: hay que seguirlo al teclear
+  if(/^e_(tipoAcero|espesorAcero|material)_otra$/.test(String((e.target||{}).id||""))) rejuzgarTodo();
 });
 
 document.getElementById("btnSubirTodo").addEventListener("click", async ()=>{
