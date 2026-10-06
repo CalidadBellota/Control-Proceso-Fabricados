@@ -1706,6 +1706,8 @@ const LINEAS_EXIGEN_ENC = ["Dureza"];
    se teclea, no se elige, y a veces el inspector no la tiene a mano todavía;
    bloquear por ella pararía el ensayo sin motivo. */
 const ENC_PREVIO = ["referencia", "tipoAcero", "espesorAcero", "material", "maquina"];
+/* Si añades un campo aquí, añádelo también a MANDA_COTA o la pantalla seguirá
+   pidiéndolo después de que lo elijan. */
 function faltanParaMedir(f){
   if(!f || LINEAS_EXIGEN_ENC.indexOf(String(f.linea||"").trim()) === -1) return [];
   const enc = f.encabezado || [];
@@ -2300,6 +2302,7 @@ function renderVariables(){
   }
   caja.style.display = "";
   aviso.style.display = "none";
+  aviso.innerHTML = "";          // que no quede texto viejo oculto detrás
   const hayCrit = vars.some(v=>v.critica);
   const puesto = {crit:false, resto:false};
   const orden = vars.map((v,i)=>({v,i})).sort((a,b)=> (b.v.critica?1:0) - (a.v.critica?1:0));
@@ -4332,7 +4335,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-06-una-peticion";
+const APP_VERSION = "2026-10-06-maquina";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -4508,6 +4511,17 @@ async function cargarApertura(desdeFecha, motivo){
   LECTURA.corte = corte;
   try{
     const data = await pedirJSON(S.syncUrl + "?tipo=todo&desde=" + corte, "catálogo y registros");
+
+    /* Un backend que no conoce «tipo=todo» ignora el parámetro y responde como
+       si sólo le hubieran pedido registros: devuelve una lista. Esos registros
+       son válidos, así que se aprovechan en vez de tirarlos y volver a pedirlos;
+       sólo falta el catálogo. */
+    if(Array.isArray(data)){
+      aplicarRegistros(data, t0, corte, false);
+      await cargarConfig();
+      return;
+    }
+
     if(!data || !data.config || !Array.isArray(data.registros))
       throw new Error("respuesta sin el formato esperado");
     aplicarConfig(data.config);
@@ -5367,7 +5381,13 @@ document.getElementById("espPegar").addEventListener("input", ()=>{
    diciendo "Sin especificación" sobre la misma fila.
    ====================================================================== */
 const CAJA_ENC = document.getElementById("encabezadoCampos");
-const MANDA_COTA = /^e_(referencia|tipoAcero|espesorAcero|material)(_otra)?$/;
+/* Campos cuyo cambio obliga a repintar. Tiene que incluir TODO lo que decida
+   qué se ve o contra qué se juzga, no sólo lo que manda sobre la cota: la
+   máquina no cambia ningún límite, pero sí es uno de los datos que hay que
+   elegir antes de ver los puntos. Tenerla en la lista de obligatorios y no en
+   ésta dejaba al inspector con "Elige Máquina" en pantalla después de haberla
+   elegido. */
+const MANDA_COTA = /^e_(referencia|tipoAcero|espesorAcero|material|maquina)(_otra)?$/;
 CAJA_ENC.addEventListener("change", e=>{
   if(MANDA_COTA.test(String((e.target||{}).id||""))) rejuzgarTodo();
 });
