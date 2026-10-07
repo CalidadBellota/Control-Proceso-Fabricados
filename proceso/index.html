@@ -2476,11 +2476,16 @@ function construirRegistro(){
     observaciones: document.getElementById("iObservaciones").value.trim(),
     resultados: (f.variables||[]).map((v,i)=>{
       const m = S.mediciones[i] || {};
+      /* Se guarda el límite CON EL QUE SE JUZGÓ, no el genérico de la variable.
+         Si la cota viene del acero o de la referencia, es ésa la que importa:
+         dentro de seis meses, mirando el registro, nadie podrá reconstruir
+         contra qué se comparó si aquí sólo quedó el campo general vacío. */
+      const L = limitesDe(v, f.id, discActual());
       return {
         nombre: v.nombre, tipo: v.tipo, unidad: v.unidad || "",
         critica: v.critica ? "Sí" : "",
-        min: (v.min ?? "") === "" ? "" : v.min,
-        max: (v.max ?? "") === "" ? "" : v.max,
+        min: (L.min ?? "") === "" ? "" : L.min,
+        max: (L.max ?? "") === "" ? "" : L.max,
         valor: m.valor ?? "",
         observacion: m.obs || "",
         resultado: m.resultado==="bad" ? "Fuera de rango"
@@ -3054,7 +3059,8 @@ function renderTendencia(){
   const prom = ys.reduce((a,b)=>a+b,0)/ys.length;
   const desvia = Math.sqrt(ys.reduce((a,b)=>a+Math.pow(b-prom,2),0)/ys.length);
   const hay = x => x !== null && x !== undefined && x !== "";
-  const lim = {min: hay(vDef.min)?parseFloat(vDef.min):null, max: hay(vDef.max)?parseFloat(vDef.max):null};
+  const bandaEsp = bandaTendencia(fId, vDef, S.serie.clave === claveSerie(fId, vNom, desde, hasta) ? S.serie.puntos : []);
+  const lim = {min: hay(bandaEsp.min)?parseFloat(bandaEsp.min):null, max: hay(bandaEsp.max)?parseFloat(bandaEsp.max):null};
   const u = vDef.unidad ? " "+vDef.unidad : "";
   /* Un decimal: las mediciones vienen en enteros, y un promedio con centésimas
      promete una precisión que el instrumento no tiene. */
@@ -3107,8 +3113,11 @@ function renderTendencia(){
         ${margen!==null?`<span><i class="dot" style="background:${COL.cerca};"></i>Cerca del límite</span>`:""}
         <span><i class="dot" style="background:${COL.fuera};"></i>Fuera de rango</span>
         ${!sinLimites?`<span><i class="punteada"></i>Límite de especificación</span>`:""}
-        ${sinLimites?`<span style="color:var(--warn-text);">Esta variable no tiene límites cargados ·
-          defínelos en Administrar para que la app la juzgue</span>`:""}
+        ${sinLimites ? (bandaEsp.varias
+          ? `<span style="color:var(--warn-text);">Esta variable tiene ${bandaEsp.varias} cotas distintas
+             (por acero o por referencia): no se puede dibujar una sola banda para toda la serie</span>`
+          : `<span style="color:var(--warn-text);">Esta variable no tiene límites cargados ·
+             defínelos en Administrar para que la app la juzgue</span>`) : ""}
       </div>
     </div>
 
@@ -4356,7 +4365,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-06-linea-ambigua";
+const APP_VERSION = "2026-10-07-apertura-ligera";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -4523,6 +4532,20 @@ function fallaLectura(e){
    de iniciarSesion(), antes de que arranque la apertura, y sin esto pedía el
    catálogo por su cuenta justo antes de la petición que ya lo trae. */
 let APERTURA_EN_CURSO = !!S.syncUrl;
+/* ¿Hace falta traer el catálogo otra vez? Casi nunca. Cambia unas pocas veces
+   al mes y el equipo ya lo tiene guardado; pedirlo en cada apertura hace que la
+   ejecución de Apps Script sea mucho más larga, y pasado cierto punto Google la
+   corta con un 404. Se pide sólo si no hay catálogo, o si el que hay ya tiene
+   sus horas. Actualizar y Administrar lo fuerzan cuando de verdad se necesita. */
+const CATALOGO_HORAS = 10;
+function catalogoAlDia(){
+  if(!S.formatos || !S.formatos.length) return false;
+  let t = 0;
+  try{ t = Number(localStorage.getItem("cp_catalogo_fecha") || 0); }catch(e){}
+  if(!t) return false;
+  return (Date.now() - t) < CATALOGO_HORAS * 3600 * 1000;
+}
+
 async function cargarApertura(desdeFecha, motivo){
   if(!S.syncUrl){ LECTURA.error = "sin conexión configurada"; return; }
   APERTURA_EN_CURSO = true;
@@ -4531,6 +4554,15 @@ async function cargarApertura(desdeFecha, motivo){
   const corte = desdeFecha || fechaRondaActual();
   LECTURA.corte = corte;
   try{
+    /* Con el catálogo al día, la apertura pide SÓLO los registros del turno:
+       unas decenas de filas. Es la petición más corta posible y la que menos
+       se expone a que Apps Script la corte. */
+    if(catalogoAlDia()){
+      const regs = await pedirJSON(S.syncUrl + "?desde=" + corte, "registros");
+      aplicarRegistros(regs, t0, corte, false);
+      marcarConfigSync(true);
+      return;
+    }
     const data = await pedirJSON(S.syncUrl + "?tipo=todo&desde=" + corte, "catálogo y registros");
 
     /* Un backend que no conoce «tipo=todo» ignora el parámetro y responde como
@@ -4608,6 +4640,7 @@ function aplicarConfig(data){
     }
     pintarBotonDurezas();
     persist();
+    try{ localStorage.setItem("cp_catalogo_fecha", String(Date.now())); }catch(e){}
     S.pendientesLocal = soloLocal;
     marcarConfigSync(true);
     if(document.getElementById("viewAdmin").style.display !== "none") renderAdmin();
@@ -5556,6 +5589,42 @@ async function cargarRonda(){
    ====================================================================== */
 function claveSerie(fId, vNom, desde, hasta){
   return [fId, vNom, desde||"", hasta||""].join("|");
+}
+
+/* La banda del gráfico se busca en tres sitios, en este orden:
+     1. el límite que llevaba cada punto cuando se juzgó  (lo más fiel)
+     2. las cotas cargadas para esa variable               (acero, referencia…)
+     3. la cota general del formato                        (como antes)
+   Si hay VARIAS distintas no se dibuja ninguna: una serie que mezcla dos
+   aceros con bandas diferentes no se puede resumir en una sola franja, y
+   pintar una de las dos sería mentir sobre la mitad de los puntos. */
+function bandaTendencia(fId, vDef, puntos){
+  const dist = o => Object.keys(o).map(k=>o[k]);
+
+  const delPunto = {};
+  (puntos||[]).forEach(p=>{
+    const mn = p.min, mx = p.max;
+    if((mn === null || mn === undefined || mn === "") &&
+       (mx === null || mx === undefined || mx === "")) return;
+    delPunto[String(mn)+"|"+String(mx)] = {min:mn, max:mx};
+  });
+  let v = dist(delPunto);
+  if(v.length === 1) return {min:v[0].min, max:v[0].max, fuente:"registro"};
+  if(v.length > 1)   return {varias:v.length};
+
+  const pre = String(fId) + "|" + String(vDef.nombre) + "|";
+  const cot = {};
+  Object.keys(S.especificaciones).filter(k=>k.indexOf(pre) === 0).forEach(k=>{
+    const e = S.especificaciones[k];
+    cot[String(e[0])+"|"+String(e[1])] = {min:e[0], max:e[1]};
+  });
+  v = dist(cot);
+  if(v.length === 1) return {min:v[0].min, max:v[0].max, fuente:"cota"};
+  if(v.length > 1)   return {varias:v.length};
+
+  const hay = x => x !== null && x !== undefined && x !== "";
+  if(hay(vDef.min) || hay(vDef.max)) return {min:vDef.min, max:vDef.max, fuente:"general"};
+  return {};
 }
 
 async function traerSerie(fId, vNom, desde, hasta, boton){
