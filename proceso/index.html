@@ -111,6 +111,20 @@
   #encabezadoCampos .campo.ancho{grid-column:span 6;}   /* la descripción más larga son 66 caracteres */
   #encabezadoCampos .campo.corto{grid-column:span 2;}
   #encabezadoCampos .campo.completo{grid-column:1 / -1;}
+  /* Temple, calentamiento, revenido y dureza: se registran de pie junto al
+     horno, muchas veces con guantes. Los campos van más anchos y más altos,
+     y la referencia ocupa la fila entera para que quepa la descripción más
+     larga (66 caracteres) sin cortarse. */
+  #encabezadoCampos.termico .campo{grid-column:span 4;}
+  #encabezadoCampos.termico .campo.corto{grid-column:span 3;}
+  #encabezadoCampos.termico .campo.ancho{grid-column:1 / -1;}
+  #encabezadoCampos.termico input,
+  #encabezadoCampos.termico select{font-size:1rem;padding:12px 13px;}
+  #encabezadoCampos.termico label{font-size:.76rem;}
+  @media(max-width:900px){
+    #encabezadoCampos.termico .campo,
+    #encabezadoCampos.termico .campo.corto{grid-column:span 6;}
+  }
   @media(max-width:900px){
     #encabezadoCampos{grid-template-columns:repeat(6,minmax(0,1fr));}
     #encabezadoCampos .campo{grid-column:span 3;}
@@ -1721,6 +1735,12 @@ function admiteNoTrabajo(linea){ return LINEAS_SIN_PARO.indexOf(String(linea||""
 /* Líneas donde no se deja medir hasta que el encabezado diga contra qué
    juzgar. Sin referencia ni acero la cota no existe, y enseñar las casillas
    vacías invita a teclear valores que luego nadie juzga. */
+const PROC_TERMICO = /temple|revenido|calentamiento|dureza|horno/i;
+function esTermico(f){
+  if(!f) return false;
+  if(String(f.linea||"").trim() === "Dureza") return true;
+  return PROC_TERMICO.test(String(f.proceso||""));
+}
 const LINEAS_EXIGEN_ENC = ["Dureza"];
 /* Campos que hay que elegir antes de poder medir. Los tres que identifican
    QUÉ se mide y DÓNDE. La orden de fabricación se deja libre a propósito:
@@ -2078,6 +2098,7 @@ function renderEncabezado(f){
     }
   });
   box.innerHTML = campos.join("");
+  box.classList.toggle("termico", esTermico(f));
   box.querySelectorAll("input,select").forEach(el=>{
     el.addEventListener("input", actualizarBarra);
     el.addEventListener("change", actualizarBarra);
@@ -2930,24 +2951,50 @@ function refrescarSelectoresTendencia(){
     tv.disabled = true;
     tv.innerHTML = `<option value="">Selecciona primero el proceso</option>`;
   } else {
-    const nums = (f.variables||[]).filter(v=>v.tipo==="numerico");
+    const nums = varsNumericas(f);
     const prev = tv.value;
     tv.disabled = nums.length===0;
+    /* En Dureza los 6 puntos son la misma medida: poder verlos juntos es lo
+       que enseña si el filo templa parejo o se va por un extremo. */
+    const juntas = (esDureza(f) && nums.length > 1)
+      ? `<option value="${TODAS_LAS_VARS}">Los ${nums.length} puntos juntos (comparar)</option>` : "";
     tv.innerHTML = nums.length
-      ? `<option value="">Selecciona una variable</option>` +
+      ? `<option value="">Selecciona una variable</option>` + juntas +
         nums.map(v=>`<option value="${esc(v.nombre)}">${esc(v.nombre)}${v.unidad?` (${esc(v.unidad)})`:""}</option>`).join("")
       : `<option value="">Este proceso no tiene variables numéricas</option>`;
-    if(prev && nums.some(v=>v.nombre===prev)) tv.value = prev;
+    if(prev && (nums.some(v=>v.nombre===prev) || (prev===TODAS_LAS_VARS && juntas))) tv.value = prev;
   }
   refrescarFiltrosTend(f);
 }
 
-/* Los dos filtros sólo se piden donde el proceso los registra: si su
-   encabezado no guarda el acero, no hay nada que filtrar y exigirlo dejaría
-   la pantalla bloqueada para siempre. */
+/* Tratamiento térmico: es donde la temperatura depende del acero y del
+   proveedor, así que es el único sitio donde los filtros aportan algo. En el
+   resto de procesos (troquelado, lijado, pintura…) estorban, y la gráfica
+   sale directa como antes. */
+/* Los 6 puntos de dureza son la misma medida en seis sitios del filo. */
+const TODAS_LAS_VARS = "__todas";
+function esDureza(f){ return !!f && String(f.linea||"").trim() === "Dureza"; }
+function varsNumericas(f){ return ((f&&f.variables)||[]).filter(v=>v.tipo==="numerico"); }
+
+/* Qué filtros aplican. Sólo en térmicos, y el proveedor con la misma regla
+   que usa el formulario de registro —no mirando el encabezado—, porque en
+   Cuchillas y Machetes el proveedor se pide aunque el formato no lo liste. */
 function filtrosTendDe(f){
+  if(!esTermico(f)) return {acero:false, prov:false, porAcero:false};
   const enc = (f && f.encabezado) || [];
-  return {acero: enc.indexOf("tipoAcero") !== -1, prov: enc.indexOf("proveedor") !== -1};
+  const tieneAcero = enc.indexOf("tipoAcero") !== -1;
+  /* La MISMA regla que usa el formulario de registro, no la línea de las
+     referencias: si el formulario no pide el proveedor, filtrar por él sería
+     exigir un dato que no existe y la gráfica no saldría nunca. En la línea
+     Dureza se activa marcando «Proveedor» en el formato. */
+  const prov = pideProveedorAcero(f.linea) || enc.indexOf("proveedor") !== -1;
+  /* Con una sola variable se dibuja UNA LÍNEA POR ACERO: comparar 1074 contra
+     65MN en la misma gráfica dice más que elegir uno y perder el otro de
+     vista. Con los 6 puntos de dureza no cabe: serían 12 líneas, así que
+     ahí sí hay que elegir el acero. */
+  const seisPuntos = document.getElementById("tVariable") &&
+                     document.getElementById("tVariable").value === TODAS_LAS_VARS;
+  return {acero: tieneAcero && seisPuntos, prov: prov, porAcero: tieneAcero && !seisPuntos};
 }
 function refrescarFiltrosTend(f){
   const caja = document.getElementById("tFiltros");
@@ -2960,7 +3007,7 @@ function refrescarFiltrosTend(f){
   if(!f) return;
 
   if(quiere.acero){
-    const lista = acerosDe(f.linea);
+    const lista = acerosDe(lineaDeReferencias(f));
     const prev = sa.value;
     sa.innerHTML = `<option value="">Selecciona el acero</option>` +
       lista.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
@@ -2977,7 +3024,8 @@ function refrescarFiltrosTend(f){
   const falta = faltanFiltrosTend(f);
   document.getElementById("tNotaFiltro").textContent = falta.length
     ? "Falta elegir: " + falta.join(" y ")
-    : "La gráfica muestra sólo estas mediciones.";
+    : (quiere.porAcero ? "Una línea por cada acero, con su propia banda."
+                       : "La gráfica muestra sólo estas mediciones.");
 }
 /* Qué filtros aplicables están todavía vacíos. Vacío = se puede graficar. */
 function faltanFiltrosTend(f){
@@ -2990,8 +3038,9 @@ function filtroTendActual(){
   const f = S.formatos.find(x=>x.id===document.getElementById("tProceso").value);
   const quiere = filtrosTendDe(f);
   return {
-    acero: quiere.acero ? document.getElementById("tAcero").value : "",
-    prov:  quiere.prov  ? document.getElementById("tProv").value  : ""
+    acero:    quiere.acero ? document.getElementById("tAcero").value : "",
+    prov:     quiere.prov  ? document.getElementById("tProv").value  : "",
+    porAcero: !!quiere.porAcero
   };
 }
 
@@ -2999,7 +3048,12 @@ document.getElementById("tProceso").addEventListener("change", ()=>{
   refrescarSelectoresTendencia();
   consultarTendencia();
 });
-document.getElementById("tVariable").addEventListener("change", consultarTendencia);
+/* Elegir «los 6 puntos» cambia QUÉ filtros aplican, así que hay que
+   repintarlos antes de consultar. */
+document.getElementById("tVariable").addEventListener("change", ()=>{
+  refrescarFiltrosTend(S.formatos.find(x=>x.id===document.getElementById("tProceso").value));
+  consultarTendencia();
+});
 ["tAcero","tProv"].forEach(id=>{
   document.getElementById(id).addEventListener("change", ()=>{
     refrescarFiltrosTend(S.formatos.find(x=>x.id===document.getElementById("tProceso").value));
@@ -3093,10 +3147,150 @@ document.getElementById("tLimpiar").addEventListener("click", e=>{
   consultarTendencia(e.target);
 });
 
+/* ---------- Gráfica de comparación: varias series a la vez ----------
+   Dos casos distintos con la misma forma: una línea por acero (1074 frente a
+   65MN, que es lo que de verdad enseña si el horno trata igual los dos) y una
+   línea por punto de dureza (los 6 del filo, para ver si templa parejo).
+   Va aparte de la gráfica de una serie porque aquí no hay un solo veredicto
+   por punto que colorear: cada línea tiene su propia banda. */
+const COLS_SERIE = ["#c81d2e", "#1f5fb0", "#0f766e", "#8a4ba8", "#b45309", "#1f7a44"];
+
+function renderComparada(box, ctx){
+  const {f, vDef, grupos, etqModo, per, filtro, unidad} = ctx;
+  const nombres = Object.keys(grupos);
+  /* Eje X común: la unión de las fechas de todas las series, porque Chart.js
+     alinea los datasets por índice. Donde una serie no midió va null. */
+  const fechas = {};
+  nombres.forEach(n=>grupos[n].forEach(p=>{ fechas[p.x] = true; }));
+  const labels = Object.keys(fechas).sort();
+  const pos = {}; labels.forEach((l,i)=>pos[l]=i);
+
+  const hay = x => x !== null && x !== undefined && x !== "";
+  /* La banda de cada serie: por acero la cota de ese acero; por punto, la
+     cota de ese punto con el acero ya elegido. */
+  function bandaDe(nombre){
+    const k = etqModo === "acero"
+      ? claveEsp(f.id, vDef.nombre, "tipoAcero", nombre)
+      : claveEsp(f.id, nombre, "tipoAcero", filtro.acero);
+    const e = S.especificaciones[k];
+    if(e && (hay(e[0]) || hay(e[1]))) return {min:e[0], max:e[1]};
+    if(etqModo !== "acero"){
+      const vd = (f.variables||[]).find(v=>v.nombre===nombre);
+      if(vd && (hay(vd.min) || hay(vd.max))) return {min:vd.min, max:vd.max};
+    }
+    return null;
+  }
+  const bandas = {}; nombres.forEach(n=>{ bandas[n] = bandaDe(n); });
+  /* Si todas comparten banda se dibuja UNA, no seis encima de la misma. */
+  const firmas = {};
+  nombres.forEach(n=>{ if(bandas[n]) firmas[String(bandas[n].min)+"|"+String(bandas[n].max)] = bandas[n]; });
+  const unicas = Object.keys(firmas).map(k=>firmas[k]);
+  const bandaUnica = unicas.length === 1 ? unicas[0] : null;
+
+  const series = nombres.map((n,i)=>{
+    const col = COLS_SERIE[i % COLS_SERIE.length];
+    const datos = labels.map(()=>null);
+    grupos[n].forEach(p=>{ datos[pos[p.x]] = p.y; });
+    return {nombre:n, col:col, datos:datos, puntos:grupos[n]};
+  });
+
+  /* Resumen por serie: promedio y cuántas se salieron de SU banda. */
+  const resumen = series.map(s=>{
+    const ys = s.puntos.map(p=>p.y);
+    const b = bandas[s.nombre];
+    const fuera = b ? ys.filter(y=>(hay(b.min)&&y<parseFloat(b.min))||(hay(b.max)&&y>parseFloat(b.max))).length : 0;
+    return {n:s.nombre, col:s.col, med:ys.length,
+            prom: ys.reduce((a,b2)=>a+b2,0)/ys.length,
+            fuera: fuera, banda: b};
+  });
+  const f1 = n => (Math.round(n*10)/10).toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1});
+  const u = unidad ? " "+unidad : "";
+
+  box.innerHTML = `
+    <div class="panel">
+      <div class="section-title"><h2>${esc(etqModo==="acero" ? "COMPARACIÓN POR ACERO" : "LOS PUNTOS, UNO FRENTE A OTRO")}</h2>
+        <span style="font-size:.74rem;color:var(--text-dim);">${esc(per.etq)}${
+          filtro.prov ? " · "+esc(filtro.prov) : ""}${
+          filtro.acero && etqModo!=="acero" ? " · "+esc(filtro.acero) : ""}</span></div>
+      <table class="tabla" style="margin-bottom:14px;">
+        <thead><tr><th>${esc(etqModo==="acero"?"Acero":"Punto")}</th>
+          <th style="text-align:right;">Mediciones</th>
+          <th style="text-align:right;">Promedio</th>
+          <th style="text-align:right;">Fuera de su banda</th>
+          <th>Banda</th></tr></thead>
+        <tbody>${resumen.map(r=>`<tr>
+          <td><i class="dot" style="background:${r.col};"></i> ${esc(r.n)}</td>
+          <td style="text-align:right;">${r.med}</td>
+          <td style="text-align:right;font-variant-numeric:tabular-nums;">${f1(r.prom)}${esc(u)}</td>
+          <td style="text-align:right;${r.fuera?"color:var(--bad);font-weight:800;":""}">${
+            r.banda ? r.fuera : "—"}</td>
+          <td style="color:var(--text-dim);">${r.banda
+            ? esc(String(r.banda.min))+" a "+esc(String(r.banda.max))
+            : "sin especificación"}</td></tr>`).join("")}</tbody>
+      </table>
+      <div style="height:360px;"><canvas id="cvTend"></canvas></div>
+      <div style="margin-top:10px;font-size:.74rem;color:var(--text-dim);">${
+        bandaUnica ? "Las dos series comparten la misma banda."
+        : unicas.length > 1 ? "Cada serie tiene su propia banda, en su color."
+        : "Ninguna de estas series tiene cota cargada todavía."}</div>
+    </div>`;
+
+  const puntosY = [].concat.apply([], series.map(s=>s.puntos.map(p=>p.y)));
+  const extremos = puntosY.slice();
+  unicas.forEach(b=>{ if(hay(b.min)) extremos.push(parseFloat(b.min)); if(hay(b.max)) extremos.push(parseFloat(b.max)); });
+  const lo = Math.min.apply(null, extremos), hi = Math.max.apply(null, extremos);
+  const span = (hi - lo) || Math.max(Math.abs(hi)*0.05, 1);
+
+  const lineasBanda = [];
+  if(bandaUnica){
+    if(hay(bandaUnica.max)) lineasBanda.push({label:"Límite superior", valor:parseFloat(bandaUnica.max), col:"#c81d2e", dash:[7,5]});
+    if(hay(bandaUnica.min)) lineasBanda.push({label:"Límite inferior", valor:parseFloat(bandaUnica.min), col:"#c81d2e", dash:[7,5]});
+  } else {
+    series.forEach(s=>{
+      const b = bandas[s.nombre]; if(!b) return;
+      if(hay(b.max)) lineasBanda.push({label:`Máx. ${s.nombre}`, valor:parseFloat(b.max), col:s.col, dash:[7,5]});
+      if(hay(b.min)) lineasBanda.push({label:`Mín. ${s.nombre}`, valor:parseFloat(b.min), col:s.col, dash:[2,4]});
+    });
+  }
+
+  if(graficaTend) graficaTend.destroy();
+  graficaTend = new Chart(document.getElementById("cvTend"), {
+    type:"line",
+    data:{ labels: labels,
+      datasets: series.map(s=>({
+          label:s.nombre, data:s.datos, borderColor:s.col, backgroundColor:s.col,
+          borderWidth:2, tension:.25, pointRadius:3, pointBorderColor:"#fff", pointBorderWidth:1,
+          fill:false, spanGaps:true, order:1
+        })).concat(lineasBanda.map(l=>({
+          label:l.label, data:labels.map(()=>l.valor), borderColor:l.col, borderWidth:2,
+          borderDash:l.dash, pointRadius:0, fill:false, order:0
+        })))
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:"index", intersect:false},
+      plugins:{
+        legend:{display:true, position:"bottom",
+          labels:{usePointStyle:true, boxWidth:8, font:{size:11}, color:"#6e7681"}},
+        tooltip:{backgroundColor:"#1c1f24", padding:11, titleFont:{size:12}, bodyFont:{size:12},
+          callbacks:{ label: it => `${it.dataset.label}: ${f1(it.parsed.y)}${u}` }}
+      },
+      scales:{
+        y:{ grid:{color:"#eef0f3"}, ticks:{color:"#6e7681", font:{size:11}},
+            title:{display:!!unidad, text:unidad||"", color:"#6e7681", font:{size:11}},
+            min: lo - span*0.15, max: hi + span*0.15 },
+        x:{ grid:{display:false}, ticks:{color:"#6e7681", font:{size:10}, maxRotation:0,
+            autoSkip:true, maxTicksLimit:8,
+            callback(v){ return String(this.getLabelForValue(v)).slice(0,10); } } }
+      }
+    }
+  });
+}
+
 function renderTendencia(){
   const box = document.getElementById("tendResultado");
   const fId = document.getElementById("tProceso").value;
-  const vNom = document.getElementById("tVariable").value;
+  let vNom = document.getElementById("tVariable").value;
   const f = S.formatos.find(x=>x.id===fId);
   if(!f || !vNom){
     box.innerHTML = `<div class="panel"><div class="empty-mini">Selecciona un proceso y una variable numérica.</div></div>`;
@@ -3108,12 +3302,15 @@ function renderTendencia(){
       <span style="font-size:.72rem;">Las temperaturas no se comportan igual con cada acero ni con cada proveedor: mezclarlos en una sola línea esconde justo lo que se quiere vigilar.</span></div></div>`;
     return;
   }
-  if(S.serie.sinFiltro){
-    box.innerHTML = `<div class="panel"><div class="empty-mini">La hoja devolvió las mediciones <b>sin aplicar el filtro</b>, así que no se dibujan.<br>
+  if(S.serie.sinFiltro || S.serie.sinVariable){
+    box.innerHTML = `<div class="panel"><div class="empty-mini">La hoja devolvió las mediciones <b>sin la información que hace falta para comparar</b>, así que no se dibujan.<br>
       <span style="font-size:.72rem;">Publica en Apps Script una <b>Nueva versión</b> de la implementación: el filtro por acero y proveedor lo resuelve la hoja.</span></div></div>`;
     return;
   }
-  const vDef = (f.variables||[]).find(v=>v.nombre===vNom) || {};
+  /* «Los 6 puntos» no es una variable: para todo lo que mira una sola
+     (unidad, cota general) vale la primera numérica del proceso. */
+  const vDef = (f.variables||[]).find(v=>v.nombre===vNom) ||
+               (vNom === TODAS_LAS_VARS ? (varsNumericas(f)[0] || {}) : {});
   const per = periodoTendencia();
   const desde = per.desde, hasta = per.hasta;
   const maq = "", ref = "";
@@ -3124,7 +3321,37 @@ function renderTendencia(){
   /* Si la hoja nos dio la serie de esta variable y este rango, se usa: son los
      mismos datos pesando catorce veces menos. Si no, se arma desde lo que haya
      en el equipo, que es lo que permite ver tendencias sin conexión. */
-  const hayserie = S.serie.clave === claveSerieActual(fId, vNom, desde, hasta) && S.serie.puntos.length;
+  /* La clave se fija ANTES de que vNom pueda reasignarse más abajo: si no,
+     la banda se buscaría con una clave que ya no es la de la serie pedida. */
+  const claveActual = claveSerieActual(fId, vNom, desde, hasta);
+  const hayserie = S.serie.clave === claveActual && S.serie.puntos.length;
+
+  /* ¿Hay que comparar varias series? Por punto de dureza, o por acero. */
+  const modo = vNom === TODAS_LAS_VARS ? "variable" : (fTend.porAcero ? "acero" : "");
+  if(modo && hayserie){
+    const grupos = {};
+    S.serie.puntos.slice()
+      .sort((a,b)=> String(a.fecha+a.registroId).localeCompare(String(b.fecha+b.registroId)))
+      .forEach(pt=>{
+        const n = parseFloat(String(pt.valor).replace(",","."));
+        if(isNaN(n)) return;
+        const g = String((modo === "variable" ? pt.variable : pt.acero) || "").trim();
+        if(!g) return;                       // sin grupo no se puede comparar
+        (grupos[g] = grupos[g] || []).push({x: fFecha(pt.fecha), y: n});
+      });
+    const nG = Object.keys(grupos).length;
+    if(nG > 1){
+      const u0 = (varsNumericas(f)[0]||{}).unidad || vDef.unidad || "";
+      renderComparada(box, {f:f, vDef:(modo==="variable" ? (varsNumericas(f)[0]||{nombre:vNom}) : vDef),
+        grupos:grupos, etqModo:modo, per:per, filtro:fTend, unidad: modo==="variable" ? u0 : vDef.unidad});
+      return;
+    }
+    /* Un solo grupo (sólo se trabajó un acero, o sólo hay un punto medido):
+       no hay nada que comparar, así que sigue la gráfica de siempre, que
+       tiene mejor detalle por punto. */
+    if(modo === "variable" && nG === 1) vNom = Object.keys(grupos)[0];
+  }
+
   if(hayserie){
     S.serie.puntos.slice()
       .sort((a,b)=> String(a.fecha+a.registroId).localeCompare(String(b.fecha+b.registroId)))
@@ -3160,7 +3387,7 @@ function renderTendencia(){
   const prom = ys.reduce((a,b)=>a+b,0)/ys.length;
   const desvia = Math.sqrt(ys.reduce((a,b)=>a+Math.pow(b-prom,2),0)/ys.length);
   const hay = x => x !== null && x !== undefined && x !== "";
-  const bandaEsp = bandaTendencia(fId, vDef, S.serie.clave === claveSerieActual(fId, vNom, desde, hasta) ? S.serie.puntos : [], filtroTendActual());
+  const bandaEsp = bandaTendencia(fId, vDef, S.serie.clave === claveActual ? S.serie.puntos : [], filtroTendActual());
   const lim = {min: hay(bandaEsp.min)?parseFloat(bandaEsp.min):null, max: hay(bandaEsp.max)?parseFloat(bandaEsp.max):null};
   const u = vDef.unidad ? " "+vDef.unidad : "";
   /* Un decimal: las mediciones vienen en enteros, y un promedio con centésimas
@@ -4485,7 +4712,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-07-cotas-editables";
+const APP_VERSION = "2026-10-07-comparar-series";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -5893,9 +6120,15 @@ async function traerSerie(fId, vNom, desde, hasta, boton){
     /* En la hoja Detalle la columna «proceso» guarda sólo el proceso, sin la
        línea delante: hay que mandar f.proceso, no f.nombre. */
     const ft = filtroTendActual();
+    /* «Los 6 puntos» viaja como una lista separada por |: una sola petición
+       en vez de seis, que serían seis arranques de Apps Script. */
+    const multi = vNom === TODAS_LAS_VARS;
+    const pide = multi
+      ? "&variables=" + encodeURIComponent(varsNumericas(f).map(v=>v.nombre).join("|"))
+      : "&variable="  + encodeURIComponent(vNom);
     const url = S.syncUrl + "?tipo=serie"
       + "&proceso="  + encodeURIComponent(f.proceso)
-      + "&variable=" + encodeURIComponent(vNom)
+      + pide
       + (desde ? "&desde=" + desde : "")
       + (hasta ? "&hasta=" + hasta : "")
       + (ft.acero ? "&acero="     + encodeURIComponent(ft.acero) : "")
@@ -5915,7 +6148,13 @@ async function traerSerie(fId, vNom, desde, hasta, boton){
     const pidioFiltro = !!(ft.acero || ft.prov);
     const sinFiltro = pidioFiltro && data.length && data[0] &&
                       data[0].acero === undefined && data[0].proveedor === undefined;
-    S.serie = {clave: claveSerieActual(fId, vNom, desde, hasta), puntos: data, sinFiltro: !!sinFiltro};
+    /* Lo mismo para los 6 puntos: una hoja vieja no entiende «variables» y
+       devuelve vacío, o devuelve puntos sin decir de qué variable son. */
+    const sinVariable = (multi || ft.porAcero) && data.length && data[0] &&
+                        (multi ? data[0].variable === undefined : data[0].acero === undefined);
+    S.serie = {clave: claveSerieActual(fId, vNom, desde, hasta), puntos: data,
+               sinFiltro: !!sinFiltro, sinVariable: !!sinVariable,
+               vacioMulti: !!(multi && !data.length)};
     LECTURA.hora = (function(){ const d=new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; })();
     LECTURA.sello = Date.now(); LECTURA.ms = Date.now() - t0;
     LECTURA.recibidos = data.length; LECTURA.nuevos = 0; LECTURA.error = null;
