@@ -2178,6 +2178,10 @@ function cuantasCotas(formatoId){
   return Object.keys(S.especificaciones).filter(k => k.indexOf(pre) === 0).length;
 }
 
+/* Una pareja de líneas por cota, en colores distinguibles entre sí y del
+   negro de la medición. Verificados contra el fondo blanco de la tarjeta. */
+const COLS_COTA = ["#c81d2e", "#1f5fb0", "#8a4ba8", "#0f766e"];
+
 const ETQ_COTA = {referencia:"referencia", tipoAcero:"acero",
                   espesorAcero:"espesor", material:"material"};
 
@@ -3114,8 +3118,9 @@ function renderTendencia(){
         <span><i class="dot" style="background:${COL.fuera};"></i>Fuera de rango</span>
         ${!sinLimites?`<span><i class="punteada"></i>Límite de especificación</span>`:""}
         ${sinLimites ? (bandaEsp.varias
-          ? `<span style="color:var(--warn-text);">Esta variable tiene ${bandaEsp.varias} cotas distintas
-             (por acero o por referencia): no se puede dibujar una sola banda para toda la serie</span>`
+          ? `<span style="color:var(--text-dim);">Esta variable tiene ${bandaEsp.varias} cotas distintas
+             (por acero o por referencia): se dibuja cada una por separado. El color de cada punto
+             sigue siendo el veredicto con el que se registró.</span>`
           : `<span style="color:var(--warn-text);">Esta variable no tiene límites cargados ·
              defínelos en Administrar para que la app la juzgue</span>`) : ""}
       </div>
@@ -3174,6 +3179,13 @@ function renderTendencia(){
   const anot = [];
   if(lim.min!==null) anot.push(lim.min);
   if(lim.max!==null) anot.push(lim.max);
+  /* Las cotas múltiples también cuentan para el eje: si no, una línea de
+     límite por encima del dato más alto quedaría cortada fuera del gráfico. */
+  (bandaEsp.cotas||[]).forEach(c=>{
+    const n1 = parseFloat(c.min), n2 = parseFloat(c.max);
+    if(!isNaN(n1)) anot.push(n1);
+    if(!isNaN(n2)) anot.push(n2);
+  });
   /* un respiro arriba y abajo: con el límite pegado al marco no se ve que es una
      línea de especificación, parece el borde de la gráfica */
   const extremos = anot.length ? [...ys, ...anot] : ys;
@@ -3196,7 +3208,18 @@ function renderTendencia(){
         ...(lim.max!==null?[{label:"Límite superior", data: ys.map(()=>lim.max), borderColor:COL.fuera,
             borderWidth:2, borderDash:[7,5], pointRadius:0, fill:false, order:0}]:[]),
         ...(lim.min!==null?[{label:"Límite inferior", data: ys.map(()=>lim.min), borderColor:COL.fuera,
-            borderWidth:2, borderDash:[7,5], pointRadius:0, fill:false, order:0}]:[])
+            borderWidth:2, borderDash:[7,5], pointRadius:0, fill:false, order:0}]:[]),
+        /* Cuando hay varias cotas se pinta una pareja de líneas por cada una,
+           rotulada con el acero o la referencia a la que pertenece. */
+        ...(bandaEsp.cotas||[]).reduce((acc,c,i)=>{
+          const col = COLS_COTA[i % COLS_COTA.length];
+          const hayv = x => x!==null && x!==undefined && x!=="";
+          if(hayv(c.max)) acc.push({label:`Máx. ${c.etq||""}`.trim(), data: ys.map(()=>parseFloat(c.max)),
+            borderColor:col, borderWidth:2, borderDash:[7,5], pointRadius:0, fill:false, order:0});
+          if(hayv(c.min)) acc.push({label:`Mín. ${c.etq||""}`.trim(), data: ys.map(()=>parseFloat(c.min)),
+            borderColor:col, borderWidth:2, borderDash:[2,4], pointRadius:0, fill:false, order:0});
+          return acc;
+        }, [])
       ]
     },
     plugins:[zonas],
@@ -4365,7 +4388,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-07-version-en-lectura";
+const APP_VERSION = "2026-10-07-cotas-multiples";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -5625,11 +5648,18 @@ function bandaTendencia(fId, vDef, puntos){
   const cot = {};
   Object.keys(S.especificaciones).filter(k=>k.indexOf(pre) === 0).forEach(k=>{
     const e = S.especificaciones[k];
-    cot[String(e[0])+"|"+String(e[1])] = {min:e[0], max:e[1]};
+    /* La etiqueta sale de la propia clave: «tipoAcero=65MN» -> «65MN». Es lo
+       que permite rotular cada línea de límite en el gráfico. */
+    const par = String(k.split("|")[2] || "").split("=");
+    const etq = par.length > 1 ? par[1] : par[0];
+    cot[String(e[0])+"|"+String(e[1])] = {min:e[0], max:e[1], etq:etq};
   });
   v = dist(cot);
-  if(v.length === 1) return {min:v[0].min, max:v[0].max, fuente:"cota"};
-  if(v.length > 1)   return {varias:v.length};
+  if(v.length === 1) return {min:v[0].min, max:v[0].max, fuente:"cota", etq:v[0].etq};
+  /* Varias cotas: no se resume en una sola banda, pero se devuelven TODAS para
+     dibujarlas por separado. Negarse a enseñar nada no ayuda a nadie; enseñar
+     una sola sería mentir sobre la mitad de los puntos. */
+  if(v.length > 1)   return {varias:v.length, cotas:v};
 
   const hay = x => x !== null && x !== undefined && x !== "";
   if(hay(vDef.min) || hay(vDef.max)) return {min:vDef.min, max:vDef.max, fuente:"general"};
