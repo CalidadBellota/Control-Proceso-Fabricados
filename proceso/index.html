@@ -4365,7 +4365,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-07-apertura-ligera";
+const APP_VERSION = "2026-10-07-version-en-lectura";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -4558,7 +4558,16 @@ async function cargarApertura(desdeFecha, motivo){
        unas decenas de filas. Es la petición más corta posible y la que menos
        se expone a que Apps Script la corte. */
     if(catalogoAlDia()){
-      const regs = await pedirJSON(S.syncUrl + "?desde=" + corte, "registros");
+      /* conVersion=1 cuesta unos pocos bytes y evita que el panel se quede sin
+         saber qué código corre la hoja, ahora que la apertura no trae catálogo. */
+      const r = await pedirJSON(S.syncUrl + "?desde=" + corte + "&conVersion=1", "registros");
+      const regs = Array.isArray(r) ? r : (r && r.registros);
+      if(!Array.isArray(r) && r && r.backend){
+        BACKEND.version = r.backend;
+        BACKEND.leido = true;
+        BACKEND.visto = r.backend;
+        try{ localStorage.setItem("cp_backend_visto", r.backend); }catch(e){}
+      }
       aplicarRegistros(regs, t0, corte, false);
       marcarConfigSync(true);
       return;
