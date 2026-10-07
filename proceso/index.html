@@ -104,6 +104,21 @@
   .section-title h2{margin:0;font-size:.9rem;font-weight:800;letter-spacing:.3px;color:var(--red);}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+  /* Fila de filtros de Tendencia: cada campo pide el ancho que necesita y el
+     periodo se va al extremo derecho. Los mínimos evitan que un nombre de
+     proceso largo aplaste al desplegable de al lado. */
+  .fila-tend{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px;}
+  .fila-tend .campo{margin:0;}
+  .fila-tend .f-proceso {flex:1 1 300px;min-width:240px;max-width:420px;}
+  .fila-tend .f-variable{flex:1 1 240px;min-width:200px;max-width:360px;}
+  .fila-tend .f-acero   {flex:0 1 170px;min-width:150px;}
+  .fila-tend .f-prov    {flex:0 1 190px;min-width:160px;}
+  .fila-tend .f-periodo {margin-left:auto;flex:0 0 auto;}
+  .fila-tend select{width:100%;}
+  @media(max-width:900px){
+    .fila-tend .f-periodo{margin-left:0;}
+    .fila-tend .campo{flex:1 1 100%;max-width:none;}
+  }
   .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
   /* encabezado del registro: 12 columnas para repartir a medida */
   #encabezadoCampos{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;}
@@ -535,7 +550,7 @@
       <button id="tabReg" class="active">Registrar</button>
       <button id="tabCons">Consultar</button>
       <button id="tabTend">Tendencia</button>
-      <button id="tabTab">Tablero</button>
+      <button id="tabKpi">Indicadores</button>
       <button id="tabCump">Control<span class="pill-n" id="pillCump"></span></button>
       <button id="tabAdmin">Administrar</button>
     </nav>
@@ -680,17 +695,28 @@
   <div class="panel">
     <div class="section-title"><h2>TENDENCIA DE UNA VARIABLE</h2>
       <span style="font-size:.74rem;color:var(--text-dim);">Cómo se movió la medición frente a su especificación</span></div>
-    <div class="grid3">
-      <div class="campo">
+    <!-- Una sola fila: proceso, variable y, si es tratamiento térmico, acero y
+         proveedor. Cada desplegable se ensancha según lo que tenga que mostrar
+         (los nombres de proceso son largos; «65MN» no), y el periodo queda
+         anclado al extremo derecho con el margen automático. -->
+    <div class="fila-tend">
+      <div class="campo f-proceso">
         <label for="tProceso">Proceso *</label>
         <select id="tProceso"><option value="">Selecciona un proceso</option></select>
-        <div id="tNotaProcesos" style="font-size:.7rem;color:var(--text-dim);margin-top:5px;"></div>
       </div>
-      <div class="campo">
+      <div class="campo f-variable">
         <label for="tVariable">Variable *</label>
         <select id="tVariable" disabled><option value="">Selecciona primero el proceso</option></select>
       </div>
-      <div class="campo">
+      <div class="campo f-acero" id="tCampoAcero" style="display:none;">
+        <label for="tAcero">Tipo de acero *</label>
+        <select id="tAcero"><option value="">Selecciona el acero</option></select>
+      </div>
+      <div class="campo f-prov" id="tCampoProv" style="display:none;">
+        <label for="tProv">Proveedor del acero</label>
+        <select id="tProv"><option value="">Todos</option></select>
+      </div>
+      <div class="campo f-periodo">
         <label>Periodo</label>
         <div class="seg" id="tRango" title="Consultan al pulsarlos">
           <button type="button" data-d="7">7 días</button>
@@ -699,23 +725,10 @@
         </div>
       </div>
     </div>
-    <!-- En tratamientos térmicos la temperatura no se controla igual para todos
-         los aceros ni para todos los proveedores: mezclarlos en una sola línea
-         esconde justo lo que se quiere vigilar. Así que aquí se exigen antes de
-         dibujar. El acero y el proveedor se leen de la hoja Registros, no de
-         Detalle, así que esto funciona sobre todo el histórico ya guardado. -->
-    <div class="grid3" id="tFiltros" style="margin-top:12px;display:none;">
-      <div class="campo" id="tCampoAcero" style="display:none;">
-        <label for="tAcero">Tipo de acero *</label>
-        <select id="tAcero"><option value="">Selecciona el acero</option></select>
-      </div>
-      <div class="campo" id="tCampoProv" style="display:none;">
-        <label for="tProv">Proveedor del acero *</label>
-        <select id="tProv"><option value="">Selecciona el proveedor</option></select>
-      </div>
-      <div class="campo" style="display:flex;align-items:flex-end;">
-        <div id="tNotaFiltro" style="font-size:.7rem;color:var(--text-dim);padding-bottom:10px;"></div>
-      </div>
+    <div id="tFiltros" style="display:none;"></div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:6px;">
+      <div id="tNotaProcesos" style="font-size:.7rem;color:var(--text-dim);"></div>
+      <div id="tNotaFiltro" style="font-size:.7rem;color:var(--text-dim);"></div>
     </div>
     <div class="grid3" style="margin-top:12px;">
       <div class="campo corto"><label for="tDesde" title="Sólo si necesitas un periodo distinto a los botones de arriba">Desde</label>
@@ -732,31 +745,31 @@
 </section>
 
 <!-- ============ TABLERO ============ -->
-<section id="viewTab" style="display:none;">
+<section id="viewKpi" style="display:none;">
   <div class="panel">
-    <div class="section-title"><h2>TABLERO DE CUMPLIMIENTO</h2>
-      <span id="tabResumen" style="font-size:.74rem;color:var(--text-dim);"></span></div>
+    <div class="section-title"><h2>INDICADORES</h2>
+      <span id="kpiResumen" style="font-size:.74rem;color:var(--text-dim);"></span>
+      <button type="button" class="btn-actualizar" id="btnActualizarKpi"
+        title="Volver a leer la hoja compartida">&#8635; Actualizar</button></div>
     <div class="grid4">
       <div class="campo">
-        <label for="bLinea">Línea</label>
-        <select id="bLinea"><option value="">Todas</option></select>
+        <label for="kLinea">Línea</label>
+        <select id="kLinea"><option value="">Todas</option></select>
       </div>
       <div class="campo">
-        <label for="bDesde">Desde</label>
-        <input type="date" id="bDesde">
+        <label for="kMes">Mes</label>
+        <input type="month" id="kMes">
       </div>
-      <div class="campo">
-        <label for="bHasta">Hasta</label>
-        <input type="date" id="bHasta">
-      </div>
-      <div class="campo">
-        <label>&nbsp;</label>
-        <button class="btn-principal" id="bBuscar" style="width:100%;">Actualizar</button>
+      <div class="campo" style="grid-column:span 2;display:flex;align-items:flex-end;">
+        <div style="font-size:.72rem;color:var(--text-dim);">
+          Cada indicador se compara con el mes anterior. El cumplimiento usa la misma
+          regla que la matriz de Control: cuenta cada día-proceso exigible.</div>
       </div>
     </div>
   </div>
-  <div id="tableroResultado"></div>
+  <div id="kpiResultado"></div>
 </section>
+
 
 <!-- ============ DILIGENCIAMIENTO ============ -->
 <section id="viewCump" style="display:none;">
@@ -1641,14 +1654,14 @@ document.getElementById("btnSalir").addEventListener("click", cerrarSesion);
 function aplicarRol(){
   const adm = administra();
   /* El inspector sólo necesita registrar, consultar lo suyo y ver qué le falta.
-     Tendencia, Tablero y Administrar son de análisis y configuración: se ocultan
+     Tendencia, Indicadores y Administrar son de análisis y configuración: se ocultan
      para que no se pierda entre pestañas que no va a usar. Jefe y coordinador
      las conservan todas. */
-  ["tabAdmin","tabTend","tabTab"].forEach(id=>{
+  ["tabAdmin","tabTend","tabKpi"].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.style.display = adm ? "block" : "none";
   });
-  if(!adm && ["Admin","Tend","Tab"].indexOf(VISTA_ACTUAL) !== -1) tab("Reg");
+  if(!adm && ["Admin","Tend","Kpi"].indexOf(VISTA_ACTUAL) !== -1) tab("Reg");
   document.querySelectorAll(".solo-jefe").forEach(el=> el.style.display = adm ? "" : "none");
   const chip = document.getElementById("userChip");
   if(S.sesion){
@@ -1664,10 +1677,10 @@ function aplicarRol(){
 /* ==========================================================================
    PESTAÑAS
    ========================================================================== */
-const VISTAS = ["Reg","Cons","Tend","Tab","Cump","Admin"];
+const VISTAS = ["Reg","Cons","Tend","Kpi","Cump","Admin"];
 let VISTA_ACTUAL = "Reg";
 /* Vistas reservadas a jefe y coordinador. */
-const VISTAS_ADMIN = ["Admin","Tend","Tab"];
+const VISTAS_ADMIN = ["Admin","Tend","Kpi"];
 function tab(activo){
   if(VISTAS_ADMIN.indexOf(activo) !== -1 && !administra()) activo = "Reg";
   VISTA_ACTUAL = activo;
@@ -1679,7 +1692,7 @@ function tab(activo){
     (activo==="Reg" && S.formatoActivo) ? "flex" : "none";
   if(activo==="Reg")   renderProcesos();
   if(activo==="Tend")  refrescarSelectoresTendencia();
-  if(activo==="Tab")   renderTablero();
+  if(activo==="Kpi")   renderKpi();
   if(activo==="Cump")  renderCumplimiento();
   if(activo==="Admin") renderAdmin();
   // cambiar de pestaña no consulta la hoja: cada pantalla tiene su botón
@@ -1704,7 +1717,9 @@ if(bCump) bCump.addEventListener("click", async ()=>{
   const desde = (vista && vista.indexOf("mes") !== -1)
     ? (mes ? mes + "-01" : fechaRondaActual())
     : (dia || fechaRondaActual());
-  await traerRango(desde, bCump, "diligenciamiento");
+  /* Diligenciamiento sólo cuenta qué procesos se registraron: no mira ni una
+     sola medición, así que no tiene por qué cargar con el detalle. */
+  await traerLista(desde, bCump, "diligenciamiento");
   renderCumplimiento();
 });
 
@@ -2604,7 +2619,7 @@ document.getElementById("btnCancelar").addEventListener("click", ()=>cancelarReg
    ========================================================================== */
 function refrescarSelectoresConsulta(){
   const ls = lineas();
-  ["cLinea","bLinea","mLinea"].forEach(id=>{
+  ["cLinea","kLinea","mLinea"].forEach(id=>{
     const s = document.getElementById(id); if(!s) return;
     const prev = s.value;
     s.innerHTML = `<option value="">Todas</option>` + ls.map(l=>`<option value="${esc(l)}">${esc(l)}</option>`).join("");
@@ -2643,8 +2658,16 @@ function refrescarSelectoresConsulta(){
 }
 document.getElementById("cLinea").addEventListener("change", refrescarSelectoresConsulta);
 
-function ncDe(r){ return (r.resultados||[]).filter(x=>x.resultado==="Fuera de rango").length; }
+/* Cuando el registro llega sin detalle (lista ligera de Consultar) el conteo
+   sale de las columnas que la propia hoja ya guarda por registro. Son el
+   mismo número: se escriben al guardar, contando ese detalle. */
+function numDe(v){ const n = parseInt(String(v), 10); return isNaN(n) ? 0 : n; }
+function ncDe(r){
+  if(r && r.sinDetalle) return numDe(r.fueraDeRango);
+  return (r.resultados||[]).filter(x=>x.resultado==="Fuera de rango").length;
+}
 function critNCDe(r){
+  if(r && r.sinDetalle) return numDe(r.criticasFuera);
   return (r.resultados||[]).filter(x=>x.resultado==="Fuera de rango" &&
     String(x.critica||"").toLowerCase().indexOf("s")===0).length;
 }
@@ -2653,7 +2676,7 @@ let yaBusco = false;
 document.getElementById("cBuscar").addEventListener("click", async (e)=>{
   yaBusco = true;
   const desde = document.getElementById("cDesde").value;
-  if(S.syncUrl) await traerRango(desde || fechaDesde(30), e.target, "consulta");
+  if(S.syncUrl) await traerLista(desde || fechaDesde(30), e.target, "consulta");
   buscarConsulta();
 });
 
@@ -2927,20 +2950,26 @@ function buscarConsulta(){
     }).join("")}</div>
   </div>`;
 
-  box.querySelectorAll("[data-pdf]").forEach(b=>b.addEventListener("click",()=>{
-    const r = S.registros.find(x=>x.id===b.dataset.pdf); if(r) generarPDF(r, true);
+  box.querySelectorAll("[data-pdf]").forEach(b=>b.addEventListener("click", async ()=>{
+    const r = S.registros.find(x=>x.id===b.dataset.pdf); if(!r) return;
+    if(await traerDetalle(r, b)) generarPDF(r, true);
   }));
-  box.querySelectorAll("[data-det]").forEach(b=>b.addEventListener("click",()=>{
-    const r = S.registros.find(x=>x.id===b.dataset.det); if(r) generarPDF(r, false);
+  box.querySelectorAll("[data-det]").forEach(b=>b.addEventListener("click", async ()=>{
+    const r = S.registros.find(x=>x.id===b.dataset.det); if(!r) return;
+    if(await traerDetalle(r, b)) generarPDF(r, false);
   }));
-  box.querySelectorAll("[data-corr]").forEach(b=>b.addEventListener("click",()=> abrirCorreccion(b.dataset.corr)));
+  box.querySelectorAll("[data-corr]").forEach(b=>b.addEventListener("click", async ()=>{
+    const r = S.registros.find(x=>x.id===b.dataset.corr);
+    if(r && !(await traerDetalle(r, b))) return;
+    abrirCorreccion(b.dataset.corr);
+  }));
   box.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=> eliminarRegistro(b.dataset.del, b)));
 }
 
 /* ==========================================================================
    TENDENCIA · una variable en el tiempo con sus límites
    ========================================================================== */
-let graficaTend = null, graficaHist = null, graficaProc = null, graficaMaq = null;
+let graficaTend = null, graficaHist = null;
 
 function refrescarSelectoresTendencia(){
   refrescarSelectoresConsulta();
@@ -2988,20 +3017,19 @@ function filtrosTendDe(f){
      exigir un dato que no existe y la gráfica no saldría nunca. En la línea
      Dureza se activa marcando «Proveedor» en el formato. */
   const prov = pideProveedorAcero(f.linea) || enc.indexOf("proveedor") !== -1;
-  /* Con una sola variable se dibuja UNA LÍNEA POR ACERO: comparar 1074 contra
-     65MN en la misma gráfica dice más que elegir uno y perder el otro de
-     vista. Con los 6 puntos de dureza no cabe: serían 12 líneas, así que
-     ahí sí hay que elegir el acero. */
+  /* Con una sola variable sale UNA GRÁFICA POR ACERO, cada una con su banda:
+     el 1074 trabaja a 870-900 y el 65MN a 850-890, así que superponerlos
+     obliga a un eje tan abierto que no se aprecia ninguno de los dos.
+     Con los 6 puntos de dureza sí van juntos —comparten banda— y por eso
+     ahí hay que elegir un acero. */
   const seisPuntos = document.getElementById("tVariable") &&
                      document.getElementById("tVariable").value === TODAS_LAS_VARS;
   return {acero: tieneAcero && seisPuntos, prov: prov, porAcero: tieneAcero && !seisPuntos};
 }
 function refrescarFiltrosTend(f){
-  const caja = document.getElementById("tFiltros");
   const ca = document.getElementById("tCampoAcero"), cp = document.getElementById("tCampoProv");
   const sa = document.getElementById("tAcero"),      sp = document.getElementById("tProv");
   const quiere = filtrosTendDe(f);
-  caja.style.display = (f && (quiere.acero || quiere.prov)) ? "" : "none";
   ca.style.display = quiere.acero ? "" : "none";
   cp.style.display = quiere.prov  ? "" : "none";
   if(!f) return;
@@ -3015,8 +3043,10 @@ function refrescarFiltrosTend(f){
   } else sa.value = "";
 
   if(quiere.prov){
+    /* «Todos» es una opción legítima, no un hueco por rellenar: comparar el
+       comportamiento de todo el acero que entró es tan útil como mirar uno. */
     const prev = sp.value;
-    sp.innerHTML = `<option value="">Selecciona el proveedor</option>` +
+    sp.innerHTML = `<option value="">Todos los proveedores</option>` +
       PROVEEDORES_ACERO.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
     sp.value = (prev && PROVEEDORES_ACERO.indexOf(prev) !== -1) ? prev : "";
   } else sp.value = "";
@@ -3024,14 +3054,14 @@ function refrescarFiltrosTend(f){
   const falta = faltanFiltrosTend(f);
   document.getElementById("tNotaFiltro").textContent = falta.length
     ? "Falta elegir: " + falta.join(" y ")
-    : (quiere.porAcero ? "Una línea por cada acero, con su propia banda."
-                       : "La gráfica muestra sólo estas mediciones.");
+    : (quiere.porAcero ? "Una gráfica por cada acero, con su propia banda." : "");
 }
 /* Qué filtros aplicables están todavía vacíos. Vacío = se puede graficar. */
 function faltanFiltrosTend(f){
+  /* El proveedor NO es obligatorio: vacío significa «todos». El acero sólo
+     hace falta con los 6 puntos de dureza, donde no caben los dos aceros. */
   const quiere = filtrosTendDe(f), falta = [];
   if(quiere.acero && !document.getElementById("tAcero").value) falta.push("tipo de acero");
-  if(quiere.prov  && !document.getElementById("tProv").value)  falta.push("proveedor");
   return falta;
 }
 function filtroTendActual(){
@@ -3154,6 +3184,85 @@ document.getElementById("tLimpiar").addEventListener("click", e=>{
    Va aparte de la gráfica de una serie porque aquí no hay un solo veredicto
    por punto que colorear: cada línea tiene su propia banda. */
 const COLS_SERIE = ["#c81d2e", "#1f5fb0", "#0f766e", "#8a4ba8", "#b45309", "#1f7a44"];
+
+/* Una gráfica POR ACERO. El 1074 y el 65MN tienen bandas distintas (870-900
+   frente a 850-890): puestos en el mismo eje hay que abrirlo tanto que las
+   dos series quedan aplastadas contra el centro y no se aprecia ninguna.
+   Separadas, cada eje se ajusta a su propia banda. */
+let graficasTend = [];
+function renderPorAcero(box, ctx){
+  const {f, vDef, grupos, per, filtro} = ctx;
+  const nombres = Object.keys(grupos).sort();
+  const hay = x => x !== null && x !== undefined && x !== "";
+  const u = vDef.unidad ? " "+vDef.unidad : "";
+  const f1 = n => (Math.round(n*10)/10).toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1});
+
+  const bloques = nombres.map((ac,i)=>{
+    const e = S.especificaciones[claveEsp(f.id, vDef.nombre, "tipoAcero", ac)];
+    const b = (e && (hay(e[0]) || hay(e[1]))) ? {min:e[0], max:e[1]}
+            : ((hay(vDef.min)||hay(vDef.max)) ? {min:vDef.min, max:vDef.max} : null);
+    const ys = grupos[ac].map(p=>p.y);
+    const fuera = b ? ys.filter(y=>(hay(b.min)&&y<parseFloat(b.min))||(hay(b.max)&&y>parseFloat(b.max))).length : 0;
+    const prom = ys.reduce((a,c)=>a+c,0)/ys.length;
+    const desv = Math.sqrt(ys.reduce((a,c)=>a+Math.pow(c-prom,2),0)/ys.length);
+    return {ac, b, ys, fuera, prom, desv, puntos:grupos[ac], col:COLS_SERIE[i % COLS_SERIE.length], id:"cvAc"+i};
+  });
+
+  box.innerHTML = bloques.map(bl=>`
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="section-title"><h2>${esc(bl.ac)}</h2>
+        <span style="font-size:.74rem;color:var(--text-dim);">${esc(vDef.nombre||"")} · ${esc(per.etq)}${
+          filtro.prov ? " · "+esc(filtro.prov) : " · todos los proveedores"}</span></div>
+      <div class="kpis">
+        <div class="kpi"><span>Mediciones</span><b>${bl.puntos.length}</b>
+          <small>${esc(bl.ac)}</small></div>
+        <div class="kpi"><span>Promedio</span><b>${f1(bl.prom)}</b>
+          <small>desviación ${f1(bl.desv)}${esc(u)}</small></div>
+        <div class="kpi ${bl.fuera?"malo":""}"><span>Fuera de rango</span><b>${bl.b ? bl.fuera : "—"}</b>
+          <small>${bl.b ? `banda ${esc(String(bl.b.min))} a ${esc(String(bl.b.max))}` : "sin especificación cargada"}</small></div>
+      </div>
+      <div style="height:300px;margin-top:12px;"><canvas id="${bl.id}"></canvas></div>
+    </div>`).join("");
+
+  graficasTend.forEach(g=>{ try{ g.destroy(); }catch(e){} });
+  graficasTend = bloques.map(bl=>{
+    const labels = bl.puntos.map(p=>p.x);
+    const ext = bl.ys.slice();
+    if(bl.b){ if(hay(bl.b.min)) ext.push(parseFloat(bl.b.min)); if(hay(bl.b.max)) ext.push(parseFloat(bl.b.max)); }
+    const lo = Math.min.apply(null, ext), hi = Math.max.apply(null, ext);
+    const span = (hi - lo) || Math.max(Math.abs(hi)*0.05, 1);
+    const fueraDe = y => bl.b && ((hay(bl.b.min)&&y<parseFloat(bl.b.min)) || (hay(bl.b.max)&&y>parseFloat(bl.b.max)));
+    const lineas = [];
+    if(bl.b && hay(bl.b.max)) lineas.push({l:"Límite superior", v:parseFloat(bl.b.max), d:[7,5]});
+    if(bl.b && hay(bl.b.min)) lineas.push({l:"Límite inferior", v:parseFloat(bl.b.min), d:[7,5]});
+    return new Chart(document.getElementById(bl.id), {
+      type:"line",
+      data:{ labels: labels,
+        datasets:[{label: bl.ac, data: bl.ys, borderColor:bl.col, borderWidth:2, tension:.25,
+          pointRadius: bl.ys.map(y=>fueraDe(y)?6:4),
+          pointBackgroundColor: bl.ys.map(y=>fueraDe(y)?"#c81d2e":"#1f7a44"),
+          pointBorderColor:"#fff", pointBorderWidth:2, fill:false, order:1}]
+          .concat(lineas.map(x=>({label:x.l, data:labels.map(()=>x.v), borderColor:"#c81d2e",
+            borderWidth:2, borderDash:x.d, pointRadius:0, fill:false, order:0})))
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:"index", intersect:false},
+        plugins:{ legend:{display:false},
+          tooltip:{backgroundColor:"#1c1f24", padding:11, titleFont:{size:12}, bodyFont:{size:12},
+            callbacks:{ label: it => `${it.dataset.label}: ${f1(it.parsed.y)}${u}` }}},
+        scales:{
+          y:{ grid:{color:"#eef0f3"}, ticks:{color:"#6e7681", font:{size:11}},
+              title:{display:!!vDef.unidad, text:vDef.unidad||"", color:"#6e7681", font:{size:11}},
+              min: lo - span*0.15, max: hi + span*0.15 },
+          x:{ grid:{display:false}, ticks:{color:"#6e7681", font:{size:10}, maxRotation:0,
+              autoSkip:true, maxTicksLimit:8,
+              callback(v){ return String(this.getLabelForValue(v)).slice(0,10); } } }
+        }
+      }
+    });
+  });
+}
 
 function renderComparada(box, ctx){
   const {f, vDef, grupos, etqModo, per, filtro, unidad} = ctx;
@@ -3341,9 +3450,15 @@ function renderTendencia(){
       });
     const nG = Object.keys(grupos).length;
     if(nG > 1){
+      if(modo === "acero"){
+        /* Cada acero, su gráfica y su eje. */
+        renderPorAcero(box, {f:f, vDef:vDef, grupos:grupos, per:per, filtro:fTend});
+        return;
+      }
+      /* Los 6 puntos sí van juntos: comparten banda y el eje les sirve a todos. */
       const u0 = (varsNumericas(f)[0]||{}).unidad || vDef.unidad || "";
-      renderComparada(box, {f:f, vDef:(modo==="variable" ? (varsNumericas(f)[0]||{nombre:vNom}) : vDef),
-        grupos:grupos, etqModo:modo, per:per, filtro:fTend, unidad: modo==="variable" ? u0 : vDef.unidad});
+      renderComparada(box, {f:f, vDef:(varsNumericas(f)[0]||{nombre:vNom}),
+        grupos:grupos, etqModo:modo, per:per, filtro:fTend, unidad:u0});
       return;
     }
     /* Un solo grupo (sólo se trabajó un acero, o sólo hay un punto medido):
@@ -3629,165 +3744,186 @@ function renderTendencia(){
    ========================================================================== */
 function inicioMes(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-01`; }
 
-function renderTablero(){
+/* ==========================================================================
+   INDICADORES
+   Tres cifras con su variación frente al mes anterior. Dos vienen de sitios
+   distintos a propósito:
+     · El cumplimiento sale de los registros que ya están en el equipo y usa
+       cumplimientoMes(), la MISMA regla que la matriz de Control.
+     · La conformidad y los procesos con más incumplimiento los suma la hoja
+       (tipo=kpi) leyendo cuatro columnas del detalle. Antes el Tablero se
+       traía TODAS las mediciones del periodo para contarlas aquí, y eso es
+       lo que agotaba la ejecución y acababa en «Failed to fetch».
+   ========================================================================== */
+let KPI_DATOS = null;            // lo último que devolvió la hoja
+let KPI_CLAVE = "";              // para qué mes y línea era
+
+function mesAnterior(mes){
+  const [y,m] = String(mes).split("-").map(Number);
+  const d = new Date(y, m - 2, 1);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+}
+function finDeMes(mes){
+  const [y,m] = String(mes).split("-").map(Number);
+  return `${mes}-${pad(new Date(y, m, 0).getDate())}`;
+}
+
+/* La variación se pinta con su signo y su color. Ojo: en conformidad subir es
+   bueno; en «fuera de rango» subir es malo. Por eso el sentido se pasa. */
+function varHtml(hoy, antes, bueno){
+  if(hoy === null || antes === null || antes === undefined || isNaN(antes))
+    return `<small>sin mes anterior para comparar</small>`;
+  const d = hoy - antes;
+  if(Math.abs(d) < 0.05) return `<small>igual que ${""}el mes pasado</small>`;
+  const mejor = bueno === "sube" ? d > 0 : d < 0;
+  const col = mejor ? "#1f7a44" : "#c81d2e";
+  const flecha = d > 0 ? "▲" : "▼";
+  return `<small style="color:${col};font-weight:700;">${flecha} ${
+    Math.abs(d).toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1})} pts</small>
+    <small>frente a ${antes.toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1})}% el mes pasado</small>`;
+}
+
+function renderKpi(){
   refrescarSelectoresConsulta();
-  const box = document.getElementById("tableroResultado");
-  const linea = document.getElementById("bLinea").value;
-  const desde = document.getElementById("bDesde").value;
-  const hasta = document.getElementById("bHasta").value;
+  const sel = document.getElementById("kLinea");
+  if(sel && !sel.options.length){ sel.innerHTML = `<option value="">Todas</option>`; }
+  const mesIn = document.getElementById("kMes");
+  if(mesIn && !mesIn.value) mesIn.value = mesISO();
+  const mes   = mesIn.value || mesISO();
+  const linea = document.getElementById("kLinea").value;
+  const prev  = mesAnterior(mes);
+  const box   = document.getElementById("kpiResultado");
 
-  const regs = S.registros.filter(r=>
-    (!linea || r.linea===linea) &&
-    (!desde || fFecha(r.fecha)>=desde) &&
-    (!hasta || fFecha(r.fecha)<=hasta));
+  /* 1) Cumplimiento de inspección: de los registros del equipo. */
+  const cHoy   = cumplimientoMes(mes,  linea);
+  /* Sin un solo registro del mes anterior en el equipo no se puede comparar:
+     dar 0 % confundiría «no se trabajó» con «no lo tengo descargado». */
+  const hayPrev = S.registros.some(r => String(fFecha(r.fecha)).slice(0,7) === prev);
+  const cAntes = hayPrev ? cumplimientoMes(prev, linea) : {total:0, faltan:0, pct:null};
 
-  document.getElementById("tabResumen").textContent =
-    `${regs.length} registro(s)${desde||hasta?" en el periodo":""}`;
+  /* 2) y 3) de la hoja, si ya se pidieron para este mes y línea. */
+  const alDia = KPI_CLAVE === mes + "|" + linea && KPI_DATOS;
+  const K = alDia ? KPI_DATOS : null;
+  const pct = (a, b) => b ? a / b * 100 : null;
+  const confHoy   = K ? pct(K.actual.medidas - K.actual.fuera, K.actual.medidas) : null;
+  const confAntes = K ? pct(K.previo.medidas - K.previo.fuera, K.previo.medidas) : null;
 
-  if(!regs.length){
-    box.innerHTML = `<div class="panel"><div class="empty-mini">No hay registros con esos filtros.</div></div>`;
-    if(graficaProc) graficaProc.destroy(), graficaProc=null;
-    if(graficaMaq)  graficaMaq.destroy(),  graficaMaq=null;
-    return;
+  const f1 = n => n === null || n === undefined
+    ? "—" : n.toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1});
+
+  document.getElementById("kpiResumen").textContent =
+    `${mes}${linea ? " · "+linea : " · todas las líneas"} · comparado con ${prev}`;
+
+  /* Procesos con más incumplimiento: los que más se salen, por porcentaje,
+     dejando fuera los que apenas tienen mediciones —con 3 mediciones un 33%
+     no dice nada y desplazaría a un proceso con 400. */
+  let peores = [];
+  if(K){
+    peores = Object.keys(K.actual.procesos).map(nom=>{
+      const p = K.actual.procesos[nom];
+      const ant = (K.previo.procesos||{})[nom];
+      return {nom:nom, med:p.medidas, fuera:p.fuera, crit:p.criticas,
+              pct: pct(p.fuera, p.medidas),
+              pctAnt: ant && ant.medidas ? pct(ant.fuera, ant.medidas) : null};
+    }).filter(x=> x.fuera > 0 && x.med >= 10)
+      .sort((a,b)=> b.pct - a.pct || b.fuera - a.fuera)
+      .slice(0, 8);
   }
-
-  let medTot = 0, medFuera = 0, critFuera = 0;
-  regs.forEach(r=>(r.resultados||[]).forEach(x=>{
-    if(x.resultado === "Sin dato" || x.resultado === "No aplica") return;
-    medTot++;
-    if(x.resultado === "Fuera de rango"){
-      medFuera++;
-      if(String(x.critica||"").toLowerCase().indexOf("s")===0) critFuera++;
-    }
-  }));
-  const conNC = regs.filter(r=>ncDe(r)>0).length;
-  const pct = medTot ? (medFuera/medTot*100) : 0;
-
-  // por proceso
-  const porProc = {};
-  regs.forEach(r=>{
-    const k = `${r.linea} · ${r.proceso}`;
-    const o = porProc[k] = porProc[k] || {reg:0, med:0, fuera:0};
-    o.reg++;
-    (r.resultados||[]).forEach(x=>{
-      if(x.resultado==="Sin dato" || x.resultado==="No aplica" || x.resultado==="Sin especificación") return;
-      o.med++; if(x.resultado==="Fuera de rango") o.fuera++;
-    });
-  });
-  const procs = Object.keys(porProc).map(k=>({k, ...porProc[k],
-    pct: porProc[k].med ? porProc[k].fuera/porProc[k].med*100 : 0}))
-    .sort((a,b)=> b.fuera - a.fuera || b.pct - a.pct);
-
-  // por máquina
-  const porMaq = {};
-  regs.forEach(r=>{
-    const m = String(r.maquina||"").trim(); if(!m) return;
-    const k = `${r.proceso} · ${m}`;
-    const o = porMaq[k] = porMaq[k] || {fuera:0, med:0};
-    (r.resultados||[]).forEach(x=>{
-      if(x.resultado==="Sin dato" || x.resultado==="No aplica" || x.resultado==="Sin especificación") return;
-      o.med++; if(x.resultado==="Fuera de rango") o.fuera++;
-    });
-  });
-  const maqs = Object.keys(porMaq).map(k=>({k, ...porMaq[k]}))
-    .filter(m=>m.fuera>0).sort((a,b)=>b.fuera-a.fuera).slice(0,12);
-
-  // variables más incumplidas
-  const porVar = {};
-  regs.forEach(r=>(r.resultados||[]).forEach(x=>{
-    if(x.resultado!=="Fuera de rango") return;
-    const k = `${r.proceso} · ${x.nombre}`;
-    porVar[k] = (porVar[k]||0) + 1;
-  }));
-  const vars = Object.keys(porVar).map(k=>({k, n:porVar[k]})).sort((a,b)=>b.n-a.n).slice(0,10);
 
   box.innerHTML = `
     <div class="panel">
       <div class="kpis">
-        <div class="kpi"><span>Registros</span><b>${regs.length}</b><small>${procs.length} proceso(s) controlados</small></div>
-        <div class="kpi ${conNC?"malo":"bueno"}"><span>Con variables fuera de rango</span><b>${conNC}</b>
-          <small>${regs.length?((conNC/regs.length)*100).toFixed(0):0}% de los registros</small></div>
-        <div class="kpi ${pct>0?"malo":"bueno"}"><span>Mediciones fuera de rango</span><b>${pct.toFixed(1)}%</b>
-          <small>${medFuera} de ${medTot} medidas juzgadas</small></div>
-        <div class="kpi ${critFuera?"malo":"bueno"}"><span>Críticas fuera de rango</span><b>${critFuera}</b>
-          <small>${critFuera?"requieren revisión":"ninguna"}</small></div>
+        <div class="kpi ${cHoy.pct !== null && cHoy.pct < 100 ? "ojo" : ""}">
+          <span>Cumplimiento de inspección</span>
+          <b>${f1(cHoy.pct)}${cHoy.pct===null?"":"%"}</b>
+          <small>${cHoy.total - cHoy.faltan} de ${cHoy.total} día-proceso exigibles</small>
+          ${varHtml(cHoy.pct, cAntes.pct, "sube")}
+        </div>
+        <div class="kpi ${confHoy !== null && confHoy < 95 ? "malo" : ""}">
+          <span>Conformidad de mediciones</span>
+          <b>${f1(confHoy)}${confHoy===null?"":"%"}</b>
+          <small>${K ? `${(K.actual.medidas - K.actual.fuera).toLocaleString("es-CO")} de ${
+            K.actual.medidas.toLocaleString("es-CO")} mediciones juzgadas` : "pulsa Actualizar para pedirlo a la hoja"}</small>
+          ${K ? varHtml(confHoy, confAntes, "sube") : ""}
+        </div>
+        <div class="kpi">
+          <span>Mediciones fuera de rango</span>
+          <b>${K ? K.actual.fuera.toLocaleString("es-CO") : "—"}</b>
+          <small>${K ? (K.actual.criticas ? `${K.actual.criticas} en variable crítica` : "ninguna en variable crítica")
+                     : "sin datos de la hoja todavía"}</small>
+          ${K && K.previo.medidas ? `<small>el mes pasado: ${K.previo.fuera.toLocaleString("es-CO")}</small>` : ""}
+        </div>
       </div>
     </div>
 
-    <div class="panel">
-      <div class="section-title"><h2>MEDICIONES FUERA DE RANGO POR PROCESO</h2>
-        <span style="font-size:.74rem;color:var(--text-dim);">Ordenado de mayor a menor</span></div>
-      <div class="chart-box corto"><canvas id="cvProc"></canvas></div>
-    </div>
-
-    <div class="grid2">
-      <div class="panel">
-        <div class="section-title"><h2>POR MÁQUINA</h2></div>
-        ${maqs.length ? `<div class="chart-box corto"><canvas id="cvMaq"></canvas></div>`
-          : `<div class="empty-mini">Ninguna máquina registra mediciones fuera de rango.</div>`}
-      </div>
-      <div class="panel">
-        <div class="section-title"><h2>VARIABLES MÁS INCUMPLIDAS</h2></div>
-        ${vars.length ? `<div class="reg-lista" style="border:none;">${vars.map(v=>`
-          <div class="reg-fila fuera" style="grid-template-columns:minmax(0,1fr) 90px;">
-            <div class="datos"><b style="font-size:.85rem;">${esc(v.k)}</b></div>
-            <span class="est badge bad">${v.n} vez(ces)</span>
-          </div>`).join("")}</div>`
-          : `<div class="empty-mini">Ninguna variable fuera de rango en el periodo.</div>`}
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="section-title"><h2>DETALLE POR PROCESO</h2></div>
-      <div class="reg-lista">${procs.map(p=>`
-        <div class="reg-fila${p.fuera?" fuera":""}" style="grid-template-columns:minmax(0,1fr) 130px 130px;">
-          <div class="datos"><b>${esc(p.k)}</b>
-            <div class="sub">${p.reg} registro(s) · ${p.med} medición(es) juzgadas</div></div>
-          <span class="est badge ${p.fuera?"bad":"ok"}">${p.fuera} fuera</span>
-          <span class="est badge ${p.pct>0?"bad":"ok"}" style="justify-self:end;">${p.pct.toFixed(1)}%</span>
-        </div>`).join("")}</div>
+    <div class="panel" style="margin-top:16px;">
+      <div class="section-title"><h2>PROCESOS CON MÁS INCUMPLIMIENTO</h2>
+        <span style="font-size:.74rem;color:var(--text-dim);">${
+          K ? "al menos 10 mediciones en el mes" : ""}</span></div>
+      ${!K ? `<div class="empty-mini">Pulsa <b>Actualizar</b> para que la hoja sume los indicadores del mes.</div>`
+        : !peores.length ? `<div class="empty-mini">Ningún proceso tuvo mediciones fuera de rango en ${esc(mes)}.</div>`
+        : `<table class="tabla" style="width:100%;"><thead><tr><th style="width:40%;">Proceso</th>
+             <th style="text-align:right;">Mediciones</th>
+             <th style="text-align:right;">Fuera</th>
+             <th style="text-align:right;">% fuera</th>
+             <th style="text-align:right;">Mes pasado</th>
+             <th style="text-align:right;">Críticas</th></tr></thead><tbody>${
+            peores.map(x=>`<tr>
+              <td>${esc(x.nom)}</td>
+              <td style="text-align:right;">${x.med.toLocaleString("es-CO")}</td>
+              <td style="text-align:right;">${x.fuera}</td>
+              <td style="text-align:right;font-weight:800;${x.pct>=5?"color:var(--bad);":""}">${f1(x.pct)}%</td>
+              <td style="text-align:right;color:var(--text-dim);">${
+                x.pctAnt===null ? "—" : f1(x.pctAnt)+"%"}</td>
+              <td style="text-align:right;${x.crit?"color:var(--bad);font-weight:800;":""}">${x.crit||""}</td>
+            </tr>`).join("")}</tbody></table>`}
     </div>`;
+}
 
-  if(graficaProc) graficaProc.destroy();
-  graficaProc = new Chart(document.getElementById("cvProc"), {
-    type:"bar",
-    data:{ labels: procs.map(p=>p.k),
-      datasets:[{label:"Mediciones fuera de rango", data: procs.map(p=>p.fuera),
-        backgroundColor: procs.map(p=>p.fuera?"#c81d2e":"#d7dbe1"),
-        borderRadius:4, borderSkipped:false, barPercentage:.7, categoryPercentage:.8}] },
-    options:{ responsive:true, maintainAspectRatio:false, indexAxis:"y",
-      plugins:{ legend:{display:false},
-        tooltip:{ backgroundColor:"#1c1f24", padding:11,
-          callbacks:{ label: it => {
-            const p = procs[it.dataIndex];
-            return [`${p.fuera} de ${p.med} mediciones fuera de rango`, `${p.pct.toFixed(1)}% · ${p.reg} registro(s)`];
-          } } } },
-      scales:{ x:{ grid:{color:"#eef0f3"}, ticks:{color:"#6e7681", font:{size:11}, precision:0} },
-               y:{ grid:{display:false}, ticks:{color:"#1c1f24", font:{size:11}} } } }
-  });
-
-  if(graficaMaq) graficaMaq.destroy(), graficaMaq = null;
-  if(maqs.length){
-    graficaMaq = new Chart(document.getElementById("cvMaq"), {
-      type:"bar",
-      data:{ labels: maqs.map(m=>m.k),
-        datasets:[{label:"Fuera de rango", data: maqs.map(m=>m.fuera),
-          backgroundColor:"#c81d2e", borderRadius:4, borderSkipped:false,
-          barPercentage:.7, categoryPercentage:.8}] },
-      options:{ responsive:true, maintainAspectRatio:false, indexAxis:"y",
-        plugins:{ legend:{display:false},
-          tooltip:{ backgroundColor:"#1c1f24", padding:11,
-            callbacks:{ label: it => `${maqs[it.dataIndex].fuera} de ${maqs[it.dataIndex].med} mediciones` } } },
-        scales:{ x:{ grid:{color:"#eef0f3"}, ticks:{color:"#6e7681", font:{size:11}, precision:0} },
-                 y:{ grid:{display:false}, ticks:{color:"#1c1f24", font:{size:11}} } } }
-    });
+/* Pedir a la hoja los dos meses de una vez. */
+async function traerKpi(boton){
+  const mes   = document.getElementById("kMes").value || mesISO();
+  const linea = document.getElementById("kLinea").value;
+  const prev  = mesAnterior(mes);
+  if(!S.syncUrl){ renderKpi(); return false; }
+  const txt = boton ? boton.textContent : null;
+  if(boton){ boton.disabled = true; boton.textContent = "Calculando…"; }
+  const t0 = Date.now();
+  LECTURA.motivo = "indicadores del mes";
+  LECTURA.corte  = prev + "-01";
+  try{
+    const d = await pedirJSON(S.syncUrl + "?tipo=kpi"
+      + "&desde="  + mes  + "-01" + "&hasta="  + finDeMes(mes)
+      + "&desde2=" + prev + "-01" + "&hasta2=" + finDeMes(prev), "los indicadores");
+    if(!d || !d.actual) throw new Error("la hoja no conoce los indicadores");
+    KPI_DATOS = d; KPI_CLAVE = mes + "|" + linea;
+    LECTURA.hora = (function(){ const x=new Date(); return `${pad(x.getHours())}:${pad(x.getMinutes())}`; })();
+    LECTURA.sello = Date.now(); LECTURA.ms = Date.now() - t0;
+    LECTURA.recibidos = Object.keys(d.actual.procesos||{}).length;
+    LECTURA.nuevos = 0; LECTURA.error = null;
+    anotarLectura(); actualizarEstadoSync();
+    /* El cumplimiento se calcula aquí con los registros del equipo, así que
+       hay que traer TAMBIÉN los del mes anterior: si no, el mes pasado
+       saldría siempre en 0 % y la comparación sería mentira. Son cabeceras,
+       no mediciones: dos meses de cabeceras siguen siendo una lectura ligera. */
+    await traerLista(prev + "-01", null, "indicadores (cumplimiento)");
+    return true;
+  }catch(e){
+    KPI_DATOS = null; KPI_CLAVE = "";
+    toast("No se pudieron calcular los indicadores · " + (e.message || e));
+    return false;
+  }finally{
+    if(boton){ boton.disabled = false; if(txt) boton.textContent = txt; }
+    renderKpi();
   }
 }
-document.getElementById("bBuscar").addEventListener("click", async (e)=>{
-  const desde = document.getElementById("bDesde").value;
-  if(S.syncUrl) await traerRango(desde || fechaDesde(30), e.target, "tablero");
-  renderTablero();
+
+document.getElementById("btnActualizarKpi").addEventListener("click", e=> traerKpi(e.target));
+["kLinea","kMes"].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener("change", ()=>{ KPI_CLAVE = ""; renderKpi(); });
 });
+
 
 /* ==========================================================================
    CONTROL DE DILIGENCIAMIENTO
@@ -3904,6 +4040,32 @@ function actualizarMiTurno(){
     ? `${distintos} de ${fs.length} procesos · te faltan: ` +
       Object.keys(porLinea).map(l=>`${l} ${porLinea[l]}`).join(" · ")
     : `Todos los ${fs.length} procesos cubiertos · ${total} inspecciones en el turno`;
+}
+
+/* El cumplimiento de un mes, con la MISMA regla que la matriz de
+   Diligenciamiento: cuenta como exigible cada día-proceso de un formato
+   activo, con ronda por turno y no condicional, en un día que tenga turnos y
+   no esté en el futuro. Está aquí fuera para que la pantalla de KPI y la
+   matriz no puedan dar dos cifras distintas de lo mismo: si esta regla
+   cambia, cambia para las dos. */
+function cumplimientoMes(mes, linea){
+  const fs = S.formatos.filter(f=> (!linea || f.linea===linea));
+  const [y,m] = String(mes).split("-").map(Number);
+  if(!y || !m) return {total:0, faltan:0, pct:null};
+  const dias = new Date(y, m, 0).getDate();
+  let total = 0, faltan = 0;
+  fs.forEach(f=>{
+    if(f.condicional || !conRonda(f) || !estaActivo(f)) return;
+    for(let d=1; d<=dias; d++){
+      const fechaD = `${mes}-${pad(d)}`;
+      if(!TURNOS.some(t=> turnoExiste(fechaD, t))) continue;   // no se trabaja
+      if(fechaD > hoyISO()) continue;                          // todavía no toca
+      const rs = S.registros.filter(r=> r.formatoId===f.id && fechaTurnoDe(r)===fechaD);
+      total++;
+      if(estadoCelda(rs, f) === "r") faltan++;
+    }
+  });
+  return {total:total, faltan:faltan, pct: total ? (total-faltan)/total*100 : null};
 }
 
 function renderCumplimiento(){
@@ -4712,7 +4874,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-07-comparar-series";
+const APP_VERSION = "2026-10-07-indicadores";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -4751,7 +4913,7 @@ function repintarVistaActiva(){
                         document.getElementById(id).style.display !== "none";
   try{
     if(visible("viewCons") && yaBusco) buscarConsulta();
-    if(visible("viewTab"))  renderTablero();
+    if(visible("viewKpi"))  renderKpi();
     if(visible("viewCump")) renderCumplimiento();
     // mientras el inspector está diligenciando no se toca la pantalla,
     // para no borrarle lo que va escrito
@@ -5986,8 +6148,7 @@ document.getElementById("btnSubirTodo").addEventListener("click", async ()=>{
    ========================================================================== */
 document.getElementById("cDesde").value = hoyISO();
 document.getElementById("cHasta").value = hoyISO();
-document.getElementById("bDesde").value = inicioMes();
-document.getElementById("bHasta").value = hoyISO();
+document.getElementById("kMes").value   = mesISO();
 document.getElementById("tDesde").value = inicioMes();
 document.getElementById("tHasta").value = hoyISO();
 document.getElementById("mMes").value   = mesISO();
@@ -6030,7 +6191,7 @@ actualizarPillCump(); actualizarMiTurno();
    Script y dejaba la app sin lectura a media jornada.
    Ahora la tableta escribe siempre y lee en tres momentos: al abrir (solo el
    turno en curso), cuando el inspector pulsa Actualizar, y cuando alguien pide
-   expresamente un rango en Consultar, Tendencia, Tablero o Diligenciamiento. */
+   expresamente un rango en Consultar, Tendencia, Indicadores o Control. */
 
 /* El turno en curso son unas decenas de filas, no 120 días. */
 async function cargarRonda(){
@@ -6165,6 +6326,55 @@ async function traerSerie(fId, vNom, desde, hasta, boton){
     S.serie = {clave:"", puntos:[]};
     if(boton){ boton.disabled = false; boton.textContent = txt; }
     return await traerRango(desde, boton, "tendencia (rango completo)");
+  }finally{
+    if(boton){ boton.disabled = false; if(txt) boton.textContent = txt; }
+  }
+}
+
+/* Consultar pide la CABECERA de los registros, no su detalle. Un mes entero
+   con todo el detalle es lo que agotaba la ejecución y acababa en «Failed to
+   fetch»: la pantalla enseña una tarjeta por registro, y el detalle sólo hace
+   falta al abrirlo. Si la hoja no conoce «tipo=lista» se cae al camino de
+   siempre, que funciona aunque pese. */
+async function traerLista(desdeISO, boton, etiqueta){
+  const txt = boton ? boton.textContent : null;
+  if(boton){ boton.disabled = true; boton.textContent = "Consultando…"; }
+  const t0 = Date.now();
+  LECTURA.motivo = etiqueta || "consulta (lista)";
+  LECTURA.corte  = desdeISO || "";
+  try{
+    const data = await pedirJSON(S.syncUrl + "?tipo=lista&desde=" + desdeISO, "la lista");
+    if(!Array.isArray(data)) throw new Error("respuesta inesperada");
+    /* Una hoja vieja ignora «tipo» y devuelve los registros CON detalle: eso
+       también sirve, y de hecho es mejor. Se distingue por «sinDetalle». */
+    aplicarRegistros(data, t0, desdeISO, false);
+    toast(`${data.length} registro(s) de la hoja${etiqueta?" · "+etiqueta:""}`);
+    return true;
+  }catch(e){
+    console.warn("lista:", e, "— se intenta con el rango completo");
+    if(boton){ boton.disabled = false; boton.textContent = txt; }
+    return await traerRango(desdeISO, boton, etiqueta);
+  }finally{
+    if(boton){ boton.disabled = false; if(txt) boton.textContent = txt; }
+  }
+}
+
+/* El detalle de un registro, pedido sólo cuando se abre. Se queda guardado
+   en el registro, así que abrirlo dos veces no cuesta dos lecturas. */
+async function traerDetalle(r, boton){
+  if(!r || !r.sinDetalle || !S.syncUrl) return true;
+  const txt = boton ? boton.textContent : null;
+  if(boton){ boton.disabled = true; boton.textContent = "Abriendo…"; }
+  try{
+    const d = await pedirJSON(S.syncUrl + "?tipo=detalle&id=" + encodeURIComponent(r.id)
+      + "&fecha=" + encodeURIComponent(fFecha(r.fecha)), "el detalle");
+    if(!Array.isArray(d)) throw new Error("respuesta inesperada");
+    r.resultados = d; r.sinDetalle = false;
+    persist();
+    return true;
+  }catch(e){
+    toast("No se pudo leer el detalle de este registro");
+    return false;
   }finally{
     if(boton){ boton.disabled = false; if(txt) boton.textContent = txt; }
   }
