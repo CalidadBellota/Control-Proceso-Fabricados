@@ -685,6 +685,24 @@
         </div>
       </div>
     </div>
+    <!-- En tratamientos térmicos la temperatura no se controla igual para todos
+         los aceros ni para todos los proveedores: mezclarlos en una sola línea
+         esconde justo lo que se quiere vigilar. Así que aquí se exigen antes de
+         dibujar. El acero y el proveedor se leen de la hoja Registros, no de
+         Detalle, así que esto funciona sobre todo el histórico ya guardado. -->
+    <div class="grid3" id="tFiltros" style="margin-top:12px;display:none;">
+      <div class="campo" id="tCampoAcero" style="display:none;">
+        <label for="tAcero">Tipo de acero *</label>
+        <select id="tAcero"><option value="">Selecciona el acero</option></select>
+      </div>
+      <div class="campo" id="tCampoProv" style="display:none;">
+        <label for="tProv">Proveedor del acero *</label>
+        <select id="tProv"><option value="">Selecciona el proveedor</option></select>
+      </div>
+      <div class="campo" style="display:flex;align-items:flex-end;">
+        <div id="tNotaFiltro" style="font-size:.7rem;color:var(--text-dim);padding-bottom:10px;"></div>
+      </div>
+    </div>
     <div class="grid3" style="margin-top:12px;">
       <div class="campo corto"><label for="tDesde" title="Sólo si necesitas un periodo distinto a los botones de arriba">Desde</label>
         <input type="date" id="tDesde"></div>
@@ -2921,12 +2939,73 @@ function refrescarSelectoresTendencia(){
       : `<option value="">Este proceso no tiene variables numéricas</option>`;
     if(prev && nums.some(v=>v.nombre===prev)) tv.value = prev;
   }
+  refrescarFiltrosTend(f);
 }
+
+/* Los dos filtros sólo se piden donde el proceso los registra: si su
+   encabezado no guarda el acero, no hay nada que filtrar y exigirlo dejaría
+   la pantalla bloqueada para siempre. */
+function filtrosTendDe(f){
+  const enc = (f && f.encabezado) || [];
+  return {acero: enc.indexOf("tipoAcero") !== -1, prov: enc.indexOf("proveedor") !== -1};
+}
+function refrescarFiltrosTend(f){
+  const caja = document.getElementById("tFiltros");
+  const ca = document.getElementById("tCampoAcero"), cp = document.getElementById("tCampoProv");
+  const sa = document.getElementById("tAcero"),      sp = document.getElementById("tProv");
+  const quiere = filtrosTendDe(f);
+  caja.style.display = (f && (quiere.acero || quiere.prov)) ? "" : "none";
+  ca.style.display = quiere.acero ? "" : "none";
+  cp.style.display = quiere.prov  ? "" : "none";
+  if(!f) return;
+
+  if(quiere.acero){
+    const lista = acerosDe(f.linea);
+    const prev = sa.value;
+    sa.innerHTML = `<option value="">Selecciona el acero</option>` +
+      lista.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
+    sa.value = (prev && lista.indexOf(prev) !== -1) ? prev : "";
+  } else sa.value = "";
+
+  if(quiere.prov){
+    const prev = sp.value;
+    sp.innerHTML = `<option value="">Selecciona el proveedor</option>` +
+      PROVEEDORES_ACERO.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
+    sp.value = (prev && PROVEEDORES_ACERO.indexOf(prev) !== -1) ? prev : "";
+  } else sp.value = "";
+
+  const falta = faltanFiltrosTend(f);
+  document.getElementById("tNotaFiltro").textContent = falta.length
+    ? "Falta elegir: " + falta.join(" y ")
+    : "La gráfica muestra sólo estas mediciones.";
+}
+/* Qué filtros aplicables están todavía vacíos. Vacío = se puede graficar. */
+function faltanFiltrosTend(f){
+  const quiere = filtrosTendDe(f), falta = [];
+  if(quiere.acero && !document.getElementById("tAcero").value) falta.push("tipo de acero");
+  if(quiere.prov  && !document.getElementById("tProv").value)  falta.push("proveedor");
+  return falta;
+}
+function filtroTendActual(){
+  const f = S.formatos.find(x=>x.id===document.getElementById("tProceso").value);
+  const quiere = filtrosTendDe(f);
+  return {
+    acero: quiere.acero ? document.getElementById("tAcero").value : "",
+    prov:  quiere.prov  ? document.getElementById("tProv").value  : ""
+  };
+}
+
 document.getElementById("tProceso").addEventListener("change", ()=>{
   refrescarSelectoresTendencia();
   consultarTendencia();
 });
 document.getElementById("tVariable").addEventListener("change", consultarTendencia);
+["tAcero","tProv"].forEach(id=>{
+  document.getElementById(id).addEventListener("change", ()=>{
+    refrescarFiltrosTend(S.formatos.find(x=>x.id===document.getElementById("tProceso").value));
+    consultarTendencia();
+  });
+});
 
 /* Los botones de periodo son la consulta: en esta app la Tendencia no lee nada
    al abrir, así que pulsar un rango es lo que dispara la lectura de la hoja. */
@@ -2961,7 +3040,10 @@ async function consultarTendencia(boton){
     document.getElementById("tDesde").value = r.desde;
     document.getElementById("tHasta").value = "";
   }
-  if(!document.getElementById("tProceso").value || !document.getElementById("tVariable").value){
+  const fSel = S.formatos.find(x=>x.id===document.getElementById("tProceso").value);
+  /* Sin proceso, sin variable o sin los filtros exigidos no se lee la hoja:
+     leer para no dibujar sería gastar cuota a cambio de nada. */
+  if(!fSel || !document.getElementById("tVariable").value || faltanFiltrosTend(fSel).length){
     RANGO_APLICADO = document.getElementById("tDesde").value + "|" + document.getElementById("tHasta").value;
     marcarBotonFechas();
     renderTendencia(); return;
@@ -3020,17 +3102,29 @@ function renderTendencia(){
     box.innerHTML = `<div class="panel"><div class="empty-mini">Selecciona un proceso y una variable numérica.</div></div>`;
     return;
   }
+  const faltaF = faltanFiltrosTend(f);
+  if(faltaF.length){
+    box.innerHTML = `<div class="panel"><div class="empty-mini">Elige ${faltaF.map(x=>"<b>"+esc(x)+"</b>").join(" y ")} para ver la tendencia.<br>
+      <span style="font-size:.72rem;">Las temperaturas no se comportan igual con cada acero ni con cada proveedor: mezclarlos en una sola línea esconde justo lo que se quiere vigilar.</span></div></div>`;
+    return;
+  }
+  if(S.serie.sinFiltro){
+    box.innerHTML = `<div class="panel"><div class="empty-mini">La hoja devolvió las mediciones <b>sin aplicar el filtro</b>, así que no se dibujan.<br>
+      <span style="font-size:.72rem;">Publica en Apps Script una <b>Nueva versión</b> de la implementación: el filtro por acero y proveedor lo resuelve la hoja.</span></div></div>`;
+    return;
+  }
   const vDef = (f.variables||[]).find(v=>v.nombre===vNom) || {};
   const per = periodoTendencia();
   const desde = per.desde, hasta = per.hasta;
   const maq = "", ref = "";
+  const fTend = filtroTendActual();
 
   const puntos = [];
 
   /* Si la hoja nos dio la serie de esta variable y este rango, se usa: son los
      mismos datos pesando catorce veces menos. Si no, se arma desde lo que haya
      en el equipo, que es lo que permite ver tendencias sin conexión. */
-  const hayserie = S.serie.clave === claveSerie(fId, vNom, desde, hasta) && S.serie.puntos.length;
+  const hayserie = S.serie.clave === claveSerieActual(fId, vNom, desde, hasta) && S.serie.puntos.length;
   if(hayserie){
     S.serie.puntos.slice()
       .sort((a,b)=> String(a.fecha+a.registroId).localeCompare(String(b.fecha+b.registroId)))
@@ -3042,7 +3136,10 @@ function renderTendencia(){
   } else
   S.registros.filter(r=> r.formatoId===fId &&
       (!desde || fFecha(r.fecha)>=desde) && (!hasta || fFecha(r.fecha)<=hasta) &&
-      (!maq || String(r.maquina)===maq) && (!ref || String(r.referencia)===ref))
+      (!maq || String(r.maquina)===maq) && (!ref || String(r.referencia)===ref) &&
+      /* sin conexión los filtros se aplican igual, sobre lo que haya en el equipo */
+      (!fTend.acero || String(r.tipoAcero||"").trim()===fTend.acero) &&
+      (!fTend.prov  || String(r.proveedor||"").trim()===fTend.prov))
     .forEach(r=>{
       (r.resultados||[]).forEach(x=>{
         if(x.nombre !== vNom) return;
@@ -3063,7 +3160,7 @@ function renderTendencia(){
   const prom = ys.reduce((a,b)=>a+b,0)/ys.length;
   const desvia = Math.sqrt(ys.reduce((a,b)=>a+Math.pow(b-prom,2),0)/ys.length);
   const hay = x => x !== null && x !== undefined && x !== "";
-  const bandaEsp = bandaTendencia(fId, vDef, S.serie.clave === claveSerie(fId, vNom, desde, hasta) ? S.serie.puntos : []);
+  const bandaEsp = bandaTendencia(fId, vDef, S.serie.clave === claveSerieActual(fId, vNom, desde, hasta) ? S.serie.puntos : [], filtroTendActual());
   const lim = {min: hay(bandaEsp.min)?parseFloat(bandaEsp.min):null, max: hay(bandaEsp.max)?parseFloat(bandaEsp.max):null};
   const u = vDef.unidad ? " "+vDef.unidad : "";
   /* Un decimal: las mediciones vienen en enteros, y un promedio con centésimas
@@ -3096,7 +3193,7 @@ function renderTendencia(){
     <div class="panel">
       <div class="kpis">
         <div class="kpi"><span>Mediciones</span><b>${puntos.length}</b>
-          <small>${esc(per.etq)}</small></div>
+          <small>${esc(per.etq)}${esc([fTend.acero, fTend.prov].filter(Boolean).map(x=>" · "+x).join(""))}</small></div>
         <div class="kpi"><span>Promedio</span><b>${f1(prom)}</b>
           <small>desviación ${f1(desvia)}${esc(u)}</small></div>
         <div class="kpi ${nCerca?"ojo":""}"><span>Cerca del límite</span><b>${nCerca}</b>
@@ -4388,7 +4485,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-07-cotas-multiples";
+const APP_VERSION = "2026-10-07-cotas-editables";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -5492,24 +5589,128 @@ function renderEspecs(){
   const porF = {};
   Object.keys(S.especificaciones).forEach(k=>{
     const p = k.split("|");
-    (porF[p[0]] = porF[p[0]] || {n:0, vals:{}, campo:""});
+    (porF[p[0]] = porF[p[0]] || {n:0, vals:{}, campos:{}});
     porF[p[0]].n++;
     porF[p[0]].vals[p[2]] = true;
-    porF[p[0]].campo = String(p[2]||"").split("=")[0];
+    /* Un mismo proceso puede tener cotas por acero Y excepciones por
+       referencia: quedarse con el último campo visto las escondería. */
+    porF[p[0]].campos[String(p[2]||"").split("=")[0]] = true;
   });
   const filas = Object.keys(porF).map(fId=>{
     const f = S.formatos.find(x=>x.id===fId);
     const nombre = f ? f.nombre : fId;
-    return `<tr><td>${esc(nombre)}</td><td>${esc(ETQ_COTA[porF[fId].campo]||porF[fId].campo)}</td>
-            <td style="text-align:right;">${porF[fId].n}</td>
-            <td style="text-align:right;">${Object.keys(porF[fId].vals).length}</td></tr>`;
+    /* El detalle va plegado: contar cotas no sirve para comprobar que el
+       número cargado es el que se quería. Hay que poder VER el 63–65. */
+    const det = Object.keys(S.especificaciones)
+      .filter(k=>k.split("|")[0] === fId)
+      .map(k=>{
+        const p = k.split("|"), e = S.especificaciones[k];
+        const par = String(p[2]||"").split("=");
+        return {k:k, v:p[1], campo:ETQ_COTA[par[0]]||par[0], val:par.slice(1).join("="),
+                min:e[0], max:e[1]};
+      })
+      .sort((a,b)=> (a.v+a.val).localeCompare(b.v+b.val))
+      /* Filas sueltas, NO un <tbody> dentro de otro: anidarlos es HTML
+         inválido y el navegador los saca de la tabla, con lo que el
+         «display:none» se pierde y el detalle sale siempre abierto. */
+      .map(d=>`<tr class="esp-det" data-f="${esc(fId)}" data-k="${esc(d.k)}" style="display:none;">
+               <td style="padding-left:18px;">${esc(d.v)}</td>
+               <td>${esc(d.campo)} = <b>${esc(d.val)}</b></td>
+               <td colspan="2" style="text-align:right;white-space:nowrap;">
+                 <input class="esp-min" value="${esc(String(d.min))}" inputmode="decimal"
+                   style="width:62px;text-align:right;font-variant-numeric:tabular-nums;">
+                 <span style="color:var(--text-dim);">a</span>
+                 <input class="esp-max" value="${esc(String(d.max))}" inputmode="decimal"
+                   style="width:62px;text-align:right;font-variant-numeric:tabular-nums;">
+                 <button class="btn-sec esp-ok" style="padding:3px 9px;font-size:.72rem;">Guardar</button>
+                 <button class="btn-sec esp-del" title="Quitar esta cota"
+                   style="padding:3px 8px;font-size:.72rem;color:var(--red);">✕</button></td></tr>`).join("");
+    const campos = Object.keys(porF[fId].campos).map(c=>ETQ_COTA[c]||c).join(", ");
+    return `<tr class="esp-cab" data-f="${esc(fId)}" style="cursor:pointer;">
+              <td><span class="esp-fl">▸</span> ${esc(nombre)}</td>
+              <td>${esc(campos)}</td>
+              <td style="text-align:right;">${porF[fId].n}</td>
+              <td style="text-align:right;">${Object.keys(porF[fId].vals).length}</td></tr>` + det;
   }).join("");
   document.getElementById("espResumen").innerHTML = filas
-    ? `<table class="tabla"><thead><tr><th>Proceso</th><th>Depende de</th>
+    ? `<p style="color:var(--text-dim);font-size:.75rem;margin:0 0 6px;">Pulsa un proceso para ver los valores cargados.</p>
+       <table class="tabla"><thead><tr><th>Proceso</th><th>Depende de</th>
        <th style="text-align:right;">Cotas</th>
        <th style="text-align:right;">Valores</th></tr></thead><tbody>${filas}</tbody></table>`
-    : `<p style="color:var(--text-dim);">Todavía no hay ninguna cota por referencia cargada.</p>`;
+    : `<p style="color:var(--text-dim);">Todavía no hay ninguna cota cargada. Las durezas y las cotas por referencia se cargan aquí, no en el formato.</p>`;
 }
+/* Corregir UNA cota sin volver a pegar el bloque entero. La clave manda:
+   escribir sobre la misma clave reemplaza, y min y max vacíos la borran —
+   es exactamente lo que hace la hoja con un bloque, pero de a una. */
+function partesClave(k){
+  const p = String(k).split("|");
+  const par = String(p[2]||"").split("=");
+  return {formatoId:p[0], variable:p[1], campo:par[0], valor:par.slice(1).join("=")};
+}
+async function guardarUnaCota(tr, borrar){
+  const k = tr.dataset.k;
+  const pz = partesClave(k);
+  const num = s => { const t = String(s).trim().replace(",", ".");
+                     return t === "" ? "" : (isNaN(parseFloat(t)) ? null : parseFloat(t)); };
+  let mn = "", mx = "";
+  if(!borrar){
+    mn = num(tr.querySelector(".esp-min").value);
+    mx = num(tr.querySelector(".esp-max").value);
+    if(mn === null || mx === null){ toast("Escribe números en el mínimo y el máximo"); return; }
+    if(mn === "" && mx === ""){ toast("Para quitar la cota usa la ✕"); return; }
+    if(mn !== "" && mx !== "" && mn > mx){ toast("El mínimo no puede ser mayor que el máximo"); return; }
+  }
+  const bt = tr.querySelector(borrar ? ".esp-del" : ".esp-ok");
+  const txt = bt.textContent; bt.disabled = true; bt.textContent = "…";
+  /* Primero en el equipo: si la hoja falla, el inspector sigue juzgando con
+     el valor corregido y el aviso dice qué hacer. */
+  if(borrar) delete S.especificaciones[k];
+  else S.especificaciones[k] = [mn, mx];
+  try{ localStorage.setItem("cp_especificaciones", JSON.stringify(S.especificaciones)); }catch(e){}
+  try{
+    const ok = await enviarConfig("guardarEspecs", {especs: [{
+      formatoId: pz.formatoId, variable: pz.variable, campo: pz.campo, valor: pz.valor,
+      min: borrar ? "" : mn, max: borrar ? "" : mx
+    }]}, true);
+    toast(ok ? (borrar ? "Cota quitada" : `Cota guardada: ${mn} a ${mx}`)
+             : "Cambiada en este equipo · la hoja no respondió, vuelve a intentarlo");
+  } finally {
+    bt.disabled = false; bt.textContent = txt;
+    const abiertos = [...document.querySelectorAll(".esp-cab")]
+      .filter(c=>c.querySelector(".esp-fl") && c.querySelector(".esp-fl").textContent === "▾")
+      .map(c=>c.dataset.f);
+    renderEspecs();
+    /* Se vuelve a dibujar la tabla entera, así que hay que reabrir lo que
+       estaba abierto: si no, corregir una cota te cierra la lista en la cara. */
+    abiertos.forEach(f=>{
+      const c = document.querySelector('.esp-cab[data-f="' + f.replace(/"/g,'\\"') + '"]');
+      if(c) c.click();
+    });
+    document.getElementById("nEspecs").textContent = Object.keys(S.especificaciones).length;
+    if(S.formatoActivo) rejuzgarTodo();
+  }
+}
+
+/* Delegado: la tabla se vuelve a dibujar en cada carga. */
+document.getElementById("espResumen").addEventListener("click", e=>{
+  const ok = e.target.closest(".esp-ok"), del = e.target.closest(".esp-del");
+  if(ok || del){
+    const fila = e.target.closest(".esp-det");
+    if(!fila) return;
+    if(del){
+      const pz = partesClave(fila.dataset.k);
+      if(!confirm(`¿Quitar la cota de «${pz.variable}» para ${pz.valor}?\n\nLa variable queda sin especificación: se capturará el valor pero no se juzgará.`)) return;
+    }
+    guardarUnaCota(fila, !!del);
+    return;
+  }
+  const tr = e.target.closest(".esp-cab"); if(!tr) return;
+  const det = [...document.querySelectorAll(".esp-det")].filter(x=>x.dataset.f === tr.dataset.f);
+  if(!det.length) return;
+  const abierto = det[0].style.display !== "none";
+  det.forEach(x=>{ x.style.display = abierto ? "none" : ""; });
+  const fl = tr.querySelector(".esp-fl"); if(fl) fl.textContent = abierto ? "▸" : "▾";
+});
 
 document.getElementById("btnEspRevisar").addEventListener("click", revisarBloqueEsp);
 document.getElementById("btnEspCargar").addEventListener("click", cargarBloqueEsp);
@@ -5619,8 +5820,14 @@ async function cargarRonda(){
    Si la hoja no entiende «tipo=serie» se vuelve al camino de siempre, que
    funciona aunque sea pesado.
    ====================================================================== */
-function claveSerie(fId, vNom, desde, hasta){
-  return [fId, vNom, desde||"", hasta||""].join("|");
+/* Los filtros entran en la clave: si no, al cambiar de acero se volvería a
+   dibujar la serie del acero anterior creyendo que ya estaba pedida. */
+function claveSerie(fId, vNom, desde, hasta, acero, prov){
+  return [fId, vNom, desde||"", hasta||"", acero||"", prov||""].join("|");
+}
+function claveSerieActual(fId, vNom, desde, hasta){
+  const ft = filtroTendActual();
+  return claveSerie(fId, vNom, desde, hasta, ft.acero, ft.prov);
 }
 
 /* La banda del gráfico se busca en tres sitios, en este orden:
@@ -5630,7 +5837,7 @@ function claveSerie(fId, vNom, desde, hasta){
    Si hay VARIAS distintas no se dibuja ninguna: una serie que mezcla dos
    aceros con bandas diferentes no se puede resumir en una sola franja, y
    pintar una de las dos sería mentir sobre la mitad de los puntos. */
-function bandaTendencia(fId, vDef, puntos){
+function bandaTendencia(fId, vDef, puntos, filtro){
   const dist = o => Object.keys(o).map(k=>o[k]);
 
   const delPunto = {};
@@ -5646,7 +5853,15 @@ function bandaTendencia(fId, vDef, puntos){
 
   const pre = String(fId) + "|" + String(vDef.nombre) + "|";
   const cot = {};
-  Object.keys(S.especificaciones).filter(k=>k.indexOf(pre) === 0).forEach(k=>{
+  let claves = Object.keys(S.especificaciones).filter(k=>k.indexOf(pre) === 0);
+  /* Con un acero elegido ya no hay ambigüedad: su cota es LA cota. Esto es lo
+     que convierte el filtro en una banda de verdad (870–900 para el SAE 1074,
+     850–890 para el 65MN) en vez de cuatro líneas sueltas. */
+  if(filtro && filtro.acero){
+    const suyas = claves.filter(k=>String(k.split("|")[2]||"") === "tipoAcero=" + filtro.acero);
+    if(suyas.length) claves = suyas;
+  }
+  claves.forEach(k=>{
     const e = S.especificaciones[k];
     /* La etiqueta sale de la propia clave: «tipoAcero=65MN» -> «65MN». Es lo
        que permite rotular cada línea de límite en el gráfico. */
@@ -5677,11 +5892,14 @@ async function traerSerie(fId, vNom, desde, hasta, boton){
   try{
     /* En la hoja Detalle la columna «proceso» guarda sólo el proceso, sin la
        línea delante: hay que mandar f.proceso, no f.nombre. */
+    const ft = filtroTendActual();
     const url = S.syncUrl + "?tipo=serie"
       + "&proceso="  + encodeURIComponent(f.proceso)
       + "&variable=" + encodeURIComponent(vNom)
       + (desde ? "&desde=" + desde : "")
-      + (hasta ? "&hasta=" + hasta : "");
+      + (hasta ? "&hasta=" + hasta : "")
+      + (ft.acero ? "&acero="     + encodeURIComponent(ft.acero) : "")
+      + (ft.prov  ? "&proveedor=" + encodeURIComponent(ft.prov)  : "");
     const data = await pedirJSON(url, "la serie");
     if(!Array.isArray(data)) throw new Error("respuesta inesperada");
 
@@ -5690,7 +5908,14 @@ async function traerSerie(fId, vNom, desde, hasta, boton){
     if(data.length && data[0] && data[0].id !== undefined && data[0].valor === undefined)
       throw new Error("la hoja no conoce las series");
 
-    S.serie = {clave: claveSerie(fId, vNom, desde, hasta), puntos: data};
+    /* Una hoja sin la versión nueva ignora «acero» y «proveedor» y devuelve
+       TODO. Se detecta porque los puntos no traen esos campos, y se marca:
+       enseñar esos puntos como si estuvieran filtrados sería lo peor que
+       podría hacer esta pantalla. */
+    const pidioFiltro = !!(ft.acero || ft.prov);
+    const sinFiltro = pidioFiltro && data.length && data[0] &&
+                      data[0].acero === undefined && data[0].proveedor === undefined;
+    S.serie = {clave: claveSerieActual(fId, vNom, desde, hasta), puntos: data, sinFiltro: !!sinFiltro};
     LECTURA.hora = (function(){ const d=new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; })();
     LECTURA.sello = Date.now(); LECTURA.ms = Date.now() - t0;
     LECTURA.recibidos = data.length; LECTURA.nuevos = 0; LECTURA.error = null;
