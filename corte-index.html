@@ -1,0 +1,883 @@
+<!doctype html>
+<html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plan de Corte · Cuchillas</title>
+<style>
+  :root{--red:#c81d2e;--red2:#a3121f;--bg:#f2f4f7;--pan:#fff;--bor:#e3e6eb;
+        --tx:#1c1f24;--dim:#6e7681;--ok:#1f7a44;--ava:#e0a800;--mal:#c81d2e;}
+  *{box-sizing:border-box;} 
+  body{margin:0;background:var(--bg);color:var(--tx);
+       font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
+  header{background:var(--red);color:#fff;padding:0 18px;display:flex;align-items:center;
+         gap:18px;flex-wrap:wrap;min-height:58px;}
+  header .marca{font-weight:800;letter-spacing:.02em;font-size:1.02rem;}
+  header .marca small{display:block;font-weight:500;font-size:.68rem;opacity:.82;letter-spacing:.04em;}
+  nav{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap;}
+  nav button{background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:99px;
+             padding:8px 16px;font-size:.84rem;font-weight:600;cursor:pointer;}
+  nav button.on{background:#fff;color:var(--red);}
+  main{padding:18px;max-width:1500px;margin:0 auto;}
+  .panel{background:var(--pan);border:1px solid var(--bor);border-radius:12px;padding:16px;margin-bottom:16px;}
+  .tit{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+  .tit h2{margin:0;font-size:.82rem;letter-spacing:.06em;color:var(--red);text-transform:uppercase;}
+  .tit span{font-size:.74rem;color:var(--dim);}
+  label{display:block;font-size:.72rem;font-weight:700;color:var(--dim);margin-bottom:5px;
+        text-transform:uppercase;letter-spacing:.04em;}
+  input,select{width:100%;padding:10px 11px;border:1px solid var(--bor);border-radius:8px;
+               font-size:.92rem;font-family:inherit;background:#fff;color:var(--tx);}
+  input:focus,select:focus{outline:2px solid var(--red);outline-offset:-1px;}
+  .fila{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;}
+  .campo{flex:1 1 180px;min-width:150px;}
+  .campo.chico{flex:0 1 130px;}
+  button.btn{background:var(--red);color:#fff;border:0;border-radius:8px;padding:11px 18px;
+             font-size:.88rem;font-weight:700;cursor:pointer;}
+  button.btn:disabled{opacity:.5;cursor:default;}
+  button.sec{background:#fff;color:var(--tx);border:1px solid var(--bor);border-radius:8px;
+             padding:9px 15px;font-size:.84rem;font-weight:600;cursor:pointer;}
+  table{width:100%;border-collapse:collapse;font-size:.85rem;}
+  th{background:#f3f4f7;text-align:left;padding:8px 9px;font-size:.68rem;text-transform:uppercase;
+     letter-spacing:.05em;color:var(--dim);font-weight:800;white-space:nowrap;}
+  td{padding:7px 9px;border-top:1px solid var(--bor);}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;}
+  .scroll{overflow-x:auto;}
+  .tarjetas{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;}
+  .maq{border:1px solid var(--bor);border-radius:12px;padding:14px;background:#fff;border-left:6px solid var(--bor);}
+  .maq.verde   {border-left-color:var(--ok);background:#f6fdf9;}
+  .maq.amarillo{border-left-color:var(--ava);background:#fffdf4;}
+  .maq.rojo    {border-left-color:var(--mal);background:#fef7f7;}
+  .maq.espera  {border-left-color:var(--bor);background:#fafbfc;}
+  .maq h3{margin:0 0 2px;font-size:1rem;}
+  .maq .est{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;}
+  .maq .big{font-size:1.9rem;font-weight:800;line-height:1.1;margin:8px 0 2px;}
+  .maq .sub{font-size:.76rem;color:var(--dim);}
+  .barra{height:8px;background:#eceef2;border-radius:99px;overflow:hidden;margin:10px 0 6px;}
+  .barra i{display:block;height:100%;border-radius:99px;background:var(--ok);}
+  .maq.amarillo .barra i{background:var(--ava);} .maq.rojo .barra i{background:var(--mal);}
+  .pill{display:inline-block;font-size:.68rem;font-weight:800;padding:2px 9px;border-radius:99px;
+        background:#f0f2f5;color:var(--dim);}
+  .pill.ok{background:#e8f6ee;color:var(--ok);} .pill.mal{background:#fdeceb;color:var(--mal);}
+  .pill.ava{background:#fdf6e3;color:#a07400;}
+  .vacio{color:var(--dim);font-size:.86rem;padding:14px;text-align:center;}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;}
+  .kpi{border:1px solid var(--bor);border-radius:10px;padding:12px 14px;}
+  .kpi span{font-size:.7rem;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;font-weight:700;}
+  .kpi b{display:block;font-size:1.7rem;line-height:1.2;margin-top:3px;}
+  .kpi small{display:block;font-size:.72rem;color:var(--dim);}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1c1f24;color:#fff;
+         padding:11px 20px;border-radius:99px;font-size:.86rem;z-index:50;opacity:0;transition:.2s;}
+  .toast.on{opacity:1;}
+  .celplan{width:62px;padding:4px 5px;text-align:right;font-size:.8rem;}
+  td.dom{background:#f7f8fa;}
+  .ronda{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px dashed var(--bor);font-size:.8rem;}
+  @media(max-width:700px){ main{padding:12px;} nav{width:100%;margin-left:0;} }
+</style></head>
+<body>
+<header>
+  <div class="marca">Plan de Corte &middot; Cuchillas<small>BELLOTA COLOMBIA &middot; NIVELACI&Oacute;N DE INVENTARIOS</small></div>
+  <nav>
+    <button id="tabTab" class="on">Hoy</button>
+    <button id="tabProd">Registrar</button>
+    <button id="tabPlan">Plan del mes</button>
+    <button id="tabAj">Ajustes</button>
+  </nav>
+</header>
+<main>
+  <section id="vTab"></section>
+  <section id="vProd" style="display:none;"></section>
+  <section id="vPlan" style="display:none;"></section>
+  <section id="vAj"   style="display:none;"></section>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const REFS = [{"item": "452425-P", "desc": "CUCHILLA 452425-P", "acabado": "PULIDA", "mercado": "EXP", "portafolio": "SUS"}, {"item": "351625", "desc": "CUCHILLA CORBATIN 351625 ROJA", "acabado": "ROJA", "mercado": "NAL-EXP", "portafolio": "INFALTABLE"}, {"item": "351625P", "desc": "CUCHILLA CORBATIN 351625 PULIDA", "acabado": "PULIDA", "mercado": "NAL-EXP", "portafolio": "INFALTABLE"}, {"item": "352420P", "desc": "CUCHILLA CORBATIN 352420 PULIDA", "acabado": "PULIDA", "mercado": "NAL-EXP", "portafolio": "INFALTABLE"}, {"item": "352425", "desc": "CUCHILLA CORBATIN 352425 ROJA", "acabado": "ROJA", "mercado": "NAL-EXP", "portafolio": "INFALTABLE"}, {"item": "352425NE", "desc": "CUCHILLA CORBATIN 352425 NEGRA", "acabado": "NEGRA", "mercado": "EXP", "portafolio": "BP"}, {"item": "352425P", "desc": "CUCHILLA 352425P", "acabado": "PULIDA", "mercado": "NAL-EXP", "portafolio": "INFALTABLE"}, {"item": "R352425P", "desc": "CUCHILLA R352425P", "acabado": "PRETEMPLADA PULIDA", "mercado": "NAL", "portafolio": "INFALTABLE"}, {"item": "R352425R", "desc": "CUCHILLA R352425R", "acabado": "ROJA", "mercado": "NAL", "portafolio": "INFALTABLE"}, {"item": "452425-N", "desc": "CUCHILLA 452425-N", "acabado": "NATURAL", "mercado": "NAL", "portafolio": "INFALTABLE"}, {"item": "452420-P", "desc": "CUCHILLA 452420-P", "acabado": "PULIDA", "mercado": "EXP", "portafolio": "SUS"}, {"item": "351620PSS", "desc": "CUCHILLA CORBATÍN 351620PULIDA SIN SELLO", "acabado": "PULIDA", "mercado": "EXP", "portafolio": "BP"}, {"item": "351625PSS", "desc": "CUCHILLA CORBATIN 351625 PULIDA SIN SELLO", "acabado": "PULIDA", "mercado": "EXP", "portafolio": "BP"}, {"item": "352420PSS", "desc": "CUCHILLA 352420 PULIDA SIN SELLO", "acabado": "PULIDA", "mercado": "EXP", "portafolio": "BP"}, {"item": "352425PSS", "desc": "CUCHILLA 352425 PULIDA SIN SELLO", "acabado": "PULIDA", "mercado": "EXP", "portafolio": "BP"}, {"item": "R353025NE", "desc": "R353025NE", "acabado": "NEGRA", "mercado": "NAL", "portafolio": "BP"}];
+const PLAN_SEMILLA = {"452425-P": {"2026-10-01": 2500}, "351625": {"2026-10-15": 2250}, "351625P": {"2026-10-01": 11000, "2026-10-16": 9000, "2026-10-17": 4000}, "352420P": {"2026-10-01": 9000, "2026-10-12": 4000, "2026-10-13": 4000, "2026-10-15": 4980}, "352425": {"2026-10-01": 15000, "2026-10-05": 7000, "2026-10-06": 7000, "2026-10-07": 7000, "2026-10-08": 7000, "2026-10-09": 2589}, "352425NE": {"2026-10-16": 3425}, "352425P": {"2026-10-01": 18000, "2026-10-09": 4411, "2026-10-10": 6000, "2026-10-12": 7000, "2026-10-13": 7000, "2026-10-14": 2879}, "R352425R": {"2026-10-01": 5000, "2026-10-05": 8000, "2026-10-06": 8000, "2026-10-07": 7499}, "452425-N": {"2026-10-01": 9000, "2026-10-07": 4501, "2026-10-08": 9149, "2026-10-09": 6825, "2026-10-10": 6825}, "452420-P": {"2026-10-10": 2500}, "351620PSS": {"2026-10-14": 4000, "2026-10-15": 8000, "2026-10-16": 3000}, "351625PSS": {"2026-10-12": 8000, "2026-10-13": 8000, "2026-10-14": 4000}, "352420PSS": {"2026-10-14": 3200}, "352425PSS": {"2026-10-14": 4300}, "R353025NE": {"2026-10-09": 5000}};
+const RATIOS = {"351625": {"2325": {"op": "TROQUELADO", "ph": 506.0, "turno": 3542}}, "352425": {"2311": {"op": "CORTE LASER", "ph": 406.0, "turno": 2842}, "2325": {"op": "TROQUELADO", "ph": 506.0, "turno": 3542}}, "352425NE": {"2325": {"op": "TROQUELADO", "ph": 506.0, "turno": 3542}}, "352425P": {"2311": {"op": "CORTE LASER", "ph": 406.0, "turno": 2842}, "2325": {"op": "TROQUELADO", "ph": 506.0, "turno": 3542}}, "351625P": {"2325": {"op": "TROQUELADO", "ph": 506.0, "turno": 3542}}, "352420P": {"2325": {"op": "TROQUELADO", "ph": 506.0, "turno": 3542}}, "R352425R": {"2325": {"op": "TROQUELADO (PUNZONADO Y SELLO)", "ph": 437.0, "turno": 3059}, "2310": {"op": "CORTE TRAMOS", "ph": 437.0, "turno": 3059}}, "R352425P": {"2325": {"op": "TROQUELADO (PUNZONADO Y SELLO)", "ph": 437.0, "turno": 3059}, "2310": {"op": "CORTE TRAMOS", "ph": 437.0, "turno": 3059}}, "351625PSS": {"2325": {"op": "TROQUELADO", "ph": 506.0, "turno": 3542}}, "351620PSS": {"2325": {"op": "TROQUELADO", "ph": 506.0, "turno": 3542}}, "R353025NE": {"2325": {"op": "TROQUELADO (PUNZONADO Y SELLO)", "ph": 437.0, "turno": 3059}, "2310": {"op": "CORTE TRAMOS", "ph": 437.0, "turno": 3059}}, "452420-P": {"2325": {"op": "TROQUELADO (PUNZONADO Y SELLO)", "ph": 437.0, "turno": 3059}, "2310": {"op": "CORTE TRAMOS", "ph": 437.0, "turno": 3059}}, "452425-N": {"2325": {"op": "TROQUELADO (PUNZONADO Y SELLO)", "ph": 437.0, "turno": 3059}, "2310": {"op": "CORTE TRAMOS", "ph": 437.0, "turno": 3059}}, "452425-P": {"2325": {"op": "TROQUELADO (PUNZONADO Y SELLO)", "ph": 437.0, "turno": 3059}, "2310": {"op": "CORTE TRAMOS", "ph": 437.0, "turno": 3059}}, "352420PSS": {"2311": {"op": "CORTE LASER", "ph": 406.0, "turno": 2842}, "2325": {"op": "TROQUELADO", "ph": 506.0, "turno": 3542}}, "352425PSS": {"2311": {"op": "CORTE LASER", "ph": 406.0, "turno": 2842}, "2325": {"op": "TROQUELADO", "ph": 506.0, "turno": 3542}}};
+const HORAS_TURNO = 7;   /* el ratio del archivo de rutas se mide sobre 7 horas */
+const METAS_SEMILLA = {"452425-P": 2500, "351625": 2250, "351625P": 24000, "352420P": 21980, "352425": 45589, "352425NE": 3425, "352425P": 45290, "R352425P": 45000, "R352425R": 28499, "452425-N": 36300, "452420-P": 2500, "351620PSS": 15000, "351625PSS": 20000, "352420PSS": 3200, "352425PSS": 4300, "R353025NE": 5000};
+
+/* ==========================================================================
+   HORARIOS DE PLANTA · copiados de Control de Proceso para que las dos apps
+   cuenten los turnos igual. El turno no dura lo mismo todos los días, y de
+   eso depende que «a las 11 am voy bien» sea verdad o mentira.
+   ========================================================================== */
+const MIN = (h, m) => h*60 + (m||0);
+const HORARIOS = {
+  1: {t1:[MIN(6),MIN(14)], t2:[MIN(14),MIN(22)], t3:MIN(22)},
+  2: {t1:[MIN(6),MIN(14)], t2:[MIN(14),MIN(22)], t3:MIN(22)},
+  3: {t1:[MIN(6),MIN(14)], t2:[MIN(14),MIN(22)], t3:MIN(22)},
+  4: {t1:[MIN(6),MIN(13)], t2:[MIN(13),MIN(20)], t3:MIN(21)},
+  5: {t1:[MIN(6),MIN(13)], t2:[MIN(13),MIN(20)], t3:MIN(21)},
+  6: {t1:[MIN(6),MIN(10)], t2:[MIN(10),MIN(14)], t3:null},
+  0: null
+};
+const FIN_T3 = MIN(6);
+const TURNOS = ["1","2","3"];
+
+const pad = n => String(n).padStart(2,"0");
+const hoyISO = () => { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const mesISO = () => hoyISO().slice(0,7);
+const diaDe = iso => { const [y,m,d]=String(iso).split("-").map(Number); return new Date(y,m-1,d).getDay(); };
+const ahoraMin = () => { const d=new Date(); return d.getHours()*60+d.getMinutes(); };
+const horaAhora = () => { const d=new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const NOMDIA = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const mil = n => (Math.round(n)||0).toLocaleString("es-CO");
+
+function turnoExiste(fecha, t){
+  const h = HORARIOS[diaDe(fecha)];
+  if(!h) return false;
+  return t === "3" ? h.t3 != null : true;
+}
+/* Inicio y fin del turno en minutos. El 3 cruza la medianoche, así que se
+   devuelve su fin como "minutos del día siguiente" para poder restar. */
+function ventanaTurno(fecha, t){
+  const h = HORARIOS[diaDe(fecha)];
+  if(!h) return null;
+  if(t === "1") return h.t1;
+  if(t === "2") return h.t2;
+  if(h.t3 == null) return null;
+  return [h.t3, 24*60 + FIN_T3];
+}
+function turnoAhora(){
+  const f = hoyISO(), min = ahoraMin();
+  if(min < FIN_T3) return "3";
+  for(const t of TURNOS){
+    const v = ventanaTurno(f, t);
+    if(v && min >= v[0] && min < v[1]) return t;
+  }
+  const h = HORARIOS[diaDe(f)];
+  if(!h) return "1";
+  return min >= (h.t2 ? h.t2[0] : 0) ? "2" : "1";
+}
+/* Qué fracción del turno va transcurrida: 0 antes de empezar, 1 al terminar.
+   Es la pieza que convierte el ratio en «cuántas debería llevar ahora». */
+function fraccionTurno(fecha, t, minAhora){
+  const v = ventanaTurno(fecha, t);
+  if(!v) return 0;
+  let m = (minAhora === undefined) ? ahoraMin() : minAhora;
+  if(t === "3" && m < FIN_T3) m += 24*60;       // madrugada: sigue el turno de ayer
+  if(fecha < hoyISO()) return 1;                 // día pasado: turno completo
+  if(fecha > hoyISO()) return 0;
+  if(m <= v[0]) return 0;
+  if(m >= v[1]) return 1;
+  return (m - v[0]) / (v[1] - v[0]);
+}
+function minutosTurno(fecha, t){
+  const v = ventanaTurno(fecha, t);
+  return v ? v[1] - v[0] : 0;
+}
+
+/* ==========================================================================
+   ESTADO
+   ========================================================================== */
+/* La hoja va fija en el archivo: así la planeadora y la auxiliar no tienen
+   que pegar nada en cada tablet, y nadie puede dejarla a medias por un
+   copiado incompleto. Para cambiarla se cambia esta línea. */
+const URL_HOJA = "https://script.google.com/macros/s/AKfycbzLtCM8hzqWqTqknQbLuIFvW08IHebR0_5wwJyu22Ph9Dh9lFwfxHCNut3JzcRhJUck/exec";
+
+const LS = k => { try{ return JSON.parse(localStorage.getItem(k) || "null"); }catch(e){ return null; } };
+const guarda = (k,v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+
+const S = {
+  /* plan[mes][item][fecha] = cantidad a cortar ese día */
+  plan: LS("pc_plan") || {},
+  /* metas[mes][item] = total del mes (el verde oscuro del Excel) */
+  metas: LS("pc_metas") || {},
+  /* Los centros de trabajo con función de corte en cuchillas, sacados del
+     archivo de rutas de fabricación. El ratio NO vive aquí: depende de la
+     referencia que se esté cortando. */
+  maquinas: LS("pc_maquinas") || [
+    {id:"2310", nombre:"Corte tramos",  activa:true},
+    {id:"2311", nombre:"Corte láser",   activa:true},
+    {id:"2325", nombre:"Troquelado",    activa:true}
+  ],
+  /* cada ronda es lo que la auxiliar contó EN ESE MOMENTO, no el acumulado */
+  rondas: LS("pc_rondas") || [],
+  quien: LS("pc_quien") || "",
+  syncUrl: URL_HOJA
+};
+/* Primera vez: se siembra con el plan de octubre del archivo de nivelación. */
+if(!Object.keys(S.plan).length){
+  S.plan["2026-10"] = JSON.parse(JSON.stringify(PLAN_SEMILLA));
+  S.metas["2026-10"] = JSON.parse(JSON.stringify(METAS_SEMILLA));
+  guarda("pc_plan", S.plan); guarda("pc_metas", S.metas);
+}
+
+function toast(t){
+  const e = document.getElementById("toast");
+  e.textContent = t; e.classList.add("on");
+  clearTimeout(e._t); e._t = setTimeout(()=>e.classList.remove("on"), 2600);
+}
+
+/* ==========================================================================
+   CÁLCULOS DEL PLAN
+   ========================================================================== */
+const planMes  = m => S.plan[m]  || (S.plan[m]  = {});
+const metasMes = m => S.metas[m] || (S.metas[m] = {});
+
+function diasDelMes(mes){
+  const [y,m] = mes.split("-").map(Number);
+  const n = new Date(y, m, 0).getDate();
+  const out = [];
+  for(let d=1; d<=n; d++){
+    const f = `${mes}-${pad(d)}`;
+    out.push({fecha:f, dow:diaDe(f), nombre:NOMDIA[diaDe(f)], habil: !!HORARIOS[diaDe(f)]});
+  }
+  return out;
+}
+/* Lo planeado para una referencia un día, para un día entero, y lo que
+   falta por repartir —que es el dato que el Excel marca en rojo. */
+const planDe    = (mes,item,fecha) => +(((S.plan[mes]||{})[item]||{})[fecha] || 0);
+const planDelDia = (mes,fecha) => REFS.reduce((a,r)=> a + planDe(mes,r.item,fecha), 0);
+const planDelItem = (mes,item) => Object.values((S.plan[mes]||{})[item] || {}).reduce((a,b)=>a+(+b||0),0);
+const metaDelItem = (mes,item) => +(((S.metas[mes]||{})[item]) || 0);
+const sinRepartir = (mes,item) => metaDelItem(mes,item) - planDelItem(mes,item);
+
+/* ==========================================================================
+   PRODUCCIÓN REAL
+   Cada ronda guarda lo contado EN ESE MOMENTO. El acumulado es la suma: así
+   la auxiliar nunca tiene que hacer cuentas, sólo decir cuántas van desde la
+   última vez que pasó.
+   ========================================================================== */
+function rondasDe(fecha, turno, maquina){
+  return S.rondas.filter(r => r.fecha===fecha && String(r.turno)===String(turno) &&
+                              (!maquina || r.maquina===maquina));
+}
+const sumaRondas = rs => rs.reduce((a,r)=> a + (+r.cantidad||0), 0);
+
+/* El semáforo.
+     verde    : va al día o por delante
+     amarillo : va retrasada, pero al ritmo actual terminaría dentro del 5 %
+     rojo     : al ritmo actual se quedaría a más del 5 % de la meta
+   La proyección es la que contesta la pregunta de verdad —«a las 11 am,
+   ¿alcanzo?»— porque mide el ritmo, no el retraso acumulado. */
+const TOLERANCIA = 0.05;
+
+/* Lo que esa máquina entrega en un turno CORTANDO ESA REFERENCIA. Sale del
+   archivo de rutas (piezas/hora) multiplicado por las 7 horas de turno. No es
+   un número de la máquina: el mismo troquel hace 3.542 de una referencia y
+   3.059 de otra, y juzgar las dos contra la misma meta sería injusto con la
+   lenta y blando con la rápida. */
+function ratioDe(item, maqId){
+  const r = (RATIOS[item] || {})[maqId];
+  if(!r) return null;
+  return {ph: r.ph, turno: Math.round(r.ph * HORAS_TURNO), op: r.op};
+}
+/* Qué máquinas saben cortar una referencia, en el orden de la ruta. */
+function maquinasDe(item){
+  return Object.keys(RATIOS[item] || {})
+    .map(id => ({id, nombre:(S.maquinas.find(m=>m.id===id)||{}).nombre || id, r: ratioDe(item, id)}));
+}
+
+/* El avance se mide en TURNOS EQUIVALENTES, no en unidades sueltas: cada
+   ronda consume la fracción de turno que le corresponde según el ratio de su
+   referencia. Así un turno que cortó dos referencias distintas se juzga bien
+   sin inventar un promedio. */
+function avanceTurno(fecha, turno, maqId){
+  let frac = 0, unidades = 0, sinRatio = 0;
+  const porItem = {};
+  rondasDe(fecha, turno, maqId).forEach(r=>{
+    const c = +r.cantidad || 0;
+    unidades += c;
+    porItem[r.item] = (porItem[r.item] || 0) + c;
+    const rt = ratioDe(r.item, maqId);
+    if(rt && rt.turno) frac += c / rt.turno; else sinRatio += c;
+  });
+  return {frac, unidades, porItem, sinRatio};
+}
+
+function estadoMaquina(maq, fecha, turno){
+  const fr = fraccionTurno(fecha, turno);
+  const a  = avanceTurno(fecha, turno, maq.id);
+  const base = {meta:0, real:a.unidades, fr, avance:a};
+
+  if(!turnoExiste(fecha, turno)) return Object.assign(base, {estado:"espera", txt:"sin turno", fr:0});
+  if(fr <= 0) return Object.assign(base, {estado:"espera", txt:"no ha empezado", fr:0, teorico:0});
+  /* Sin una sola ronda registrada no se juzga. Cero unidades contadas no
+     significa que la máquina esté parada: significa que la auxiliar todavía
+     no ha pasado. Pintar eso de rojo sería acusar por falta de dato, y a los
+     tres días nadie volvería a mirar el semáforo. */
+  if(!rondasDe(fecha, turno, maq.id).length)
+    return Object.assign(base, {estado:"espera", txt:"sin registro todavía", teorico:0});
+  if(a.sinRatio && !a.frac)
+    return Object.assign(base, {estado:"espera", txt:"esa referencia no se corta aquí", teorico:0});
+
+  /* Referencia dominante del turno: para poder hablar en unidades, que es
+     como piensa quien está en planta. */
+  const items = Object.keys(a.porItem).sort((x,y)=> a.porItem[y] - a.porItem[x]);
+  const rt = items.length ? ratioDe(items[0], maq.id) : null;
+  const meta = rt ? rt.turno : 0;
+
+  const proyFrac = a.frac / fr;              // turnos equivalentes al cierre
+  const brecha   = 1 - proyFrac;
+  let estado, txt;
+  if(a.frac >= fr){ estado="verde"; txt="al día"; }
+  else if(brecha > TOLERANCIA){ estado="rojo"; txt="no alcanza"; }
+  else { estado="amarillo"; txt="atrasada"; }
+
+  return Object.assign(base, {
+    estado, txt, meta,
+    teorico: meta ? Math.round(meta * fr) : 0,
+    proyectado: meta ? Math.round(meta * proyFrac) : 0,
+    proyFrac, brecha,
+    items, itemPrincipal: items[0] || "", ratio: rt,
+    mezcla: items.length > 1,
+    faltan: meta ? Math.max(0, meta - a.unidades) : 0,
+    minutosRestantes: Math.round(minutosTurno(fecha,turno) * (1-fr))
+  });
+}
+
+/* ==========================================================================
+   VISTA · HOY (el semáforo)
+   ========================================================================== */
+function renderHoy(){
+  const f = document.getElementById("hFecha") ? document.getElementById("hFecha").value : hoyISO();
+  const t = document.getElementById("hTurno") ? document.getElementById("hTurno").value : turnoAhora();
+  const mes = f.slice(0,7);
+  const planHoy = planDelDia(mes, f);
+  const activas = S.maquinas.filter(m=>m.activa !== false);
+  const estados = activas.map(m => ({m, e: estadoMaquina(m, f, t)}));
+  const realTurno = estados.reduce((a,x)=> a + x.e.real, 0);
+  const realDia   = TURNOS.filter(x=>turnoExiste(f,x))
+                          .reduce((a,x)=> a + sumaRondas(rondasDe(f,x)), 0);
+  /* Capacidad del día: para cada máquina, el ratio de la referencia que el
+     plan le pide hoy. Sin plan no hay capacidad que calcular, porque la
+     capacidad depende de QUÉ se corta. */
+  const nTurnos = TURNOS.filter(x=>turnoExiste(f,x)).length;
+  let capacidad = 0, capParcial = false;
+  activas.forEach(m=>{
+    const cand = REFS.filter(r=> planDe(mes, r.item, f) > 0 && ratioDe(r.item, m.id));
+    if(!cand.length){ capParcial = true; return; }
+    /* la referencia de más peso en el plan de hoy marca el ritmo */
+    const top = cand.sort((a,b)=> planDe(mes,b.item,f) - planDe(mes,a.item,f))[0];
+    capacidad += ratioDe(top.item, m.id).turno * nTurnos;
+  });
+  const fr = fraccionTurno(f, t);
+
+  document.getElementById("vTab").innerHTML = `
+    <div class="panel">
+      <div class="tit"><h2>Hoy en corte</h2>
+        <span>${esc(NOMDIA[diaDe(f)])} ${esc(f)} · turno ${esc(t)} · ${
+          !turnoExiste(f,t) ? "este turno no se trabaja"
+          : fr<=0 ? "aún no empieza"
+          : fr>=1 ? "turno terminado"
+          : `van ${Math.round(fr*100)}% del turno`}</span></div>
+      <div class="fila">
+        <div class="campo chico"><label for="hFecha">Día</label>
+          <input type="date" id="hFecha" value="${esc(f)}"></div>
+        <div class="campo chico"><label for="hTurno">Turno</label>
+          <select id="hTurno">${TURNOS.map(x=>`<option value="${x}"${x===t?" selected":""}${
+            turnoExiste(f,x)?"":" disabled"}>Turno ${x}${turnoExiste(f,x)?"":" (no se trabaja)"}</option>`).join("")}</select></div>
+        <div class="campo" style="flex:0 0 auto;"><label>&nbsp;</label>
+          <button class="sec" id="hAhora">Ahora</button></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="kpis">
+        <div class="kpi"><span>Plan del día</span><b>${mil(planHoy)}</b>
+          <small>${planHoy ? "cuchillas a cortar hoy" : "sin plan cargado para este día"}</small></div>
+        <div class="kpi"><span>Cortadas hoy</span><b>${mil(realDia)}</b>
+          <small>${planHoy ? `${Math.round(realDia/planHoy*100)}% del plan del día` : "en todos los turnos"}</small></div>
+        <div class="kpi"><span>En este turno</span><b>${mil(realTurno)}</b>
+          <small>${activas.length} máquina(s) activa(s)</small></div>
+        <div class="kpi"><span>Capacidad del día</span><b>${mil(capacidad)}</b>
+          <small>${!capacidad ? "sin plan para calcularla" : planHoy > capacidad
+            ? `<span style="color:var(--mal);font-weight:700;">faltan ${mil(planHoy-capacidad)} de capacidad</span>`
+            : `${nTurnos} turno(s) al ratio de lo planeado`}</small></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="tit"><h2>Máquinas</h2>
+        <span>verde: al día · amarillo: atrasada pero alcanza · rojo: al ritmo de ahora no alcanza (más del 5%)</span></div>
+      ${!activas.length ? `<div class="vacio">No hay máquinas configuradas. Ve a <b>Ajustes</b>.</div>` : `
+      <div class="tarjetas">${estados.map(({m,e})=>{
+        const pctMeta = Math.min(100, (e.avance ? e.avance.frac : 0) * 100);
+        return `<div class="maq ${e.estado}">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;">
+            <h3>${esc(m.nombre)}</h3>
+            <span class="est" style="color:${
+              e.estado==="verde"?"var(--ok)":e.estado==="amarillo"?"#a07400":
+              e.estado==="rojo"?"var(--mal)":"var(--dim)"};">${esc(e.txt)}</span></div>
+          <div class="big">${mil(e.real)}</div>
+          <div class="sub">${e.meta
+            ? `de ${mil(e.meta)} del turno cortando ${esc(e.itemPrincipal)}` + (e.teorico ? ` · debería llevar ${mil(e.teorico)}` : "")
+            : (()=>{ const rr=REFS.map(x=>ratioDe(x.item,m.id)).filter(Boolean);
+                     const t=[...new Set(rr.map(x=>x.turno))].sort((a,b)=>a-b);
+                     return t.length ? `${t.map(x=>mil(x)).join(" o ")} por turno según la referencia`
+                                     : "esta máquina no tiene ratios cargados"; })()}</div>
+          ${e.ratio ? `<div class="sub" style="font-size:.7rem;">${esc(e.ratio.op)} · ${mil(e.ratio.ph)}/hora × ${HORAS_TURNO} h${
+            e.mezcla ? ` · <b>${e.items.length} referencias en el turno</b>` : ""}</div>` : ""}
+          <div class="barra"><i style="width:${pctMeta}%;"></i></div>
+          ${e.fr > 0 && e.fr < 1 && e.avance && e.avance.frac ? `
+            <div class="sub">Lleva el <b>${(e.avance.frac*100).toFixed(0)}%</b> del turno con el <b>${(e.fr*100).toFixed(0)}%</b> del tiempo</div>
+            <div class="sub">Al ritmo de ahora cerraría en <b>${e.meta?mil(e.proyectado):(e.proyFrac*100).toFixed(0)+"%"}</b>${
+              e.brecha > 0 ? ` · ${(e.brecha*100).toFixed(1).replace(".",",")}% por debajo` : ""}</div>
+            ${e.meta ? `<div class="sub">Faltan ${mil(e.faltan)} en ${e.minutosRestantes} min${
+              e.minutosRestantes > 0 ? ` → ${mil(e.faltan/(e.minutosRestantes/60))}/hora` : ""}</div>` : ""}` : ""}
+          <div style="margin-top:10px;"><button class="sec" data-reg="${esc(m.id)}">Registrar ronda</button></div>
+        </div>`;
+      }).join("")}</div>`}
+    </div>
+
+    ${rondasDe(f,t).length ? `<div class="panel">
+      <div class="tit"><h2>Rondas de este turno</h2><span>lo que se contó en cada pasada</span></div>
+      <div class="scroll"><table><thead><tr><th>Hora</th><th>Máquina</th><th>Referencia</th>
+        <th class="n">Contadas</th><th class="n">Acumulado</th><th>Quién</th></tr></thead><tbody>${
+        (()=>{ const acc={}; return rondasDe(f,t).slice().sort((a,b)=>String(a.hora).localeCompare(b.hora))
+          .map(r=>{ acc[r.maquina]=(acc[r.maquina]||0)+(+r.cantidad||0);
+            const mq=S.maquinas.find(x=>x.id===r.maquina);
+            return `<tr><td>${esc(r.hora)}</td><td>${esc(mq?mq.nombre:r.maquina)}</td>
+              <td>${esc(r.item)}</td><td class="n">${mil(r.cantidad)}</td>
+              <td class="n"><b>${mil(acc[r.maquina])}</b></td><td>${esc(r.quien||"")}</td></tr>`;
+          }).join(""); })()}</tbody></table></div></div>` : ""}`;
+
+  document.getElementById("hFecha").addEventListener("change", renderHoy);
+  document.getElementById("hTurno").addEventListener("change", renderHoy);
+  document.getElementById("hAhora").addEventListener("click", ()=>{
+    document.getElementById("hFecha").value = hoyISO();
+    document.getElementById("hTurno").value = turnoAhora();
+    renderHoy();
+  });
+  document.querySelectorAll("[data-reg]").forEach(b=> b.addEventListener("click", ()=>{
+    irA("Prod"); const s=document.getElementById("pMaquina"); if(s){ s.value=b.dataset.reg; renderProd(); }
+  }));
+}
+
+/* ==========================================================================
+   VISTA · REGISTRAR (la auxiliar en la máquina)
+   ========================================================================== */
+let PROD_MAQ = "";
+function renderProd(){
+  const f = hoyISO(), t = turnoAhora();
+  const maq = document.getElementById("pMaquina") ? document.getElementById("pMaquina").value : (PROD_MAQ || (S.maquinas[0]||{}).id || "");
+  PROD_MAQ = maq;
+  const mes = f.slice(0,7);
+  const rs = rondasDe(f, t, maq);
+  const acum = sumaRondas(rs);
+  const m = S.maquinas.find(x=>x.id===maq);
+  const e = m ? estadoMaquina(m, f, t) : null;
+  /* Las referencias que el plan pide hoy van primero: es lo que se va a estar
+     cortando, y evita buscar entre las dieciséis. */
+  /* Sólo las referencias que ESTA máquina sabe cortar: ofrecer las otras
+     invita a registrar producción contra un ratio que no existe. */
+  const puede  = REFS.filter(r=> ratioDe(r.item, maq));
+  const hoyPide = puede.filter(r=> planDe(mes, r.item, f) > 0);
+  const resto   = puede.filter(r=> planDe(mes, r.item, f) === 0);
+
+  document.getElementById("vProd").innerHTML = `
+    <div class="panel">
+      <div class="tit"><h2>Registrar lo cortado</h2>
+        <span>${esc(NOMDIA[diaDe(f)])} ${esc(f)} · turno ${esc(t)} · ${esc(horaAhora())}</span></div>
+      <div class="fila">
+        <div class="campo"><label for="pQuien">Quién registra</label>
+          <input type="text" id="pQuien" value="${esc(S.quien)}" placeholder="Tu nombre"></div>
+        <div class="campo"><label for="pMaquina">Máquina</label>
+          <select id="pMaquina">${S.maquinas.filter(x=>x.activa!==false).map(x=>
+            `<option value="${esc(x.id)}"${x.id===maq?" selected":""}>${esc(x.nombre)}</option>`).join("")}</select></div>
+        <div class="campo"><label for="pItem">Referencia</label>
+          <select id="pItem">
+            ${hoyPide.length ? `<optgroup label="En el plan de hoy">${hoyPide.map(r=>
+              `<option value="${esc(r.item)}">${esc(r.item)} · ${esc(r.desc)} (${mil(planDe(mes,r.item,f))})</option>`).join("")}</optgroup>` : ""}
+            <optgroup label="Otras referencias">${resto.map(r=>
+              `<option value="${esc(r.item)}">${esc(r.item)} · ${esc(r.desc)}</option>`).join("")}</optgroup>
+          </select>
+          <div id="pRatio" style="font-size:.72rem;color:var(--dim);margin-top:5px;"></div></div>
+        <div class="campo chico"><label for="pCant">Cuántas van <b style="color:var(--red);">desde la última vez</b></label>
+          <input type="number" id="pCant" inputmode="numeric" min="1" step="1" placeholder="500"></div>
+        <div class="campo" style="flex:0 0 auto;"><label>&nbsp;</label>
+          <button class="btn" id="pGuardar">Agregar ronda</button></div>
+      </div>
+      <div style="margin-top:10px;font-size:.76rem;color:var(--dim);">
+        Pon sólo lo que contaste <b>en esta pasada</b>. La app suma: si registras 500 y luego 600, el acumulado queda en 1.100.</div>
+    </div>
+
+    <div class="panel">
+      <div class="tit"><h2>${esc(m ? m.nombre : "—")} · este turno</h2>
+        <span>${rs.length} ronda(s)</span></div>
+      <div class="kpis">
+        <div class="kpi"><span>Acumulado del turno</span><b>${mil(acum)}</b>
+          <small>${e && e.meta ? `meta ${mil(e.meta)} cortando ${esc(e.itemPrincipal)}` : "aún sin referencia registrada"}</small></div>
+        ${e && e.teorico ? `<div class="kpi"><span>Debería llevar</span><b>${mil(e.teorico)}</b>
+          <small>${Math.round(e.fr*100)}% del turno transcurrido</small></div>` : ""}
+        ${e && e.fr>0 && e.fr<1 && e.meta ? `<div class="kpi"><span>Proyección al cierre</span>
+          <b style="color:${e.estado==="verde"?"var(--ok)":e.estado==="rojo"?"var(--mal)":"#a07400"};">${mil(e.proyectado)}</b>
+          <small>${e.estado==="verde"?"alcanza la meta":
+            e.estado==="rojo"?`se quedaría ${(e.brecha*100).toFixed(1).replace(".",",")}% corto`:"ajustado, pero alcanza"}</small></div>` : ""}
+      </div>
+      ${rs.length ? `<div style="margin-top:12px;">${
+        (()=>{ let a=0; return rs.slice().sort((x,y)=>String(x.hora).localeCompare(y.hora)).map(r=>{
+          a+=(+r.cantidad||0);
+          return `<div class="ronda"><span>${esc(r.hora)} · ${esc(r.item)}</span>
+            <span>+${mil(r.cantidad)} <b style="margin-left:10px;">${mil(a)}</b>
+            <button class="sec" style="padding:2px 8px;margin-left:10px;" data-del="${esc(r.id)}">✕</button></span></div>`;
+        }).join(""); })()}</div>` : `<div class="vacio">Todavía no hay rondas en este turno.</div>`}
+    </div>`;
+
+  function pintarRatio(){
+    const it = document.getElementById("pItem").value;
+    const rt = ratioDe(it, document.getElementById("pMaquina").value);
+    document.getElementById("pRatio").innerHTML = rt
+      ? `${esc(rt.op)} · <b>${mil(rt.ph)}</b> por hora → <b>${mil(rt.turno)}</b> en el turno de ${HORAS_TURNO} h`
+      : `<span style="color:var(--mal);">esta referencia no se corta en esta máquina</span>`;
+  }
+  pintarRatio();
+  document.getElementById("pItem").addEventListener("change", pintarRatio);
+  document.getElementById("pMaquina").addEventListener("change", renderProd);
+  document.getElementById("pGuardar").addEventListener("click", guardarRonda);
+  document.getElementById("pCant").addEventListener("keydown", ev=>{ if(ev.key==="Enter") guardarRonda(); });
+  document.querySelectorAll("[data-del]").forEach(b=> b.addEventListener("click", ()=>{
+    if(!confirm("¿Quitar esta ronda?")) return;
+    S.rondas = S.rondas.filter(x=>x.id !== b.dataset.del);
+    guarda("pc_rondas", S.rondas); renderProd(); toast("Ronda quitada");
+  }));
+}
+
+function guardarRonda(){
+  const cant = parseInt(document.getElementById("pCant").value, 10);
+  if(!cant || cant <= 0){ toast("Escribe cuántas cuchillas van desde la última vez"); return; }
+  const quien = document.getElementById("pQuien").value.trim();
+  S.quien = quien; guarda("pc_quien", quien);
+  const r = {
+    id: "rd-" + Date.now() + "-" + Math.random().toString(36).slice(2,7),
+    fecha: hoyISO(), turno: turnoAhora(), hora: horaAhora(),
+    maquina: document.getElementById("pMaquina").value,
+    item: document.getElementById("pItem").value,
+    cantidad: cant, quien: quien
+  };
+  S.rondas.push(r); guarda("pc_rondas", S.rondas);
+  document.getElementById("pCant").value = "";
+  const acum = sumaRondas(rondasDe(r.fecha, r.turno, r.maquina));
+  toast(`+${mil(cant)} · acumulado ${mil(acum)}`);
+  renderProd();
+  enviar(r);
+}
+
+/* ==========================================================================
+   VISTA · PLAN DEL MES (la planeadora)
+   La rejilla del Excel: una fila por referencia, una columna por día. Lo que
+   el Excel marca en rojo —lo que falta por repartir— aquí sale como columna
+   propia, porque es lo que de verdad hay que resolver antes de que empiece
+   el mes.
+   ========================================================================== */
+function renderPlan(){
+  const sel = document.getElementById("plMes");
+  const mes = sel ? sel.value : mesISO();
+  const dias = diasDelMes(mes).filter(d=>d.habil);
+  const pm = planMes(mes), mm = metasMes(mes);
+
+  const totMeta = REFS.reduce((a,r)=> a + metaDelItem(mes,r.item), 0);
+  const totProg = REFS.reduce((a,r)=> a + planDelItem(mes,r.item), 0);
+  const totFalta = totMeta - totProg;
+  const diaProm = dias.length ? totMeta/dias.length : 0;
+
+  document.getElementById("vPlan").innerHTML = `
+    <div class="panel">
+      <div class="tit"><h2>Plan de corte del mes</h2>
+        <span>escribe las cantidades por día; la app suma sola</span></div>
+      <div class="fila">
+        <div class="campo chico"><label for="plMes">Mes</label>
+          <input type="month" id="plMes" value="${esc(mes)}"></div>
+        <div class="campo" style="flex:0 0 auto;"><label>&nbsp;</label>
+          <button class="sec" id="plSubir">Subir a la hoja</button></div>
+      </div>
+      <div class="kpis" style="margin-top:14px;">
+        <div class="kpi"><span>Total del mes</span><b>${mil(totMeta)}</b>
+          <small>${REFS.length} referencias</small></div>
+        <div class="kpi"><span>Repartido en días</span><b>${mil(totProg)}</b>
+          <small>${totMeta?Math.round(totProg/totMeta*100):0}% del total</small></div>
+        <div class="kpi"><span>Sin repartir</span>
+          <b style="color:${totFalta?"var(--mal)":"var(--ok)"};">${mil(totFalta)}</b>
+          <small>${totFalta?"hay que asignarles día":"todo tiene día asignado"}</small></div>
+        <div class="kpi"><span>Promedio por día hábil</span><b>${mil(diaProm)}</b>
+          <small>${dias.length} días hábiles en el mes</small></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="scroll"><table id="tbPlan">
+        <thead>
+          <tr><th>Referencia</th><th class="n">Mes</th><th class="n">Repartido</th><th class="n">Falta</th>
+            ${dias.map(d=>`<th class="n" title="${esc(d.nombre)}">${+d.fecha.slice(-2)}</th>`).join("")}</tr>
+        </thead>
+        <tbody>
+          ${REFS.map(r=>{
+            const meta = metaDelItem(mes, r.item), prog = planDelItem(mes, r.item);
+            const falta = meta - prog;
+            return `<tr>
+              <td title="${esc(r.desc)}"><b>${esc(r.item)}</b><br>
+                <span style="font-size:.72rem;color:var(--dim);">${esc(r.acabado||"")}</span></td>
+              <td class="n"><input class="celplan" data-meta="${esc(r.item)}" type="number" min="0"
+                    value="${meta||""}" placeholder="0"></td>
+              <td class="n">${mil(prog)}</td>
+              <td class="n" style="${falta?"color:var(--mal);font-weight:800;":"color:var(--dim);"}">${
+                falta ? mil(falta) : "—"}</td>
+              ${dias.map(d=>`<td class="n${d.dow===0?" dom":""}">
+                <input class="celplan" data-item="${esc(r.item)}" data-fecha="${esc(d.fecha)}"
+                       type="number" min="0" value="${planDe(mes,r.item,d.fecha)||""}" placeholder=""></td>`).join("")}
+            </tr>`;
+          }).join("")}
+        </tbody>
+        <tfoot><tr><th>Total del día</th><th class="n">${mil(totMeta)}</th><th class="n">${mil(totProg)}</th><th></th>
+          ${dias.map(d=>{
+            const v = planDelDia(mes, d.fecha);
+            return `<th class="n" style="${v?"":"color:var(--dim);"}">${v?mil(v):"—"}</th>`;
+          }).join("")}</tr></tfoot>
+      </table></div>
+    </div>`;
+
+  document.getElementById("plMes").addEventListener("change", renderPlan);
+  document.getElementById("plSubir").addEventListener("click", e=> subirPlan(e.target, mes));
+  document.querySelectorAll("#tbPlan input[data-fecha]").forEach(inp=>{
+    inp.addEventListener("change", ()=>{
+      const v = parseInt(inp.value, 10);
+      const it = inp.dataset.item, fe = inp.dataset.fecha;
+      pm[it] = pm[it] || {};
+      if(v > 0) pm[it][fe] = v; else delete pm[it][fe];
+      guarda("pc_plan", S.plan);
+      renderPlan();
+    });
+  });
+  document.querySelectorAll("#tbPlan input[data-meta]").forEach(inp=>{
+    inp.addEventListener("change", ()=>{
+      const v = parseInt(inp.value, 10);
+      if(v > 0) mm[inp.dataset.meta] = v; else delete mm[inp.dataset.meta];
+      guarda("pc_metas", S.metas);
+      renderPlan();
+    });
+  });
+}
+
+/* ==========================================================================
+   VISTA · AJUSTES
+   ========================================================================== */
+function renderAj(){
+  document.getElementById("vAj").innerHTML = `
+    <div class="panel">
+      <div class="tit"><h2>Máquinas y ratio</h2>
+        <span>el ratio son las cuchillas que la máquina entrega en un turno completo</span></div>
+      <div class="scroll"><table><thead><tr><th>Centro</th><th>Nombre</th>
+        <th class="n">Referencias que corta</th><th class="n">Ratio por turno</th><th>Activa</th><th></th></tr></thead><tbody>
+        ${S.maquinas.map((m,i)=>{
+          const rr = REFS.map(r=>ratioDe(r.item, m.id)).filter(Boolean);
+          const tur = [...new Set(rr.map(x=>x.turno))].sort((a,b)=>a-b);
+          return `<tr>
+          <td><input type="text" data-mq="${i}" data-c="id" value="${esc(m.id)}" style="width:80px;"></td>
+          <td><input type="text" data-mq="${i}" data-c="nombre" value="${esc(m.nombre)}"></td>
+          <td class="n">${rr.length}</td>
+          <td class="n">${tur.length ? tur.map(t=>mil(t)).join(" / ") : "—"}</td>
+          <td><input type="checkbox" data-mq="${i}" data-c="activa" ${m.activa!==false?"checked":""} style="width:18px;height:18px;accent-color:var(--red);"></td>
+          <td><button class="sec" data-mqdel="${i}">✕</button></td></tr>`;}).join("")}
+      </tbody></table></div>
+      <div style="margin-top:12px;"><button class="sec" id="ajAdd">+ Máquina</button></div>
+      <div style="margin-top:10px;font-size:.76rem;color:var(--dim);">
+        El código tiene que ser el centro de trabajo del archivo de rutas (2310, 2311, 2325):
+        es lo que amarra la máquina con su ratio. El ratio no se escribe aquí porque
+        <b>cambia con la referencia</b>.</div>
+    </div>
+
+    <div class="panel">
+      <div class="tit"><h2>Ratios de fabricación</h2>
+        <span>archivo de rutas ART-MDM003QF · turno de ${HORAS_TURNO} horas</span></div>
+      <div class="scroll"><table><thead><tr><th>Referencia</th><th>Operación</th>
+        <th>Centro</th><th class="n">Piezas/hora</th><th class="n">Por turno</th></tr></thead><tbody>
+        ${REFS.map(r=> maquinasDe(r.item).map((m,k)=>`<tr>
+          <td>${k===0?`<b>${esc(r.item)}</b>`:""}</td>
+          <td>${esc(m.r.op)}</td><td>${esc(m.nombre)} <span style="color:var(--dim);">(${esc(m.id)})</span></td>
+          <td class="n">${mil(m.r.ph)}</td><td class="n"><b>${mil(m.r.turno)}</b></td></tr>`).join("")).join("")}
+      </tbody></table></div>
+    </div>
+
+    <div class="panel">
+      <div class="tit"><h2>Hoja compartida</h2>
+        <span>viene fija en la app · no hay nada que configurar en cada tablet</span></div>
+      <div style="font-family:ui-monospace,monospace;font-size:.72rem;color:var(--dim);
+                  background:#f7f8fa;border:1px solid var(--bor);border-radius:8px;padding:10px;
+                  word-break:break-all;">${esc(S.syncUrl)}</div>
+      <div class="fila" style="margin-top:12px;">
+        <div class="campo" style="flex:0 0 auto;">
+          <button class="sec" id="ajProbar">Probar la conexión</button></div>
+        <div class="campo" style="flex:0 0 auto;">
+          <button class="sec" id="ajTraer">Traer el plan de la hoja</button></div>
+      </div>
+      <div style="margin-top:10px;font-size:.76rem;color:var(--dim);" id="ajEstado">
+        ${pendientes().length ? `<b style="color:var(--mal);">${pendientes().length} ronda(s) sin enviar</b> · se reintentan solas`
+          : "Cada ronda se envía al guardarla."}</div>
+    </div>
+
+    <div class="panel">
+      <div class="tit"><h2>Referencias</h2><span>las 16 del archivo de nivelación</span></div>
+      <div class="scroll"><table><thead><tr><th>Item</th><th>Descripción</th><th>Acabado</th>
+        <th>Mercado</th><th>Portafolio</th></tr></thead><tbody>
+        ${REFS.map(r=>`<tr><td><b>${esc(r.item)}</b></td><td>${esc(r.desc)}</td>
+          <td>${esc(r.acabado||"")}</td><td>${esc(r.mercado||"")}</td><td>${esc(r.portafolio||"")}</td></tr>`).join("")}
+      </tbody></table></div>
+    </div>`;
+
+  document.querySelectorAll("[data-mq]").forEach(inp=>{
+    inp.addEventListener("change", ()=>{
+      const m = S.maquinas[+inp.dataset.mq]; if(!m) return;
+      const c = inp.dataset.c;
+      m[c] = c === "activa" ? inp.checked : inp.value.trim();
+      guarda("pc_maquinas", S.maquinas); renderAj();
+    });
+  });
+  document.querySelectorAll("[data-mqdel]").forEach(b=> b.addEventListener("click", ()=>{
+    if(!confirm("¿Quitar esta máquina?")) return;
+    S.maquinas.splice(+b.dataset.mqdel,1); guarda("pc_maquinas", S.maquinas); renderAj();
+  }));
+  document.getElementById("ajAdd").addEventListener("click", ()=>{
+    S.maquinas.push({id:"", nombre:"Nueva máquina", activa:true});
+    guarda("pc_maquinas", S.maquinas); renderAj();
+  });
+  document.getElementById("ajProbar").addEventListener("click", async e=>{
+    const b = e.target, txt = b.textContent;
+    b.disabled = true; b.textContent = "Probando…";
+    try{
+      const r = await fetch(S.syncUrl + "?tipo=version");
+      const d = await r.json();
+      toast(d && d.backend ? "La hoja responde · " + d.backend : "Respondió, pero sin versión");
+    }catch(err){ toast("No respondió · revisa que esté publicada para cualquier usuario"); }
+    finally{ b.disabled = false; b.textContent = txt; }
+  });
+  document.getElementById("ajTraer").addEventListener("click", e=> traerPlan(e.target, mesISO()));
+}
+
+/* ==========================================================================
+   ENVÍO A LA HOJA · sin bloquear a la auxiliar
+   Lo que se registra vale aunque la hoja no conteste: queda en el equipo y
+   se reintenta. La máquina no espera a Google.
+   ========================================================================== */
+function pendientes(){ return LS("pc_pend") || []; }
+function enviar(obj){
+  if(!S.syncUrl) return;
+  const cola = pendientes(); cola.push(obj); guarda("pc_pend", cola);
+  vaciarCola();
+}
+let ENVIANDO = false;
+async function vaciarCola(){
+  if(ENVIANDO || !S.syncUrl) return;
+  ENVIANDO = true;
+  try{
+    let cola = pendientes();
+    while(cola.length){
+      const r = cola[0];
+      const ctl = new AbortController();
+      const reloj = setTimeout(()=>ctl.abort(), 20000);
+      try{
+        await fetch(S.syncUrl, {method:"POST", signal:ctl.signal,
+          headers:{"Content-Type":"text/plain;charset=utf-8"},
+          body: JSON.stringify({accion:"ronda", ronda:r})});
+      } finally { clearTimeout(reloj); }
+      cola.shift(); guarda("pc_pend", cola);
+    }
+  }catch(e){
+    console.warn("envío:", e);
+  }finally{ ENVIANDO = false; }
+}
+
+/* Traer de la hoja lo que puso planeación. La hoja manda sobre el plan
+   —es su dueño—, pero sólo si de verdad trae algo: si viene vacía se deja
+   lo que haya en el equipo, porque borrar un plan por una lectura fallida
+   sería peor que no leer. */
+async function traerPlan(boton, mes){
+  const txt = boton ? boton.textContent : null;
+  if(boton){ boton.disabled = true; boton.textContent = "Trayendo…"; }
+  try{
+    const r = await fetch(S.syncUrl + "?tipo=plan&mes=" + encodeURIComponent(mes));
+    const d = await r.json();
+    if(!d || typeof d.plan !== "object") throw new Error("respuesta inesperada");
+    const nDias = Object.keys(d.plan).reduce((a,it)=> a + Object.keys(d.plan[it]).length, 0);
+    const nMet  = Object.keys(d.metas || {}).length;
+    if(!nDias && !nMet){ if(boton) toast("La hoja no tiene plan para " + mes); return false; }
+    S.plan[mes]  = d.plan;
+    S.metas[mes] = d.metas || {};
+    guarda("pc_plan", S.plan); guarda("pc_metas", S.metas);
+    if(boton) toast(`Plan de ${mes}: ${nMet} referencia(s), ${nDias} día(s)`);
+    return true;
+  }catch(e){
+    if(boton) toast("No se pudo traer el plan · " + (e.message || e));
+    return false;
+  }finally{
+    if(boton){ boton.disabled = false; boton.textContent = txt; }
+    renderPlan_siVisible();
+  }
+}
+
+/* Las rondas del día que registraron las otras tabletas. Se mezcla por id:
+   lo que este equipo tenga NO se toca, sólo se añade lo que falte. Así una
+   lectura a destiempo nunca se lleva por delante lo que acaba de contar la
+   auxiliar. */
+async function traerRondas(desde){
+  try{
+    const r = await fetch(S.syncUrl + "?tipo=rondas&desde=" + encodeURIComponent(desde));
+    const d = await r.json();
+    if(!Array.isArray(d)) return false;
+    const tengo = {}; S.rondas.forEach(x=>{ tengo[x.id] = true; });
+    let nuevas = 0;
+    d.forEach(x=>{ if(x && x.id && !tengo[x.id]){ S.rondas.push(x); nuevas++; } });
+    if(nuevas){ guarda("pc_rondas", S.rondas); }
+    return nuevas;
+  }catch(e){ return false; }
+}
+
+function renderPlan_siVisible(){
+  if(document.getElementById("vPlan").style.display !== "none") renderPlan();
+  if(document.getElementById("vTab").style.display !== "none") renderHoy();
+}
+
+/* Al abrir: el plan del mes y las rondas de hoy, sin pedir permiso y sin
+   bloquear la pantalla. Si la hoja no contesta, la app sigue funcionando
+   con lo que tenga el equipo. */
+async function sincronizarAlAbrir(){
+  if(!S.syncUrl) return;
+  await traerPlan(null, mesISO());
+  const n = await traerRondas(hoyISO());
+  renderPlan_siVisible();
+  if(n) toast(`${n} ronda(s) de otras tabletas`);
+}
+
+async function subirPlan(boton, mes){
+  if(!S.syncUrl){ toast("Configura la hoja en Ajustes"); return; }
+  const txt = boton.textContent; boton.disabled = true; boton.textContent = "Subiendo…";
+  try{
+    await fetch(S.syncUrl, {method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify({accion:"plan", mes:mes, plan:planMes(mes), metas:metasMes(mes)})});
+    toast("Plan subido a la hoja");
+  }catch(e){ toast("No se pudo subir · queda guardado en este equipo"); }
+  finally{ boton.disabled = false; boton.textContent = txt; }
+}
+
+/* ==========================================================================
+   NAVEGACIÓN
+   ========================================================================== */
+const VISTAS = ["Tab","Prod","Plan","Aj"];
+function irA(v){
+  VISTAS.forEach(x=>{
+    document.getElementById("tab"+x).classList.toggle("on", x===v);
+    document.getElementById("v"+x).style.display = x===v ? "block" : "none";
+  });
+  if(v==="Tab")  renderHoy();
+  if(v==="Prod") renderProd();
+  if(v==="Plan") renderPlan();
+  if(v==="Aj")   renderAj();
+}
+VISTAS.forEach(v=> document.getElementById("tab"+v).addEventListener("click", ()=>irA(v)));
+
+/* El semáforo se mira de reojo: se refresca solo para que no haga falta
+   recargar para saber cómo va la máquina. */
+setInterval(()=>{ if(document.getElementById("vTab").style.display !== "none") renderHoy(); }, 60000);
+
+irA("Tab");
+vaciarCola();
+sincronizarAlAbrir();
+/* Cada pocos minutos se vuelven a mirar las rondas del día: la auxiliar
+   registra en su tablet y quien mira el semáforo lo ve sin recargar. */
+setInterval(async ()=>{
+  if(!S.syncUrl) return;
+  const n = await traerRondas(hoyISO());
+  if(n) renderPlan_siVisible();
+}, 180000);
+</script></body></html>
