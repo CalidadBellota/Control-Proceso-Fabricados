@@ -149,15 +149,38 @@ function turnoAhora(){
   if(!h) return "1";
   return min >= (h.t2 ? h.t2[0] : 0) ? "2" : "1";
 }
+/* El día al que pertenece «ahora». Entre medianoche y las 6 seguimos dentro
+   del turno 3 que arrancó AYER: la jornada de hoy todavía no ha empezado. */
+function diaDeTrabajo(min){
+  const m = (min === undefined) ? ahoraMin() : min;
+  if(m >= FIN_T3) return hoyISO();
+  const d = new Date(hoyISO() + "T12:00:00");
+  d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
 /* Qué fracción del turno va transcurrida: 0 antes de empezar, 1 al terminar.
-   Es la pieza que convierte el ratio en «cuántas debería llevar ahora». */
+   Es la pieza que convierte el ratio en «cuántas debería llevar ahora».
+   Ojo con la madrugada: a las 5 de la mañana el turno 3 que está corriendo
+   es el de ayer. Dar por empezado el turno 3 de hoy —que arranca a las 21:00—
+   hacía que la app exigiera a las 5 am quince horas de producción de un día
+   que no había comenzado. */
 function fraccionTurno(fecha, t, minAhora){
   const v = ventanaTurno(fecha, t);
   if(!v) return 0;
-  let m = (minAhora === undefined) ? ahoraMin() : minAhora;
-  if(t === "3" && m < FIN_T3) m += 24*60;       // madrugada: sigue el turno de ayer
-  if(fecha < hoyISO()) return 1;                 // día pasado: turno completo
-  if(fecha > hoyISO()) return 0;
+  const m = (minAhora === undefined) ? ahoraMin() : minAhora;
+  const madrugada = m < FIN_T3;
+  const hoyT = diaDeTrabajo(m);
+  if(fecha < hoyT) return 1;        // día cerrado: turno completo
+  if(fecha > hoyT) return 0;        // todavía no le toca
+  if(madrugada){
+    /* Estamos en la noche de «fecha»: sus turnos 1 y 2 ya terminaron. */
+    if(t !== "3") return 1;
+    const mm = m + 24*60;
+    if(mm <= v[0]) return 0;
+    if(mm >= v[1]) return 1;
+    return (mm - v[0]) / (v[1] - v[0]);
+  }
   if(m <= v[0]) return 0;
   if(m >= v[1]) return 1;
   return (m - v[0]) / (v[1] - v[0]);
@@ -328,120 +351,183 @@ function estadoMaquina(maq, fecha, turno){
 }
 
 /* ==========================================================================
-   VISTA · HOY (el semáforo)
+   VISTA · HOY
+   Las tarjetas son las REFERENCIAS que el plan pide cortar hoy, no las
+   máquinas: el 8 de octubre hay que cortar 7.000 de la 352425 y 9.149 de la
+   452425-N, y eso es lo que el turno tiene que vigilar. La máquina aparece
+   dentro de cada tarjeta, porque es donde se mide el ratio.
    ========================================================================== */
-function renderHoy(){
-  const f = document.getElementById("hFecha") ? document.getElementById("hFecha").value : hoyISO();
-  const t = document.getElementById("hTurno") ? document.getElementById("hTurno").value : turnoAhora();
-  const mes = f.slice(0,7);
-  const planHoy = planDelDia(mes, f);
-  const activas = S.maquinas.filter(m=>m.activa !== false);
-  const estados = activas.map(m => ({m, e: estadoMaquina(m, f, t)}));
-  const realTurno = estados.reduce((a,x)=> a + x.e.real, 0);
-  const realDia   = TURNOS.filter(x=>turnoExiste(f,x))
-                          .reduce((a,x)=> a + sumaRondas(rondasDe(f,x)), 0);
-  /* Capacidad del día: para cada máquina, el ratio de la referencia que el
-     plan le pide hoy. Sin plan no hay capacidad que calcular, porque la
-     capacidad depende de QUÉ se corta. */
-  const nTurnos = TURNOS.filter(x=>turnoExiste(f,x)).length;
-  let capacidad = 0, capParcial = false;
-  activas.forEach(m=>{
-    const cand = REFS.filter(r=> planDe(mes, r.item, f) > 0 && ratioDe(r.item, m.id));
-    if(!cand.length){ capParcial = true; return; }
-    /* la referencia de más peso en el plan de hoy marca el ritmo */
-    const top = cand.sort((a,b)=> planDe(mes,b.item,f) - planDe(mes,a.item,f))[0];
-    capacidad += ratioDe(top.item, m.id).turno * nTurnos;
+
+/* Horas de trabajo ya transcurridas hoy, sumando los turnos que existen ese
+   día. De aquí sale "cuántas debería llevar": ratio por hora × horas de
+   verdad trabajadas, no un día teórico de 24. */
+function horasCorridas(fecha, minAhora){
+  let h = 0;
+  TURNOS.forEach(t=>{
+    if(!turnoExiste(fecha, t)) return;
+    h += minutosTurno(fecha, t) * fraccionTurno(fecha, t, minAhora) / 60;
   });
-  const fr = fraccionTurno(f, t);
+  return h;
+}
+function horasTotales(fecha){
+  let h = 0;
+  TURNOS.forEach(t=>{ if(turnoExiste(fecha,t)) h += minutosTurno(fecha,t)/60; });
+  return h;
+}
+/* Lo registrado hoy de una referencia, en todos los turnos. */
+function registradoDe(fecha, item, maqId){
+  return S.rondas.filter(r=> r.fecha===fecha && r.item===item && (!maqId || r.maquina===maqId))
+                 .reduce((a,r)=> a + (+r.cantidad||0), 0);
+}
+const refsDelDia = (mes, fecha) => REFS.filter(r=> planDe(mes, r.item, fecha) > 0)
+  .sort((a,b)=> planDe(mes,b.item,fecha) - planDe(mes,a.item,fecha));
+
+/* Lo que quedó de días anteriores sin registrar. El 1 de octubre lleva 69.500
+   —siete referencias juntas—: no es un día de trabajo, es el atrasado que
+   venía acumulado. Va aparte para que no contamine la meta de hoy. */
+function atrasado(mes, hasta){
+  const out = [];
+  REFS.forEach(r=>{
+    const dias = (S.plan[mes]||{})[r.item] || {};
+    let plan = 0, hecho = 0;
+    Object.keys(dias).forEach(f=>{
+      if(f >= hasta) return;
+      plan += +dias[f] || 0;
+      hecho += registradoDe(f, r.item);
+    });
+    if(plan > hecho) out.push({item:r.item, desc:r.desc, plan, hecho, falta: plan - hecho});
+  });
+  return out.sort((a,b)=> b.falta - a.falta);
+}
+
+function renderHoy(){
+  const f = document.getElementById("hFecha") ? document.getElementById("hFecha").value : diaDeTrabajo();
+  const mes = f.slice(0,7);
+  const refs = refsDelDia(mes, f);
+  const hCorr = horasCorridas(f), hTot = horasTotales(f);
+  const planHoy = planDelDia(mes, f);
+  const hechoHoy = refs.reduce((a,r)=> a + registradoDe(f, r.item), 0);
+  const atr = atrasado(mes, f);
+  const totAtr = atr.reduce((a,x)=> a + x.falta, 0);
+
+  /* Para cada referencia, sus operaciones de corte con su propio ratio. */
+  const tarjetas = refs.map(r=>{
+    const plan = planDe(mes, r.item, f);
+    const ops = maquinasDe(r.item).map(m=>{
+      const nRondas = S.rondas.filter(x=> x.fecha===f && x.item===r.item && x.maquina===m.id).length;
+      const real = registradoDe(f, r.item, m.id);
+      const teor = Math.min(plan, Math.round(m.r.ph * hCorr));
+      /* Una operación sin NINGUNA ronda no es «100% improductiva»: es una
+         operación de la que todavía nadie informó. Marcarla en rojo haría
+         que la tarjeta entera mintiera, sobre todo al principio del día,
+         cuando el troquel aún no ha recibido lo que el láser está cortando. */
+      return {m, real, teor, nRondas,
+              improd: nRondas ? Math.max(0, teor - real) : null,
+              pct: (nRondas && teor) ? Math.max(0, teor-real)/teor*100 : 0};
+    });
+    const conDato = ops.filter(o=> o.nRondas);
+    /* Lo que de verdad lleva la referencia: la operación más adelantada. */
+    const lleva = ops.reduce((a,o)=> Math.max(a, o.real), 0);
+    const falta = Math.max(0, plan - lleva);
+    /* El semáforo lo manda la operación informada que más atrás va. */
+    const cuello = conDato.slice().sort((a,b)=> b.improd - a.improd)[0] || null;
+    let estado = "espera", txt = "sin registro todavía";
+    if(cuello && hCorr > 0){
+      if(cuello.improd <= 0){ estado = "verde"; txt = "al día"; }
+      else {
+        /* Proyección al cierre del día al ritmo de ahora. */
+        const proy = cuello.real / hCorr * hTot;
+        const brecha = (plan - proy) / plan;
+        estado = brecha > TOLERANCIA ? "rojo" : "amarillo";
+        txt = brecha > TOLERANCIA ? "no alcanza" : "atrasada";
+      }
+    }
+    return {r, plan, ops, cuello, estado, txt, lleva, falta};
+  });
 
   document.getElementById("vTab").innerHTML = `
     <div class="panel">
       <div class="tit"><h2>Hoy en corte</h2>
-        <span>${esc(NOMDIA[diaDe(f)])} ${esc(f)} · turno ${esc(t)} · ${
-          !turnoExiste(f,t) ? "este turno no se trabaja"
-          : fr<=0 ? "aún no empieza"
-          : fr>=1 ? "turno terminado"
-          : `van ${Math.round(fr*100)}% del turno`}</span></div>
+        <span>${esc(NOMDIA[diaDe(f)])} ${esc(f)} · ${
+          hTot ? `${hCorr.toFixed(1)} h de ${hTot.toFixed(1)} h trabajadas` : "hoy no se trabaja"}</span></div>
       <div class="fila">
         <div class="campo chico"><label for="hFecha">Día</label>
           <input type="date" id="hFecha" value="${esc(f)}"></div>
-        <div class="campo chico"><label for="hTurno">Turno</label>
-          <select id="hTurno">${TURNOS.map(x=>`<option value="${x}"${x===t?" selected":""}${
-            turnoExiste(f,x)?"":" disabled"}>Turno ${x}${turnoExiste(f,x)?"":" (no se trabaja)"}</option>`).join("")}</select></div>
         <div class="campo" style="flex:0 0 auto;"><label>&nbsp;</label>
-          <button class="sec" id="hAhora">Ahora</button></div>
+          <button class="sec" id="hAhora">Hoy</button></div>
       </div>
-    </div>
-
-    <div class="panel">
-      <div class="kpis">
+      <div class="kpis" style="margin-top:14px;">
         <div class="kpi"><span>Plan del día</span><b>${mil(planHoy)}</b>
-          <small>${planHoy ? "cuchillas a cortar hoy" : "sin plan cargado para este día"}</small></div>
-        <div class="kpi"><span>Cortadas hoy</span><b>${mil(realDia)}</b>
-          <small>${planHoy ? `${Math.round(realDia/planHoy*100)}% del plan del día` : "en todos los turnos"}</small></div>
-        <div class="kpi"><span>En este turno</span><b>${mil(realTurno)}</b>
-          <small>${activas.length} máquina(s) activa(s)</small></div>
-        <div class="kpi"><span>Capacidad del día</span><b>${mil(capacidad)}</b>
-          <small>${!capacidad ? "sin plan para calcularla" : planHoy > capacidad
-            ? `<span style="color:var(--mal);font-weight:700;">faltan ${mil(planHoy-capacidad)} de capacidad</span>`
-            : `${nTurnos} turno(s) al ratio de lo planeado`}</small></div>
+          <small>${refs.length} referencia(s) programada(s)</small></div>
+        <div class="kpi"><span>Registrado</span><b>${mil(hechoHoy)}</b>
+          <small>${planHoy?`${Math.round(hechoHoy/planHoy*100)}% del plan`:"sin plan para este día"}</small></div>
+        <div class="kpi"><span>Falta hoy</span><b>${mil(Math.max(0,planHoy-hechoHoy))}</b>
+          <small>${hTot-hCorr > 0 ? `en ${(hTot-hCorr).toFixed(1)} h que quedan` : "jornada terminada"}</small></div>
+        <div class="kpi ${totAtr?"":""}"><span>Atrasado de días previos</span>
+          <b style="${totAtr?"color:var(--mal);":""}">${mil(totAtr)}</b>
+          <small>${atr.length} referencia(s)</small></div>
       </div>
     </div>
 
     <div class="panel">
-      <div class="tit"><h2>Máquinas</h2>
-        <span>verde: al día · amarillo: atrasada pero alcanza · rojo: al ritmo de ahora no alcanza (más del 5%)</span></div>
-      ${!activas.length ? `<div class="vacio">No hay máquinas configuradas. Ve a <b>Ajustes</b>.</div>` : `
-      <div class="tarjetas">${estados.map(({m,e})=>{
-        const pctMeta = Math.min(100, (e.avance ? e.avance.frac : 0) * 100);
-        return `<div class="maq ${e.estado}">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;">
-            <h3>${esc(m.nombre)}</h3>
+      <div class="tit"><h2>Referencias de hoy</h2>
+        <span>verde: al día · amarillo: atrasada pero alcanza · rojo: al ritmo de ahora no alcanza</span></div>
+      ${!refs.length ? `<div class="vacio">El plan no pide cortar nada el ${esc(f)}.</div>` : `
+      <div class="tarjetas">${tarjetas.map(t=>`
+        <div class="maq ${t.estado}">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+            <h3>${esc(t.r.item)}</h3>
             <span class="est" style="color:${
-              e.estado==="verde"?"var(--ok)":e.estado==="amarillo"?"#a07400":
-              e.estado==="rojo"?"var(--mal)":"var(--dim)"};">${esc(e.txt)}</span></div>
-          <div class="big">${mil(e.real)}</div>
-          <div class="sub">${e.meta
-            ? `de ${mil(e.meta)} del turno cortando ${esc(e.itemPrincipal)}` + (e.teorico ? ` · debería llevar ${mil(e.teorico)}` : "")
-            : (()=>{ const rr=REFS.map(x=>ratioDe(x.item,m.id)).filter(Boolean);
-                     const t=[...new Set(rr.map(x=>x.turno))].sort((a,b)=>a-b);
-                     return t.length ? `${t.map(x=>mil(x)).join(" o ")} por turno según la referencia`
-                                     : "esta máquina no tiene ratios cargados"; })()}</div>
-          ${e.ratio ? `<div class="sub" style="font-size:.7rem;">${esc(e.ratio.op)} · ${mil(e.ratio.ph)}/hora × ${HORAS_TURNO} h${
-            e.mezcla ? ` · <b>${e.items.length} referencias en el turno</b>` : ""}</div>` : ""}
-          <div class="barra"><i style="width:${pctMeta}%;"></i></div>
-          ${e.fr > 0 && e.fr < 1 && e.avance && e.avance.frac ? `
-            <div class="sub">Lleva el <b>${(e.avance.frac*100).toFixed(0)}%</b> del turno con el <b>${(e.fr*100).toFixed(0)}%</b> del tiempo</div>
-            <div class="sub">Al ritmo de ahora cerraría en <b>${e.meta?mil(e.proyectado):(e.proyFrac*100).toFixed(0)+"%"}</b>${
-              e.brecha > 0 ? ` · ${(e.brecha*100).toFixed(1).replace(".",",")}% por debajo` : ""}</div>
-            ${e.meta ? `<div class="sub">Faltan ${mil(e.faltan)} en ${e.minutosRestantes} min${
-              e.minutosRestantes > 0 ? ` → ${mil(e.faltan/(e.minutosRestantes/60))}/hora` : ""}</div>` : ""}` : ""}
-          <div style="margin-top:10px;"><button class="sec" data-reg="${esc(m.id)}">Registrar ronda</button></div>
-        </div>`;
-      }).join("")}</div>`}
+              t.estado==="verde"?"var(--ok)":t.estado==="amarillo"?"#a07400":
+              t.estado==="rojo"?"var(--mal)":"var(--dim)"};">${esc(t.txt)}</span></div>
+          <div class="sub" style="margin-bottom:8px;">${esc(t.r.desc)}</div>
+          <div class="big">${mil(t.lleva)}</div>
+          <div class="sub">de <b>${mil(t.plan)}</b> programadas hoy</div>
+          <div class="barra"><i style="width:${t.plan?Math.min(100, t.lleva/t.plan*100):0}%;"></i></div>
+          <table style="font-size:.78rem;margin-top:8px;">
+            <thead><tr><th style="padding:4px 2px;">Operación</th><th class="n" style="padding:4px 2px;">Lleva</th>
+              <th class="n" style="padding:4px 2px;">Debería</th><th class="n" style="padding:4px 2px;">Improd.</th></tr></thead>
+            <tbody>${t.ops.map(o=>`<tr>
+              <td style="padding:4px 2px;">${esc(o.m.nombre)}<br>
+                <span style="color:var(--dim);font-size:.68rem;">${mil(o.m.r.ph)}/h</span></td>
+              <td class="n" style="padding:4px 2px;">${mil(o.real)}</td>
+              <td class="n" style="padding:4px 2px;">${mil(o.teor)}</td>
+              <td class="n" style="padding:4px 2px;${o.improd?"color:var(--mal);font-weight:800;":
+                 (o.improd===null?"color:var(--dim);":"color:var(--ok);")}">${
+                o.improd === null ? "sin<br>reporte"
+                : o.improd ? mil(o.improd)+`<br><span style="font-size:.68rem;">${o.pct.toFixed(0)}%</span>` : "—"}</td>
+            </tr>`).join("")}</tbody>
+          </table>
+          ${t.falta && (hTot-hCorr) > 0 ? `
+            <div class="sub" style="margin-top:8px;">Faltan <b>${mil(t.falta)}</b> en ${(hTot-hCorr).toFixed(1)} h
+              → <b>${mil(t.falta/(hTot-hCorr))}/hora</b></div>` : ""}
+          <div style="margin-top:10px;"><button class="sec" data-reg="${esc(t.r.item)}">Registrar</button></div>
+        </div>`).join("")}</div>`}
     </div>
 
-    ${rondasDe(f,t).length ? `<div class="panel">
-      <div class="tit"><h2>Rondas de este turno</h2><span>lo que se contó en cada pasada</span></div>
-      <div class="scroll"><table><thead><tr><th>Hora</th><th>Máquina</th><th>Referencia</th>
-        <th class="n">Contadas</th><th class="n">Acumulado</th><th>Quién</th></tr></thead><tbody>${
-        (()=>{ const acc={}; return rondasDe(f,t).slice().sort((a,b)=>String(a.hora).localeCompare(b.hora))
-          .map(r=>{ acc[r.maquina]=(acc[r.maquina]||0)+(+r.cantidad||0);
-            const mq=S.maquinas.find(x=>x.id===r.maquina);
-            return `<tr><td>${esc(r.hora)}</td><td>${esc(mq?mq.nombre:r.maquina)}</td>
-              <td>${esc(r.item)}</td><td class="n">${mil(r.cantidad)}</td>
-              <td class="n"><b>${mil(acc[r.maquina])}</b></td><td>${esc(r.quien||"")}</td></tr>`;
-          }).join(""); })()}</tbody></table></div></div>` : ""}`;
+    ${atr.length ? `<div class="panel">
+      <div class="tit"><h2>Atrasado de días anteriores</h2>
+        <span>plan de días ya pasados que no tiene registro en la app</span></div>
+      <div class="scroll"><table><thead><tr><th>Referencia</th><th class="n">Programado</th>
+        <th class="n">Registrado</th><th class="n">Falta</th></tr></thead><tbody>
+        ${atr.map(x=>`<tr><td><b>${esc(x.item)}</b> <span style="color:var(--dim);">${esc(x.desc)}</span></td>
+          <td class="n">${mil(x.plan)}</td><td class="n">${mil(x.hecho)}</td>
+          <td class="n" style="color:var(--mal);font-weight:800;">${mil(x.falta)}</td></tr>`).join("")}
+      </tbody></table></div>
+      <div style="margin-top:10px;font-size:.74rem;color:var(--dim);">
+        Los días anteriores a que empezaras a registrar en la app salen completos aquí:
+        no es que no se cortaran, es que no hay registro. El 1 de octubre son 69.500 de
+        siete referencias juntas — venía acumulado.</div>
+    </div>` : ""}`;
 
   document.getElementById("hFecha").addEventListener("change", renderHoy);
-  document.getElementById("hTurno").addEventListener("change", renderHoy);
   document.getElementById("hAhora").addEventListener("click", ()=>{
-    document.getElementById("hFecha").value = hoyISO();
-    document.getElementById("hTurno").value = turnoAhora();
-    renderHoy();
+    document.getElementById("hFecha").value = diaDeTrabajo(); renderHoy();
   });
   document.querySelectorAll("[data-reg]").forEach(b=> b.addEventListener("click", ()=>{
-    irA("Prod"); const s=document.getElementById("pMaquina"); if(s){ s.value=b.dataset.reg; renderProd(); }
+    irA("Prod");
+    const s = document.getElementById("pItem");
+    if(s){ s.value = b.dataset.reg; s.dispatchEvent(new Event("change",{bubbles:true})); }
   }));
 }
 
@@ -450,7 +536,7 @@ function renderHoy(){
    ========================================================================== */
 let PROD_MAQ = "";
 function renderProd(){
-  const f = hoyISO(), t = turnoAhora();
+  const f = diaDeTrabajo(), t = turnoAhora();
   const maq = document.getElementById("pMaquina") ? document.getElementById("pMaquina").value : (PROD_MAQ || (S.maquinas[0]||{}).id || "");
   PROD_MAQ = maq;
   const mes = f.slice(0,7);
@@ -541,7 +627,9 @@ function guardarRonda(){
   S.quien = quien; guarda("pc_quien", quien);
   const r = {
     id: "rd-" + Date.now() + "-" + Math.random().toString(36).slice(2,7),
-    fecha: hoyISO(), turno: turnoAhora(), hora: horaAhora(),
+    /* La madrugada se le abona al día cuyo turno 3 está corriendo, no al del
+       calendario: lo que se corta a las 2 am cumple el plan de ayer. */
+    fecha: diaDeTrabajo(), turno: turnoAhora(), hora: horaAhora(),
     maquina: document.getElementById("pMaquina").value,
     item: document.getElementById("pItem").value,
     cantidad: cant, quien: quien
@@ -833,7 +921,7 @@ function renderPlan_siVisible(){
 async function sincronizarAlAbrir(){
   if(!S.syncUrl) return;
   await traerPlan(null, mesISO());
-  const n = await traerRondas(hoyISO());
+  const n = await traerRondas(diaDeTrabajo());
   renderPlan_siVisible();
   if(n) toast(`${n} ronda(s) de otras tabletas`);
 }
@@ -877,7 +965,7 @@ sincronizarAlAbrir();
    registra en su tablet y quien mira el semáforo lo ve sin recargar. */
 setInterval(async ()=>{
   if(!S.syncUrl) return;
-  const n = await traerRondas(hoyISO());
+  const n = await traerRondas(diaDeTrabajo());
   if(n) renderPlan_siVisible();
 }, 180000);
 </script></body></html>
