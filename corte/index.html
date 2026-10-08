@@ -525,32 +525,45 @@ function renderHoy(){
     document.getElementById("hFecha").value = diaDeTrabajo(); renderHoy();
   });
   document.querySelectorAll("[data-reg]").forEach(b=> b.addEventListener("click", ()=>{
+    /* Se fija ANTES de pintar: así Registrar abre ya en esa referencia y con
+       una máquina de su ruta, sin pasar por un estado intermedio inválido. */
+    PROD_ITEM = b.dataset.reg; PROD_MAQ = "";
     irA("Prod");
-    const s = document.getElementById("pItem");
-    if(s){ s.value = b.dataset.reg; s.dispatchEvent(new Event("change",{bubbles:true})); }
   }));
 }
 
 /* ==========================================================================
    VISTA · REGISTRAR (la auxiliar en la máquina)
    ========================================================================== */
-let PROD_MAQ = "";
+let PROD_MAQ = "", PROD_ITEM = "";
 function renderProd(){
   const f = diaDeTrabajo(), t = turnoAhora();
-  const maq = document.getElementById("pMaquina") ? document.getElementById("pMaquina").value : (PROD_MAQ || (S.maquinas[0]||{}).id || "");
-  PROD_MAQ = maq;
   const mes = f.slice(0,7);
+  /* La referencia manda: primero se elige QUÉ se está cortando y después en
+     qué máquina, porque la máquina depende de la ruta de esa referencia.
+     Al revés —como estaba— se podía elegir una máquina que no corta la
+     referencia buscada, el desplegable se quedaba sin esa opción y la ronda
+     terminaba guardándose sin referencia: las unidades existían pero ninguna
+     tarjeta las encontraba. */
+  const selIt = document.getElementById("pItem");
+  let item = selIt ? selIt.value : PROD_ITEM;
+  const delDia = refsDelDia(mes, f);
+  if(!item) item = (delDia[0] || REFS[0] || {}).item || "";
+  PROD_ITEM = item;
+
+  const rutas = maquinasDe(item);
+  const selMq = document.getElementById("pMaquina");
+  let maq = selMq ? selMq.value : PROD_MAQ;
+  if(!rutas.some(x=>x.id === maq)) maq = (rutas[0] || {}).id || "";
+  PROD_MAQ = maq;
   const rs = rondasDe(f, t, maq);
   const acum = sumaRondas(rs);
   const m = S.maquinas.find(x=>x.id===maq);
   const e = m ? estadoMaquina(m, f, t) : null;
   /* Las referencias que el plan pide hoy van primero: es lo que se va a estar
      cortando, y evita buscar entre las dieciséis. */
-  /* Sólo las referencias que ESTA máquina sabe cortar: ofrecer las otras
-     invita a registrar producción contra un ratio que no existe. */
-  const puede  = REFS.filter(r=> ratioDe(r.item, maq));
-  const hoyPide = puede.filter(r=> planDe(mes, r.item, f) > 0);
-  const resto   = puede.filter(r=> planDe(mes, r.item, f) === 0);
+  const hoyPide = delDia;
+  const resto   = REFS.filter(r=> planDe(mes, r.item, f) === 0);
 
   document.getElementById("vProd").innerHTML = `
     <div class="panel">
@@ -559,16 +572,16 @@ function renderProd(){
       <div class="fila">
         <div class="campo"><label for="pQuien">Quién registra</label>
           <input type="text" id="pQuien" value="${esc(S.quien)}" placeholder="Tu nombre"></div>
-        <div class="campo"><label for="pMaquina">Máquina</label>
-          <select id="pMaquina">${S.maquinas.filter(x=>x.activa!==false).map(x=>
-            `<option value="${esc(x.id)}"${x.id===maq?" selected":""}>${esc(x.nombre)}</option>`).join("")}</select></div>
-        <div class="campo"><label for="pItem">Referencia</label>
+        <div class="campo" style="flex:1 1 300px;"><label for="pItem">Referencia *</label>
           <select id="pItem">
             ${hoyPide.length ? `<optgroup label="En el plan de hoy">${hoyPide.map(r=>
-              `<option value="${esc(r.item)}">${esc(r.item)} · ${esc(r.desc)} (${mil(planDe(mes,r.item,f))})</option>`).join("")}</optgroup>` : ""}
+              `<option value="${esc(r.item)}"${r.item===item?" selected":""}>${esc(r.item)} · ${esc(r.desc)} (${mil(planDe(mes,r.item,f))})</option>`).join("")}</optgroup>` : ""}
             <optgroup label="Otras referencias">${resto.map(r=>
-              `<option value="${esc(r.item)}">${esc(r.item)} · ${esc(r.desc)}</option>`).join("")}</optgroup>
-          </select>
+              `<option value="${esc(r.item)}"${r.item===item?" selected":""}>${esc(r.item)} · ${esc(r.desc)}</option>`).join("")}</optgroup>
+          </select></div>
+        <div class="campo"><label for="pMaquina">Máquina *</label>
+          <select id="pMaquina">${rutas.map(x=>
+            `<option value="${esc(x.id)}"${x.id===maq?" selected":""}>${esc(x.nombre)}</option>`).join("")}</select>
           <div id="pRatio" style="font-size:.72rem;color:var(--dim);margin-top:5px;"></div></div>
         <div class="campo chico"><label for="pCant">Cuántas van <b style="color:var(--red);">desde la última vez</b></label>
           <input type="number" id="pCant" inputmode="numeric" min="1" step="1" placeholder="500"></div>
@@ -609,7 +622,11 @@ function renderProd(){
       : `<span style="color:var(--mal);">esta referencia no se corta en esta máquina</span>`;
   }
   pintarRatio();
-  document.getElementById("pItem").addEventListener("change", pintarRatio);
+  document.getElementById("pItem").addEventListener("change", ()=>{
+    PROD_ITEM = document.getElementById("pItem").value;
+    PROD_MAQ = "";                 // la ruta cambia: se recalcula la máquina
+    renderProd();
+  });
   document.getElementById("pMaquina").addEventListener("change", renderProd);
   document.getElementById("pGuardar").addEventListener("click", guardarRonda);
   document.getElementById("pCant").addEventListener("keydown", ev=>{ if(ev.key==="Enter") guardarRonda(); });
@@ -623,6 +640,13 @@ function renderProd(){
 function guardarRonda(){
   const cant = parseInt(document.getElementById("pCant").value, 10);
   if(!cant || cant <= 0){ toast("Escribe cuántas cuchillas van desde la última vez"); return; }
+  const item = document.getElementById("pItem").value;
+  const maqSel = document.getElementById("pMaquina").value;
+  /* Sin referencia la ronda no sirve para nada: las unidades quedarían sin
+     plan contra el que compararse. Mejor no guardarla que guardarla huérfana. */
+  if(!item){ toast("Elige la referencia que se está cortando"); return; }
+  if(!maqSel){ toast("Elige la máquina"); return; }
+  if(!ratioDe(item, maqSel)){ toast("Esa referencia no se corta en esa máquina"); return; }
   const quien = document.getElementById("pQuien").value.trim();
   S.quien = quien; guarda("pc_quien", quien);
   const r = {
@@ -630,8 +654,7 @@ function guardarRonda(){
     /* La madrugada se le abona al día cuyo turno 3 está corriendo, no al del
        calendario: lo que se corta a las 2 am cumple el plan de ayer. */
     fecha: diaDeTrabajo(), turno: turnoAhora(), hora: horaAhora(),
-    maquina: document.getElementById("pMaquina").value,
-    item: document.getElementById("pItem").value,
+    maquina: maqSel, item: item,
     cantidad: cant, quien: quien
   };
   S.rondas.push(r); guarda("pc_rondas", S.rondas);
@@ -794,6 +817,32 @@ function renderAj(){
           : "Cada ronda se envía al guardarla."}</div>
     </div>
 
+    ${(()=>{ const huerf = S.rondas.filter(r=> !r.item || !ratioDe(r.item, r.maquina));
+      if(!huerf.length) return "";
+      return `<div class="panel" style="border-color:var(--mal);">
+        <div class="tit"><h2 style="color:var(--mal);">Rondas sin referencia</h2>
+          <span>sus unidades no cuentan en ninguna tarjeta</span></div>
+        <div class="scroll"><table><thead><tr><th>Día</th><th>Hora</th><th>Máquina</th>
+          <th>Referencia</th><th class="n">Unidades</th><th></th></tr></thead><tbody>
+          ${huerf.map(r=>{
+            const mq = S.maquinas.find(x=>x.id===r.maquina);
+            return `<tr><td>${esc(r.fecha)}</td><td>${esc(r.hora)}</td>
+              <td>${esc(mq?mq.nombre:r.maquina)}</td>
+              <td style="color:var(--mal);">${r.item ? esc(r.item)+" (no se corta ahí)" : "sin referencia"}</td>
+              <td class="n">${mil(r.cantidad)}</td>
+              <td><select data-fix="${esc(r.id)}" style="min-width:150px;">
+                <option value="">Asignar referencia…</option>
+                ${REFS.filter(x=>ratioDe(x.item, r.maquina)).map(x=>
+                  `<option value="${esc(x.item)}">${esc(x.item)}</option>`).join("")}
+              </select>
+              <button class="sec" data-quitar="${esc(r.id)}" style="margin-left:6px;">✕</button></td></tr>`;
+          }).join("")}
+        </tbody></table></div>
+        <div style="margin-top:10px;font-size:.74rem;color:var(--dim);">
+          Las unidades están guardadas, sólo les falta saber de qué referencia son.
+          Asígnales una y vuelven a contar; o quítalas si fueron un error.</div>
+      </div>`; })()}
+
     <div class="panel">
       <div class="tit"><h2>Referencias</h2><span>las 16 del archivo de nivelación</span></div>
       <div class="scroll"><table><thead><tr><th>Item</th><th>Descripción</th><th>Acabado</th>
@@ -819,6 +868,19 @@ function renderAj(){
     S.maquinas.push({id:"", nombre:"Nueva máquina", activa:true});
     guarda("pc_maquinas", S.maquinas); renderAj();
   });
+  document.querySelectorAll("[data-fix]").forEach(sel=> sel.addEventListener("change", ()=>{
+    const r = S.rondas.find(x=>x.id===sel.dataset.fix);
+    if(!r || !sel.value) return;
+    r.item = sel.value;
+    guarda("pc_rondas", S.rondas);
+    toast(`Ronda asignada a ${sel.value}`);
+    renderAj();
+  }));
+  document.querySelectorAll("[data-quitar]").forEach(b=> b.addEventListener("click", ()=>{
+    if(!confirm("¿Quitar esta ronda?")) return;
+    S.rondas = S.rondas.filter(x=>x.id !== b.dataset.quitar);
+    guarda("pc_rondas", S.rondas); renderAj(); toast("Ronda quitada");
+  }));
   document.getElementById("ajProbar").addEventListener("click", async e=>{
     const b = e.target, txt = b.textContent;
     b.disabled = true; b.textContent = "Probando…";
