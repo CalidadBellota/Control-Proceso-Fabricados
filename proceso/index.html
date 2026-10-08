@@ -3232,18 +3232,50 @@ function renderPorAcero(box, ctx){
     const lo = Math.min.apply(null, ext), hi = Math.max.apply(null, ext);
     const span = (hi - lo) || Math.max(Math.abs(hi)*0.05, 1);
     const fueraDe = y => bl.b && ((hay(bl.b.min)&&y<parseFloat(bl.b.min)) || (hay(bl.b.max)&&y>parseFloat(bl.b.max)));
-    const lineas = [];
-    if(bl.b && hay(bl.b.max)) lineas.push({l:"Límite superior", v:parseFloat(bl.b.max), d:[7,5]});
-    if(bl.b && hay(bl.b.min)) lineas.push({l:"Límite inferior", v:parseFloat(bl.b.min), d:[7,5]});
+    /* Los límites se PINTAN sobre el lienzo, no se mandan como datos.
+       Como serie, una línea de límite une puntos: con una sola medición no
+       hay segmento que trazar y la línea se vuelve invisible —justo cuando
+       más falta hace saber contra qué se está juzgando ese dato suelto. */
+    const mn = bl.b && hay(bl.b.min) ? parseFloat(bl.b.min) : null;
+    const mx = bl.b && hay(bl.b.max) ? parseFloat(bl.b.max) : null;
+    const pintaBanda = {
+      id: "bandaAcero",
+      beforeDatasetsDraw(ch){
+        if(mn === null && mx === null) return;
+        const a = ch.chartArea, y = ch.scales.y;
+        if(!a || !y) return;
+        const yy = v => Math.max(a.top, Math.min(a.bottom, y.getPixelForValue(v)));
+        ch.ctx.save();
+        if(mn !== null && mx !== null){
+          ch.ctx.fillStyle = "rgba(31,122,68,.06)";
+          ch.ctx.fillRect(a.left, yy(mx), a.right-a.left, yy(mn)-yy(mx));
+        }
+        ch.ctx.fillStyle = "rgba(200,29,46,.07)";
+        if(mx !== null) ch.ctx.fillRect(a.left, a.top, a.right-a.left, yy(mx)-a.top);
+        if(mn !== null) ch.ctx.fillRect(a.left, yy(mn), a.right-a.left, a.bottom-yy(mn));
+        ch.ctx.strokeStyle = "#c81d2e"; ch.ctx.lineWidth = 2; ch.ctx.setLineDash([7,5]);
+        ch.ctx.fillStyle = "#c81d2e";
+        ch.ctx.font = "600 11px system-ui, sans-serif";
+        ch.ctx.textAlign = "right"; ch.ctx.textBaseline = "bottom";
+        [mx, mn].forEach((v,k)=>{
+          if(v === null) return;
+          const py = yy(v);
+          ch.ctx.beginPath(); ch.ctx.moveTo(a.left, py); ch.ctx.lineTo(a.right, py); ch.ctx.stroke();
+          ch.ctx.setLineDash([]);
+          ch.ctx.fillText((k===0?"máx. ":"mín. ") + v, a.right - 4, py - 3);
+          ch.ctx.setLineDash([7,5]);
+        });
+        ch.ctx.restore();
+      }
+    };
     return new Chart(document.getElementById(bl.id), {
       type:"line",
+      plugins:[pintaBanda],
       data:{ labels: labels,
         datasets:[{label: bl.ac, data: bl.ys, borderColor:bl.col, borderWidth:2, tension:.25,
           pointRadius: bl.ys.map(y=>fueraDe(y)?6:4),
           pointBackgroundColor: bl.ys.map(y=>fueraDe(y)?"#c81d2e":"#1f7a44"),
           pointBorderColor:"#fff", pointBorderWidth:2, fill:false, order:1}]
-          .concat(lineas.map(x=>({label:x.l, data:labels.map(()=>x.v), borderColor:"#c81d2e",
-            borderWidth:2, borderDash:x.d, pointRadius:0, fill:false, order:0})))
       },
       options:{
         responsive:true, maintainAspectRatio:false,
@@ -3362,18 +3394,47 @@ function renderComparada(box, ctx){
     });
   }
 
+  /* Igual que en las gráficas por acero: los límites se pintan sobre el
+     lienzo. Como serie, con una sola fecha no habría segmento que trazar y
+     las líneas desaparecerían. */
+  const pintaLimites = {
+    id: "limitesComparada",
+    beforeDatasetsDraw(ch){
+      if(!lineasBanda.length) return;
+      const a = ch.chartArea, y = ch.scales.y;
+      if(!a || !y) return;
+      const yy = v => Math.max(a.top, Math.min(a.bottom, y.getPixelForValue(v)));
+      ch.ctx.save();
+      if(bandaUnica && hay(bandaUnica.min) && hay(bandaUnica.max)){
+        ch.ctx.fillStyle = "rgba(31,122,68,.06)";
+        ch.ctx.fillRect(a.left, yy(parseFloat(bandaUnica.max)), a.right-a.left,
+                        yy(parseFloat(bandaUnica.min)) - yy(parseFloat(bandaUnica.max)));
+      }
+      ch.ctx.lineWidth = 2;
+      ch.ctx.font = "600 11px system-ui, sans-serif";
+      ch.ctx.textAlign = "right"; ch.ctx.textBaseline = "bottom";
+      lineasBanda.forEach(l=>{
+        const py = yy(l.valor);
+        ch.ctx.strokeStyle = l.col; ch.ctx.fillStyle = l.col;
+        ch.ctx.setLineDash(l.dash);
+        ch.ctx.beginPath(); ch.ctx.moveTo(a.left, py); ch.ctx.lineTo(a.right, py); ch.ctx.stroke();
+        ch.ctx.setLineDash([]);
+        ch.ctx.fillText(l.label + " " + l.valor, a.right - 4, py - 3);
+      });
+      ch.ctx.restore();
+    }
+  };
+
   if(graficaTend) graficaTend.destroy();
   graficaTend = new Chart(document.getElementById("cvTend"), {
     type:"line",
+    plugins:[pintaLimites],
     data:{ labels: labels,
       datasets: series.map(s=>({
           label:s.nombre, data:s.datos, borderColor:s.col, backgroundColor:s.col,
           borderWidth:2, tension:.25, pointRadius:3, pointBorderColor:"#fff", pointBorderWidth:1,
           fill:false, spanGaps:true, order:1
-        })).concat(lineasBanda.map(l=>({
-          label:l.label, data:labels.map(()=>l.valor), borderColor:l.col, borderWidth:2,
-          borderDash:l.dash, pointRadius:0, fill:false, order:0
-        })))
+        }))
     },
     options:{
       responsive:true, maintainAspectRatio:false,
@@ -3972,7 +4033,12 @@ function turnoYaEmpezo(fechaISO, t){
   const ahora = minutosDe(horaAhora());
   if(t === "1") return ahora >= hh.t1[0];
   if(t === "2") return ahora >= hh.t2[0];
-  return hh.t3 != null && (ahora >= hh.t3 || ahora < FIN_T3);
+  /* El turno 3 de HOY empieza esta noche, y punto. La madrugada pertenece al
+     turno 3 de AYER —así lo reparte fechaDeTurno—, y ese día ya devolvió true
+     en la primera línea. Contar la madrugada como "el turno 3 de hoy ya
+     empezó" hacía que a las 00:01 la matriz reclamara los 37 controles de un
+     turno que no arranca hasta las 21:00. */
+  return hh.t3 != null && ahora >= hh.t3;
 }
 
 const ESTADOS_CELDA = {
@@ -4874,7 +4940,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-07-indicadores";
+const APP_VERSION = "2026-10-08-madrugada";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
