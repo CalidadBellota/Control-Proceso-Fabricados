@@ -4347,15 +4347,29 @@ function generarPDF(reg, guardar){
 
   doc.setFillColor(226,0,26);
   doc.rect(0,0,W,26,"F");
-  try{ doc.addImage(LOGO_PDF, "PNG", M, 6, 34, 14); }catch(e){}
-  doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(12.5);
-  doc.text(String(reg.proceso||"").toUpperCase().slice(0,40), W-M, 12, {align:"right"});
-  doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
+  /* El logo mide 576 × 122 px, o sea 4,72 a 1. Dibujarlo 34 × 14 lo aplastaba
+     a 2,43 —poco más de la mitad de su proporción— y por eso salía estirado
+     y endeble. Estas medidas respetan la proporción exacta. */
+  const LOGO_ANCHO = 42.5, LOGO_ALTO = LOGO_ANCHO / (576/122);
+  try{ doc.addImage(LOGO_PDF, "PNG", M, (26 - LOGO_ALTO)/2, LOGO_ANCHO, LOGO_ALTO); }
+  catch(e){
+    doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(14);
+    doc.text("BELLOTA", M, 16);
+  }
+  /* Debajo del logo, qué documento es: así la cabecera se lee de izquierda a
+     derecha —quién lo emite, qué es, de qué registro habla— en vez de dejar
+     todo el peso amontonado a la derecha. */
+  doc.setTextColor(255,255,255); doc.setFont("helvetica","normal"); doc.setFontSize(7.4);
+  doc.text("Control de proceso · " + String(reg.linea||"—"), M, 22);
+
+  doc.setFont("helvetica","bold"); doc.setFontSize(12.5);
+  doc.text(String(reg.proceso||"").toUpperCase().slice(0,40), W-M, 11.5, {align:"right"});
+  doc.setFont("helvetica","normal"); doc.setFontSize(8.2);
   const ofTxt = String(reg.ordenFabricacion||"").trim();
-  doc.text(`${reg.linea||"—"}  ·  ${ofTxt ? (/^of[\s\-.]?/i.test(ofTxt) ? ofTxt : "OF "+ofTxt) : "sin OF"}  ·  ${fFecha(reg.fecha)} ${fHora(reg.hora)}`,
-           W-M, 18, {align:"right"});
+  doc.text(`${ofTxt ? (/^of[\s\-.]?/i.test(ofTxt) ? ofTxt : "OF "+ofTxt) : "sin OF"}  ·  ${fFecha(reg.fecha)} ${fHora(reg.hora)}  ·  Turno ${reg.turno||"—"}`,
+           W-M, 17.5, {align:"right"});
   doc.setFontSize(7);
-  doc.text(`${reg.codigoDoc||"—"}  ·  Turno ${reg.turno||"—"}`, W-M, 22.5, {align:"right"});
+  doc.text(String(reg.codigoDoc||"—"), W-M, 22, {align:"right"});
   doc.setTextColor(28,31,36);
   y = 34;
 
@@ -4434,10 +4448,14 @@ function generarPDF(reg, guardar){
   tabla("VARIABLES DEL PROCESO",
     ["Variable","Especificación","Medido","Resultado","Observación"],
     res.map(r=>{
+      /* Sin cota cargada se escribía sólo la unidad —«°C»— y eso se lee como
+         si fuera una especificación. Decirlo con todas las letras evita que
+         un documento firmado parezca juzgado cuando no lo fue. */
+      const hayMin = r.min!=="" && r.min!=null, hayMax = r.max!=="" && r.max!=null;
       const espec = (r.tipo==="numerico")
-        ? ((r.min!=="" && r.min!=null) || (r.max!=="" && r.max!=null)
-            ? `${r.min!==""&&r.min!=null?r.min:"—"} a ${r.max!==""&&r.max!=null?r.max:"—"}${r.unidad?" "+r.unidad:""}`
-            : (r.unidad || "sin rango"))
+        ? ((hayMin || hayMax)
+            ? `${hayMin?r.min:"—"} a ${hayMax?r.max:"—"}${r.unidad?" "+r.unidad:""}`
+            : `sin especificación${r.unidad?" ("+r.unidad+")":""}`)
         : (r.unidad || "visual");
       return [`${r.nombre}${String(r.critica||"").toLowerCase().indexOf("s")===0?"  (crítica)":""}`,
               espec, r.valor || "—", r.resultado || "—", r.observacion || "—"];
@@ -4940,7 +4958,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-08-madrugada";
+const APP_VERSION = "2026-10-09-pdf";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
