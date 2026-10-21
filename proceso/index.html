@@ -133,8 +133,26 @@
   #encabezadoCampos.termico .campo{grid-column:span 4;}
   #encabezadoCampos.termico .campo.corto{grid-column:span 3;}
   #encabezadoCampos.termico .campo.ancho{grid-column:1 / -1;}
+  /* La línea Dureza siempre lleva los mismos cuatro campos: OF, referencia,
+     acero y máquina. Al darle la fila entera a la referencia —como al resto
+     de térmicos— el acero y la máquina caían abajo y la pantalla quedaba
+     alta y vacía. Aquí se reparten las 12 columnas para que quepan en una
+     sola fila, dejándole a la referencia el ancho que de verdad necesita. */
+  #encabezadoCampos.dureza .campo{grid-column:span 2;}
+  #encabezadoCampos.dureza .campo.ancho{grid-column:span 6;}   /* 66 caracteres: la descripción más larga del catálogo */
+  #encabezadoCampos.dureza .campo.corto{grid-column:span 2;}
+  #encabezadoCampos.dureza .campo.maquina{grid-column:span 2;}
+  @media(max-width:1100px){
+    #encabezadoCampos.dureza .campo.ancho{grid-column:1 / -1;}
+    #encabezadoCampos.dureza .campo.corto{grid-column:span 4;}
+    #encabezadoCampos.dureza .campo.maquina{grid-column:span 4;}
+  }
+  /* 12 px de relleno arriba y abajo más texto de 1 rem piden 43 px; sin una
+     altura mínima el navegador dejaba el select en 38 y el texto salía
+     apretado contra el borde. Y 44 px es además un objetivo cómodo de tocar
+     con guante, que es como se usa esto junto al horno. */
   #encabezadoCampos.termico input,
-  #encabezadoCampos.termico select{font-size:1rem;padding:12px 13px;}
+  #encabezadoCampos.termico select{font-size:1rem;padding:11px 13px;min-height:44px;}
   #encabezadoCampos.termico label{font-size:.76rem;}
   @media(max-width:900px){
     #encabezadoCampos.termico .campo,
@@ -1756,6 +1774,27 @@ function esTermico(f){
   if(String(f.linea||"").trim() === "Dureza") return true;
   return PROC_TERMICO.test(String(f.proceso||""));
 }
+/* Máquinas de los formatos de Dureza, por proceso. Se unen con las que el
+   formato ya traiga de la hoja, así que añadir una aquí no borra lo que
+   hayas puesto a mano en Administrar. Para quitar una, hay que quitarla de
+   los dos sitios. */
+const MAQUINAS_DUREZA = {
+  "Machetes · Temple":  ["Temple 1", "Temple 3", "Temple 4", "Temple M4"],
+  "Cuchillas · Temple": ["Temple 3", "Temple 4"],
+  "Palas · Temple":     ["Temple 3", "Temple 4"]
+};
+function maquinasDeFormato(f){
+  const propias = (f && f.maquinas) || [];
+  const extra = (f && MAQUINAS_DUREZA[String(f.proceso||"").trim()]) || [];
+  const vistas = [], out = [];
+  propias.concat(extra).forEach(m=>{
+    const k = String(m||"").trim();
+    if(!k || vistas.indexOf(k.toLowerCase()) !== -1) return;
+    vistas.push(k.toLowerCase()); out.push(k);
+  });
+  /* Orden natural: Temple 1 antes que Temple 3, y M4 al final. */
+  return out.sort((a,b)=> a.localeCompare(b, "es", {numeric:true, sensitivity:"base"}));
+}
 const LINEAS_EXIGEN_ENC = ["Dureza"];
 /* Campos que hay que elegir antes de poder medir. Los tres que identifican
    QUÉ se mide y DÓNDE. La orden de fabricación se deja libre a propósito:
@@ -2069,10 +2108,11 @@ function renderEncabezado(f){
                style="margin-top:8px;display:none;"></div>`);
       return;
     }
-    if(k === "maquina" && (f.maquinas||[]).length){
-      campos.push(`<div class="campo corto"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
+    const maqs = maquinasDeFormato(f);
+    if(k === "maquina" && maqs.length){
+      campos.push(`<div class="campo corto maquina"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
         <select id="e_${k}"><option value="">Selecciona</option>${
-          f.maquinas.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join("")}</select></div>`);
+          maqs.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join("")}</select></div>`);
     } else if(k === "espesorAcero"){
       const es = espesoresDe(f.linea);
       if(!es.length) return;                    // línea sin espesor: el campo no va
@@ -2114,6 +2154,7 @@ function renderEncabezado(f){
   });
   box.innerHTML = campos.join("");
   box.classList.toggle("termico", esTermico(f));
+  box.classList.toggle("dureza", esDureza(f));
   box.querySelectorAll("input,select").forEach(el=>{
     el.addEventListener("input", actualizarBarra);
     el.addEventListener("change", actualizarBarra);
@@ -4958,7 +4999,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-09-pdf";
+const APP_VERSION = "2026-10-20-dureza-una-fila";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
