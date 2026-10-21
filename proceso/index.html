@@ -3414,7 +3414,23 @@ function renderPorAcero(box, ctx){
         interaction:{mode:"index", intersect:false},
         plugins:{ legend:{display:false},
           tooltip:{backgroundColor:"#1c1f24", padding:11, titleFont:{size:12}, bodyFont:{size:12},
-            callbacks:{ label: it => `${it.dataset.label}: ${f1(it.parsed.y)}${u}` }}},
+            callbacks:{
+              label: it => {
+                const p = bl.puntos[it.dataIndex] || {};
+                const et = p.estado==="fuera" ? "  ·  FUERA DE RANGO"
+                         : p.estado==="cerca" ? "  ·  cerca del límite" : "";
+                return `${it.dataset.label}: ${f1(it.parsed.y)}${u}${et}`;
+              },
+              /* Quién tomó la medida y en qué turno: mirando la gráfica es
+                 cuando surge la pregunta, no después en la tabla. */
+              afterBody: it => {
+                const p = bl.puntos[it[0].dataIndex] || {};
+                const l = [];
+                if(p.turno) l.push(`Turno ${p.turno}`);
+                if(p.insp)  l.push(p.insp);
+                return l.length ? [l.join("  ·  ")] : [];
+              }
+            }}},
         scales:{
           y:{ grid:{color:"#eef0f3"}, ticks:{color:"#6e7681", font:{size:11}},
               title:{display:!!vDef.unidad, text:vDef.unidad||"", color:"#6e7681", font:{size:11}},
@@ -3685,7 +3701,21 @@ function renderComparada(box, ctx){
         legend:{display:true, position:"bottom",
           labels:{usePointStyle:true, boxWidth:8, font:{size:11}, color:"#6e7681"}},
         tooltip:{backgroundColor:"#1c1f24", padding:11, titleFont:{size:12}, bodyFont:{size:12},
-          callbacks:{ label: it => `${it.dataset.label}: ${f1(it.parsed.y)}${u}` }}
+          callbacks:{
+            label: it => {
+              const p = (series[it.datasetIndex].puntos||[]).find(q=>q.x===it.label) || {};
+              const e = estadoEn(bandas[it.dataset.label], it.parsed.y);
+              const et = e==="fuera" ? "  ·  FUERA DE RANGO"
+                       : e==="cerca" ? "  ·  cerca del límite" : "";
+              return `${it.dataset.label}: ${f1(it.parsed.y)}${u}${et}`;
+            },
+            afterBody: it => {
+              const p = (series[it[0].datasetIndex].puntos||[]).find(q=>q.x===it[0].label) || {};
+              const l = [];
+              if(p.turno) l.push(`Turno ${p.turno}`);
+              if(p.insp)  l.push(p.insp);
+              return l.length ? [l.join("  ·  ")] : [];
+            } } }
       },
       scales:{
         y:{ grid:{color:"#eef0f3"}, ticks:{color:"#6e7681", font:{size:11}},
@@ -3992,9 +4022,17 @@ function renderTendencia(){
               return `${f1(p.y)}${u}${et}`;
             },
             afterBody: it => {
-              const r = puntos[it[0].dataIndex].reg;
-              return [`OF ${r.ordenFabricacion||"—"} · Ref. ${r.referencia||"—"}`,
-                      `Turno ${r.turno||"—"}${r.maquina?` · Máquina ${r.maquina}`:""} · ${r.inspector||""}`];
+              /* Leído de la hoja no hay registro completo a mano, sólo el
+                 punto. Antes se daba por hecho que existía y el globo
+                 reventaba en silencio. */
+              const p = puntos[it[0].dataIndex] || {};
+              const r = p.reg;
+              if(r) return [`OF ${r.ordenFabricacion||"—"} · Ref. ${r.referencia||"—"}`,
+                            `Turno ${r.turno||"—"}${r.maquina?` · Máquina ${r.maquina}`:""} · ${r.inspector||""}`];
+              const l = [];
+              if(p.turno) l.push(`Turno ${p.turno}`);
+              if(p.insp)  l.push(p.insp);
+              return l.length ? [l.join("  ·  ")] : [];
             }
           }
         }
@@ -5210,7 +5248,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-21-aviso-inspector";
+const APP_VERSION = "2026-10-21-globo-inspector";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
