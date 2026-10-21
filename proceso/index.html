@@ -400,6 +400,13 @@
   .leyenda-lim i.punteada{border-top-style:dashed;}
   .leyenda-lim i.pt{width:9px;height:9px;border:none;border-radius:50%;background:var(--red-dark);flex:none;}
   /* punto de color para los estados; va después para ganarle a la regla de línea */
+  /* El punto de color se usa en leyendas y tablas, no sólo en la barra de
+     sincronización. Sin tamaño propio el <i> queda vacío y no se ve. */
+  i.dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none;
+    vertical-align:middle;}
+  /* El punto marcado de la vista comparada: aro de color, relleno neutro. */
+  i.dot.aro{background:#fff;border:3px solid #999;width:12px;height:12px;
+    box-sizing:border-box;transform:rotate(45deg);border-radius:2px;}
   .leyenda-lim i.dot{width:10px;height:10px;border:none;border-top:none;border-radius:50%;flex:none;}
 
   /* ---------- Matriz de cumplimiento ---------- */
@@ -3243,6 +3250,7 @@ document.getElementById("tLimpiar").addEventListener("click", e=>{
    Va aparte de la gráfica de una serie porque aquí no hay un solo veredicto
    por punto que colorear: cada línea tiene su propia banda. */
 const COLS_SERIE = ["#c81d2e", "#1f5fb0", "#0f766e", "#8a4ba8", "#b45309", "#1f7a44"];
+const COL_EST = {ok:"#1f7a44", cerca:"#e0a800", fuera:"#c81d2e"};
 
 /* Una gráfica POR ACERO. El 1074 y el 65MN tienen bandas distintas (870-900
    frente a 850-890): puestos en el mismo eje hay que abrirlo tanto que las
@@ -3261,10 +3269,28 @@ function renderPorAcero(box, ctx){
     const b = (e && (hay(e[0]) || hay(e[1]))) ? {min:e[0], max:e[1]}
             : ((hay(vDef.min)||hay(vDef.max)) ? {min:vDef.min, max:vDef.max} : null);
     const ys = grupos[ac].map(p=>p.y);
-    const fuera = b ? ys.filter(y=>(hay(b.min)&&y<parseFloat(b.min))||(hay(b.max)&&y>parseFloat(b.max))).length : 0;
+    const mn = b && hay(b.min) ? parseFloat(b.min) : null;
+    const mx = b && hay(b.max) ? parseFloat(b.max) : null;
+    /* El mismo aviso que la gráfica de una sola serie: el 10 % de la banda
+       medido hacia adentro desde cada límite. Es lo que avisa ANTES de que
+       algo se salga, y faltaba justo aquí —en dureza y en todo lo que se
+       mira por acero— que es donde más se usa. */
+    const margen = (mn !== null && mx !== null) ? (mx - mn) * 0.10 : null;
+    const estadoDe = y => {
+      if(mn !== null && y < mn) return "fuera";
+      if(mx !== null && y > mx) return "fuera";
+      if(margen === null) return "ok";
+      if(mn !== null && y <= mn + margen) return "cerca";
+      if(mx !== null && y >= mx - margen) return "cerca";
+      return "ok";
+    };
+    const puntos = grupos[ac].map(p=>Object.assign({}, p, {estado: estadoDe(p.y)}));
+    const fuera = puntos.filter(p=>p.estado==="fuera").length;
+    const cerca = puntos.filter(p=>p.estado==="cerca").length;
     const prom = ys.reduce((a,c)=>a+c,0)/ys.length;
     const desv = Math.sqrt(ys.reduce((a,c)=>a+Math.pow(c-prom,2),0)/ys.length);
-    return {ac, b, ys, fuera, prom, desv, puntos:grupos[ac], col:COLS_SERIE[i % COLS_SERIE.length], id:"cvAc"+i};
+    return {ac, b, mn, mx, margen, ys, fuera, cerca, prom, desv, puntos,
+            col:COLS_SERIE[i % COLS_SERIE.length], id:"cvAc"+i, idH:"cvAcH"+i};
   });
 
   box.innerHTML = bloques.map(bl=>`
@@ -3277,10 +3303,50 @@ function renderPorAcero(box, ctx){
           <small>${esc(bl.ac)}</small></div>
         <div class="kpi"><span>Promedio</span><b>${f1(bl.prom)}</b>
           <small>desviación ${f1(bl.desv)}${esc(u)}</small></div>
+        <div class="kpi ${bl.cerca?"ojo":""}"><span>Cerca del límite</span><b>${bl.margen!==null?bl.cerca:"—"}</b>
+          <small>${bl.margen!==null ? `a menos de ${f1(bl.margen)}${esc(u)} del límite` : "hace falta la banda completa"}</small></div>
         <div class="kpi ${bl.fuera?"malo":""}"><span>Fuera de rango</span><b>${bl.b ? bl.fuera : "—"}</b>
           <small>${bl.b ? `banda ${esc(String(bl.b.min))} a ${esc(String(bl.b.max))}` : "sin especificación cargada"}</small></div>
       </div>
       <div style="height:300px;margin-top:12px;"><canvas id="${bl.id}"></canvas></div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:.74rem;color:var(--text-dim);margin-top:8px;">
+        <span><i class="dot" style="background:#1f7a44;"></i>En rango</span>
+        ${bl.margen!==null?`<span><i class="dot" style="background:#e0a800;"></i>Cerca del límite</span>`:""}
+        <span><i class="dot" style="background:#c81d2e;"></i>Fuera de rango</span>
+        ${bl.b?`<span style="color:#c81d2e;">- - -  Límite de especificación</span>`:""}
+      </div>
+
+      <div class="grid2-tend" style="margin-top:16px;">
+        <div class="panel" style="margin:0;">
+          <div class="section-title"><h2>DISTRIBUCIÓN</h2>
+            <span style="font-size:.74rem;color:var(--text-dim);">dónde se concentran las medidas</span></div>
+          <div class="chart-box chico"><canvas id="${bl.idH}"></canvas></div>
+          <div style="font-size:.74rem;color:var(--text-dim);margin-top:8px;line-height:1.5;">
+            ${(bl.mn===null||bl.mx===null)
+              ? "Sin la banda completa no se puede decir si el proceso está centrado."
+              : `Centro de la especificación: <b>${f1((bl.mn+bl.mx)/2)}${esc(u)}</b> ·
+                 promedio medido: <b>${f1(bl.prom)}${esc(u)}</b>
+                 (${bl.prom > (bl.mn+bl.mx)/2 ? "corrido hacia arriba" : "corrido hacia abajo"}
+                 ${f1(Math.abs(bl.prom-(bl.mn+bl.mx)/2))}${esc(u)})`}
+          </div>
+        </div>
+        <div class="panel" style="margin:0;">
+          <div class="section-title"><h2>ÚLTIMAS MEDICIONES</h2>
+            <span style="font-size:.74rem;color:var(--text-dim);">quién la tomó y en qué turno</span></div>
+          <div class="tabla-ult">
+            ${bl.puntos.slice(-8).reverse().map(p=>`
+              <div class="fila-ult">
+                <span class="cuando">${esc(p.x)}${
+                  p.turno ? ` <span style="color:var(--text-dim);">· T${esc(p.turno)}</span>` : ""}${
+                  p.insp ? `<br><span style="font-size:.7rem;color:var(--text-dim);">${esc(p.insp)}</span>` : ""}</span>
+                <span class="valor">${f1(p.y)}${esc(u)}</span>
+                <span class="estado" style="color:${COL_EST[p.estado]};">
+                  <i style="background:${COL_EST[p.estado]};"></i>${
+                  p.estado==="fuera"?"Fuera de rango":p.estado==="cerca"?"Cerca del límite":"En rango"}</span>
+              </div>`).join("")}
+          </div>
+        </div>
+      </div>
     </div>`).join("");
 
   graficasTend.forEach(g=>{ try{ g.destroy(); }catch(e){} });
@@ -3308,6 +3374,13 @@ function renderPorAcero(box, ctx){
         if(mn !== null && mx !== null){
           ch.ctx.fillStyle = "rgba(31,122,68,.06)";
           ch.ctx.fillRect(a.left, yy(mx), a.right-a.left, yy(mn)-yy(mx));
+          /* Franja de aviso: el 10 % de la banda hacia adentro desde cada
+             límite. Es la que avisa antes de que algo se salga. */
+          if(bl.margen !== null){
+            ch.ctx.fillStyle = "rgba(224,168,0,.12)";
+            ch.ctx.fillRect(a.left, yy(mx), a.right-a.left, yy(mx - bl.margen) - yy(mx));
+            ch.ctx.fillRect(a.left, yy(mn + bl.margen), a.right-a.left, yy(mn) - yy(mn + bl.margen));
+          }
         }
         ch.ctx.fillStyle = "rgba(200,29,46,.07)";
         if(mx !== null) ch.ctx.fillRect(a.left, a.top, a.right-a.left, yy(mx)-a.top);
@@ -3332,8 +3405,8 @@ function renderPorAcero(box, ctx){
       plugins:[pintaBanda],
       data:{ labels: labels,
         datasets:[{label: bl.ac, data: bl.ys, borderColor:bl.col, borderWidth:2, tension:.25,
-          pointRadius: bl.ys.map(y=>fueraDe(y)?6:4),
-          pointBackgroundColor: bl.ys.map(y=>fueraDe(y)?"#c81d2e":"#1f7a44"),
+          pointRadius: bl.puntos.map(p=>p.estado==="ok"?4:6),
+          pointBackgroundColor: bl.puntos.map(p=>COL_EST[p.estado]),
           pointBorderColor:"#fff", pointBorderWidth:2, fill:false, order:1}]
       },
       options:{
@@ -3352,6 +3425,36 @@ function renderPorAcero(box, ctx){
         }
       }
     });
+  });
+
+  /* El histograma de cada acero: los mismos tramos que la gráfica de una
+     serie, para que mirar una u otra no cambie la lectura. */
+  bloques.forEach(bl=>{
+    const cv = document.getElementById(bl.idH); if(!cv) return;
+    const n = Math.max(1, Math.min(10, Math.round(Math.sqrt(bl.ys.length)) || 1));
+    const lo = Math.min.apply(null, bl.ys), hi = Math.max.apply(null, bl.ys);
+    const paso = (hi - lo) / n || 1;
+    const cubos = Array.from({length:n}, (_,k)=>({c: lo + paso*(k+0.5), n:0, est:"ok"}));
+    bl.ys.forEach((y,k)=>{
+      const i = Math.min(n-1, Math.max(0, Math.floor((y - lo)/paso)));
+      cubos[i].n++;
+      const e = bl.puntos[k].estado;
+      if(e === "fuera" || (e === "cerca" && cubos[i].est === "ok")) cubos[i].est = e;
+    });
+    graficasTend.push(new Chart(cv, {
+      type:"bar",
+      data:{ labels: cubos.map(c=>Math.round(c.c*10)/10),
+        datasets:[{data: cubos.map(c=>c.n),
+          backgroundColor: cubos.map(c=>COL_EST[c.est]),
+          borderRadius:4, borderSkipped:false, barPercentage:.92, categoryPercentage:.95}] },
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false},
+          tooltip:{backgroundColor:"#1c1f24", padding:10,
+            callbacks:{ label: it => `${it.parsed.y} medición(es)` }}},
+        scales:{ y:{ beginAtZero:true, grid:{color:"#eef0f3"},
+                     ticks:{precision:0, color:"#6e7681", font:{size:10}} },
+                 x:{ grid:{display:false}, ticks:{color:"#6e7681", font:{size:10}} } } }
+    }));
   });
 }
 
@@ -3387,24 +3490,66 @@ function renderComparada(box, ctx){
   const unicas = Object.keys(firmas).map(k=>firmas[k]);
   const bandaUnica = unicas.length === 1 ? unicas[0] : null;
 
+  /* La franja «cerca del límite» no era cosa de la temperatura: faltaba en
+     esta vista, que es por donde pasan las durezas y las comparaciones por
+     acero. Es el 10% de la banda medido hacia adentro desde cada límite. */
+  function margenDe(b){
+    if(!b || !hay(b.min) || !hay(b.max)) return null;
+    return (parseFloat(b.max) - parseFloat(b.min)) * 0.10;
+  }
+  function estadoEn(b, y){
+    if(!b) return "ok";
+    const mn = hay(b.min) ? parseFloat(b.min) : null;
+    const mx = hay(b.max) ? parseFloat(b.max) : null;
+    if(mn !== null && y < mn) return "fuera";
+    if(mx !== null && y > mx) return "fuera";
+    const m = margenDe(b); if(m === null) return "ok";
+    if(mn !== null && y <= mn + m) return "cerca";
+    if(mx !== null && y >= mx - m) return "cerca";
+    return "ok";
+  }
+
   const series = nombres.map((n,i)=>{
     const col = COLS_SERIE[i % COLS_SERIE.length];
     const datos = labels.map(()=>null);
-    grupos[n].forEach(p=>{ datos[pos[p.x]] = p.y; });
-    return {nombre:n, col:col, datos:datos, puntos:grupos[n]};
+    /* El relleno se queda con el color de la serie —es lo que la distingue de
+       las otras cinco— y el estado se marca con un aro y un rombo. Pintar el
+       relleno por estado era un error: el color de la primera serie es el
+       mismo rojo de «fuera de rango». */
+    const aros = labels.map(()=>"#fff"), grosor = labels.map(()=>1);
+    const radios = labels.map(()=>3), formas = labels.map(()=>"circle");
+    grupos[n].forEach(p=>{
+      datos[pos[p.x]] = p.y;
+      const e = estadoEn(bandas[n], p.y);
+      if(e !== "ok"){
+        aros[pos[p.x]] = COL_EST[e]; grosor[pos[p.x]] = 3;
+        radios[pos[p.x]] = 5.5;     formas[pos[p.x]] = "rectRot";
+      }
+    });
+    return {nombre:n, col:col, datos:datos, puntos:grupos[n],
+            aros:aros, grosor:grosor, radios:radios, formas:formas};
   });
 
   /* Resumen por serie: promedio y cuántas se salieron de SU banda. */
   const resumen = series.map(s=>{
     const ys = s.puntos.map(p=>p.y);
     const b = bandas[s.nombre];
-    const fuera = b ? ys.filter(y=>(hay(b.min)&&y<parseFloat(b.min))||(hay(b.max)&&y>parseFloat(b.max))).length : 0;
+    const est = ys.map(y=>estadoEn(b, y));
+    const fuera = est.filter(e=>e==="fuera").length;
+    const cerca = est.filter(e=>e==="cerca").length;
     return {n:s.nombre, col:s.col, med:ys.length,
             prom: ys.reduce((a,b2)=>a+b2,0)/ys.length,
-            fuera: fuera, banda: b};
+            fuera: fuera, cerca: cerca, banda: b};
   });
   const f1 = n => (Math.round(n*10)/10).toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1});
   const u = unidad ? " "+unidad : "";
+
+  /* Las últimas mediciones de todas las series juntas: con seis puntos de
+     dureza, diez filas son casi dos registros completos. */
+  const ultimas = [].concat.apply([], series.map(s=>s.puntos.map(p=>({
+      serie:s.nombre, col:s.col, x:p.x, y:p.y,
+      insp:p.insp||"", turno:p.turno||"", estado: estadoEn(bandas[s.nombre], p.y)
+    })))).sort((a,b)=> String(a.x).localeCompare(String(b.x))).slice(-10).reverse();
 
   box.innerHTML = `
     <div class="panel">
@@ -3416,12 +3561,15 @@ function renderComparada(box, ctx){
         <thead><tr><th>${esc(etqModo==="acero"?"Acero":"Punto")}</th>
           <th style="text-align:right;">Mediciones</th>
           <th style="text-align:right;">Promedio</th>
+          <th style="text-align:right;">Cerca del límite</th>
           <th style="text-align:right;">Fuera de su banda</th>
           <th>Banda</th></tr></thead>
         <tbody>${resumen.map(r=>`<tr>
           <td><i class="dot" style="background:${r.col};"></i> ${esc(r.n)}</td>
           <td style="text-align:right;">${r.med}</td>
           <td style="text-align:right;font-variant-numeric:tabular-nums;">${f1(r.prom)}${esc(u)}</td>
+          <td style="text-align:right;${r.cerca?"color:"+COL_EST.cerca+";font-weight:800;":""}">${
+            r.banda && margenDe(r.banda)!==null ? r.cerca : "—"}</td>
           <td style="text-align:right;${r.fuera?"color:var(--bad);font-weight:800;":""}">${
             r.banda ? r.fuera : "—"}</td>
           <td style="color:var(--text-dim);">${r.banda
@@ -3429,10 +3577,32 @@ function renderComparada(box, ctx){
             : "sin especificación"}</td></tr>`).join("")}</tbody>
       </table>
       <div style="height:360px;"><canvas id="cvTend"></canvas></div>
-      <div style="margin-top:10px;font-size:.74rem;color:var(--text-dim);">${
-        bandaUnica ? "Las dos series comparten la misma banda."
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:.74rem;color:var(--text-dim);margin-top:8px;">
+        <span>El color del punto dice de qué serie es; el aro, cómo salió:</span>
+        ${unicas.some(b=>margenDe(b)!==null)
+          ? `<span><i class="dot aro" style="border-color:${COL_EST.cerca};"></i> Cerca del límite (10% de la banda)</span>` : ""}
+        <span><i class="dot aro" style="border-color:${COL_EST.fuera};"></i> Fuera de rango</span>
+      </div>
+      <div style="margin-top:8px;font-size:.74rem;color:var(--text-dim);">${
+        bandaUnica ? "Todas las series comparten la misma banda."
         : unicas.length > 1 ? "Cada serie tiene su propia banda, en su color."
         : "Ninguna de estas series tiene cota cargada todavía."}</div>
+    </div>
+    <div class="panel">
+      <div class="section-title"><h2>ÚLTIMAS MEDICIONES</h2>
+        <span style="font-size:.74rem;color:var(--text-dim);">quién la tomó y en qué turno</span></div>
+      <div class="tabla-ult">
+        ${ultimas.map(p=>`
+          <div class="fila-ult">
+            <span class="cuando"><i class="dot" style="background:${p.col};"></i> ${esc(p.serie)} ·
+              ${esc(p.x)}${p.turno ? ` · T${esc(p.turno)}` : ""}${
+              p.insp ? `<br><span style="font-size:.7rem;">${esc(p.insp)}</span>` : ""}</span>
+            <span class="valor">${f1(p.y)}${esc(u)}</span>
+            <span class="estado" style="color:${COL_EST[p.estado]};">
+              <i style="background:${COL_EST[p.estado]};"></i>${
+              p.estado==="fuera"?"Fuera de rango":p.estado==="cerca"?"Cerca del límite":"En rango"}</span>
+          </div>`).join("")}
+      </div>
     </div>`;
 
   const puntosY = [].concat.apply([], series.map(s=>s.puntos.map(p=>p.y)));
@@ -3469,6 +3639,15 @@ function renderComparada(box, ctx){
         ch.ctx.fillRect(a.left, yy(parseFloat(bandaUnica.max)), a.right-a.left,
                         yy(parseFloat(bandaUnica.min)) - yy(parseFloat(bandaUnica.max)));
       }
+      /* La franja de aviso: el borde interior de cada banda. Con varias bandas
+         se pintan todas, que son las de los aceros en pantalla. */
+      unicas.forEach(b=>{
+        const m = margenDe(b); if(m === null) return;
+        const mn = parseFloat(b.min), mx = parseFloat(b.max);
+        ch.ctx.fillStyle = "rgba(224,168,0,.12)";
+        ch.ctx.fillRect(a.left, yy(mx), a.right-a.left, yy(mx - m) - yy(mx));
+        ch.ctx.fillRect(a.left, yy(mn + m), a.right-a.left, yy(mn) - yy(mn + m));
+      });
       ch.ctx.lineWidth = 2;
       ch.ctx.font = "600 11px system-ui, sans-serif";
       ch.ctx.textAlign = "right"; ch.ctx.textBaseline = "bottom";
@@ -3491,7 +3670,11 @@ function renderComparada(box, ctx){
     data:{ labels: labels,
       datasets: series.map(s=>({
           label:s.nombre, data:s.datos, borderColor:s.col, backgroundColor:s.col,
-          borderWidth:2, tension:.25, pointRadius:3, pointBorderColor:"#fff", pointBorderWidth:1,
+          borderWidth:2, tension:.25,
+          /* El punto que se arrima al límite o se sale lleva aro de color y
+             forma de rombo; el relleno sigue diciendo de qué serie es. */
+          pointBackgroundColor: s.col, pointRadius: s.radios,
+          pointStyle: s.formas, pointBorderColor: s.aros, pointBorderWidth: s.grosor,
           fill:false, spanGaps:true, order:1
         }))
     },
@@ -3566,15 +3749,19 @@ function renderTendencia(){
         if(isNaN(n)) return;
         const g = String((modo === "variable" ? pt.variable : pt.acero) || "").trim();
         if(!g) return;                       // sin grupo no se puede comparar
-        (grupos[g] = grupos[g] || []).push({x: fFecha(pt.fecha), y: n});
+        (grupos[g] = grupos[g] || []).push({x: fFecha(pt.fecha), y: n,
+          insp: pt.inspector || "", turno: pt.turno || ""});
       });
     const nG = Object.keys(grupos).length;
+    /* Con UN solo acero también se usa esta vista. Antes caía en la gráfica
+       genérica, que no dice de qué acero habla: al filtrar por un proveedor
+       que sólo maneja un acero, la pantalla cambiaba de forma y además callaba
+       el dato más importante. */
+    if(nG >= 1 && modo === "acero"){
+      renderPorAcero(box, {f:f, vDef:vDef, grupos:grupos, per:per, filtro:fTend});
+      return;
+    }
     if(nG > 1){
-      if(modo === "acero"){
-        /* Cada acero, su gráfica y su eje. */
-        renderPorAcero(box, {f:f, vDef:vDef, grupos:grupos, per:per, filtro:fTend});
-        return;
-      }
       /* Los 6 puntos sí van juntos: comparten banda y el eje les sirve a todos. */
       const u0 = (varsNumericas(f)[0]||{}).unidad || vDef.unidad || "";
       renderComparada(box, {f:f, vDef:(varsNumericas(f)[0]||{nombre:vNom}),
@@ -3593,7 +3780,8 @@ function renderTendencia(){
       .forEach(pt=>{
         const n = parseFloat(String(pt.valor).replace(",","."));
         if(isNaN(n)) return;
-        puntos.push({x: fFecha(pt.fecha), y: n, fuera: pt.resultado === "Fuera de rango"});
+        puntos.push({x: fFecha(pt.fecha), y: n, fuera: pt.resultado === "Fuera de rango",
+          insp: pt.inspector || "", turno: pt.turno || ""});
       });
   } else
   S.registros.filter(r=> r.formatoId===fId &&
@@ -3607,7 +3795,9 @@ function renderTendencia(){
         if(x.nombre !== vNom) return;
         const n = parseFloat(String(x.valor).replace(",","."));
         if(isNaN(n)) return;
-        puntos.push({x:`${fFecha(r.fecha)} ${fHora(r.hora)}`.trim(), y:n, reg:r, fuera:x.resultado==="Fuera de rango"});
+        puntos.push({x:`${fFecha(r.fecha)} ${fHora(r.hora)}`.trim(), y:n, reg:r,
+          fuera:x.resultado==="Fuera de rango",
+          insp: r.inspector || "", turno: r.turno || ""});
       });
     });
   if(!hayserie) puntos.sort((a,b)=> a.x.localeCompare(b.x));   // la serie ya viene ordenada
@@ -3699,11 +3889,14 @@ function renderTendencia(){
         </div>
       </div>
       <div class="panel">
-        <div class="section-title"><h2>ÚLTIMAS MEDICIONES</h2></div>
+        <div class="section-title"><h2>ÚLTIMAS MEDICIONES</h2>
+          <span style="font-size:.74rem;color:var(--text-dim);">quién la tomó y en qué turno</span></div>
         <div class="tabla-ult">
           ${puntos.slice(-8).reverse().map(p=>`
             <div class="fila-ult">
-              <span class="cuando">${esc(p.x)}</span>
+              <span class="cuando">${esc(p.x)}${
+                p.turno ? ` <span style="color:var(--text-dim);">· T${esc(p.turno)}</span>` : ""}${
+                p.insp ? `<br><span style="font-size:.7rem;color:var(--text-dim);">${esc(p.insp)}</span>` : ""}</span>
               <span class="valor">${f1(p.y)}${esc(u)}</span>
               <span class="estado" style="color:${colorDe(p.estado)};">
                 <i style="background:${colorDe(p.estado)};"></i>${
@@ -5017,7 +5210,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-21-encabezado";
+const APP_VERSION = "2026-10-21-aviso-inspector";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
