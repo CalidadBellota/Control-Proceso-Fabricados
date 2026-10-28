@@ -1184,8 +1184,12 @@ const ACEROS = ["SAE 1074", "50MN", "65MN"];     // lista completa
    cota de un material que nunca pasó por ahí. "Otro…" sigue estando para no
    bloquear un caso nuevo. */
 const ACEROS_POR_LINEA = {
-  "Palas": ["50MN"],
-  "*":     ["SAE 1074", "65MN"]
+  "Palas":  ["50MN"],
+  /* Limas parte de un acero distinto al de las otras líneas: ofrecer aquí el
+     1074 invitaría a elegirlo y la cota se juzgaría contra un material que
+     nunca pasó por la línea. */
+  "Limas":  ["T12+Cr", "130Cr2"],
+  "*":      ["SAE 1074", "65MN"]
 };
 function acerosDe(linea){
   return ACEROS_POR_LINEA[String(linea||"").trim()] || ACEROS_POR_LINEA["*"];
@@ -1195,6 +1199,12 @@ function acerosDe(linea){
    acero comprado; en Limas el campo "Proveedor" significa otra cosa (quién
    suministró la lima semiterminada) y se maneja aparte. */
 const PROVEEDORES_ACERO = ["Shunda", "Steel N Future", "Manuchar", "Ferromac"];
+/* Los de Limas son otros: mandan lima semiterminada Y acero para procesar, así
+   que el campo aplica a toda la línea, no sólo a la lima comprada. */
+const PROVEEDORES_LIMAS = ["Asiatech", "SK Fikes", "JayKay Files"];
+function proveedoresDe(linea){
+  return String(linea||"").trim() === "Limas" ? PROVEEDORES_LIMAS : PROVEEDORES_ACERO;
+}
 const LINEAS_ACERO = ["Cuchillas", "Machetes"];
 function pideProveedorAcero(linea){ return LINEAS_ACERO.indexOf(linea) !== -1; }
 const ESPESORES = {
@@ -2093,16 +2103,29 @@ function abrirFormato(id){
   document.getElementById("formularioProc").scrollIntoView({behavior:"smooth", block:"start"});
 }
 
+/* Sólo la lima terminada puede venir comprada: en Acabado y control y en
+   Encabado y empaque entra tanto la de planta como la semiterminada. En los
+   demás procesos de la línea la lima es, por fuerza, fabricada en planta, así
+   que preguntarlo sobra y se guarda «fabricada» sin molestar al inspector. */
+const PROC_TIPO_LIMA = ["LIM-ACABADO", "LIM-ENCABADO"];
+function pideTipoLima(f){
+  if(!f || String(f.linea||"").trim() !== "Limas") return false;
+  if(PROC_TIPO_LIMA.indexOf(f.id) !== -1) return true;
+  /* Un formato creado desde Administrar no tiene esos id, así que se mira
+     también el nombre del proceso. */
+  return /acabado\s+y\s+control|encabado/i.test(String(f.proceso||""));
+}
+
 function renderEncabezado(f){
   const box = document.getElementById("encabezadoCampos");
   const campos = [];
 
-  if(f.linea === "Limas"){
+  if(pideTipoLima(f)){
     campos.push(`<div class="campo completo">
       <label>Tipo de lima *</label>
       <div class="seg" id="segLima" style="width:fit-content;">
         <button type="button" data-tl="fabricada" class="on">Fabricada en planta</button>
-        <button type="button" data-tl="semiterminada">Semiterminada (comprada)</button>
+        <button type="button" data-tl="semiterminada">Semiterminada</button>
       </div></div>`);
   }
 
@@ -2117,17 +2140,25 @@ function renderEncabezado(f){
 
   enc.forEach(k=>{
     const c = CAMPOS_ENC[k]; if(!c) return;
-    // el proveedor solo aplica a la lima semiterminada; para el resto se oculta
+    /* Antes el proveedor sólo salía con la lima comprada. Pero estos mismos
+       proveedores mandan también el acero que se procesa en planta, así que
+       el campo aplica a toda la línea. */
     if(k === "proveedor" && f.linea === "Limas"){
-      campos.push(`<div class="campo" id="campoProveedorLima" style="display:none;">
-        <label for="e_proveedor">Proveedor *</label>
-        <input type="text" id="e_proveedor" placeholder="Quién suministró la lima"></div>`);
+      campos.push(`<div class="campo" id="campoProveedorLima">
+        <label for="e_proveedor">Proveedor<span id="provLimaOblig"></span></label>
+        <select id="e_proveedor"><option value="">Selecciona</option>${
+          PROVEEDORES_LIMAS.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")
+        }<option value="__otra">Otro…</option></select>
+        <input type="text" id="e_proveedor_otra" placeholder="Escribe el proveedor"
+               style="margin-top:8px;display:none;">
+        <small style="display:block;margin-top:6px;color:var(--text-dim);font-size:.72rem;">
+          quién suministró la lima o el acero</small></div>`);
       return;
     }
     if(k === "proveedor" && pideProveedorAcero(f.linea)){
       campos.push(`<div class="campo"><label for="e_proveedor">Proveedor del acero</label>
         <select id="e_proveedor"><option value="">Selecciona</option>${
-          PROVEEDORES_ACERO.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")
+          proveedoresDe(f.linea).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")
         }<option value="__otra">Otro…</option></select>
         <input type="text" id="e_proveedor_otra" placeholder="Escribe el proveedor"
                style="margin-top:8px;display:none;"></div>`);
@@ -2192,12 +2223,10 @@ function renderEncabezado(f){
   if(seg) seg.querySelectorAll("[data-tl]").forEach(b=>b.addEventListener("click",()=>{
     seg.querySelectorAll("[data-tl]").forEach(x=>x.classList.remove("on"));
     b.classList.add("on");
-    const caja = document.getElementById("campoProveedorLima");
-    if(caja){
-      const semi = b.dataset.tl === "semiterminada";
-      caja.style.display = semi ? "block" : "none";
-      if(!semi){ const i = document.getElementById("e_proveedor"); if(i) i.value = ""; }
-    }
+    /* El proveedor se queda puesto: cambiar de tipo de lima no borra un dato
+       que sigue siendo cierto. Lo único que cambia es si es obligatorio. */
+    const ob = document.getElementById("provLimaOblig");
+    if(ob) ob.textContent = b.dataset.tl === "semiterminada" ? " *" : "";
     actualizarBarra();
   }));
 
@@ -2531,7 +2560,14 @@ function actualizarBarra(){
   const segL = document.getElementById("segLima");
   if(segL && (segL.querySelector(".on")||{}).dataset?.tl === "semiterminada"){
     const prov = document.getElementById("e_proveedor");
-    if(prov && !String(prov.value).trim()) falta.push("proveedor de la lima semiterminada");
+    let v = prov ? String(prov.value).trim() : "";
+    /* Con «Otro…» elegido el select no está vacío, pero el dato sigue sin
+       escribirse: lo que vale es el texto libre. */
+    if(v === "__otra"){
+      const libre = document.getElementById("e_proveedor_otra");
+      v = libre ? String(libre.value).trim() : "";
+    }
+    if(prov && !v) falta.push("proveedor de la lima semiterminada");
   }
   (f.encabezado||[]).forEach(k=>{
     const c = CAMPOS_ENC[k];
@@ -2585,7 +2621,10 @@ function construirRegistro(){
   // la fecha, la hora y el turno los pone la aplicación al momento de guardar
   const hora = horaAhora();
   const segL = document.getElementById("segLima");
-  const tipoLima = segL ? (segL.querySelector(".on")||{}).dataset?.tl || "" : "";
+  /* Sin el selector a la vista la lima es de planta: dejarlo vacío haría
+     parecer que el dato se perdió. */
+  const tipoLima = segL ? ((segL.querySelector(".on")||{}).dataset?.tl || "")
+                        : (f.linea === "Limas" ? "fabricada" : "");
   return {
     id: "CP-"+Date.now()+"-"+Math.floor(Math.random()*1000),
     fecha: hoyISO(),
@@ -3153,9 +3192,10 @@ function refrescarFiltrosTend(f){
     /* «Todos» es una opción legítima, no un hueco por rellenar: comparar el
        comportamiento de todo el acero que entró es tan útil como mirar uno. */
     const prev = sp.value;
+    const lista = proveedoresDe(lineaDeReferencias(f) || f.linea);
     sp.innerHTML = `<option value="">Todos los proveedores</option>` +
-      PROVEEDORES_ACERO.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
-    sp.value = (prev && PROVEEDORES_ACERO.indexOf(prev) !== -1) ? prev : "";
+      lista.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
+    sp.value = (prev && lista.indexOf(prev) !== -1) ? prev : "";
   } else sp.value = "";
 
   const falta = faltanFiltrosTend(f);
@@ -5284,7 +5324,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-21-tramos";
+const APP_VERSION = "2026-10-28-limas";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
