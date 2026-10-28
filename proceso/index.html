@@ -132,56 +132,46 @@
     .fila-tend .campo{flex:1 1 100%;max-width:none;}
   }
   .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
-  /* encabezado del registro: 12 columnas para repartir a medida */
-  #encabezadoCampos{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;}
-  #encabezadoCampos .campo{grid-column:span 3;}
-  #encabezadoCampos .campo.ancho{grid-column:span 6;}   /* la descripción más larga son 66 caracteres */
-  #encabezadoCampos .campo.corto{grid-column:span 2;}
-  #encabezadoCampos .campo.completo{grid-column:1 / -1;}
-  /* Temple, calentamiento, revenido y dureza: se registran de pie junto al
-     horno, muchas veces con guantes. Los campos van más anchos y más altos,
-     y la referencia ocupa la fila entera para que quepa la descripción más
-     larga (66 caracteres) sin cortarse. */
-  #encabezadoCampos.termico .campo{grid-column:span 4;}
-  #encabezadoCampos.termico .campo.corto{grid-column:span 3;}
-  #encabezadoCampos.termico .campo.ancho{grid-column:1 / -1;}
-  /* La línea Dureza siempre lleva los mismos cuatro campos: OF, referencia,
-     acero y máquina. Al darle la fila entera a la referencia —como al resto
-     de térmicos— el acero y la máquina caían abajo y la pantalla quedaba
-     alta y vacía. Aquí se reparten las 12 columnas para que quepan en una
-     sola fila, dejándole a la referencia el ancho que de verdad necesita. */
-  /* Aquí la rejilla de 12 columnas estorba: con cuatro campos de anchos muy
-     distintos, repartir en doceavos dejaba a la referencia 648 px —y la
-     descripción más larga del catálogo, de 66 caracteres, se cortaba por 7 px—
-     mientras la orden de fabricación, que son 6 dígitos, se quedaba con 207.
-     En fila flexible cada campo pide lo que necesita y la referencia se queda
-     con todo lo que sobra. */
-  #encabezadoCampos.dureza{display:flex;flex-wrap:wrap;gap:14px;}
-  #encabezadoCampos.dureza .campo{flex:0 0 auto;}
-  #encabezadoCampos.dureza .campo.corto{flex:0 0 150px;}
-  #encabezadoCampos.dureza .campo.maquina{flex:0 0 175px;}
-  #encabezadoCampos.dureza .campo.ancho{flex:1 1 420px;min-width:0;}
-  @media(max-width:900px){
-    #encabezadoCampos.dureza .campo,
-    #encabezadoCampos.dureza .campo.corto,
-    #encabezadoCampos.dureza .campo.maquina{flex:1 1 100%;}
-  }
-  /* 12 px de relleno arriba y abajo más texto de 1 rem piden 43 px; sin una
-     altura mínima el navegador dejaba el select en 38 y el texto salía
-     apretado contra el borde. Y 44 px es además un objetivo cómodo de tocar
-     con guante, que es como se usa esto junto al horno. */
+  /* Encabezado del registro. La rejilla de doceavos estorbaba: repartía el
+     ancho por igual entre campos que no se parecen en nada —la orden de
+     fabricación son 6 dígitos y la referencia más larga del catálogo son 66
+     caracteres— y bastaba con cuatro campos para que la referencia se llevara
+     la fila entera y el acero y el proveedor cayeran abajo. En fila flexible
+     cada campo pide el ancho que necesita y la referencia se queda con todo
+     lo que sobre, así que el encabezado cabe en una sola fila. */
+  #encabezadoCampos{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;}
+  #encabezadoCampos .campo{flex:0 0 180px;min-width:0;}
+  #encabezadoCampos .campo.corto{flex:0 0 140px;}     /* «SAE 1074» */
+  #encabezadoCampos .campo.maquina{flex:0 0 165px;}
+  #encabezadoCampos .campo.prov{flex:0 0 180px;}      /* «Steel N Future» */
+  #encabezadoCampos .campo.esp{flex:0 0 105px;}       /* 1.6 · 2.4 */
+  #encabezadoCampos .campo.of{flex:0 0 110px;}        /* 000000: seis dígitos */
+  #encabezadoCampos .campo.ancho{flex:1 1 260px;max-width:420px;}  /* la referencia */
+  /* La descripción de lo elegido, bajo la caja del código. */
+  .ref-desc{margin-top:6px;font-size:.76rem;line-height:1.35;color:var(--text-dim);
+    font-weight:600;}
+  #encabezadoCampos.termico .ref-desc{font-size:.82rem;}
+  #encabezadoCampos .campo.completo{flex:1 1 100%;}
+  /* Temple, calentamiento, revenido y dureza se registran de pie junto al
+     horno, muchas veces con guantes: letra y campos más grandes. 12 px de
+     relleno más texto de 1 rem piden 43 px, y 44 es además un objetivo cómodo
+     de tocar con guante. */
   #encabezadoCampos.termico input,
   #encabezadoCampos.termico select{font-size:1rem;padding:11px 13px;min-height:44px;}
   #encabezadoCampos.termico label{font-size:.76rem;}
+  #encabezadoCampos.termico .campo.corto{flex:0 0 155px;}
+  #encabezadoCampos.termico .campo.maquina{flex:0 0 180px;}
+  #encabezadoCampos.termico .campo.prov{flex:0 0 195px;}
+  #encabezadoCampos.termico .campo.esp{flex:0 0 115px;}
+  #encabezadoCampos.termico .campo.of{flex:0 0 125px;}
   @media(max-width:900px){
-    #encabezadoCampos.termico .campo,
-    #encabezadoCampos.termico .campo.corto{grid-column:span 6;}
-  }
-  @media(max-width:900px){
-    #encabezadoCampos{grid-template-columns:repeat(6,minmax(0,1fr));}
-    #encabezadoCampos .campo{grid-column:span 3;}
-    #encabezadoCampos .campo.ancho{grid-column:span 6;}
-    #encabezadoCampos .campo.corto{grid-column:span 3;}
+    #encabezadoCampos .campo,
+    #encabezadoCampos .campo.of,
+    #encabezadoCampos .campo.corto,
+    #encabezadoCampos .campo.prov,
+    #encabezadoCampos .campo.esp,
+    #encabezadoCampos .campo.maquina,
+    #encabezadoCampos .campo.ancho{flex:1 1 100%;}
   }
   @media(max-width:900px){.grid3,.grid4{grid-template-columns:1fr 1fr;}}
   @media(max-width:620px){.grid2,.grid3,.grid4{grid-template-columns:1fr;}}
@@ -1228,6 +1218,8 @@ function engancharComboRef(f){
   const lista  = document.getElementById("refLista");
   const limpiar= document.getElementById("refLimpiar");
   const aviso  = document.getElementById("refAviso");
+  const desc   = document.getElementById("refDesc");
+  const soltar = () => { busca.title = ""; if(desc){ desc.textContent = ""; desc.style.display = "none"; } };
   const todas  = referenciasDe(lineaDeReferencias(f));
   let marcada  = -1, visibles = [];
 
@@ -1264,8 +1256,14 @@ function engancharComboRef(f){
     if(!r) return;
     oculto.value = `${r.n} · ${r.d}`;
     rejuzgarTodo();            // la cota puede cambiar con la referencia
-    busca.value  = `${r.n} · ${r.d}`;
+    /* En la caja va sólo el código, y la descripción debajo. Metidos los dos
+       dentro, la descripción más larga del catálogo —66 caracteres— obligaba
+       a darle media pantalla al campo, y aun así se cortaba; abajo se lee
+       entera y el encabezado cabe en una fila. */
+    busca.value  = r.n;
+    busca.title  = `${r.n} · ${r.d}`;
     busca.classList.add("elegida");
+    if(desc){ desc.textContent = r.d; desc.style.display = "block"; }
     aviso.style.display = "none";
     limpiar.style.display = "block";
     cerrar(); actualizarBarra();
@@ -1275,7 +1273,7 @@ function engancharComboRef(f){
   busca.addEventListener("input", ()=>{
     oculto.value = "";                       // al escribir se suelta lo elegido
     rejuzgarTodo();
-    busca.classList.remove("elegida");
+    busca.classList.remove("elegida"); soltar();
     aviso.style.display = "none";
     limpiar.style.display = busca.value ? "block" : "none";
     marcada = -1; pintar(); actualizarBarra();
@@ -1304,7 +1302,7 @@ function engancharComboRef(f){
   }, 140));
   limpiar.addEventListener("click", ()=>{
     oculto.value = ""; busca.value = ""; rejuzgarTodo();
-    busca.classList.remove("elegida");
+    busca.classList.remove("elegida"); soltar();
     aviso.style.display = "none";
     limpiar.style.display = "none";
     busca.focus(); pintar(); actualizarBarra();
@@ -2100,7 +2098,9 @@ function abrirFormato(id){
   if(S.sesion) document.getElementById("iInspector").value = S.sesion.nombre;
   renderProcesos();
   actualizarBarra();
-  document.getElementById("formularioProc").scrollIntoView({behavior:"smooth", block:"start"});
+  /* Antes la hoja se bajaba sola hasta el formulario. Molesta más de lo que
+     ayuda: tapa la lista de procesos justo cuando se está comparando cuál
+     falta, y en pantalla grande el formulario ya se ve sin moverse. */
 }
 
 /* Sólo la lima terminada puede venir comprada: en Acabado y control y en
@@ -2144,7 +2144,7 @@ function renderEncabezado(f){
        proveedores mandan también el acero que se procesa en planta, así que
        el campo aplica a toda la línea. */
     if(k === "proveedor" && f.linea === "Limas"){
-      campos.push(`<div class="campo" id="campoProveedorLima">
+      campos.push(`<div class="campo prov" id="campoProveedorLima">
         <label for="e_proveedor">Proveedor<span id="provLimaOblig"></span></label>
         <select id="e_proveedor"><option value="">Selecciona</option>${
           PROVEEDORES_LIMAS.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")
@@ -2156,7 +2156,7 @@ function renderEncabezado(f){
       return;
     }
     if(k === "proveedor" && pideProveedorAcero(f.linea)){
-      campos.push(`<div class="campo"><label for="e_proveedor">Proveedor del acero</label>
+      campos.push(`<div class="campo prov"><label for="e_proveedor">Proveedor del acero</label>
         <select id="e_proveedor"><option value="">Selecciona</option>${
           proveedoresDe(f.linea).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")
         }<option value="__otra">Otro…</option></select>
@@ -2172,7 +2172,7 @@ function renderEncabezado(f){
     } else if(k === "espesorAcero"){
       const es = espesoresDe(f.linea);
       if(!es.length) return;                    // línea sin espesor: el campo no va
-      campos.push(`<div class="campo corto"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
+      campos.push(`<div class="campo esp"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
         <select id="e_${k}"><option value="">—</option>${
           es.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")}</select></div>`);
     } else if(k === "tipoAcero"){
@@ -2197,10 +2197,11 @@ function renderEncabezado(f){
           <div class="combo-lista" id="refLista" style="display:none;"></div>
         </div>
         <div class="combo-aviso" id="refAviso" style="display:none;">
-          Tienes que elegir una referencia de la lista.</div></div>`);
+          Tienes que elegir una referencia de la lista.</div>
+        <div class="ref-desc" id="refDesc" style="display:none;"></div></div>`);
     } else if(k === "ordenFabricacion"){
       // normalmente son 6 dígitos: una caja ancha sugiere que cabe algo más
-      campos.push(`<div class="campo corto"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
+      campos.push(`<div class="campo of"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
         <input type="text" id="e_${k}" inputmode="numeric" maxlength="12"
                placeholder="000000"></div>`);
     } else {
@@ -5324,7 +5325,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-28-limas";
+const APP_VERSION = "2026-10-28-encabezado-fila";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
