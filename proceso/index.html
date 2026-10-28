@@ -139,14 +139,21 @@
      la fila entera y el acero y el proveedor cayeran abajo. En fila flexible
      cada campo pide el ancho que necesita y la referencia se queda con todo
      lo que sobre, así que el encabezado cabe en una sola fila. */
-  #encabezadoCampos{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;}
+  #encabezadoCampos{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;}
+  /* Las etiquetas del encabezado no parten en dos renglones: un campo con la
+     etiqueta en dos líneas desalinea toda la fila. Se les da el ancho que
+     pide su texto, y la precisión va en una nota al lado. */
+  #encabezadoCampos label{white-space:nowrap;}
+  #encabezadoCampos label .apunte{font-weight:500;opacity:.75;}
   #encabezadoCampos .campo{flex:0 0 180px;min-width:0;}
   #encabezadoCampos .campo.corto{flex:0 0 140px;}     /* «SAE 1074» */
   #encabezadoCampos .campo.maquina{flex:0 0 165px;}
-  #encabezadoCampos .campo.prov{flex:0 0 180px;}      /* «Steel N Future» */
-  #encabezadoCampos .campo.esp{flex:0 0 105px;}       /* 1.6 · 2.4 */
-  #encabezadoCampos .campo.of{flex:0 0 110px;}        /* 000000: seis dígitos */
-  #encabezadoCampos .campo.ancho{flex:1 1 260px;max-width:420px;}  /* la referencia */
+  #encabezadoCampos .campo.prov{flex:0 0 200px;}      /* «Steel N Future» */
+  #encabezadoCampos .campo.esp{flex:0 0 110px;}       /* 1.6 · 2.4 */
+  /* Seis dígitos caben en 110 px, pero «Orden de fabricación» no: con la
+     etiqueta partida en dos la fila entera se veía torcida. */
+  #encabezadoCampos .campo.of{flex:0 0 146px;}
+  #encabezadoCampos .campo.ancho{flex:1 1 300px;max-width:480px;}  /* la referencia */
   /* La descripción de lo elegido, bajo la caja del código. */
   .ref-desc{margin-top:6px;font-size:.76rem;line-height:1.35;color:var(--text-dim);
     font-weight:600;}
@@ -162,8 +169,8 @@
   #encabezadoCampos.termico .campo.corto{flex:0 0 155px;}
   #encabezadoCampos.termico .campo.maquina{flex:0 0 180px;}
   #encabezadoCampos.termico .campo.prov{flex:0 0 195px;}
-  #encabezadoCampos.termico .campo.esp{flex:0 0 115px;}
-  #encabezadoCampos.termico .campo.of{flex:0 0 125px;}
+  #encabezadoCampos.termico .campo.esp{flex:0 0 120px;}
+  #encabezadoCampos.termico .campo.of{flex:0 0 160px;}
   @media(max-width:900px){
     #encabezadoCampos .campo,
     #encabezadoCampos .campo.of,
@@ -2145,18 +2152,18 @@ function renderEncabezado(f){
        el campo aplica a toda la línea. */
     if(k === "proveedor" && f.linea === "Limas"){
       campos.push(`<div class="campo prov" id="campoProveedorLima">
-        <label for="e_proveedor">Proveedor<span id="provLimaOblig"></span></label>
-        <select id="e_proveedor"><option value="">Selecciona</option>${
+        <label for="e_proveedor">Proveedor<span id="provLimaOblig"></span>
+          <span class="apunte">· lima o acero</span></label>
+        <select id="e_proveedor" title="Quién suministró la lima semiterminada o el acero"
+          ><option value="">Selecciona</option>${
           PROVEEDORES_LIMAS.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")
         }<option value="__otra">Otro…</option></select>
         <input type="text" id="e_proveedor_otra" placeholder="Escribe el proveedor"
-               style="margin-top:8px;display:none;">
-        <small style="display:block;margin-top:6px;color:var(--text-dim);font-size:.72rem;">
-          quién suministró la lima o el acero</small></div>`);
+               style="margin-top:8px;display:none;"></div>`);
       return;
     }
     if(k === "proveedor" && pideProveedorAcero(f.linea)){
-      campos.push(`<div class="campo prov"><label for="e_proveedor">Proveedor del acero</label>
+      campos.push(`<div class="campo prov"><label for="e_proveedor">Proveedor <span class="apunte">· del acero</span></label>
         <select id="e_proveedor"><option value="">Selecciona</option>${
           proveedoresDe(f.linea).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")
         }<option value="__otra">Otro…</option></select>
@@ -5325,7 +5332,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-28-encabezado-fila";
+const APP_VERSION = "2026-10-28-encabezado-2";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
