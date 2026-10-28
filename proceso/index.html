@@ -1815,31 +1815,100 @@ function esTermico(f){
   if(String(f.linea||"").trim() === "Dureza") return true;
   return PROC_TERMICO.test(String(f.proceso||""));
 }
-/* Máquinas de los formatos de Dureza, por proceso. Se unen con las que el
-   formato ya traiga de la hoja, así que añadir una aquí no borra lo que
-   hayas puesto a mano en Administrar. Para quitar una, hay que quitarla de
-   los dos sitios. */
-/* Máquinas fijas de otros procesos, por línea · proceso. Mismo criterio que
-   MAQUINAS_DUREZA: se unen con las que traiga el formato desde la hoja, así
-   que añadir una aquí no borra lo cargado en Administrar. */
-const MAQUINAS_FIJAS = {
-  "Limas · Picado": ["J2-1", "J2-2", "J3-1", "J3-2",
-                     "Automática 1", "Automática 2", "Automática 3",
-                     "Automática 4", "Automática 5"]
-};
+/* Máquinas de los formatos de Dureza, por proceso. Los hornos de temple se
+   nombran aquí una sola vez y de aquí los toman también los formatos de
+   proceso, para que la misma máquina no acabe con dos nombres. */
 const MAQUINAS_DUREZA = {
-  "Machetes · Temple":  ["Temple 1", "Temple 3", "Temple 4", "Temple M4"],
+  "Machetes · Temple":  ["Temple 1", "Temple 3", "Temple 4"],
   "Cuchillas · Temple": ["Temple 3", "Temple 4"],
   "Palas · Temple":     ["Temple 3", "Temple 4"]
 };
+const MAQUINAS_FIJAS = {
+  /* Se puede nombrar por el id del formato o por «línea · proceso». El id es
+     lo único que no cambia si alguien reescribe el nombre del proceso desde
+     Administrar, así que va primero.
+
+     Un proceso con UNA SOLA máquina no lleva este campo: elegir entre una
+     opción no informa de nada y es un clic más en cada registro. Por eso
+     aquí no están corte láser, granallado, los lacados, las pinturas de
+     cuchillas y palas, el horno eléctrico ni los empaques de una sola. */
+
+  /* --- Limas --- */
+  "LIM-PICADO":      ["J2-1", "J2-2", "J3-1", "J3-2",
+                      "Automática 1", "Automática 2", "Automática 3",
+                      "Automática 4", "Automática 5"],
+  "Limas · Picado":  ["J2-1", "J2-2", "J3-1", "J3-2",
+                      "Automática 1", "Automática 2", "Automática 3",
+                      "Automática 4", "Automática 5"],
+  "LIM-RECTIFICADO": ["Rectificado 1", "Rectificado 2", "Rectificado 4", "Rectificado 5"],
+  "LIM-RASPADO":     ["Raspado 1", "Raspado 2", "Raspado 3"],
+
+  /* --- Machetes. Laminación trae las suyas desde la hoja («1», «2», «3») y
+         no se toca. --- */
+  "MAC-CORTE-FLEJE": ["Corte 1", "Corte 2", "Canales 2", "Tronzado 1"],
+  "MAC-TROQUELADO":  ["Troquelado 2", "Troquelado 5", "Troquelado 6"],
+  "MAC-REVENIDO":    ["Revenido 1", "Revenido 3"],
+  "MAC-BISELADO":    ["Biselado manual 2", "Biselado manual 3", "Biselado manual 4",
+                      "Biselado manual 5", "Enderezado 1", "Enderezado 2"],
+  "MAC-LIJADO":      ["Lijado 2", "Lijado 3", "Lijado 5"],
+  "MAC-ENCABADO":    ["Remachado 2", "Remachado 3", "Remachado 4",
+                      "Remachado 6", "Remachado 7"],
+
+  /* --- Cuchillas --- */
+  "CUC-TROQUELADO":  ["Troquelado 3", "Troquelado 4"],
+  "CUC-REVENIDO":    ["Revenido 1", "Revenido 3"],
+  "CUC-LIJADO":      ["Lijado 4", "Lijado 5"],
+  "CUC-BISELADO":    ["Biselado 1", "Biselado 2", "Biselado 3", "Biselado 4", "Biselado 5"],
+  "CUC-ENDEREZADO":  ["Enderezado cuchillas", "Enderezado 2", "Enderezado 3",
+                      "Empaque 1", "Empaque 2", "Empaque 3"],
+
+  /* --- Palas --- */
+  "PAL-PERFORADO":   ["Perforado y sellado", "Perforado anilla", "Estampado"],
+  "PAL-ENCABADO":    ["Empaque 1", "Empaque 2"],
+
+  /* --- Temples: los hornos son los mismos que se nombran en Dureza, así que
+         la lista se toma de allí. Si aquí se llamaran distinto, la misma
+         máquina quedaría con dos nombres y el histórico se partiría en dos. */
+  "MAC-TEMPLE": MAQUINAS_DUREZA["Machetes · Temple"],
+  "CUC-TEMPLE": MAQUINAS_DUREZA["Cuchillas · Temple"],
+  "PAL-TEMPLE": MAQUINAS_DUREZA["Palas · Temple"]
+};
+/* Formatos donde la lista de arriba MANDA sobre lo que traiga la hoja. Sólo
+   los temples: la hoja los tiene como «1», «2», «4» y Dureza como «Temple 1»,
+   «Temple 3»… Unirlas dejaría la misma máquina dos veces en el desplegable. */
+const MAQUINAS_SUSTITUYEN = ["MAC-TEMPLE", "CUC-TEMPLE", "PAL-TEMPLE"]/* Para buscar sin que estorben mayúsculas, tildes o espacios de más: la hoja
+   escribe «PICADO», «Picado» y «picado  » sin avisar. */
+function clavePlana(t){
+  return String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .toLowerCase().replace(/\s+/g," ").trim();
+}
+function buscarEnTabla(tabla, ...claves){
+  for(const k of claves){
+    if(tabla[k]) return tabla[k];
+  }
+  const planas = claves.map(clavePlana).filter(Boolean);
+  for(const k in tabla){
+    if(planas.indexOf(clavePlana(k)) !== -1) return tabla[k];
+  }
+  return null;
+}
+
 function maquinasDeFormato(f){
   const propias = (f && f.maquinas) || [];
   /* Dureza se identifica por el proceso («Machetes · Temple»); las demás
-     líneas, por línea y proceso, que es lo que las distingue. */
-  const clave = `${String((f&&f.linea)||"").trim()} · ${String((f&&f.proceso)||"").trim()}`;
-  const extra = (f && (MAQUINAS_DUREZA[String(f.proceso||"").trim()] || MAQUINAS_FIJAS[clave])) || [];
+     líneas, por el id del formato o por «línea · proceso». */
+  const linea = String((f&&f.linea)||"").trim();
+  const proc  = String((f&&f.proceso)||"").trim();
+  const extra = (f && (buscarEnTabla(MAQUINAS_DUREZA, proc) ||
+                       buscarEnTabla(MAQUINAS_FIJAS, String(f.id||""), `${linea} · ${proc}`,
+                                     `${linea} - ${proc}`, `${linea} ${proc}`))) || [];
+  /* En los temples la lista manda: la hoja los tiene como «1», «2», «4» y
+     Dureza como «Temple 1», «Temple 3»… Unirlas dejaría la misma máquina dos
+     veces con dos nombres, y el histórico se partiría entre los dos. */
+  const base = (MAQUINAS_SUSTITUYEN.indexOf(String((f&&f.id)||"")) !== -1 && extra.length)
+             ? [] : propias;
   const vistas = [], out = [];
-  propias.concat(extra).forEach(m=>{
+  base.concat(extra).forEach(m=>{
     const k = String(m||"").trim();
     if(!k || vistas.indexOf(k.toLowerCase()) !== -1) return;
     vistas.push(k.toLowerCase()); out.push(k);
@@ -2155,6 +2224,11 @@ function renderEncabezado(f){
     const tras = enc.indexOf("tipoAcero");
     if(tras !== -1) enc.splice(tras + 1, 0, "proveedor"); else enc.push("proveedor");
   }
+  /* Si el proceso tiene máquinas conocidas, el campo sale aunque el formato
+     no lo liste: la mayoría de los formatos de la hoja no lo traían, y sin
+     esto cargar las máquinas no servía de nada. En qué máquina se midió es
+     justo lo que hace falta para perseguir un proceso que se desvía. */
+  if(enc.indexOf("maquina") === -1 && maquinasDeFormato(f).length > 1) enc.push("maquina");
 
   enc.forEach(k=>{
     const c = CAMPOS_ENC[k]; if(!c) return;
@@ -2184,9 +2258,14 @@ function renderEncabezado(f){
     }
     const maqs = maquinasDeFormato(f);
     if(k === "maquina" && maqs.length){
+      /* «Otra…» es imprescindible: una lista fija que se quede corta dejaría
+         al inspector sin poder registrar en una máquina que sí existe. */
       campos.push(`<div class="campo corto maquina"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
         <select id="e_${k}"><option value="">Selecciona</option>${
-          maqs.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join("")}</select></div>`);
+          maqs.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join("")
+        }<option value="__otra">Otra…</option></select>
+        <input type="text" id="e_${k}_otra" placeholder="Escribe la máquina"
+               style="margin-top:8px;display:none;"></div>`);
     } else if(k === "espesorAcero"){
       const es = espesoresDe(f.linea);
       if(!es.length) return;                    // línea sin espesor: el campo no va
@@ -2249,7 +2328,7 @@ function renderEncabezado(f){
     actualizarBarra();
   }));
 
-  ["tipoAcero","proveedor"].forEach(k=>{   // la referencia la maneja su propio buscador
+  ["tipoAcero","proveedor","maquina"].forEach(k=>{   // la referencia la maneja su propio buscador
     const sel  = document.getElementById("e_"+k);
     const otro = document.getElementById("e_"+k+"_otra");
     if(!sel || !otro) return;
@@ -5343,7 +5422,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-28-picadoras";
+const APP_VERSION = "2026-10-28-maquinas-3";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -6598,7 +6677,7 @@ CAJA_ENC.addEventListener("change", e=>{
 });
 CAJA_ENC.addEventListener("input", e=>{
   // el campo libre de "Otro…" se escribe a mano: hay que seguirlo al teclear
-  if(/^e_(tipoAcero|espesorAcero|material)_otra$/.test(String((e.target||{}).id||""))) rejuzgarTodo();
+  if(/^e_(tipoAcero|espesorAcero|material|maquina)_otra$/.test(String((e.target||{}).id||""))) rejuzgarTodo();
 });
 
 document.getElementById("btnSubirTodo").addEventListener("click", async ()=>{
