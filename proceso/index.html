@@ -2210,6 +2210,18 @@ function pideTipoLima(f){
   return /acabado\s+y\s+control|encabado/i.test(String(f.proceso||""));
 }
 
+/* El encabezado grande (letra de 1 rem, campos de 44 px) es para quien
+   registra de pie junto al horno y con guantes: temple, revenido y dureza de
+   machetes, cuchillas y palas. En Limas los hornos caían dentro sólo porque
+   la regla mira la palabra «horno» en el nombre del proceso, y el resultado
+   era que dentro de la misma línea unos procesos se veían de un tamaño y
+   otros de otro. El filtro de acero y proveedor en Tendencia sigue usando
+   esTermico(): esto cambia sólo cómo se ve. */
+function encabezadoGrande(f){
+  if(!esTermico(f)) return false;
+  return String((f&&f.linea)||"").trim() !== "Limas";
+}
+
 function renderEncabezado(f){
   const box = document.getElementById("encabezadoCampos");
   const campos = [];
@@ -2314,7 +2326,7 @@ function renderEncabezado(f){
     }
   });
   box.innerHTML = campos.join("");
-  box.classList.toggle("termico", esTermico(f));
+  box.classList.toggle("termico", encabezadoGrande(f));
   box.classList.toggle("dureza", esDureza(f));
   box.querySelectorAll("input,select").forEach(el=>{
     el.addEventListener("input", actualizarBarra);
@@ -5429,7 +5441,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-28-maquinas-5";
+const APP_VERSION = "2026-10-28-encabezado-limas";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
