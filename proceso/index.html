@@ -1819,6 +1819,14 @@ function esTermico(f){
    formato ya traiga de la hoja, así que añadir una aquí no borra lo que
    hayas puesto a mano en Administrar. Para quitar una, hay que quitarla de
    los dos sitios. */
+/* Máquinas fijas de otros procesos, por línea · proceso. Mismo criterio que
+   MAQUINAS_DUREZA: se unen con las que traiga el formato desde la hoja, así
+   que añadir una aquí no borra lo cargado en Administrar. */
+const MAQUINAS_FIJAS = {
+  "Limas · Picado": ["J2-1", "J2-2", "J3-1", "J3-2",
+                     "Automática 1", "Automática 2", "Automática 3",
+                     "Automática 4", "Automática 5"]
+};
 const MAQUINAS_DUREZA = {
   "Machetes · Temple":  ["Temple 1", "Temple 3", "Temple 4", "Temple M4"],
   "Cuchillas · Temple": ["Temple 3", "Temple 4"],
@@ -1826,7 +1834,10 @@ const MAQUINAS_DUREZA = {
 };
 function maquinasDeFormato(f){
   const propias = (f && f.maquinas) || [];
-  const extra = (f && MAQUINAS_DUREZA[String(f.proceso||"").trim()]) || [];
+  /* Dureza se identifica por el proceso («Machetes · Temple»); las demás
+     líneas, por línea y proceso, que es lo que las distingue. */
+  const clave = `${String((f&&f.linea)||"").trim()} · ${String((f&&f.proceso)||"").trim()}`;
+  const extra = (f && (MAQUINAS_DUREZA[String(f.proceso||"").trim()] || MAQUINAS_FIJAS[clave])) || [];
   const vistas = [], out = [];
   propias.concat(extra).forEach(m=>{
     const k = String(m||"").trim();
@@ -5332,7 +5343,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-28-encabezado-2";
+const APP_VERSION = "2026-10-28-picadoras";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
