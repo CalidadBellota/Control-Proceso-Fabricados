@@ -1828,43 +1828,50 @@ const MAQUINAS_FIJAS = {
      lo único que no cambia si alguien reescribe el nombre del proceso desde
      Administrar, así que va primero.
 
+     Cada opción lleva el nombre de LA MÁQUINA —rectificadora, troqueladora,
+     horno—, no el del proceso: el proceso ya está en el título de la
+     pantalla, y en Consultar la columna Máquina se lee sola.
+
      Un proceso con UNA SOLA máquina no lleva este campo: elegir entre una
      opción no informa de nada y es un clic más en cada registro. Por eso
      aquí no están corte láser, granallado, los lacados, las pinturas de
      cuchillas y palas, el horno eléctrico ni los empaques de una sola. */
 
   /* --- Limas --- */
-  "LIM-PICADO":      ["J2-1", "J2-2", "J3-1", "J3-2",
-                      "Automática 1", "Automática 2", "Automática 3",
-                      "Automática 4", "Automática 5"],
-  "Limas · Picado":  ["J2-1", "J2-2", "J3-1", "J3-2",
-                      "Automática 1", "Automática 2", "Automática 3",
-                      "Automática 4", "Automática 5"],
-  "LIM-RECTIFICADO": ["Rectificado 1", "Rectificado 2", "Rectificado 4", "Rectificado 5"],
-  "LIM-RASPADO":     ["Raspado 1", "Raspado 2", "Raspado 3"],
+  "LIM-PICADO":      ["Picadora J2-1", "Picadora J2-2", "Picadora J3-1", "Picadora J3-2",
+                      "Picadora automática 1", "Picadora automática 2",
+                      "Picadora automática 3", "Picadora automática 4",
+                      "Picadora automática 5"],
+  "Limas · Picado":  ["Picadora J2-1", "Picadora J2-2", "Picadora J3-1", "Picadora J3-2",
+                      "Picadora automática 1", "Picadora automática 2",
+                      "Picadora automática 3", "Picadora automática 4",
+                      "Picadora automática 5"],
+  "LIM-RECTIFICADO": ["Rectificadora 1", "Rectificadora 2", "Rectificadora 4", "Rectificadora 5"],
+  "LIM-RASPADO":     ["Raspadora 1", "Raspadora 2", "Raspadora 3"],
 
   /* --- Machetes. Laminación trae las suyas desde la hoja («1», «2», «3») y
          no se toca. --- */
-  "MAC-CORTE-FLEJE": ["Corte 1", "Corte 2", "Canales 2", "Tronzado 1"],
-  "MAC-TROQUELADO":  ["Troquelado 2", "Troquelado 5", "Troquelado 6"],
-  "MAC-REVENIDO":    ["Revenido 1", "Revenido 3"],
-  "MAC-BISELADO":    ["Biselado manual 2", "Biselado manual 3", "Biselado manual 4",
-                      "Biselado manual 5", "Enderezado 1", "Enderezado 2"],
-  "MAC-LIJADO":      ["Lijado 2", "Lijado 3", "Lijado 5"],
-  "MAC-ENCABADO":    ["Remachado 2", "Remachado 3", "Remachado 4",
-                      "Remachado 6", "Remachado 7"],
+  "MAC-CORTE-FLEJE": ["Cortadora 1", "Cortadora 2", "Canaladora 2", "Tronzadora 1"],
+  "MAC-TROQUELADO":  ["Troqueladora 2", "Troqueladora 5", "Troqueladora 6"],
+  "MAC-REVENIDO":    ["Horno revenido 1", "Horno revenido 3"],
+  "MAC-BISELADO":    ["Biseladora manual 2", "Biseladora manual 3", "Biseladora manual 4",
+                      "Biseladora manual 5", "Enderezadora 1", "Enderezadora 2"],
+  "MAC-LIJADO":      ["Lijadora 2", "Lijadora 3", "Lijadora 5"],
+  "MAC-ENCABADO":    ["Remachadora 2", "Remachadora 3", "Remachadora 4",
+                      "Remachadora 6", "Remachadora 7"],
 
   /* --- Cuchillas --- */
-  "CUC-TROQUELADO":  ["Troquelado 3", "Troquelado 4"],
-  "CUC-REVENIDO":    ["Revenido 1", "Revenido 3"],
-  "CUC-LIJADO":      ["Lijado 4", "Lijado 5"],
-  "CUC-BISELADO":    ["Biselado 1", "Biselado 2", "Biselado 3", "Biselado 4", "Biselado 5"],
-  "CUC-ENDEREZADO":  ["Enderezado cuchillas", "Enderezado 2", "Enderezado 3",
-                      "Empaque 1", "Empaque 2", "Empaque 3"],
+  "CUC-TROQUELADO":  ["Troqueladora 3", "Troqueladora 4"],
+  "CUC-REVENIDO":    ["Horno revenido 1", "Horno revenido 3"],
+  "CUC-LIJADO":      ["Lijadora 4", "Lijadora 5"],
+  "CUC-BISELADO":    ["Biseladora 1", "Biseladora 2", "Biseladora 3",
+                      "Biseladora 4", "Biseladora 5"],
+  "CUC-ENDEREZADO":  ["Enderezadora cuchillas", "Enderezadora 2", "Enderezadora 3",
+                      "Empacadora 1", "Empacadora 2", "Empacadora 3"],
 
   /* --- Palas --- */
-  "PAL-PERFORADO":   ["Perforado y sellado", "Perforado anilla", "Estampado"],
-  "PAL-ENCABADO":    ["Empaque 1", "Empaque 2"],
+  "PAL-PERFORADO":   ["Perforadora y selladora", "Perforadora de anilla", "Estampadora"],
+  "PAL-ENCABADO":    ["Empacadora 1", "Empacadora 2"],
 
   /* --- Temples: los hornos son los mismos que se nombran en Dureza, así que
          la lista se toma de allí. Si aquí se llamaran distinto, la misma
@@ -5422,7 +5429,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-28-maquinas-3";
+const APP_VERSION = "2026-10-28-maquinas-5";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
