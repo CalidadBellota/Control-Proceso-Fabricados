@@ -24,20 +24,50 @@ const SH_REF = "Referencias";
 const TZ = "America/Bogota";
 
 const H_FOR = ["id","linea","proceso","nombre","codigoDoc","condicional","encabezado","maquinas",
-               "variables","actualizado"];
+               "variables","activo","actualizado"];
 
 const H_REG = ["id","fecha","hora","turno","linea","proceso","formatoId","codigoDoc",
                "ordenFabricacion","referencia","tipoAcero","proveedor","espesorAcero","maquina",
                "tipoLima","noTrabajo",
                "inspector","observaciones",
-               "totalVariables","fueraDeRango","criticasFuera"];
+               "totalVariables","fueraDeRango","criticasFuera",
+               "correcciones"];
 
 const H_DET = ["registroId","fecha","linea","proceso","ordenFabricacion","referencia","maquina",
                "variable","tipo","unidad","critica","limiteInferior","limiteSuperior",
                "valor","resultado"];
 
+/* Bitácora de eliminaciones. Un registro de calidad que desaparece sin dejar
+   rastro es un agujero de trazabilidad: la fila se borra de Registros, pero
+   aquí queda quién la borró, cuándo, por qué y qué contenía. */
+const SH_ELI = "Eliminados";
+
+/* Apertura de turno. Un inspector que no registra nada no deja rastro de que
+   estuvo, y sin eso no se puede decir que su cumplimiento fue 0% en vez de que
+   no vino. Además congela los "esperados" del momento: si mañana se añaden
+   formatos, el porcentaje del mes pasado no se mueve. */
+const SH_TUR = "Turnos";
+const H_TUR  = ["id","usuario","nombre","fecha","turno","horaInicio","esperados","equipo"];
+/* Calendario de turnos: quién tenía que cubrir cada turno. Dos clases de fila.
+   «plantilla» con dia = 1..7 (1 es lunes) describe la semana tipo, y «dia» con
+   dia = una fecha concreta la corrige. Sin esto, la exigencia de un inspector
+   salía de lo que él mismo hubiera registrado o abierto, de modo que no entrar
+   a la aplicación le borraba el turno de la cuenta. */
+const SH_CAL = "Calendario";
+const H_CAL  = ["clave","tipo","dia","turno","usuario","nombre","nota","actualizado"];
+const H_ELI  = ["eliminadoEl","eliminadoPor","motivo","id","fecha","hora","turno","linea","proceso",
+                "ordenFabricacion","referencia","maquina","inspector","totalVariables","fueraDeRango"];
+
 const H_USR = ["usuario","nombre","pin","rol","activo","actualizado"];
 const H_REF = ["linea","codigo","descripcion"];
+
+/* Cotas que dependen de la referencia. Van en su PROPIA hoja, no dentro del
+   JSON del formato: medido, con las 256 referencias de Machetes el catálogo
+   pasaría de 250 KB y CacheService descarta en silencio todo lo que supere
+   100 KB, con lo que volveríamos a pagar la lectura completa en cada apertura.
+   La clave es formatoId|variable|referencia. */
+const SH_ESP = "Especificaciones";
+const H_ESP  = ["clave","formatoId","variable","campo","valor","min","max","actualizado"];
 
 /** Devuelve la hoja y garantiza que el encabezado tenga todas las columnas. */
 function getSheet_(nombre, headers){
@@ -99,102 +129,637 @@ function fmt_(v, h){
   return v;
 }
 
+/* yyyymmdd como número entero, sin tocar Utilities.formatDate.
+   Sirve sólo para acotar tramos, nunca para mostrar fechas al usuario. */
+function diaNum_(v){
+  if(v instanceof Date)
+    return v.getFullYear()*10000 + (v.getMonth()+1)*100 + v.getDate();
+  const m = String(v == null ? "" : v).slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? Number(m[1]+m[2]+m[3]) : 0;
+}
+
+/* El corte, retrocedido un día. Se construye en UTC a propósito: así el
+   resultado no depende de la zona del proyecto, y cruza bien los finales de
+   mes (restar 1 a 20261101 daría 20261100, que no es una fecha). */
+function diaNumCorte_(corte){
+  const t = String(corte).slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(!t) return 0;
+  const d = new Date(Date.UTC(Number(t[1]), Number(t[2])-1, Number(t[3])));
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.getUTCFullYear()*10000 + (d.getUTCMonth()+1)*100 + d.getUTCDate();
+}
+
+/* CacheService descarta EN SILENCIO cualquier entrada de más de 100 KB: se
+   cree que está cacheado y no lo está. Por eso el catálogo se guarda partido
+   en trozos de 90 KB, con una entrada aparte que dice cuántos son. Si falta
+   un solo trozo se considera que no hay caché y se relee la hoja: mejor
+   tardar que servir medio catálogo. */
+const CACHE_TROZO = 90000;
+const CACHE_MAX_TROZOS = 8;          // 720 KB; de sobra, y acota el daño
+
+function clavesTrozos_(n){
+  const ks = [];
+  for(let i = 0; i < n; i++) ks.push("cfg" + i);
+  return ks;
+}
+
+function guardarEnCache_(txt){
+  try{
+    const n = Math.ceil(txt.length / CACHE_TROZO);
+    if(n > CACHE_MAX_TROZOS){
+      console.warn("catálogo de " + txt.length + " bytes: demasiado para la caché");
+      limpiarCache_();
+      return;
+    }
+    const c = CacheService.getScriptCache();
+    const trozos = {};
+    for(let i = 0; i < n; i++) trozos["cfg" + i] = txt.substr(i * CACHE_TROZO, CACHE_TROZO);
+    c.putAll(trozos, 21600);
+    c.put("cfgN", String(n), 21600);   // el contador va el último: si algo falla antes, no hay caché a medias
+  }catch(err){ console.warn("no se pudo cachear: " + err); }
+}
+
+function leerDeCache_(){
+  try{
+    const c = CacheService.getScriptCache();
+    const n = Number(c.get("cfgN") || 0);
+    if(!n) return null;
+    const partes = c.getAll(clavesTrozos_(n));
+    let txt = "";
+    for(let i = 0; i < n; i++){
+      const t = partes["cfg" + i];
+      if(t == null) return null;       // falta un trozo: se relee entera
+      txt += t;
+    }
+    return txt;
+  }catch(err){ return null; }
+}
+
+function limpiarCache_(){
+  try{
+    const c = CacheService.getScriptCache();
+    c.remove("cfgN");
+    c.removeAll(clavesTrozos_(CACHE_MAX_TROZOS));
+    c.remove("cfg");                   // residuo de la versión anterior
+  }catch(err){}
+}
+
 function jsonSeguro_(txt, porDefecto){
   try{ return JSON.parse(txt || porDefecto); }catch(err){ return JSON.parse(porDefecto); }
 }
 
+/* Marca de versión del backend. La app la muestra en el panel de
+   sincronización: así se sabe sin adivinar si la hoja está corriendo este
+   código o uno anterior que todavía lee todo el histórico en cada petición. */
+const BACKEND_VERSION = "2026-10-30-calendario";
+
 function doGet(e){
+  try{ return doGet_(e); }
+  catch(err){
+    return json_({error: String(err && err.message ? err.message : err)});
+  }
+}
+
+function doGet_(e){
   // catálogo compartido: formatos de control y usuarios
-  if(e && e.parameter && e.parameter.tipo === "config"){
-    const shF = getSheet_(SH_FOR, H_FOR);
-    const shU = getSheet_(SH_USR, H_USR);
-
-    const dU = shU.getDataRange().getValues();
-    if(dU.length <= 1){
-      shU.appendRow(["jefe","Jefe de Calidad","1234","jefe","Sí",
-        Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd HH:mm:ss")]);
-    }
-    const usuarios = shU.getDataRange().getValues().slice(1).filter(function(r){ return r[0]; })
-      .map(function(r){ return {usuario:String(r[0]), nombre:String(r[1]), pin:String(r[2]).trim(),
-                                rol:String(r[3]||"inspector"), activo:String(r[4]||"Sí")}; });
-
-    const head = headerDe_(shF);
-    const col = function(n){ return head.indexOf(n); };
-    const formatos = shF.getDataRange().getValues().slice(1)
-      .filter(function(r){ return r[col("id")]; })
-      .map(function(r){
-        return {
-          id:          String(r[col("id")]),
-          linea:       String(r[col("linea")]),
-          proceso:     String(r[col("proceso")]),
-          nombre:      String(r[col("nombre")]),
-          codigoDoc:   String(r[col("codigoDoc")]||""),
-          condicional: String(r[col("condicional")]||"").toLowerCase().indexOf("s") === 0,
-          encabezado:  jsonSeguro_(r[col("encabezado")], "[]"),
-          maquinas:    jsonSeguro_(r[col("maquinas")], "[]"),
-          variables:   jsonSeguro_(r[col("variables")], "[]")
-        };
-      });
-
-    // Referencias de producto por línea. Si la hoja está vacía, la app usa
-    // el catálogo que trae embebido.
-    var shR = getSheet_(SH_REF, H_REF);
-    var hR = headerDe_(shR);
-    var iL = hR.indexOf("linea"), iC = hR.indexOf("codigo"), iD = hR.indexOf("descripcion");
-    var referencias = {};
-    if(iL !== -1 && iD !== -1){
-      shR.getDataRange().getValues().slice(1).forEach(function(r){
-        var linea = String(r[iL] || "").trim();
-        var desc  = String(r[iD] || "").trim();
-        if(!linea || !desc) return;
-        (referencias[linea] = referencias[linea] || [])
-          .push({n: String(iC === -1 ? "" : (r[iC] || "")).trim(), d: desc});
-      });
-    }
-
-    return json_({formatos:formatos, usuarios:usuarios, referencias:referencias});
+  if(e && e.parameter && e.parameter.tipo === "version"){
+    return json_({backend: BACKEND_VERSION});
   }
 
+  /* Diagnóstico: dice qué entendió la hoja de la petición y qué hizo con ella.
+     Existe porque "la app leyó más registros de los que pidió" tiene dos causas
+     posibles —que el ?desde= no llegue, o que no se encuentre la columna de
+     fecha— y desde afuera se ven igual. */
+  if(e && e.parameter && e.parameter.tipo === "turnos"){
+    const sh = getSheet_(SH_TUR, H_TUR);
+    const ult = sh.getLastRow();
+    if(ult <= 1) return json_([]);
+    const head = headerDe_(sh);
+    const desde = (e.parameter.desde) ? String(e.parameter.desde) : "";
+    const iF = head.indexOf("fecha");
+    const filas = sh.getRange(2, 1, ult - 1, head.length).getValues()
+      .filter(function(r){ return !desde || diaNum_(r[iF]) >= diaNumCorte_(desde); })   // sin formatDate por fila
+      .map(function(r){
+        const o = {};
+        head.forEach(function(h, k){ o[h] = fmt_(r[k], h); });
+        return o;
+      });
+    return json_(filas);
+  }
+
+  if(e && e.parameter && e.parameter.tipo === "calendario"){
+    const shC = getSheet_(SH_CAL, H_CAL);
+    const ultC = shC.getLastRow();
+    if(ultC <= 1) return json_([]);
+    const headC = headerDe_(shC);
+    const filasC = shC.getRange(2, 1, ultC - 1, headC.length).getValues().map(function(r){
+      const o = {};
+      headC.forEach(function(h, k){ o[h] = fmt_(r[k], h); });
+      return o;
+    });
+    return json_(filasC);
+  }
+
+  if(e && e.parameter && e.parameter.tipo === "diagnostico"){
+    const shX = getSheet_(SH_REG, H_REG);
+    const ultX = shX.getLastRow();
+    const headX = shX.getRange(1, 1, 1, shX.getLastColumn()).getValues()[0];
+    const iFx = headX.indexOf("fecha");
+    const desdeX = (e.parameter.desde) ? String(e.parameter.desde) : "";
+    let muestra = [];
+    if(iFx !== -1 && ultX > 1){
+      const n = Math.min(3, ultX - 1);
+      muestra = shX.getRange(ultX - n + 1, iFx + 1, n, 1).getValues().map(function(f){
+        return {crudo: String(f[0]), tipo: (f[0] instanceof Date) ? "Date" : typeof f[0],
+                normalizado: String(fmt_(f[0], "fecha")).slice(0, 10)};
+      });
+    }
+    /* Cuánto cuesta de verdad una lectura, medido en esta hoja y no estimado.
+       Separa las dos cosas que pueden ir lentas: traer la columna de fechas
+       (una llamada a la hoja) y recorrerla (JavaScript). Así se sabe dónde
+       atacar sin adivinar. */
+    const shDx = getSheet_(SH_DET, H_DET);
+    const detUltX = shDx.getLastRow();
+    const t0 = new Date().getTime();
+    let colReg = [];
+    if(iFx !== -1 && ultX > 1) colReg = shX.getRange(2, iFx + 1, ultX - 1, 1).getValues();
+    const t1 = new Date().getTime();
+    const corteX = diaNumCorte_(desdeX || "2026-01-01");
+    let enTramo = 0;
+    for(let i = 0; i < colReg.length; i++) if(diaNum_(colReg[i][0]) >= corteX) enTramo++;
+    const t2 = new Date().getTime();
+    let colDet = [];
+    const dHead = detUltX > 1 ? shDx.getRange(1,1,1,shDx.getLastColumn()).getValues()[0] : [];
+    const iDf = dHead.indexOf("fecha");
+    if(iDf !== -1 && detUltX > 1) colDet = shDx.getRange(2, iDf + 1, detUltX - 1, 1).getValues();
+    const t3 = new Date().getTime();
+
+    return json_({
+      backend: BACKEND_VERSION,
+      desdeRecibido: desdeX,
+      llegoElFiltro: desdeX !== "",
+      columnaFechaEncontrada: iFx !== -1,
+      encabezados: headX.map(String),
+      filasEnLaHoja: Math.max(0, ultX - 1),
+      filasEnDetalle: Math.max(0, detUltX - 1),
+      registrosEnElTramo: enTramo,
+      msTraerFechasRegistros: t1 - t0,
+      msRecorrerFechas:       t2 - t1,
+      msTraerFechasDetalle:   t3 - t2,
+      ultimasFechas: muestra
+    });
+  }
+
+  if(e && e.parameter && e.parameter.tipo === "config"){
+    return ContentService.createTextOutput(construirConfigTexto_(e.parameter.fresco === "1"))
+                         .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  /* Catálogo y registros de una vez: lo que la app necesita al abrir. */
+  if(e && e.parameter && e.parameter.tipo === "todo"){
+    const cfgTxt = construirConfigTexto_(e.parameter.fresco === "1");
+    const regs   = construirRegistros_(e);
+    return ContentService.createTextOutput(
+      '{"config":' + cfgTxt + ',"registros":' + JSON.stringify(regs) + '}')
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  /* Serie para Tendencia: sólo lo que el gráfico dibuja.
+     Pedir los registros de un rango para graficar una variable traía 640 KB
+     por 25 puntos —todos los registros con TODO su detalle—, y Apps Script
+     devolvía 404 al intentar servirlo. Esto lee únicamente la hoja Detalle,
+     que ya trae el valor y el veredicto, y no toca Registros. */
+  if(e && e.parameter && e.parameter.tipo === "serie"){
+    const proc  = String(e.parameter.proceso  || "").trim();
+    const vari  = String(e.parameter.variable || "").trim();
+    /* Varias variables en una sola petición: los 6 puntos de dureza son la
+       misma medida en seis sitios y se comparan en una sola gráfica. Seis
+       peticiones serían seis arranques de Apps Script; una sola es una. */
+    const varios = {};
+    String(e.parameter.variables || "").split("|").forEach(function(v){
+      v = String(v).trim(); if(v) varios[v] = true;
+    });
+    const hayVarios = Object.keys(varios).length > 0;
+    const desde = String(e.parameter.desde || "");
+    const hasta = String(e.parameter.hasta || "");
+    /* Filtros opcionales. El acero y el proveedor NO están en Detalle: se
+       cruzan desde Registros por registroId, así que funcionan sobre todo
+       el histórico sin migrar columnas ni rellenar nada. */
+    const fAce = String(e.parameter.acero     || "").trim();
+    const fPro = String(e.parameter.proveedor || "").trim();
+    if(!proc || (!vari && !hayVarios)) return json_([]);
+
+    const shS = getSheet_(SH_DET, H_DET);
+    const ultS = shS.getLastRow();
+    if(ultS <= 1) return json_([]);
+    const hS = headerDe_(shS);
+    const iFe = hS.indexOf("fecha"), iPr = hS.indexOf("proceso"), iVa = hS.indexOf("variable");
+    const iVal = hS.indexOf("valor"), iRes = hS.indexOf("resultado"), iReg = hS.indexOf("registroId");
+    const iRef = hS.indexOf("referencia"), iMaq = hS.indexOf("maquina");
+    const iLi = hS.indexOf("limiteInferior"), iLs = hS.indexOf("limiteSuperior");
+    if(iFe === -1 || iPr === -1 || iVa === -1) return json_([]);
+
+    const tr = tramoDesde_(shS, iFe, desde, ultS);
+    if(!tr[0]) return json_([]);
+    const filasS = shS.getRange(tr[0], 1, tr[1] - tr[0] + 1, hS.length).getValues();
+    const hastaNum = hasta ? diaNum_(hasta) : 0;
+    const desdeNum = desde ? diaNum_(desde) : 0;
+
+    const puntos = [];
+    for(let i = 0; i < filasS.length; i++){
+      const r = filasS[i];
+      if(String(r[iPr]).trim() !== proc) continue;
+      const nomV = String(r[iVa]).trim();
+      if(hayVarios ? !varios[nomV] : nomV !== vari) continue;
+      const dn = diaNum_(r[iFe]);
+      if(desdeNum && dn < desdeNum) continue;
+      if(hastaNum && dn > hastaNum) continue;
+      puntos.push({
+        registroId: String(r[iReg] || ""),
+        variable:   nomV,
+        fecha:      String(fmt_(r[iFe], "fecha")).slice(0, 10),
+        valor:      r[iVal],
+        resultado:  String(r[iRes] || ""),
+        referencia: iRef === -1 ? "" : String(r[iRef] || ""),
+        maquina:    iMaq === -1 ? "" : String(r[iMaq] || ""),
+        /* El límite con el que se juzgó ESE punto. Es la fuente más fiel para
+           dibujar la banda: si la cota cambió, el histórico conserva la suya. */
+        min:        iLi === -1 ? "" : r[iLi],
+        max:        iLs === -1 ? "" : r[iLs]
+      });
+    }
+    return json_(conAceroYProveedor_(puntos, desde, fAce, fPro));
+  }
+
+  /* Lista para Consultar: la CABECERA de cada registro, sin su detalle.
+     Pedir un mes entero con todo el detalle es lo que agota la ejecución y
+     acaba en «Failed to fetch»: el detalle son diez o veinte filas por
+     registro y la pantalla sólo enseña una tarjeta por registro. El detalle
+     se pide luego, de a uno, al abrir Detalle, PDF o Corregir. */
+  if(e && e.parameter && e.parameter.tipo === "lista"){
+    const sh = getSheet_(SH_REG, H_REG);
+    const ult = sh.getLastRow();
+    if(ult <= 1) return json_([]);
+    const h = headerDe_(sh);
+    const iFe = h.indexOf("fecha");
+    const desdeL = String(e.parameter.desde || "");
+    const tr = tramoDesde_(sh, iFe, desdeL, ult);
+    if(!tr[0]) return json_([]);
+    const filas = sh.getRange(tr[0], 1, tr[1] - tr[0] + 1, h.length).getValues();
+    const out = [];
+    for(let i = 0; i < filas.length; i++){
+      const o = {};
+      h.forEach(function(k, j){ o[k] = fmt_(filas[i][j], k); });
+      if(desdeL && iFe !== -1 && String(o.fecha).slice(0,10) < desdeL) continue;
+      o.resultados = [];           // el detalle se pide aparte
+      o.sinDetalle = true;         // la app sabe que aún no lo tiene
+      out.push(o);
+    }
+    out.reverse();
+    return json_(out);
+  }
+
+  /* Indicadores ya sumados. La pantalla de KPI no necesita las mediciones,
+     necesita los totales: mandarlas todas para que el navegador las cuente es
+     lo que hacía pesado al Tablero. Aquí se leen SÓLO las cuatro columnas que
+     entran en la cuenta y se devuelven unas pocas decenas de filas.
+     Los dos periodos van en la misma petición: cada ejecución de Apps Script
+     paga su propio arranque, y dos arranques para comparar dos meses es
+     justo el gasto que sobra. */
+  if(e && e.parameter && e.parameter.tipo === "kpi"){
+    const d1 = String(e.parameter.desde  || "");   // periodo actual
+    const h1 = String(e.parameter.hasta  || "");
+    const d2 = String(e.parameter.desde2 || "");   // periodo anterior
+    const h2 = String(e.parameter.hasta2 || "");
+    const shK = getSheet_(SH_DET, H_DET);
+    const ultK = shK.getLastRow();
+    const vacio = {medidas:0, fuera:0, criticas:0, procesos:{}};
+    if(ultK <= 1) return json_({actual:vacio, previo:vacio});
+
+    const hK = headerDe_(shK);
+    const iFe = hK.indexOf("fecha"), iPr = hK.indexOf("proceso");
+    const iLi = hK.indexOf("linea"), iRe = hK.indexOf("resultado"), iCr = hK.indexOf("critica");
+    if(iFe === -1 || iRe === -1) return json_({actual:vacio, previo:vacio});
+
+    /* El tramo arranca en el más viejo de los dos periodos. */
+    const corte = (d2 && (!d1 || d2 < d1)) ? d2 : d1;
+    const tr = tramoDesde_(shK, iFe, corte, ultK);
+    if(!tr[0]) return json_({actual:vacio, previo:vacio});
+    const n = tr[1] - tr[0] + 1;
+
+    const colFe = shK.getRange(tr[0], iFe + 1, n, 1).getValues();
+    const colRe = shK.getRange(tr[0], iRe + 1, n, 1).getValues();
+    const colPr = iPr === -1 ? null : shK.getRange(tr[0], iPr + 1, n, 1).getValues();
+    const colLi = iLi === -1 ? null : shK.getRange(tr[0], iLi + 1, n, 1).getValues();
+    const colCr = iCr === -1 ? null : shK.getRange(tr[0], iCr + 1, n, 1).getValues();
+
+    const acc = {actual:{medidas:0, fuera:0, criticas:0, procesos:{}},
+                 previo:{medidas:0, fuera:0, criticas:0, procesos:{}}};
+    for(let i = 0; i < n; i++){
+      const f = String(fmt_(colFe[i][0], "fecha")).slice(0, 10);
+      if(!f) continue;
+      let cual = null;
+      if(d1 && f >= d1 && (!h1 || f <= h1)) cual = "actual";
+      else if(d2 && f >= d2 && (!h2 || f <= h2)) cual = "previo";
+      if(!cual) continue;
+
+      const res = String(colRe[i][0] || "").trim();
+      /* Sólo lo que de verdad se juzgó. «Sin dato», «No aplica» y «Sin
+         especificación» no son conformes ni no conformes: meterlas en el
+         denominador diluiría el indicador y lo haría ver mejor de lo que es. */
+      if(res !== "Conforme" && res !== "Fuera de rango") continue;
+
+      const a = acc[cual];
+      a.medidas++;
+      const fuera = res === "Fuera de rango";
+      if(fuera) a.fuera++;
+      const crit = fuera && colCr &&
+        String(colCr[i][0] || "").toLowerCase().indexOf("s") === 0;
+      if(crit) a.criticas++;
+
+      const nom = (colLi ? String(colLi[i][0] || "") + " · " : "") +
+                  (colPr ? String(colPr[i][0] || "") : "");
+      const p = a.procesos[nom] = a.procesos[nom] || {medidas:0, fuera:0, criticas:0};
+      p.medidas++; if(fuera) p.fuera++; if(crit) p.criticas++;
+    }
+    return json_({actual: acc.actual, previo: acc.previo, backend: BACKEND_VERSION});
+  }
+
+  /* El detalle de UN registro, para abrirlo o imprimirlo. */
+  if(e && e.parameter && e.parameter.tipo === "detalle"){
+    const id = String(e.parameter.id || "").trim();
+    if(!id) return json_([]);
+    const shD = getSheet_(SH_DET, H_DET);
+    const ult = shD.getLastRow();
+    if(ult <= 1) return json_([]);
+    const h = headerDe_(shD);
+    const iReg = h.indexOf("registroId");
+    if(iReg === -1) return json_([]);
+    /* Sólo la columna de registroId, de toda la hoja: una columna es barata
+       y da las filas EXACTAS. Acotar por fecha no serviría, porque el tramo
+       de un registro de hace un mes abarca el mes entero —y entonces esta
+       lectura pesaría más que la consulta que vino a aligerar. */
+    const ids = shD.getRange(2, iReg + 1, ult - 1, 1).getValues();
+    const quiero = [];
+    for(let i = 0; i < ids.length; i++){
+      if(String(ids[i][0]) === id) quiero.push(i + 2);
+    }
+    if(!quiero.length) return json_([]);
+    /* Las filas de un registro se escriben juntas, así que casi siempre son
+       un bloque contiguo: se lee de la primera a la última de una vez. */
+    const prim = quiero[0], ulti = quiero[quiero.length - 1];
+    const filas = shD.getRange(prim, 1, ulti - prim + 1, h.length).getValues();
+    const out = [];
+    for(let i = 0; i < filas.length; i++){
+      if(String(filas[i][iReg]) !== id) continue;
+      const o = {};
+      h.forEach(function(k, j){ o[k] = fmt_(filas[i][j], k); });
+      out.push({nombre:o.variable, tipo:o.tipo, unidad:o.unidad, critica:o.critica,
+                min:o.limiteInferior, max:o.limiteSuperior, valor:o.valor, resultado:o.resultado});
+    }
+    return json_(out);
+  }
+
+  return doGetRegistros_(e);
+}
+
+/* El catálogo y los registros se construyen por separado para poder servirlos
+   juntos en UNA sola petición. Cada ejecución de Apps Script paga su propio
+   arranque y su propia apertura de la hoja —que con el histórico crecido son
+   decenas de segundos—, así que pedir catálogo y registros por separado al
+   abrir la app costaba ese precio dos veces.
+   Devuelve el JSON ya serializado: así el camino cacheado no tiene que
+   parsear y volver a serializar. */
+function construirConfigTexto_(fresco){
+  // el catálogo se consulta al abrir cada equipo y cambia muy poco
+  if(!fresco){
+    const cache = leerDeCache_();
+    if(cache) return cache;
+  }
+  const shF = getSheet_(SH_FOR, H_FOR);
+  const shU = getSheet_(SH_USR, H_USR);
+
+  const dU = shU.getDataRange().getValues();
+  if(dU.length <= 1){
+    shU.appendRow(["jefe","Jefe de Calidad","1234","jefe","Sí",
+      Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd HH:mm:ss")]);
+  }
+  const usuarios = shU.getDataRange().getValues().slice(1).filter(function(r){ return r[0]; })
+    .map(function(r){ return {usuario:String(r[0]), nombre:String(r[1]), pin:String(r[2]).trim(),
+                              rol:String(r[3]||"inspector"), activo:String(r[4]||"Sí")}; });
+
+  const head = headerDe_(shF);
+  const col = function(n){ return head.indexOf(n); };
+  const formatos = shF.getDataRange().getValues().slice(1)
+    .filter(function(r){ return r[col("id")]; })
+    .map(function(r){
+      return {
+        id:          String(r[col("id")]),
+        linea:       String(r[col("linea")]),
+        proceso:     String(r[col("proceso")]),
+        nombre:      String(r[col("nombre")]),
+        codigoDoc:   String(r[col("codigoDoc")]||""),
+        condicional: String(r[col("condicional")]||"").toLowerCase().indexOf("s") === 0,
+        /* sin la columna, o con la celda vacía, el formato se considera activo */
+        activo:      col("activo") === -1 ? "Sí" : (String(r[col("activo")]||"").trim() || "Sí"),
+        encabezado:  jsonSeguro_(r[col("encabezado")], "[]"),
+        maquinas:    jsonSeguro_(r[col("maquinas")], "[]"),
+        variables:   jsonSeguro_(r[col("variables")], "[]")
+      };
+    });
+
+  // Referencias de producto por línea. Si la hoja está vacía, la app usa
+  // el catálogo que trae embebido.
+  var shR = getSheet_(SH_REF, H_REF);
+  var hR = headerDe_(shR);
+  var iL = hR.indexOf("linea"), iC = hR.indexOf("codigo"), iD = hR.indexOf("descripcion");
+  var referencias = {};
+  if(iL !== -1 && iD !== -1){
+    shR.getDataRange().getValues().slice(1).forEach(function(r){
+      var linea = String(r[iL] || "").trim();
+      var desc  = String(r[iD] || "").trim();
+      if(!linea || !desc) return;
+      (referencias[linea] = referencias[linea] || [])
+        .push({n: String(iC === -1 ? "" : (r[iC] || "")).trim(), d: desc});
+    });
+  }
+
+  /* Cotas por referencia, en formato compacto: {clave: [min, max]}.
+     Una fila sin ningún límite no se envía: equivale a no tener cota. */
+  var shE = getSheet_(SH_ESP, H_ESP);
+  var hE = headerDe_(shE);
+  var iK = hE.indexOf("clave"), iMin = hE.indexOf("min"), iMax = hE.indexOf("max");
+  var especificaciones = {};
+  if(iK !== -1 && shE.getLastRow() > 1){
+    shE.getRange(2, 1, shE.getLastRow() - 1, hE.length).getValues().forEach(function(r){
+      var k = String(r[iK] || "").trim();
+      if(!k) return;
+      var mn = r[iMin], mx = r[iMax];
+      var hayMn = mn !== "" && mn !== null && mn !== undefined;
+      var hayMx = mx !== "" && mx !== null && mx !== undefined;
+      if(!hayMn && !hayMx) return;
+      especificaciones[k] = [hayMn ? Number(mn) : null, hayMx ? Number(mx) : null];
+    });
+  }
+
+  const salida = {formatos:formatos, usuarios:usuarios, referencias:referencias,
+                  especificaciones:especificaciones, backend: BACKEND_VERSION};
+  /* El catálogo cuesta decenas de segundos porque abrir la hoja ya es caro,
+     y cambia muy poco: se guarda 6 horas (el máximo que admite CacheService)
+     en vez de 90 segundos. Toda acción que lo modifique llama a
+     limpiarCache_(), y Administrar puede forzar la relectura con &fresco=1,
+     así que nadie se queda con un catálogo viejo sin remedio.
+     Ojo: CacheService descarta en silencio lo que pase de 100 KB. Si el
+     catálogo crece por encima de eso, se deja de cachear a propósito y se
+     avisa en el registro, en vez de creer que está cacheado y no estarlo. */
+  const txt = JSON.stringify(salida);
+  guardarEnCache_(txt);
+  return txt;
+}
+
+/* NO se usa fmt_() aquí dentro. fmt_ llama a Utilities.formatDate, que cruza
+   el puente a Java y cuesta milisegundos: una vez por fila, sobre la columna
+   entera de Registros y la de Detalle, eran miles de llamadas por lectura y
+   la petición se iba por encima del minuto. diaNum_ hace lo mismo en
+   JavaScript puro.
+   Este tramo sólo tiene que ser un SUPERCONJUNTO: el filtro exacto se aplica
+   después, sobre las pocas filas que sobreviven. Por eso se retrocede un día
+   al comparar, y cualquier desajuste de zona horaria queda absorbido. */
+function tramoDesde_(hoja, colFecha, corte, filasTotales){
+  if(!corte || colFecha === -1) return [2, filasTotales];
+  const fechas = hoja.getRange(2, colFecha + 1, filasTotales - 1, 1).getValues();
+  const corteNum = diaNumCorte_(corte);
+  let min = -1, max = -1;
+  for(let i = 0; i < fechas.length; i++){
+    const n = diaNum_(fechas[i][0]);
+    if(n && n >= corteNum){
+      if(min === -1) min = i;
+      max = i;
+    }
+  }
+  if(min === -1) return [0, 0];          // no hay nada en el tramo
+  return [min + 2, max + 2];             // +2: la fila 1 es el encabezado
+}
+
+/* Le pone a cada punto de la serie su acero y su proveedor, y filtra si se
+   pidieron. Van en la hoja Registros, no en Detalle, así que se cruzan por
+   registroId: no hace falta columna nueva ni rellenar el histórico.
+   Se leen SÓLO las tres columnas necesarias del tramo —no las 22— para que
+   el añadido no vuelva a acercar la lectura al tope de los 404. */
+function conAceroYProveedor_(puntos, desde, fAce, fPro){
+  if(!puntos.length) return puntos;
+
+  const sh = getSheet_(SH_REG, H_REG);
+  const ult = sh.getLastRow();
+  if(ult <= 1) return (fAce || fPro) ? [] : puntos;
+
+  const h = headerDe_(sh);
+  const iId = h.indexOf("id"), iFe = h.indexOf("fecha");
+  const iAc = h.indexOf("tipoAcero"), iPr = h.indexOf("proveedor");
+  /* Quién lo registró y en qué turno: la lista de últimas mediciones sin eso
+     dice QUÉ pasó pero no A QUIÉN preguntarle. Son dos columnas más de la
+     misma hoja que ya se está leyendo. */
+  const iIn = h.indexOf("inspector"), iTu = h.indexOf("turno");
+  if(iId === -1) return (fAce || fPro) ? [] : puntos;
+
+  const tr = tramoDesde_(sh, iFe, desde, ult);
+  if(!tr[0]) return (fAce || fPro) ? [] : puntos;
+  const n = tr[1] - tr[0] + 1;
+
+  const ids = sh.getRange(tr[0], iId + 1, n, 1).getValues();
+  const acs = iAc === -1 ? null : sh.getRange(tr[0], iAc + 1, n, 1).getValues();
+  const prs = iPr === -1 ? null : sh.getRange(tr[0], iPr + 1, n, 1).getValues();
+  const ins = iIn === -1 ? null : sh.getRange(tr[0], iIn + 1, n, 1).getValues();
+  const tus = iTu === -1 ? null : sh.getRange(tr[0], iTu + 1, n, 1).getValues();
+
+  const mapa = {};
+  for(let i = 0; i < n; i++){
+    const id = String(ids[i][0] || "");
+    if(!id) continue;
+    mapa[id] = {
+      acero:     acs ? String(acs[i][0] || "").trim() : "",
+      proveedor: prs ? String(prs[i][0] || "").trim() : "",
+      inspector: ins ? String(ins[i][0] || "").trim() : "",
+      turno:     tus ? String(tus[i][0] || "").trim() : ""
+    };
+  }
+
+  const salida = [];
+  for(let i = 0; i < puntos.length; i++){
+    const p = puntos[i];
+    const m = mapa[p.registroId] || {acero: "", proveedor: "", inspector: "", turno: ""};
+    p.acero     = m.acero;
+    p.proveedor = m.proveedor;
+    p.inspector = m.inspector;
+    p.turno     = m.turno;
+    if(fAce && p.acero     !== fAce) continue;
+    if(fPro && p.proveedor !== fPro) continue;
+    salida.push(p);
+  }
+  return salida;
+}
+
+function construirRegistros_(e){
   // registros
   const sh  = getSheet_(SH_REG, H_REG);
   const shD = getSheet_(SH_DET, H_DET);
-  const data = sh.getDataRange().getValues();
-  if(data.length <= 1) return json_([]);
 
-  const headers = data[0];
+  const ultima = sh.getLastRow();
+  if(ultima <= 1) return [];
 
-  /* Lectura incremental: con ?desde=AAAA-MM-DD sólo se devuelven los registros
-     de esa fecha en adelante. La app la usa para refrescar cada pocos segundos
-     sin arrastrar todo el histórico, que es lo que hacía lenta la sincronía. */
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
   const desde = (e && e.parameter && e.parameter.desde) ? String(e.parameter.desde) : "";
   const iFecha = headers.indexOf("fecha");
   const iId    = headers.indexOf("id");
 
-  const filas = [];
-  const quiero = {};
-  for(let i = 1; i < data.length; i++){
-    if(desde && iFecha !== -1){
-      const f = fmt_(data[i][iFecha], "fecha");
-      if(String(f).slice(0,10) < desde) continue;
-    }
-    filas.push(data[i]);
-    if(iId !== -1) quiero[String(data[i][iId])] = true;
-  }
-  if(!filas.length) return json_([]);
+  /* CLAVE DEL RENDIMIENTO
+     Antes se hacía getDataRange().getValues() sobre las dos hojas: se cargaba
+     TODO el histórico en memoria en cada lectura, aunque luego se filtrara.
+     Con la hoja creciendo, cada petición tardaba más, y al coincidir varias
+     tabletas Google cortaba la ejecución y devolvía error.
+     Ahora se lee primero SOLO la columna de fecha (una columna es barata), se
+     localiza dónde empieza el tramo pedido y se traen únicamente esas filas. */
+  /* Devuelve [primeraFila, ultimaFila] que puede contener datos del tramo.
+     Se mira sólo la columna de fecha, y sin suponer que está ordenada: una
+     tableta que sincroniza tarde deja un registro viejo al final, y con una
+     búsqueda binaria ese registro se perdería sin que nadie se entere. */
 
-  // el detalle sólo de los registros que se van a devolver
-  const det = shD.getDataRange().getValues();
-  const detHead = det.length ? det[0] : H_DET;
-  const iRegId = detHead.indexOf("registroId");
-  const porReg = {};
-  for(let i = 1; i < det.length; i++){
-    if(desde && iRegId !== -1 && !quiero[String(det[i][iRegId])]) continue;
-    const o = {};
-    detHead.forEach(function(h,k){ o[h] = fmt_(det[i][k], h); });
-    (porReg[o.registroId] = porReg[o.registroId] || []).push({
-      nombre:o.variable, tipo:o.tipo, unidad:o.unidad, critica:o.critica,
-      min:o.limiteInferior, max:o.limiteSuperior, valor:o.valor, resultado:o.resultado
+
+  const tramo = tramoDesde_(sh, iFecha, desde, ultima);
+  if(!tramo[0]) return [];
+
+  let filas = sh.getRange(tramo[0], 1, tramo[1] - tramo[0] + 1, headers.length).getValues();
+  // el tramo puede arrastrar filas intermedias más viejas: se descartan aquí
+  if(desde && iFecha !== -1){
+    filas = filas.filter(function(r){
+      return String(fmt_(r[iFecha], "fecha")).slice(0, 10) >= desde;
     });
+  }
+  if(!filas.length) return [];
+
+  const quiero = {};
+  if(iId !== -1) filas.forEach(function(r){ quiero[String(r[iId])] = true; });
+
+  // el detalle, igual: sólo el tramo que corresponde
+  const detUlt = shD.getLastRow();
+  const porReg = {};
+  if(detUlt > 1){
+    const detHead = shD.getRange(1, 1, 1, shD.getLastColumn()).getValues()[0];
+    const iDetFecha = detHead.indexOf("fecha");
+    const iRegId    = detHead.indexOf("registroId");
+    const detTramo = tramoDesde_(shD, iDetFecha, desde, detUlt);
+    if(detTramo[0]){
+      const det = shD.getRange(detTramo[0], 1, detTramo[1] - detTramo[0] + 1, detHead.length).getValues();
+      for(let i = 0; i < det.length; i++){
+        if(iRegId !== -1 && desde && !quiero[String(det[i][iRegId])]) continue;
+        const o = {};
+        detHead.forEach(function(h,k){ o[h] = fmt_(det[i][k], h); });
+        (porReg[o.registroId] = porReg[o.registroId] || []).push({
+          nombre:o.variable, tipo:o.tipo, unidad:o.unidad, critica:o.critica,
+          min:o.limiteInferior, max:o.limiteSuperior, valor:o.valor, resultado:o.resultado
+        });
+      }
+    }
   }
 
   const rows = filas.map(function(r){
@@ -204,7 +769,20 @@ function doGet(e){
     return o;
   });
   rows.reverse();
-  return json_(rows);
+  return rows;
+}
+
+/* Con ?conVersion=1 la respuesta envuelve los registros y añade la versión del
+   backend. Hace falta porque la apertura normal ya no pide el catálogo —que es
+   donde viajaba la versión— y sin esto el panel se queda sin saber qué código
+   corre la hoja. El parámetro es opcional a propósito: sin él se devuelve la
+   lista pelada de siempre, para que una tableta con la app anterior siga
+   funcionando igual. */
+function doGetRegistros_(e){
+  const regs = construirRegistros_(e);
+  if(e && e.parameter && e.parameter.conVersion === "1")
+    return json_({backend: BACKEND_VERSION, registros: regs});
+  return json_(regs);
 }
 
 function doPost(e){
@@ -214,22 +792,107 @@ function doPost(e){
     if(p.action === "create"){      guardar_(p.registro);                    return json_({ok:true}); }
     if(p.action === "createBatch"){ (p.registros||[]).forEach(guardar_);      return json_({ok:true}); }
 
-    if(p.action === "guardarFormato"){ upsert_(SH_FOR, H_FOR, p.formato, "id");  return json_({ok:true}); }
-    if(p.action === "borrarFormato"){  borrar_(SH_FOR, H_FOR, p.id);             return json_({ok:true}); }
+    if(p.action === "guardarFormato"){ upsert_(SH_FOR, H_FOR, p.formato, "id");  limpiarCache_(); return json_({ok:true}); }
+    if(p.action === "borrarFormato"){  borrar_(SH_FOR, H_FOR, p.id);             limpiarCache_(); return json_({ok:true}); }
 
-    if(p.action === "guardarUsuario"){ upsert_(SH_USR, H_USR, p.usuario, "usuario"); return json_({ok:true}); }
-    if(p.action === "borrarUsuario"){  borrar_(SH_USR, H_USR, p.usuarioId);          return json_({ok:true}); }
+    if(p.action === "guardarUsuario"){ upsert_(SH_USR, H_USR, p.usuario, "usuario"); limpiarCache_(); return json_({ok:true}); }
+    if(p.action === "borrarUsuario"){  borrar_(SH_USR, H_USR, p.usuarioId);          limpiarCache_(); return json_({ok:true}); }
 
-    if(p.action === "borrarRegistro"){ return json_({ok:true, borrados: borrarRegistro_(p.id)}); }
+    if(p.action === "borrarRegistro"){
+      return json_({ok:true, borrados: borrarRegistro_(p.id, p.quien, p.motivo, p.resumen)});
+    }
+
+    /* Corrección de un registro ya guardado. No borra ni duplica nada: reescribe
+       el valor y el resultado de las variables que cambiaron y deja la huella de
+       quién lo corrigió, cuándo y por qué en la columna "correcciones". */
+    if(p.action === "corregirRegistro"){ return json_(corregir_(p.registro)); }
+
+    /* id = usuario|fecha|turno, así que reabrir la app en el mismo turno no
+       duplica la fila ni pisa la hora de inicio real. */
+    if(p.action === "abrirTurno"){
+      upsertSiFalta_(SH_TUR, H_TUR, p.turno, "id");
+      return json_({ok:true});
+    }
+
+    /* Carga por bloques: llegan sólo las cotas de un proceso o de una línea,
+       nunca el conjunto entero. Lo que no venga en el lote se queda como
+       estaba, que es justo lo que permite llenar esto poco a poco sin que
+       una carga parcial altere lo ya cargado. */
+    if(p.action === "guardarEspecs"){
+      return json_({ok:true, filas: guardarEspecs_(p.especs || [])});
+    }
+
+    if(p.action === "guardarCalendario"){
+      return json_({ok:true, filas: guardarCalendario_(p.calendario || [])});
+    }
 
     if(p.action === "guardarReferencias"){
-      return json_({ok:true, filas: guardarReferencias_(p.referencias || [])});
+      const filas = guardarReferencias_(p.referencias || []);
+      limpiarCache_();            // las referencias viajan dentro del catálogo
+      return json_({ok:true, filas: filas});
     }
 
     return json_({ok:false, error:"acción no reconocida"});
   }catch(err){
     return json_({ok:false, error:err.message});
   }
+}
+
+/** Reescribe un registro existente y deja constancia de la corrección. */
+function corregir_(r){
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try{
+    const sh = getSheet_(SH_REG, H_REG);
+    const head = headerDe_(sh);
+    const iId = head.indexOf("id");
+    const ultima = sh.getLastRow();
+    if(ultima <= 1 || iId === -1) return {ok:false, error:"no hay registros en la hoja"};
+
+    const ids = sh.getRange(2, iId + 1, ultima - 1, 1).getValues();
+    let fila = -1;
+    for(let i = 0; i < ids.length; i++){
+      if(String(ids[i][0]) === String(r.id)){ fila = i + 2; break; }
+    }
+    if(fila === -1) return {ok:false, error:"no se encontró el registro " + r.id};
+
+    const res = r.resultados || [];
+    const fuera = res.filter(function(v){ return v.resultado === "Fuera de rango"; }).length;
+    const crit  = res.filter(function(v){
+      return v.resultado === "Fuera de rango" && String(v.critica||"").toLowerCase().indexOf("s") === 0;
+    }).length;
+
+    function poner(col, valor){
+      const i = head.indexOf(col);
+      if(i !== -1) sh.getRange(fila, i + 1).setValue(valor);
+    }
+    poner("fueraDeRango", fuera);
+    poner("criticasFuera", crit);
+    poner("observaciones", r.observaciones || "");
+    poner("correcciones", JSON.stringify(r.correcciones || []));
+
+    // el detalle: se actualiza la fila de cada variable, no se borra ninguna
+    const shD = getSheet_(SH_DET, H_DET);
+    const dUlt = shD.getLastRow();
+    let tocadas = 0;
+    if(dUlt > 1){
+      const dHead = headerDe_(shD);
+      const iReg = dHead.indexOf("registroId"), iVar = dHead.indexOf("variable");
+      const iVal = dHead.indexOf("valor"), iRes = dHead.indexOf("resultado");
+      if(iReg !== -1 && iVar !== -1){
+        const datos = shD.getRange(2, 1, dUlt - 1, dHead.length).getValues();
+        for(let i = 0; i < datos.length; i++){
+          if(String(datos[i][iReg]) !== String(r.id)) continue;
+          const v = res.filter(function(x){ return String(x.nombre) === String(datos[i][iVar]); })[0];
+          if(!v) continue;
+          if(iVal !== -1) shD.getRange(i + 2, iVal + 1).setValue(v.valor === "" ? "" : String(v.valor));
+          if(iRes !== -1) shD.getRange(i + 2, iRes + 1).setValue(v.resultado || "");
+          tocadas++;
+        }
+      }
+    }
+    return {ok:true, fila: fila, variables: tocadas};
+  } finally { lock.releaseLock(); }
 }
 
 function guardar_(r){
@@ -267,6 +930,111 @@ function guardar_(r){
 }
 
 /** Reemplaza el contenido de la hoja "Referencias" por el catálogo que manda la app. */
+/* Alta y modificación de cotas por referencia, por lotes.
+   - Se lee la hoja entera una vez, se aplica todo en memoria y se escribe de
+     una pasada: con 560 cotas, hacerlo fila por fila tardaría minutos.
+   - Una cota sin mínimo ni máximo BORRA la que hubiera: así se deshace una
+     carga equivocada mandando el mismo bloque con las casillas vacías.
+   - El resto de la hoja no se toca. */
+/* Guarda o quita filas del calendario. La llave es tipo|dia|turno, así que
+   reenviar la misma celda la reemplaza en vez de duplicarla, y una celda con
+   «borrar» devuelve ese día a lo que diga la plantilla. */
+function guardarCalendario_(lista){
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try{
+    const sh = getSheet_(SH_CAL, H_CAL);
+    const head = headerDe_(sh);
+    const iK = head.indexOf("clave");
+    const ult = sh.getLastRow();
+    const filas = ult > 1 ? sh.getRange(2, 1, ult - 1, head.length).getValues() : [];
+    const indice = {};
+    filas.forEach(function(r, i){ indice[String(r[iK] || "").trim()] = i; });
+
+    const ahora = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd HH:mm:ss");
+    const nuevas = [], aBorrar = [];
+    let tocadas = 0;
+
+    (lista || []).forEach(function(c){
+      if(!c) return;
+      const tipo  = String(c.tipo  || "").trim();
+      const dia   = String(c.dia   || "").trim();
+      const turno = String(c.turno || "").trim();
+      if(!tipo || !dia || !turno) return;
+      const clave = tipo + "|" + dia + "|" + turno;
+      const pos = indice[clave];
+      if(c.borrar){
+        if(pos !== undefined){ aBorrar.push(pos + 2); tocadas++; }
+        return;
+      }
+      const fila = {clave: clave, tipo: tipo, dia: dia, turno: turno,
+                    usuario: String(c.usuario || ""), nombre: String(c.nombre || ""),
+                    nota: String(c.nota || ""), actualizado: ahora};
+      if(pos === undefined){ nuevas.push(filaSegunHeader_(sh, fila)); }
+      else { sh.getRange(pos + 2, 1, 1, head.length)
+               .setValues([filaSegunHeader_(sh, fila)]); }
+      tocadas++;
+    });
+
+    if(nuevas.length) anexarComoTexto_(sh, nuevas);
+    /* De abajo hacia arriba: borrar la fila 5 primero movería la 6 a su sitio. */
+    aBorrar.sort(function(a, b){ return b - a; }).forEach(function(r){ sh.deleteRow(r); });
+    return tocadas;
+  } finally { lock.releaseLock(); }
+}
+
+function guardarEspecs_(lista){
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try{
+    const sh = getSheet_(SH_ESP, H_ESP);
+    const head = headerDe_(sh);
+    const iK = head.indexOf("clave");
+    const ult = sh.getLastRow();
+    const filas = ult > 1 ? sh.getRange(2, 1, ult - 1, head.length).getValues() : [];
+
+    const indice = {};
+    filas.forEach(function(r, i){ indice[String(r[iK] || "").trim()] = i; });
+
+    const ahora = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd HH:mm:ss");
+    const hay = function(x){ return x !== "" && x !== null && x !== undefined; };
+    const aBorrar = {};
+    let tocadas = 0;
+
+    (lista || []).forEach(function(e){
+      if(!e) return;
+      const fId = String(e.formatoId || "").trim();
+      const vr  = String(e.variable  || "").trim();
+      const cp  = String(e.campo     || "referencia").trim();
+      const vl  = String(e.valor     || "").trim();
+      if(!fId || !vr || !vl) return;
+      /* La clave lleva el CAMPO, no sólo el valor: una cota puede colgar de la
+         referencia (dimensionales) o del acero (dureza), y mezclarlas daría
+         colisiones silenciosas. */
+      const clave = fId + "|" + vr + "|" + cp + "=" + vl;
+
+      if(!hay(e.min) && !hay(e.max)){
+        if(indice[clave] !== undefined){ aBorrar[indice[clave]] = true; tocadas++; }
+        return;
+      }
+      const fila = filaSegunHeader_(sh, {
+        clave: clave, formatoId: fId, variable: vr, campo: cp, valor: vl,
+        min: hay(e.min) ? e.min : "", max: hay(e.max) ? e.max : "",
+        actualizado: ahora
+      });
+      if(indice[clave] !== undefined) filas[indice[clave]] = fila;
+      else { indice[clave] = filas.length; filas.push(fila); }
+      tocadas++;
+    });
+
+    const quedan = filas.filter(function(_, i){ return !aBorrar[i]; });
+    if(ult > 1) sh.getRange(2, 1, ult - 1, head.length).clearContent();
+    if(quedan.length) sh.getRange(2, 1, quedan.length, head.length).setValues(quedan);
+    limpiarCache_();
+    return tocadas;
+  } finally { lock.releaseLock(); }
+}
+
 function guardarReferencias_(lista){
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -285,13 +1053,28 @@ function guardarReferencias_(lista){
   } finally { lock.releaseLock(); }
 }
 
-function borrarRegistro_(id){
+function borrarRegistro_(id, quien, motivo, resumen){
   const lock = LockService.getScriptLock();
   lock.waitLock(15000);
   try{
     let n = 0;
     const sh = getSheet_(SH_REG, H_REG);
     const d = sh.getDataRange().getValues();
+
+    // primero la constancia, después el borrado: si algo falla, no se pierde el rastro
+    const r = resumen || {};
+    const shE = getSheet_(SH_ELI, H_ELI);
+    anexarComoTexto_(shE, [filaSegunHeader_(shE, {
+      eliminadoEl: Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd HH:mm:ss"),
+      eliminadoPor: quien || "",
+      motivo: motivo || "",
+      id: id, fecha: r.fecha || "", hora: r.hora || "", turno: r.turno || "",
+      linea: r.linea || "", proceso: r.proceso || "",
+      ordenFabricacion: r.ordenFabricacion || "", referencia: r.referencia || "",
+      maquina: r.maquina || "", inspector: r.inspector || "",
+      totalVariables: r.totalVariables || "", fueraDeRango: r.fueraDeRango || ""
+    })]);
+
     for(let i = d.length - 1; i >= 1; i--){
       if(String(d[i][0]) === String(id)){ sh.deleteRow(i+1); n++; }
     }
@@ -301,6 +1084,27 @@ function borrarRegistro_(id){
       if(String(dd[i][0]) === String(id)) shD.deleteRow(i+1);
     }
     return n;
+  } finally { lock.releaseLock(); }
+}
+
+/* Como upsert_, pero si la fila ya existe no la toca: la primera apertura del
+   turno es la que vale. */
+function upsertSiFalta_(nombre, headers, obj, llave){
+  const sh = getSheet_(nombre, headers);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try{
+    const head = headerDe_(sh);
+    const i = head.indexOf(llave);
+    const ultima = sh.getLastRow();
+    if(i !== -1 && ultima > 1){
+      const ids = sh.getRange(2, i + 1, ultima - 1, 1).getValues();
+      for(let k = 0; k < ids.length; k++){
+        if(String(ids[k][0]) === String(obj[llave])) return false;   // ya estaba
+      }
+    }
+    anexarComoTexto_(sh, [filaSegunHeader_(sh, obj)]);
+    return true;
   } finally { lock.releaseLock(); }
 }
 
