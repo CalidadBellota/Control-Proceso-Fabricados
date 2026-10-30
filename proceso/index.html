@@ -472,6 +472,12 @@
   .cal select.heredado{color:var(--text-dim);background:#fafbfc;}
   .cal tr.hoy td{background:var(--bad-bg);}
   .cal-mes{margin-top:4px;}
+  .cal-nav{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+  .cal-nav b{font-size:.92rem;min-width:260px;}
+  .cal-nav button{padding:7px 12px;}
+  .cal th.hoy{background:var(--bad-bg);color:var(--red-dark);}
+  .cal th span{display:block;font-weight:600;text-transform:none;letter-spacing:0;
+    color:var(--text-dim);font-size:.68rem;margin-top:2px;}
   .cal-pie{display:flex;align-items:center;gap:14px;margin-top:12px;
     font-size:.73rem;color:var(--text-dim);}
   .cal-pie button{margin-left:auto;}
@@ -1037,21 +1043,20 @@
   </div>
 
   <div class="panel" id="admCalendario" style="display:none;">
-    <div class="section-title"><h2>SEMANA TIPO</h2>
-      <span style="font-size:.74rem;color:var(--text-dim);">quién cubre cada turno cuando no hay novedad</span>
-      <button type="button" class="btn-actualizar" id="btnTraerCal"
-        title="Volver a leer el calendario de la hoja">&#8635; Actualizar</button></div>
-    <div id="calPlantilla"></div>
-    <div class="section-title" style="margin-top:22px;"><h2>AJUSTES DEL MES</h2>
-      <span style="font-size:.74rem;color:var(--text-dim);">cambios, reemplazos e incapacidades</span></div>
-    <div class="fila-kpi" style="margin-bottom:12px;">
-      <div class="campo corto"><label for="calMes">Mes</label>
-        <input type="month" id="calMes"></div>
-      <div class="campo" style="align-self:flex-end;">
-        <span style="font-size:.72rem;color:var(--text-dim);">
-          Una celda en blanco hereda la semana tipo. «Nadie» deja el turno sin responsable.</span></div>
+    <div class="section-title"><h2>CALENDARIO DE TURNOS</h2>
+      <span style="font-size:.74rem;color:var(--text-dim);">quién cubre cada turno de la semana</span>
     </div>
-    <div id="calMesCaja"></div>
+    <div class="cal-nav">
+      <button type="button" class="btn-sec" id="calAnt" title="Semana anterior">&#8249;</button>
+      <b id="calTitulo"></b>
+      <button type="button" class="btn-sec" id="calSig" title="Semana siguiente">&#8250;</button>
+      <button type="button" class="btn-sec" id="calHoy">Esta semana</button>
+      <div class="campo corto" style="margin:0 0 0 auto;">
+        <label for="calIr">Ir a la semana de</label>
+        <input type="date" id="calIr">
+      </div>
+    </div>
+    <div id="calSemana"></div>
   </div>
 
   <div class="panel" id="admFaltantes" style="display:none;">
@@ -5149,6 +5154,8 @@ async function traerKpi(boton){
   /* Y las aperturas de turno, que son las que fijan la exigencia de cada
      inspector. Es una hoja pequeña: una fila por turno y persona. */
   await traerTurnos(desde, "turnos abiertos");
+  /* Y el calendario del periodo, que es el que fija la exigencia. */
+  await traerCalendario(desde, per.hasta, "el calendario de turnos");
   renderKpi();
   return ok;
 }
@@ -5740,32 +5747,58 @@ function diaSiguiente(fechaISO){
   d.setDate(d.getDate() + 1);
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 }
-
-/** Día de la semana como 1=lunes … 7=domingo. */
-function diaSemana(fechaISO){ return ((diaDe(fechaISO) + 6) % 7) + 1; }
-
-/** Quién tenía ese turno: la fila del ajuste, la de la plantilla, o nada. */
-function asignadoEn(fechaISO, turno){
-  const m = mapaCal();
-  const d = m["dia|" + String(fechaISO).slice(0,10) + "|" + String(turno)];
-  if(d) return (d.usuario || d.nombre) ? d : null;   // ajuste explícito, «nadie» incluido
-  const p = m["plantilla|" + diaSemana(fechaISO) + "|" + String(turno)];
-  return (p && (p.usuario || p.nombre)) ? p : null;
+function masDias(fechaISO, n){
+  const d = new Date(String(fechaISO).slice(0,10) + "T12:00:00");
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+/** El lunes de la semana a la que pertenece esa fecha. */
+function lunesDe(fechaISO){
+  const d = new Date(String(fechaISO).slice(0,10) + "T12:00:00");
+  return masDias(fechaISO, -(((d.getDay() + 6) % 7)));
+}
+const MESES_CORTO = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+function fechaCortita(iso){
+  const [y,m,d] = String(iso).slice(0,10).split("-").map(Number);
+  return `${d} ${MESES_CORTO[m-1]}`;
 }
 
-async function traerCalendario(etiqueta){
+/** Quién tenía ese turno. Una fila por fecha y turno, sin más capas. */
+function asignadoEn(fechaISO, turno){
+  const c = mapaCal()["dia|" + String(fechaISO).slice(0,10) + "|" + String(turno)];
+  return (c && (c.usuario || c.nombre)) ? c : null;
+}
+
+/* Se trae sólo el tramo que se va a mirar y se MEZCLA con lo que ya hubiera:
+   pedir el calendario entero para ver una semana es la clase de lectura que
+   termina agotando la ejecución de la hoja. */
+async function traerCalendario(desde, hasta, etiqueta){
   if(!S.syncUrl) return false;
   try{
-    const d = await pedirJSON(S.syncUrl + "?tipo=calendario", etiqueta || "el calendario");
+    const d = await pedirJSON(S.syncUrl + "?tipo=calendario"
+      + (desde ? "&desde=" + desde : "") + (hasta ? "&hasta=" + hasta : ""),
+      etiqueta || "el calendario");
     if(!Array.isArray(d)) throw new Error("respuesta inesperada");
-    CALENDARIO = d;
-    /* Lo que ya está en la hoja deja de estar pendiente en este equipo. */
+    const m = {};
+    (CALENDARIO||[]).forEach(c=>{ if(c && c.clave) m[c.clave] = c; });
+    /* Dentro del tramo manda lo que acaba de llegar, incluidas las bajas: si
+       alguien borró una asignación, aquí ya no viene y hay que soltarla. */
+    Object.keys(m).forEach(k=>{
+      const dia = String(m[k].dia || "").slice(0,10);
+      if(dia && (!desde || dia >= desde) && (!hasta || dia <= hasta)) delete m[k];
+    });
+    d.forEach(c=>{ if(c && c.clave) m[c.clave] = c; });
+    CALENDARIO = Object.keys(m).map(k=>m[k]);
+
     const enHoja = {};
     d.forEach(c=>{ if(c && c.clave) enHoja[c.clave] = c; });
     guardarCalLocal(calLocal().filter(c=>{
       if(!c || !c.pendiente) return false;
+      const dia = String(c.dia || "").slice(0,10);
+      const enTramo = dia && (!desde || dia >= desde) && (!hasta || dia <= hasta);
+      if(!enTramo) return true;                       // fuera del tramo, sigue pendiente
       const h = enHoja[c.clave];
-      if(c.borrar) return !!h;                       // sigue pendiente si aún está
+      if(c.borrar) return !!h;
       return !h || String(h.usuario||"") !== String(c.usuario||"");
     }));
     return true;
@@ -5775,8 +5808,6 @@ async function traerCalendario(etiqueta){
   }
 }
 
-/* Se apunta el cambio en el equipo y se intenta subirlo. Si no hay red queda
-   pendiente y se reintenta al guardar de nuevo. */
 function apuntarCal(fila){
   const l = calLocal().filter(c=> c.clave !== fila.clave);
   l.push(Object.assign({pendiente:true}, fila));
@@ -5789,7 +5820,10 @@ async function subirCalendario(boton){
   if(boton){ boton.disabled = true; boton.textContent = "Guardando…"; }
   try{
     const ok = await enviarConfig("guardarCalendario", {calendario: pend});
-    if(ok) await traerCalendario("el calendario");
+    if(ok){
+      const l = SEMANA_CAL, f = masDias(l, 6);
+      await traerCalendario(l, f, "el calendario");
+    }
     return ok;
   } finally {
     if(boton){ boton.disabled = false; if(txt) boton.textContent = txt; }
@@ -5803,97 +5837,139 @@ function inspectoresActivos(){
     String(u.activo||"Sí").toLowerCase().indexOf("n") !== 0);
 }
 
-function opcionesInspector(sel, conHerencia, etqHerencia){
-  const l = inspectoresActivos();
-  return (conHerencia
-      ? `<option value="">${esc(etqHerencia || "según la semana tipo")}</option>`
-      : `<option value="">— sin definir —</option>`) +
-    l.map(u=>`<option value="${esc(u.usuario)}"${
-      String(sel) === String(u.usuario) ? " selected" : ""}>${esc(u.nombre || u.usuario)}</option>`).join("") +
-    `<option value="__nadie"${sel === "__nadie" ? " selected" : ""}>Nadie</option>`;
+/* La semana que se está viendo, siempre un lunes. */
+let SEMANA_CAL = lunesDe(hoyISO());
+
+function ponerCal(fecha, turno, usuario){
+  const clave = `dia|${fecha}|${turno}`;
+  if(usuario === ""){                       // volver a «sin definir» = quitar la fila
+    apuntarCal({clave, tipo:"dia", dia:fecha, turno:String(turno),
+                usuario:"", nombre:"", borrar:true});
+    return;
+  }
+  const u = inspectoresActivos().find(x=>String(x.usuario) === usuario);
+  apuntarCal({clave, tipo:"dia", dia:fecha, turno:String(turno),
+    usuario: usuario === "__nadie" ? "" : usuario,
+    nombre:  usuario === "__nadie" ? "" : (u ? (u.nombre||"") : ""),
+    nota:    usuario === "__nadie" ? "sin responsable" : ""});
 }
 
 function renderCalendario(){
-  const cajaP = document.getElementById("calPlantilla");
-  const cajaM = document.getElementById("calMesCaja");
-  if(!cajaP || !cajaM) return;
+  const caja = document.getElementById("calSemana");
+  if(!caja) return;
+  const lun = SEMANA_CAL, dom = masDias(lun, 6);
   const m = mapaCal();
   const pend = calPendientes().length;
+  const insp = inspectoresActivos();
 
-  if(!inspectoresActivos().length){
-    cajaP.innerHTML = `<div class="empty-mini">No hay usuarios con perfil <b>inspector</b>.
+  const cab = document.getElementById("calTitulo");
+  if(cab) cab.textContent = `Semana del ${fechaCortita(lun)} al ${fechaCortita(dom)} de ${lun.slice(0,4)}`;
+  const inIr = document.getElementById("calIr");
+  if(inIr && inIr.value !== lun) inIr.value = lun;
+
+  if(!insp.length){
+    caja.innerHTML = `<div class="empty-mini">No hay usuarios con perfil <b>inspector</b>.
       Créalos en la pestaña Usuarios y vuelve aquí.</div>`;
-    cajaM.innerHTML = "";
     return;
   }
 
-  /* --- semana tipo --- */
-  cajaP.innerHTML = `
+  const opciones = sel =>
+    `<option value="">— sin definir —</option>` +
+    insp.map(u=>`<option value="${esc(u.usuario)}"${
+      String(sel) === String(u.usuario) ? " selected" : ""}>${esc(u.nombre || u.usuario)}</option>`).join("") +
+    `<option value="__nadie"${sel === "__nadie" ? " selected" : ""}>Nadie</option>`;
+
+  const dias = [];
+  for(let i = 0; i < 7; i++) dias.push(masDias(lun, i));
+
+  caja.innerHTML = `
     <table class="cal"><thead><tr><th>Turno</th>${
-      DIAS_SEM.map(d=>`<th>${esc(d)}</th>`).join("")}</tr></thead>
+      dias.map((f,i)=>`<th${f===hoyISO()?' class="hoy"':''}>${esc(DIAS_SEM[i].slice(0,3))}
+        <span>${esc(fechaCortita(f))}</span></th>`).join("")}</tr></thead>
       <tbody>${TURNOS.map(t=>`<tr><td class="cab">Turno ${t}</td>${
-        DIAS_SEM.map((d,i)=>{
-          const f = m["plantilla|" + (i+1) + "|" + t];
-          const v = f ? (f.usuario || (f.nombre ? "" : "__nadie")) : "";
-          return `<td><select class="cal-sel" data-tipo="plantilla" data-dia="${i+1}" data-turno="${t}"
-            >${opcionesInspector(f ? (f.usuario || "__nadie") : "", false)}</select></td>`;
+        dias.map(f=>{
+          if(!turnoExiste(f, t)) return `<td class="no-va">no se trabaja</td>`;
+          const c = m["dia|" + f + "|" + t];
+          return `<td><select class="cal-sel" data-dia="${f}" data-turno="${t}"
+            >${opciones(c ? (c.usuario || "__nadie") : "")}</select></td>`;
         }).join("")}</tr>`).join("")}</tbody></table>
     <div class="cal-pie">
-      <span>Los turnos sin definir no le exigen nada a nadie.</span>
+      <span>Un turno sin definir no le exige nada a nadie.</span>
+      <button type="button" class="btn-sec" id="btnCalCopiar"
+        title="Trae la asignación de la semana anterior tal cual">Copiar semana anterior</button>
+      <button type="button" class="btn-sec" id="btnCalRotar"
+        title="Cada uno pasa al turno siguiente: T1 va a T2, T2 a T3 y T3 a T1">Rotar turnos</button>
       <button type="button" class="btn-sec" id="btnGuardarCal"${pend ? "" : " disabled"}
         >Guardar en la hoja${pend ? ` (${pend})` : ""}</button>
     </div>`;
 
-  /* --- ajustes del mes --- */
-  const inMes = document.getElementById("calMes");
-  if(inMes && !inMes.value) inMes.value = mesISO();
-  const mes = (inMes && inMes.value) || mesISO();
-  const [y, mm] = mes.split("-").map(Number);
-  const dias = new Date(y, mm, 0).getDate();
-  let filas = "";
-  for(let d = 1; d <= dias; d++){
-    const fecha = `${mes}-${pad(d)}`;
-    const hoy = fecha === hoyISO();
-    filas += `<tr${hoy ? ' class="hoy"' : ""}><td class="cab">${pad(d)}
-      <span>${esc(DIAS_SEM[diaSemana(fecha)-1].slice(0,3))}</span></td>${
-      TURNOS.map(t=>{
-        if(!turnoExiste(fecha, t))
-          return `<td class="no-va">no se trabaja</td>`;
-        const aj = m["dia|" + fecha + "|" + t];
-        const base = asignadoEn(fecha, t);
-        const heredado = !aj;
-        const etq = base
-          ? (base.nombre || base.usuario)
-          : "nadie";
-        return `<td><select class="cal-sel${heredado ? " heredado" : ""}"
-          data-tipo="dia" data-dia="${fecha}" data-turno="${t}"
-          >${opcionesInspector(aj ? (aj.usuario || "__nadie") : "", true,
-            `Semana tipo: ${etq}`)}</select></td>`;
-      }).join("")}</tr>`;
-  }
-  cajaM.innerHTML = `<table class="cal cal-mes"><thead><tr><th>Día</th>${
-    TURNOS.map(t=>`<th>Turno ${t}</th>`).join("")}</tr></thead><tbody>${filas}</tbody></table>`;
-
-  /* --- enganches --- */
-  document.querySelectorAll("#admCalendario .cal-sel").forEach(sel=>{
+  caja.querySelectorAll(".cal-sel").forEach(sel=>{
     sel.addEventListener("change", ()=>{
-      const tipo = sel.dataset.tipo, dia = sel.dataset.dia, turno = sel.dataset.turno;
-      const clave = `${tipo}|${dia}|${turno}`;
-      const v = sel.value;
-      if(tipo === "dia" && v === ""){
-        apuntarCal({clave, tipo, dia, turno, usuario:"", nombre:"", borrar:true});
-      } else {
-        const u = inspectoresActivos().find(x=>String(x.usuario) === v);
-        apuntarCal({clave, tipo, dia, turno,
-          usuario: v === "__nadie" ? "" : v,
-          nombre: v === "__nadie" ? "" : (u ? (u.nombre||"") : ""),
-          nota: v === "__nadie" ? "sin responsable" : ""});
-      }
+      ponerCal(sel.dataset.dia, sel.dataset.turno, sel.value);
       renderCalendario();
     });
   });
+
+  /* Copiar y rotar trabajan sobre la semana ANTERIOR, que es de donde sale la
+     rotación real: nadie arma la semana desde cero. */
+  const deLaAnterior = (f, t) => {
+    const c = mapaCal()["dia|" + masDias(f, -7) + "|" + t];
+    return c ? (c.usuario || "__nadie") : null;
+  };
+  /* Quién llevó ese turno la semana pasada, contando los días. Hace falta
+     porque el sábado no tiene turno 3: sin esto, al rotar el sábado se quedaba
+     sin nadie en el turno 1, que es justo el que sí se trabaja. */
+  const mayoriaAnterior = t => {
+    const m = mapaCal(), cuenta = {};
+    for(let i = 0; i < 7; i++){
+      const c = m["dia|" + masDias(lun, i - 7) + "|" + t];
+      if(!c) continue;
+      const k = c.usuario || "__nadie";
+      cuenta[k] = (cuenta[k] || 0) + 1;
+    }
+    const ks = Object.keys(cuenta).sort((a,b)=> cuenta[b] - cuenta[a]);
+    return ks.length ? ks[0] : null;
+  };
+  const bC = document.getElementById("btnCalCopiar");
+  if(bC) bC.addEventListener("click", ()=>{
+    let n = 0;
+    dias.forEach(f=> TURNOS.forEach(t=>{
+      if(!turnoExiste(f, t)) return;
+      const v = deLaAnterior(f, t) !== null ? deLaAnterior(f, t) : mayoriaAnterior(t);
+      if(v === null) return;
+      ponerCal(f, t, v); n++;
+    }));
+    toast(n ? `${n} turno(s) copiados de la semana anterior` : "La semana anterior está vacía");
+    renderCalendario();
+  });
+  const bR = document.getElementById("btnCalRotar");
+  if(bR) bR.addEventListener("click", ()=>{
+    let n = 0;
+    dias.forEach(f=> TURNOS.forEach(t=>{
+      if(!turnoExiste(f, t)) return;
+      /* Quien estaba en el turno anterior pasa a este: el de T3 cae en T1. */
+      const previo = TURNOS[(TURNOS.indexOf(t) + TURNOS.length - 1) % TURNOS.length];
+      const v = deLaAnterior(f, previo) !== null ? deLaAnterior(f, previo)
+                                                 : mayoriaAnterior(previo);
+      if(v === null) return;
+      ponerCal(f, t, v); n++;
+    }));
+    toast(n ? `${n} turno(s) rotados desde la semana anterior` : "La semana anterior está vacía");
+    renderCalendario();
+  });
   const bG = document.getElementById("btnGuardarCal");
   if(bG) bG.addEventListener("click", e=> subirCalendario(e.target));
+}
+
+/* Al cambiar de semana se pide sólo esa semana a la hoja. */
+async function irASemana(lunes, boton){
+  SEMANA_CAL = lunesDe(lunes);
+  renderCalendario();
+  const txt = boton ? boton.textContent : null;
+  if(boton){ boton.disabled = true; }
+  await traerCalendario(SEMANA_CAL, masDias(SEMANA_CAL, 6), "el calendario");
+  if(boton){ boton.disabled = false; if(txt) boton.textContent = txt; }
+  renderCalendario();
 }
 
 function renderAdmin(){
@@ -5909,7 +5985,7 @@ function renderAdmin(){
   document.getElementById("admEspecs").style.display   = v==="especs"   ? "block":"none";
   document.getElementById("admCalendario").style.display = v==="calendario" ? "block":"none";
   if(v==="especs") renderEspecs();
-  if(v==="calendario") renderCalendario();
+  if(v==="calendario") irASemana(SEMANA_CAL);
   document.getElementById("nEspecs").textContent = Object.keys(S.especificaciones).length;
   document.getElementById("admReferencias").style.display = v==="formatos" ? "block":"none";
   const falt = formatosFaltantes();
@@ -5934,16 +6010,14 @@ function renderAdmin(){
   if(v==="usuarios") renderUsuariosAdmin();
 }
 (function(){
-  const mes = document.getElementById("calMes");
-  if(mes) mes.addEventListener("change", renderCalendario);
-  const bt = document.getElementById("btnTraerCal");
-  if(bt) bt.addEventListener("click", async e=>{
-    const t = e.target.textContent;
-    e.target.disabled = true; e.target.textContent = "Leyendo…";
-    await traerCalendario("el calendario");
-    e.target.disabled = false; e.target.textContent = t;
-    renderCalendario();
-  });
+  const ir = document.getElementById("calIr");
+  if(ir) ir.addEventListener("change", e=>{ if(e.target.value) irASemana(e.target.value); });
+  const a = document.getElementById("calAnt");
+  if(a) a.addEventListener("click", e=> irASemana(masDias(SEMANA_CAL, -7), e.target));
+  const sg = document.getElementById("calSig");
+  if(sg) sg.addEventListener("click", e=> irASemana(masDias(SEMANA_CAL, 7), e.target));
+  const h = document.getElementById("calHoy");
+  if(h) h.addEventListener("click", e=> irASemana(hoyISO(), e.target));
 })();
 document.querySelectorAll("#admSeg button").forEach(b=>b.addEventListener("click",()=>{
   document.querySelectorAll("#admSeg button").forEach(x=>x.classList.remove("on"));
@@ -6352,7 +6426,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-30-calendario";
+const APP_VERSION = "2026-10-30-calendario-semana";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
