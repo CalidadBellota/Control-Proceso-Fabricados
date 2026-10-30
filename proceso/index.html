@@ -2108,6 +2108,10 @@ const MAQUINAS_FIJAS = {
   "CUC-ENDEREZADO":  ["Enderezadora cuchillas", "Enderezadora 2", "Enderezadora 3",
                       "Empacadora 1", "Empacadora 2", "Empacadora 3"],
 
+  /* --- Inyección --- */
+  "INY-PROCESO":     ["Inyectora 1", "Inyectora 2"],
+  "INY-MEZCLA":      ["Inyectora 1", "Inyectora 2"],
+
   /* --- Palas --- */
   "PAL-PERFORADO":   ["Perforadora y selladora", "Perforadora de anilla", "Estampadora"],
   "PAL-ENCABADO":    ["Empacadora 1", "Empacadora 2"],
@@ -6572,7 +6576,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-30-selector-turno";
+const APP_VERSION = "2026-10-30-inyectoras";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
