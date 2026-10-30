@@ -481,6 +481,46 @@
   .cal-pie{display:flex;align-items:center;gap:14px;margin-top:12px;
     font-size:.73rem;color:var(--text-dim);}
   .cal-pie button{margin-left:auto;}
+  /* --- Cumplimiento por inspector: una tarjeta por persona --- */
+  .insp-card{display:flex;flex-wrap:wrap;align-items:stretch;gap:0;
+    border:1px solid var(--border);border-radius:12px;background:#fff;
+    padding:0;margin-bottom:12px;overflow:hidden;}
+  .insp-card:last-child{margin-bottom:0;}
+  .insp-g{padding:15px 20px;display:flex;flex-direction:column;gap:7px;
+    border-left:1px solid var(--border);min-width:0;}
+  .insp-g:first-child{border-left:none;}
+  .insp-g.id{flex:1 1 230px;flex-direction:row;align-items:flex-start;gap:12px;}
+  .insp-g.cump{flex:1 1 260px;justify-content:center;}
+  .insp-g.cump .barra-mini{flex:1 1 auto;min-width:110px;height:9px;}
+  .insp-g .g-tit{font-size:.72rem;font-weight:800;color:var(--text);}
+  .insp-g .g-pie{font-size:.66rem;color:var(--text-dim);line-height:1.35;}
+  .insp-card .nom{font-size:.98rem;font-weight:800;line-height:1.2;display:block;}
+  .insp-card .sub{font-size:.7rem;color:var(--text-dim);display:block;margin-top:2px;}
+  .insp-card .avatar{width:38px;height:38px;font-size:.78rem;}
+  .chip{display:inline-flex;align-items:center;gap:6px;margin-top:7px;
+    padding:3px 10px;border-radius:999px;font-size:.68rem;font-weight:800;}
+  .chip i{width:7px;height:7px;border-radius:50%;background:currentColor;}
+  .chip.ok{background:var(--ok-bg);color:#15733f;}
+  .chip.no{background:var(--bad-bg);color:var(--bad);}
+  .cajas{display:flex;gap:8px;}
+  .caja{background:#f5f6f8;border-radius:9px;padding:8px 13px;text-align:center;min-width:62px;}
+  .caja b{display:block;font-size:1.25rem;font-weight:800;line-height:1.15;}
+  .caja span{display:block;font-size:.63rem;color:var(--text-dim);margin-top:1px;line-height:1.25;}
+  .caja.warn{background:var(--warn-bg);} .caja.warn b{color:var(--warn-text);}
+  .caja.bad{background:var(--bad-bg);}   .caja.bad b{color:var(--bad);}
+  .ronda-cifra{font-size:1.45rem;font-weight:800;line-height:1.1;}
+  .ronda-cifra span{font-size:.92rem;font-weight:600;color:var(--text-dim);}
+  .chip-per{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);
+    border-radius:9px;padding:6px 12px;font-size:.76rem;font-weight:700;color:var(--text);
+    background:#fff;}
+  .chip-per svg{color:var(--text-dim);}
+  .nota-pie{display:flex;gap:12px;align-items:flex-start;font-size:.72rem;
+    color:var(--text-dim);line-height:1.5;}
+  .nota-pie .ic-sec{width:26px;height:26px;border-radius:8px;}
+  @media(max-width:1100px){
+    .insp-g{border-left:none;border-top:1px solid var(--border);flex:1 1 100%;}
+    .insp-g:first-child{border-top:none;}
+  }
   .pie-leyenda{display:flex;flex-wrap:wrap;gap:18px;align-items:center;font-size:.73rem;
     color:var(--text-dim);}
   .pie-leyenda .nota{margin-left:auto;max-width:560px;line-height:1.45;}
@@ -5044,58 +5084,78 @@ function renderKpi(){
     <div style="margin-top:16px;">
       <div class="panel" style="margin:0;">
         <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.gente}</span>
-          <h2>CUMPLIMIENTO POR INSPECTOR</h2>
-          <span style="font-size:.74rem;color:var(--text-dim);">${esc(per.etq)}</span></div>
+          <div><h2>CUMPLIMIENTO POR INSPECTOR</h2>
+            <span style="font-size:.72rem;color:var(--text-dim);">Seguimiento de rondas de inspección</span></div>
+          <span class="chip-per">${IC_KPI.reloj} ${esc(per.etq)}</span></div>
         ${!insp.length ? `<div class="empty-mini">Ningún inspector registró nada en ${esc(per.etq)}.</div>`
-        : `<table class="tabla t-insp" style="width:100%;">
-            <thead><tr><th>Inspector</th>
-              <th style="text-align:center;">Turnos</th>
-              <th style="text-align:right;">Rondas</th>
-              <th style="text-align:right;">Turnos en blanco</th>
-              <th class="col-turno" style="text-align:right;">Procesos de la ronda</th>
-              <th class="col-cump" style="width:24%;">Cumplimiento</th>
-              <th style="text-align:right;">Medic.</th>
-              <th style="text-align:right;">Fuera</th>
-              <th style="text-align:right;">Crít.</th></tr></thead>
-            <tbody>${insp.map(i=>`<tr>
-                <td><div class="fila-insp"><span class="avatar">${esc(iniciales(i.nombre))}</span>
-                  <div><b>${esc(i.nombre)}</b>
-                  <span class="lineas" title="${esc(i.lineas.join(", "))}">${
-                    i.lineas.length === 1 ? esc(i.lineas[0])
-                    : i.lineas.length ? i.lineas.length + " líneas" : "sin línea"}</span></div></div></td>
-                <td style="text-align:center;">${i.turnos}
-                  <span class="desglose">${TURNOS.map(t=> i.porTurno[t]
-                    ? `T${t}·${i.porTurno[t].dias}` : "").filter(Boolean).join(" ")}</span></td>
-                <td style="text-align:right;">${ent(i.registros)}</td>
-                <td style="text-align:right;${i.vacios?"color:var(--bad);font-weight:800;":
-                  "color:var(--text-dim);"}">${i.vacios || "—"}</td>
-                <td class="col-turno" style="text-align:right;"><b>${ent(i.hechos)}</b>
-                  <span style="color:var(--text-dim);"> de ${ent(i.esperado)}</span>
-                  <span class="desglose">${i.turnos ? ent(Math.round(i.esperado/i.turnos)) : 0
-                    } por turno × ${i.turnos} turno(s)</span></td>
-                <td class="col-cump"><div class="cump"><span class="barra-mini"><i class="${
-                    i.pct===null?"":i.pct>=95?"":i.pct>=80?"flojo":"malo"}" style="width:${
-                    ancho(i.pct)}%;"></i></span><b>${f1(i.pct)}${i.pct===null?"":"%"}</b></div></td>
-                <td style="text-align:right;">${ent(i.medidas)}</td>
-                <td style="text-align:right;${i.fuera?"color:var(--warn-text);font-weight:800;":""}">${ent(i.fuera)}</td>
-                <td style="text-align:right;${i.crit?"color:var(--bad);font-weight:800;":""}">${i.crit||""}</td>
-              </tr>`).join("")}</tbody></table>
-          <div style="margin-top:10px;font-size:.72rem;color:var(--text-dim);">
-            La ronda son <b>${ent(insp[0].turnos
+        : insp.map(i=>{
+          const cl = i.pct===null ? "" : i.pct>=95 ? "" : i.pct>=80 ? "flojo" : "malo";
+          return `<div class="insp-card">
+            <div class="insp-g id">
+              <span class="avatar">${esc(iniciales(i.nombre))}</span>
+              <div style="min-width:0;">
+                <span class="nom">${esc(i.nombre)}</span>
+                <span class="sub">${esc(i.rol ? i.rol[0].toUpperCase()+i.rol.slice(1) : "Inspector")} · ${
+                  i.lineas.length === 1 ? esc(i.lineas[0])
+                  : i.lineas.length ? i.lineas.length + " líneas" : "sin línea"}</span>
+                <span class="chip ${i.registros ? "ok" : "no"}"><i></i>${
+                  i.registros ? "Activo" : "Sin actividad"}</span>
+              </div>
+            </div>
+
+            <div class="insp-g">
+              <span class="g-tit">Turnos y rondas</span>
+              <div class="cajas">
+                <div class="caja"><b>${i.turnos}</b><span>Turno${i.turnos===1?"":"s"}</span></div>
+                <div class="caja"><b>${ent(i.registros)}</b><span>Rondas</span></div>
+                <div class="caja${i.vacios?" bad":""}"><b>${i.vacios || "—"}</b><span>En blanco</span></div>
+              </div>
+              <span class="g-pie">${TURNOS.map(t=> i.porTurno[t]
+                ? `T${t}·${i.porTurno[t].dias}` : "").filter(Boolean).join(" · ")}${
+                i.asignados
+                  ? `<br>${i.turnos - i.fueraDePlan} del calendario${
+                      i.fueraDePlan ? ` · ${i.fueraDePlan} fuera de plan` : ""}`
+                  : ""}</span>
+            </div>
+
+            <div class="insp-g">
+              <span class="g-tit">Procesos de la ronda</span>
+              <div class="ronda-cifra">${ent(i.hechos)} <span>de ${ent(i.esperado)}</span></div>
+              <span class="g-pie">${i.turnos ? ent(Math.round(i.esperado/i.turnos)) : 0
+                } por turno × ${i.turnos} turno${i.turnos===1?"":"s"}</span>
+            </div>
+
+            <div class="insp-g cump">
+              <span class="g-tit">Cumplimiento</span>
+              <div class="cump"><span class="barra-mini"><i class="${cl}" style="width:${
+                ancho(i.pct)}%;"></i></span><b>${f1(i.pct)}${i.pct===null?"":"%"}</b></div>
+            </div>
+
+            <div class="insp-g">
+              <span class="g-tit">Mediciones</span>
+              <div class="cajas">
+                <div class="caja"><b>${ent(i.medidas)}</b><span>Total</span></div>
+                <div class="caja${i.fuera?" warn":""}"><b>${ent(i.fuera)}</b><span>Fuera de rango</span></div>
+                <div class="caja${i.crit?" bad":""}"><b>${ent(i.crit)}</b><span>Críticas</span></div>
+              </div>
+            </div>
+          </div>`;}).join("") + `
+          <div class="nota-pie" style="margin-top:14px;">
+            <span class="ic-sec">${IC_KPI.alerta}</span>
+            <span>La ronda son <b>${ent(insp[0].turnos
               ? Math.round(insp[0].esperado/insp[0].turnos) : insp[0].porTurnoExig)
-              } procesos por turno</b>, igual para
-            todos${linea ? " en "+esc(linea) : ""}. Los turnos salen del <b>calendario</b>:
-            uno asignado exige la ronda completa aunque la persona no haya abierto siquiera
-            la aplicación. Los que cubrió sin estar asignado también cuentan.${
-            insp[0].asignados ? "" :
+              } procesos por turno</b>, igual para todos${linea ? " en "+esc(linea) : ""}.
+            Los turnos salen del <b>calendario</b>: uno asignado exige la ronda completa aunque
+            la persona no haya abierto siquiera la aplicación. Los que cubrió sin estar
+            asignado también cuentan.${insp[0].asignados ? "" :
             ` <b>Ojo:</b> este periodo no tiene calendario cargado, así que los turnos se
               deducen de las aperturas de sesión y de los registros; quien no entró a la
               aplicación no aparece. Se carga en Administrar → Calendario de turnos.`}${
             otros.length ? ` Fuera de esta tabla, ${otros.map(o=>
               `<b>${esc(o.nombre)}</b> (${esc(o.rol)}) registró ${ent(o.registros)} ronda(s)`
-              ).join(" y ")}.` : ""}</div>`}
+              ).join(" y ")}.` : ""}</span>
+          </div>`}
       </div>
-
     </div>
 
     <div class="panel" style="margin-top:16px;">
@@ -5105,9 +5165,8 @@ function renderKpi(){
         <span><i class="dot" style="background:var(--warn);"></i> fuera de rango, no crítica</span>
         <span><i class="dot" style="background:var(--ok);"></i> controlado y en rango</span>
         <span><i class="dot" style="background:#c9ced6;"></i> sin controlar</span>
-        <span class="nota">El denominador por inspector son los procesos exigibles de las líneas
-          que cada uno tocó en cada turno. Si dos inspectores comparten turno y línea, lo que
-          falte le cuenta a los dos: la aplicación no sabe quién tenía asignada cada máquina.</span>
+        <span class="nota">Una casilla es un proceso en una máquina. El cumplimiento de arriba
+          cuenta procesos: uno queda cubierto con que se controle una de sus máquinas.</span>
       </div>
     </div>`;
 
@@ -6445,7 +6504,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-30-calendario-2";
+const APP_VERSION = "2026-10-30-tarjetas-inspector";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
