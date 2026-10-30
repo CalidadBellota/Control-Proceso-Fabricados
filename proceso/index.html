@@ -444,6 +444,15 @@
   .grid-insp{display:grid;grid-template-columns:1.65fr 1fr;gap:16px;}
   @media(max-width:1100px){.grid-insp{grid-template-columns:1fr;}}
   .fila-insp b{white-space:nowrap;}
+  .fila-insp .lineas{display:block;font-size:.67rem;color:var(--text-dim);}
+  /* El porcentaje al lado de su barra, no encima: apilados se amontonaban. */
+  .cump{display:flex;align-items:center;gap:9px;}
+  .cump .barra-mini{flex:1 1 auto;margin-top:0;min-width:46px;}
+  .cump b{font-size:.84rem;white-space:nowrap;}
+  .t-insp th,.t-insp td{white-space:nowrap;}
+  /* Un respiro entre el número de exigidos y la barra: pegados parecían
+     una sola cosa. */
+  .t-insp .col-cump{padding-left:18px;}
   .pie-leyenda{display:flex;flex-wrap:wrap;gap:18px;align-items:center;font-size:.73rem;
     color:var(--text-dim);}
   .pie-leyenda .nota{margin-left:auto;max-width:560px;line-height:1.45;}
@@ -4555,26 +4564,37 @@ function cumplimientoPeriodo(per, linea){
    inspectores comparten turno y línea, lo que falte le cuenta a los dos,
    porque la aplicación no sabe quién tenía asignada cada máquina.
    -------------------------------------------------------------------------- */
+/* El rol de quien registró, buscado por nombre en la lista de usuarios. El
+   seguimiento es de los INSPECTORES: el jefe y el coordinador entran a la app
+   a revisar y corregir, y mezclarlos en la tabla ensucia la comparación. */
+function rolDeNombre(nombre){
+  const n = clavePlana(nombre);
+  const u = (S.usuarios||[]).find(x=> clavePlana(x.nombre) === n ||
+                                      clavePlana(x.usuario) === n);
+  return u ? String(u.rol||"").trim().toLowerCase() : "";
+}
+
 function inspectoresDe(per, linea){
-  const exigibles = {};                       // id -> true
+  const exigibles = {};
   formatosExigibles("").forEach(f=>{ exigibles[f.id] = true; });
-  const porLinea = {};                        // cuántos se exigen en cada línea
-  const cuantosDe = L => {
-    if(porLinea[L] === undefined) porLinea[L] = formatosExigibles(L).length;
-    return porLinea[L];
-  };
+  /* Lo exigido NO depende de las líneas que cada uno haya tocado: la ronda es
+     la misma para todos, y hacerla depender de lo registrado premiaba al que
+     menos cubría —si sólo pasaba por Limas, su denominador eran los procesos
+     de Limas y le salía 100 %. Ahora son los procesos exigibles del filtro,
+     por cada turno que trabajó. */
+  const porTurnoExig = formatosExigibles(linea).length;
 
   const acum = {};
   regsDelPeriodo(per, linea).forEach(r=>{
     const n = String(r.inspector||"").trim() || "(sin nombre)";
     const o = acum[n] = acum[n] || {turnos:{}, medidas:0, fuera:0, crit:0,
-                                    registros:0, noTrabajo:0};
+                                    registros:0, noTrabajo:0, lineas:{}};
     const clave = fechaTurnoDe(r) + "|" + String(r.turno||"");
     const t = o.turnos[clave] = o.turnos[clave] ||
-      {fecha:fechaTurnoDe(r), turno:String(r.turno||""), lineas:{}};
+      {fecha:fechaTurnoDe(r), turno:String(r.turno||""), hechos:{}, lineas:{}};
     const L = String(r.linea||"").trim();
-    const hechos = t.lineas[L] = t.lineas[L] || {};
-    if(exigibles[r.formatoId]) hechos[r.formatoId] = true;
+    t.lineas[L] = true; o.lineas[L] = true;
+    if(exigibles[r.formatoId]) t.hechos[r.formatoId] = true;
     o.registros++;
     o.medidas += numDe(r.totalVariables) || (r.resultados||[]).length;
     o.fuera   += ncDe(r);
@@ -4584,19 +4604,19 @@ function inspectoresDe(per, linea){
 
   return Object.keys(acum).map(n=>{
     const o = acum[n];
-    let esperado = 0, hechos = 0;
-    const lineas = {}, porTurno = {};
+    let hechos = 0;
+    const porTurno = {};
     Object.keys(o.turnos).forEach(k=>{
       const t = o.turnos[k];
       (porTurno[t.turno] = porTurno[t.turno] || {dias:0, lineas:{}}).dias++;
-      Object.keys(t.lineas).forEach(L=>{
-        lineas[L] = true; porTurno[t.turno].lineas[L] = true;
-        esperado += cuantosDe(L);
-        hechos   += Object.keys(t.lineas[L]).length;
-      });
+      Object.keys(t.lineas).forEach(L=>{ porTurno[t.turno].lineas[L] = true; });
+      hechos += Object.keys(t.hechos).length;
     });
-    return {nombre:n, turnos:Object.keys(o.turnos).length, porTurno:porTurno,
-            lineas:Object.keys(lineas).sort(), esperado:esperado, hechos:hechos,
+    const turnos = Object.keys(o.turnos).length;
+    const esperado = turnos * porTurnoExig;
+    return {nombre:n, rol: rolDeNombre(n), turnos:turnos, porTurno:porTurno,
+            lineas:Object.keys(o.lineas).sort(), esperado:esperado, hechos:hechos,
+            porTurnoExig: porTurnoExig,
             pct: esperado ? Math.min(100, hechos/esperado*100) : null,
             medidas:o.medidas, fuera:o.fuera, crit:o.crit,
             registros:o.registros, noTrabajo:o.noTrabajo};
@@ -4709,7 +4729,12 @@ function renderKpi(){
 
   const cump  = cumplimientoPeriodo(per, linea);
   const regs  = regsDelPeriodo(per, linea);
-  const insp  = inspectoresDe(per, linea);
+  const todosQuien = inspectoresDe(per, linea);
+  /* Sólo el perfil de inspector entra en el seguimiento. Quien no lo sea
+     —jefe, coordinador— no desaparece: se dice aparte cuánto registró, para
+     que nadie piense que se perdieron esas rondas. */
+  const insp  = todosQuien.filter(x=> x.rol === "inspector" || x.rol === "");
+  const otros = todosQuien.filter(x=> x.rol && x.rol !== "inspector");
   /* Las casillas se arman SIEMPRE completas, aunque se muestren filtradas:
      el indicador de «sin controlar» se cuenta sobre todas, y antes salía
      siempre en cero porque las vacías ni se creaban. */
@@ -4910,32 +4935,40 @@ function renderKpi(){
       <div class="panel" style="margin:0;">
         <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.gente}</span>
           <h2>CUMPLIMIENTO POR INSPECTOR</h2></div>
-        ${!insp.length ? `<div class="empty-mini">Nadie registró nada en ${esc(per.etq)}.</div>`
-        : `<table class="tabla" style="width:100%;">
-            <thead><tr><th style="width:30%;">Inspector</th>
+        ${!insp.length ? `<div class="empty-mini">Ningún inspector registró nada en ${esc(per.etq)}.</div>`
+        : `<table class="tabla t-insp" style="width:100%;">
+            <thead><tr><th>Inspector</th>
+              <th style="text-align:center;">Turnos</th>
               <th style="text-align:right;">Rondas</th>
-              <th style="text-align:right;">Exigidas</th>
-              <th style="width:18%;">Cumpl.</th>
+              <th style="text-align:right;">Cubiertos</th>
+              <th style="text-align:right;">Exigidos</th>
+              <th class="col-cump" style="width:24%;">Cumplimiento</th>
               <th style="text-align:right;">Medic.</th>
               <th style="text-align:right;">Fuera</th>
-              <th style="text-align:right;">Críticas</th>
-              <th style="text-align:right;">Turnos</th></tr></thead>
+              <th style="text-align:right;">Crít.</th></tr></thead>
             <tbody>${insp.map(i=>`<tr>
                 <td><div class="fila-insp"><span class="avatar">${esc(iniciales(i.nombre))}</span>
                   <div><b>${esc(i.nombre)}</b>
-                  <span style="display:block;font-size:.67rem;color:var(--text-dim);">${
-                    esc(i.lineas.join(", ") || "sin línea")}</span></div></div></td>
+                  <span class="lineas" title="${esc(i.lineas.join(", "))}">${
+                    i.lineas.length === 1 ? esc(i.lineas[0])
+                    : i.lineas.length ? i.lineas.length + " líneas" : "sin línea"}</span></div></div></td>
+                <td style="text-align:center;">${i.turnos}</td>
                 <td style="text-align:right;">${ent(i.registros)}</td>
-                <td style="text-align:right;">${ent(i.hechos)} de ${ent(i.esperado)}</td>
-                <td><b>${f1(i.pct)}${i.pct===null?"":"%"}</b>
-                  <span class="barra-mini"><i class="${
+                <td style="text-align:right;">${ent(i.hechos)}</td>
+                <td style="text-align:right;color:var(--text-dim);">${ent(i.esperado)}</td>
+                <td class="col-cump"><div class="cump"><span class="barra-mini"><i class="${
                     i.pct===null?"":i.pct>=95?"":i.pct>=80?"flojo":"malo"}" style="width:${
-                    ancho(i.pct)}%;"></i></span></td>
+                    ancho(i.pct)}%;"></i></span><b>${f1(i.pct)}${i.pct===null?"":"%"}</b></div></td>
                 <td style="text-align:right;">${ent(i.medidas)}</td>
                 <td style="text-align:right;${i.fuera?"color:var(--warn-text);font-weight:800;":""}">${ent(i.fuera)}</td>
                 <td style="text-align:right;${i.crit?"color:var(--bad);font-weight:800;":""}">${i.crit||""}</td>
-                <td style="text-align:right;">${i.turnos}</td>
-              </tr>`).join("")}</tbody></table>`}
+              </tr>`).join("")}</tbody></table>
+          <div style="margin-top:10px;font-size:.72rem;color:var(--text-dim);">
+            Exigidos = ${ent(insp[0].porTurnoExig)} proceso(s) de la ronda × los turnos que
+            trabajó cada uno${linea ? " en "+esc(linea) : ""}.${
+            otros.length ? ` Fuera de esta tabla, ${otros.map(o=>
+              `<b>${esc(o.nombre)}</b> (${esc(o.rol)}) registró ${ent(o.registros)} ronda(s)`
+              ).join(" y ")}.` : ""}</div>`}
       </div>
 
       <div class="panel" style="margin:0;">
@@ -5997,7 +6030,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-30-indicadores-2";
+const APP_VERSION = "2026-10-30-inspectores";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
