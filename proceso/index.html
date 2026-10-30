@@ -389,6 +389,64 @@
   .kpi small{display:block;font-size:.7rem;color:var(--text-dim);margin-top:3px;}
   .kpi.malo b{color:var(--bad);}
   .kpi.bueno b{color:var(--ok);}
+  /* --- Indicadores: cabecera de la pantalla --- */
+  .pag-tit{display:flex;flex-wrap:wrap;align-items:flex-start;gap:14px;margin-bottom:16px;}
+  .pag-tit h1{margin:0;font-size:1.45rem;font-weight:800;color:var(--red);
+    text-transform:uppercase;letter-spacing:.01em;line-height:1.15;}
+  .pag-tit .sub{margin-top:5px;font-size:.78rem;color:var(--text-dim);
+    display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+  .pag-tit .sub i{display:inline-block;width:1px;height:12px;background:var(--border);}
+  .pag-tit .der{margin-left:auto;display:flex;align-items:center;gap:14px;}
+  .pag-tit .lectura{font-size:.72rem;color:var(--text-dim);text-align:right;line-height:1.35;}
+  /* El icono de cada encabezado: mismo gesto que el diseño, en rojo de la casa. */
+  .ic-sec{width:30px;height:30px;border-radius:9px;background:var(--bad-bg);color:var(--red-dark);
+    display:inline-flex;align-items:center;justify-content:center;flex:none;}
+  /* Con icono, el título va pegado a él y la nota se va al extremo derecho;
+     «space-between» repartía el hueco y dejaba el título flotando al medio. */
+  .section-title.con-ic{justify-content:flex-start;}
+  .section-title.con-ic > span:not(.ic-sec){margin-left:auto;}
+  /* --- Indicadores: tarjetas, fila de filtros, casillas y rotación --- */
+  .kpi{position:relative;}
+  .kpi .ic{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;background:#f2f3f5;color:var(--text-dim);}
+  .kpi.t-ok{background:var(--ok-bg);border-color:#c8ead7;}
+  .kpi.t-ok .ic{background:#d6f2e2;color:#15733f;}
+  .kpi.t-ok b{color:var(--ok);}
+  .kpi.t-warn{background:var(--warn-bg);border-color:#f3e3b0;}
+  .kpi.t-warn .ic{background:#fdeec2;color:var(--warn-text);}
+  .kpi.t-warn b{color:var(--warn-text);}
+  .kpi.t-bad{background:var(--bad-bg);border-color:#f6ccd1;}
+  .kpi.t-bad .ic{background:#fad7db;color:var(--bad);}
+  .kpi.t-bad b{color:var(--bad);}
+  .kpi .barra{display:block;height:8px;border-radius:5px;background:#e7e9ed;overflow:hidden;
+    margin:8px 0 7px;}
+  .kpi .barra i{display:block;height:100%;background:var(--ok);}
+  .kpi .barra i.warn{background:var(--warn);}
+  .kpi .barra i.bad{background:var(--bad);}
+  /* Resumen de estado: los cuatro conteos y la proporción en una barra. */
+  .mini-estados{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  @media(max-width:900px){.mini-estados{grid-template-columns:1fr 1fr;}}
+  .mini-est{border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#fff;}
+  .mini-est b{display:block;font-size:1.5rem;font-weight:800;line-height:1.1;}
+  .mini-est span{display:block;font-size:.69rem;color:var(--text-dim);margin-top:2px;line-height:1.3;}
+  .mini-est .pt{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;
+    vertical-align:middle;}
+  .apilada{display:flex;height:14px;border-radius:7px;overflow:hidden;background:#eceef1;margin-top:14px;}
+  .apilada i{display:block;height:100%;}
+  .apilada-pies{display:flex;font-size:.68rem;color:var(--text-dim);margin-top:6px;gap:14px;flex-wrap:wrap;}
+  /* Iniciales del inspector, como en el diseño. */
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--bad-bg);color:var(--red-dark);
+    font-size:.7rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;
+    flex:none;letter-spacing:.02em;}
+  .fila-insp{display:flex;align-items:center;gap:10px;}
+  /* La tabla de inspectores lleva ocho columnas y la de rotación tres: a
+     mitades iguales los nombres se partían en dos renglones. */
+  .grid-insp{display:grid;grid-template-columns:1.65fr 1fr;gap:16px;}
+  @media(max-width:1100px){.grid-insp{grid-template-columns:1fr;}}
+  .fila-insp b{white-space:nowrap;}
+  .pie-leyenda{display:flex;flex-wrap:wrap;gap:18px;align-items:center;font-size:.73rem;
+    color:var(--text-dim);}
+  .pie-leyenda .nota{margin-left:auto;max-width:560px;line-height:1.45;}
   /* --- Indicadores: fila de filtros, casillas y rotación --- */
   .fila-kpi{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;}
   .fila-kpi .campo{flex:0 0 auto;margin:0;}
@@ -422,7 +480,7 @@
   .rot th{font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;}
   .rot td.turno{text-align:center;width:16%;}
   .rot .marca{display:inline-block;background:var(--ok-bg);color:#136b3a;border-radius:7px;
-    padding:3px 8px;font-weight:800;font-size:.74rem;}
+    padding:3px 8px;font-weight:800;font-size:.74rem;white-space:nowrap;}
   .rot .marca.flojo{background:var(--warn-bg);color:var(--warn-text);}
   .rot .marca.nada{background:#f2f3f5;color:#9aa1ab;font-weight:600;}
   .rot .lineas{display:block;font-size:.66rem;color:var(--text-dim);margin-top:3px;}
@@ -829,11 +887,18 @@
 
 <!-- ============ TABLERO ============ -->
 <section id="viewKpi" style="display:none;">
-  <div class="panel">
-    <div class="section-title"><h2>INDICADORES</h2>
-      <span id="kpiResumen" style="font-size:.74rem;color:var(--text-dim);"></span>
+  <div class="pag-tit">
+    <div>
+      <h1>Indicadores de inspección</h1>
+      <div class="sub" id="kpiResumen"></div>
+    </div>
+    <div class="der">
+      <div class="lectura" id="kpiLectura"></div>
       <button type="button" class="btn-actualizar" id="btnActualizarKpi"
-        title="Volver a leer la hoja compartida">&#8635; Actualizar</button></div>
+        title="Volver a leer la hoja compartida">&#8635; Actualizar</button>
+    </div>
+  </div>
+  <div class="panel">
     <div class="fila-kpi">
       <div class="campo">
         <label>Periodo</label>
@@ -4381,6 +4446,53 @@ function varHtml(hoy, antes, bueno){
     <small>frente a ${antes.toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1})}% el mes pasado</small>`;
 }
 
+/* Iconos de la pantalla de indicadores. Van en el rojo de la casa, no en los
+   azules y morados del boceto: la app tiene una paleta y una sola. */
+const IC_KPI = {
+  ronda:`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8"
+    height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0
+    1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>`,
+  tic:`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12"
+    r="9"/><path d="m8.5 12 2.5 2.5L16 9.5"/></svg>`,
+  alerta:`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.9 18a2
+    2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path
+    d="M12 17h.01"/></svg>`,
+  gente:`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0
+    0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0
+    0-3-3.87"/><path d="M16 3.1a4 4 0 0 1 0 7.75"/></svg>`,
+  barras:`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect
+    x="7" y="11" width="3" height="6"/><rect x="12" y="7" width="3" height="10"/><rect x="17"
+    y="13" width="3" height="4"/></svg>`,
+  engranaje:`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12"
+    r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0
+    0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1
+    1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15a1.7 1.7 0 0 0-1.6-1H1a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 3
+    8.6a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 9 3V3a2 2 0 1 1 4
+    0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0
+    4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>`,
+  casillas:`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7"
+    height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14"
+    width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`,
+  reloj:`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12"
+    r="9"/><path d="M12 7v5l3 2"/></svg>`
+};
+let graficaKpi = null;
+
+/* Las iniciales del inspector para el círculo de la tabla. */
+function iniciales(nombre){
+  const p = String(nombre||"").trim().split(/\s+/).filter(Boolean);
+  if(!p.length) return "?";
+  return (p[0][0] + (p.length > 1 ? p[1][0] : "")).toUpperCase();
+}
+
 /* --------------------------------------------------------------------------
    El periodo que se está mirando. Tres escalas para dos usos distintos: el
    turno sirve para reaccionar —es el tablero que se cuelga en planta—, el mes
@@ -4538,6 +4650,43 @@ function casillasDe(per, linea, todas){
   });
 }
 
+/* Cobertura de cada proceso dentro del periodo. La unidad cambia con la
+   escala: en el mes son días, en el día son turnos y en el turno es sí o no.
+   Se dice en pantalla, porque un 50 % de turnos y un 50 % de días no son lo
+   mismo y confundirlos sería peor que no mostrarlo. */
+function cumplimientoPorProceso(per, linea){
+  const fs = formatosExigibles(linea);
+  const out = [];
+  fs.forEach(f=>{
+    let total = 0, cubiertas = 0;
+    const mira = (fecha, turno)=>{
+      const rs = S.registros.filter(r => r.formatoId === f.id && fechaTurnoDe(r) === fecha &&
+        (turno === null || String(r.turno||"") === turno));
+      total++;
+      if(estadoCelda(rs, f) !== "r") cubiertas++;
+    };
+    if(per.modo === "mes"){
+      const [y,m] = per.mes.split("-").map(Number);
+      const dias = new Date(y, m, 0).getDate();
+      for(let d = 1; d <= dias; d++){
+        const fecha = `${per.mes}-${pad(d)}`;
+        if(!TURNOS.some(t => turnoExiste(fecha, t))) continue;
+        if(fecha > hoyISO()) continue;
+        mira(fecha, null);
+      }
+    } else if(per.modo === "turno"){
+      mira(per.fecha, per.turno);
+    } else {
+      TURNOS.filter(t => turnoExiste(per.fecha, t) && turnoYaEmpezo(per.fecha, t))
+            .forEach(t => mira(per.fecha, t));
+    }
+    if(total) out.push({nom: f.nombre || `${f.linea} · ${f.proceso}`, corto: f.proceso,
+                        linea: f.linea, total: total, cubiertas: cubiertas,
+                        pct: cubiertas / total * 100});
+  });
+  return out;
+}
+
 function renderKpi(){
   refrescarSelectoresConsulta();
   const sel = document.getElementById("kLinea");
@@ -4591,11 +4740,27 @@ function renderKpi(){
     } else cmpConf = varHtml(conf, null, "sube");
   }
 
-  document.getElementById("kpiResumen").textContent =
-    `${per.etq}${linea ? " · "+linea : " · todas las líneas"} · ${ent(regs.length)} registro(s)`;
+  document.getElementById("kpiResumen").innerHTML =
+    `<span>${esc(per.etq)}</span><i></i><span>${esc(linea || "Todas las líneas")}</span>` +
+    `<i></i><span>${ent(regs.length)} registro(s)</span>`;
+  document.getElementById("kpiLectura").innerHTML = LECTURA.hora
+    ? `Última lectura<br><b>${esc(LECTURA.hora)}</b>${
+        LECTURA.recibidos ? ` · ${ent(LECTURA.recibidos)} fila(s)` : ""}`
+    : `Sin leer la hoja<br>en esta sesión`;
 
   const conNC = cajas.filter(c=> c.estado === "crit" || c.estado === "fuera");
   const sinControlar = cajas.filter(c=> c.estado === "sin").length;
+  const nCrit  = cajas.filter(c=> c.estado === "crit").length;
+  const nFuera = cajas.filter(c=> c.estado === "fuera").length;
+  const nOk    = cajas.filter(c=> c.estado === "ok").length;
+
+  /* El tono de cada tarjeta lo decide su propio número, no un color fijo:
+     una tarjeta verde que marca 60 % sería ruido. */
+  const tono = (v, bien, regular) => v === null ? "" :
+    v >= bien ? "t-ok" : v >= regular ? "t-warn" : "t-bad";
+  const clBarra = (v, bien, regular) => v === null ? "" :
+    v >= bien ? "" : v >= regular ? "warn" : "bad";
+  const ancho = v => Math.max(0, Math.min(100, v || 0));
 
   /* --- las casillas, agrupadas por línea --- */
   const verCajas = todas ? cajas : conNC;
@@ -4637,34 +4802,44 @@ function renderKpi(){
       return `<td class="turno"><span class="marca">${esc(etq)}</span>
         <span class="lineas">${esc(ls)}</span></td>`;
     }).join("");
-    return `<tr><td><b>${esc(i.nombre)}</b>
-      <span class="lineas">${esc(i.lineas.join(", ") || "sin línea")}</span></td>${celdas}</tr>`;
+    return `<tr><td><div class="fila-insp"><span class="avatar">${esc(iniciales(i.nombre))}</span>
+      <div><b>${esc(i.nombre)}</b>
+      <span class="lineas">${esc(i.lineas.join(", ") || "sin línea")}</span></div></div></td>${celdas}</tr>`;
   }).join("");
+
+  const proc = cumplimientoPorProceso(per, linea);
+  const peores = proc.slice().sort((a,b)=> a.pct - b.pct || a.nom.localeCompare(b.nom)).slice(0,12);
 
   box.innerHTML = `
     <div class="panel">
       <div class="kpis">
-        <div class="kpi ${cump.pct !== null && cump.pct < 100 ? "ojo" : ""}">
+        <div class="kpi ${tono(cump.pct, 95, 80)}">
+          <span class="ic">${IC_KPI.ronda}</span>
           <span>Cumplimiento de inspección</span>
           <b>${f1(cump.pct)}${cump.pct===null?"":"%"}</b>
+          <span class="barra"><i class="${clBarra(cump.pct,95,80)}" style="width:${ancho(cump.pct)}%;"></i></span>
           <small>${ent(cump.total - cump.faltan)} de ${ent(cump.total)} ${
             per.modo === "turno" ? "procesos del turno"
             : per.modo === "dia" ? "procesos del día" : "día-proceso exigibles"}</small>
           ${cmpCump}
         </div>
-        <div class="kpi ${conf !== null && conf < 95 ? "malo" : ""}">
+        <div class="kpi ${tono(conf, 98, 95)}">
+          <span class="ic">${IC_KPI.tic}</span>
           <span>Conformidad de mediciones</span>
           <b>${f1(conf)}${conf===null?"":"%"}</b>
+          <span class="barra"><i class="${clBarra(conf,98,95)}" style="width:${ancho(conf)}%;"></i></span>
           <small>${ent(medidas - fuera)} de ${ent(medidas)} mediciones juzgadas</small>
           ${cmpConf}
         </div>
-        <div class="kpi ${crit ? "malo" : ""}">
+        <div class="kpi ${crit ? "t-bad" : fuera ? "t-warn" : "t-ok"}">
+          <span class="ic">${IC_KPI.alerta}</span>
           <span>No conformidades</span>
           <b>${ent(fuera)}</b>
           <small>${crit ? `${ent(crit)} en variable crítica` : "ninguna en variable crítica"}</small>
           <small>${conNC.length} máquina(s) o proceso(s) afectados</small>
         </div>
         <div class="kpi">
+          <span class="ic">${IC_KPI.gente}</span>
           <span>Inspectores en el periodo</span>
           <b>${insp.length}</b>
           <small>${ent(regs.length)} ronda(s) registradas</small>
@@ -4675,68 +4850,146 @@ function renderKpi(){
       </div>
     </div>
 
+    <div class="grid2-tend" style="margin-top:16px;">
+      <div class="panel" style="margin:0;">
+        <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.barras}</span>
+          <h2>CUMPLIMIENTO POR PROCESO</h2>
+          <span style="font-size:.74rem;color:var(--text-dim);">${
+            per.modo === "mes" ? "días cubiertos de los exigidos"
+            : per.modo === "dia" ? "turnos cubiertos del día" : "cubierto en este turno"}</span></div>
+        ${!peores.length
+          ? `<div class="empty-mini">No hay procesos exigibles con este filtro.</div>`
+          : `<div style="height:300px;"><canvas id="cvKpiProc"></canvas></div>
+             <div style="margin-top:8px;font-size:.72rem;color:var(--text-dim);">
+               Los ${peores.length} con menor cobertura, de ${proc.length} procesos exigibles.${
+                 (function(){ const z = proc.filter(x=>x.pct===0).length;
+                   return z > peores.length
+                     ? ` <b>${z} están en 0 %</b>, así que la gráfica muestra sólo una parte.`
+                     : z ? ` ${z} en 0 %.` : ""; })()}</div>`}
+      </div>
+
+      <div class="panel" style="margin:0;">
+        <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.engranaje}</span>
+          <h2>ESTADO DE MÁQUINAS Y PROCESOS</h2></div>
+        <div class="mini-estados">
+          <div class="mini-est"><b style="color:var(--bad);">${nCrit}</b>
+            <span><i class="pt" style="background:var(--bad);"></i>Fuera de rango crítica</span></div>
+          <div class="mini-est"><b style="color:var(--warn-text);">${nFuera}</b>
+            <span><i class="pt" style="background:var(--warn);"></i>Fuera de rango no crítica</span></div>
+          <div class="mini-est"><b style="color:var(--ok);">${nOk}</b>
+            <span><i class="pt" style="background:var(--ok);"></i>Controlado y en rango</span></div>
+          <div class="mini-est"><b style="color:var(--text-dim);">${sinControlar}</b>
+            <span><i class="pt" style="background:#c9ced6;"></i>Sin controlar</span></div>
+        </div>
+        ${cajas.length ? `<div class="apilada">${
+          [[nCrit,"var(--bad)"],[nFuera,"var(--warn)"],[nOk,"var(--ok)"],[sinControlar,"#c9ced6"]]
+            .map(([n,c])=> n ? `<i style="width:${n/cajas.length*100}%;background:${c};"></i>` : "").join("")
+        }</div>
+        <div class="apilada-pies">${
+          [[nCrit,"crítica"],[nFuera,"fuera"],[nOk,"en rango"],[sinControlar,"sin ronda"]]
+            .filter(x=>x[0]).map(([n,t])=>
+              `<span>${Math.round(n/cajas.length*100)}% ${t}</span>`).join("")
+        }</div>` : ""}
+        <div style="margin-top:14px;font-size:.72rem;color:var(--text-dim);">
+          El cumplimiento de la izquierda cuenta <b>procesos</b>: uno queda cubierto con que se
+          controle una de sus máquinas. Aquí cada máquina va por separado, así que pueden
+          quedar casillas sin ronda aunque el cumplimiento sea del 100 %.</div>
+      </div>
+    </div>
+
     <div class="panel" style="margin-top:16px;">
-      <div class="section-title"><h2>MÁQUINAS Y PROCESOS</h2>
+      <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.casillas}</span>
+        <h2>MÁQUINAS Y PROCESOS</h2>
         <span style="font-size:.74rem;color:var(--text-dim);">${
           todas ? "todas las casillas del periodo"
                 : "sólo las que registraron alguna no conformidad"}</span></div>
-      <div style="font-size:.72rem;color:var(--text-dim);margin-bottom:10px;">
-        El cumplimiento de arriba cuenta <b>procesos</b>: un proceso queda cubierto con
-        que se controle una de sus máquinas. Aquí cada máquina va por separado, así que
-        pueden quedar casillas sin ronda aunque el cumplimiento sea del 100 %.</div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:.74rem;color:var(--text-dim);margin-bottom:12px;">
+      ${htmlCajas}
+    </div>
+
+    <div class="grid-insp" style="margin-top:16px;">
+      <div class="panel" style="margin:0;">
+        <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.gente}</span>
+          <h2>CUMPLIMIENTO POR INSPECTOR</h2></div>
+        ${!insp.length ? `<div class="empty-mini">Nadie registró nada en ${esc(per.etq)}.</div>`
+        : `<table class="tabla" style="width:100%;">
+            <thead><tr><th style="width:30%;">Inspector</th>
+              <th style="text-align:right;">Rondas</th>
+              <th style="text-align:right;">Exigidas</th>
+              <th style="width:18%;">Cumpl.</th>
+              <th style="text-align:right;">Medic.</th>
+              <th style="text-align:right;">Fuera</th>
+              <th style="text-align:right;">Críticas</th>
+              <th style="text-align:right;">Turnos</th></tr></thead>
+            <tbody>${insp.map(i=>`<tr>
+                <td><div class="fila-insp"><span class="avatar">${esc(iniciales(i.nombre))}</span>
+                  <div><b>${esc(i.nombre)}</b>
+                  <span style="display:block;font-size:.67rem;color:var(--text-dim);">${
+                    esc(i.lineas.join(", ") || "sin línea")}</span></div></div></td>
+                <td style="text-align:right;">${ent(i.registros)}</td>
+                <td style="text-align:right;">${ent(i.hechos)} de ${ent(i.esperado)}</td>
+                <td><b>${f1(i.pct)}${i.pct===null?"":"%"}</b>
+                  <span class="barra-mini"><i class="${
+                    i.pct===null?"":i.pct>=95?"":i.pct>=80?"flojo":"malo"}" style="width:${
+                    ancho(i.pct)}%;"></i></span></td>
+                <td style="text-align:right;">${ent(i.medidas)}</td>
+                <td style="text-align:right;${i.fuera?"color:var(--warn-text);font-weight:800;":""}">${ent(i.fuera)}</td>
+                <td style="text-align:right;${i.crit?"color:var(--bad);font-weight:800;":""}">${i.crit||""}</td>
+                <td style="text-align:right;">${i.turnos}</td>
+              </tr>`).join("")}</tbody></table>`}
+      </div>
+
+      <div class="panel" style="margin:0;">
+        <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.reloj}</span>
+          <h2>ROTACIÓN POR TURNO</h2>
+          <span style="font-size:.74rem;color:var(--text-dim);">${
+            per.modo === "mes" ? "turnos cubiertos" : "quién estuvo"}</span></div>
+        ${!insp.length ? `<div class="empty-mini">Sin registros en ${esc(per.etq)}.</div>`
+        : `<table class="rot"><thead><tr><th>Inspector</th>${
+            TURNOS.map(t=>`<th style="text-align:center;">Turno ${t}</th>`).join("")
+          }</tr></thead><tbody>${filasRot}</tbody></table>`}
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:16px;">
+      <div class="pie-leyenda">
+        <b style="color:var(--text);">Leyenda</b>
         <span><i class="dot" style="background:var(--bad);"></i> variable crítica fuera de rango</span>
         <span><i class="dot" style="background:var(--warn);"></i> fuera de rango, no crítica</span>
         <span><i class="dot" style="background:var(--ok);"></i> controlado y en rango</span>
         <span><i class="dot" style="background:#c9ced6;"></i> sin controlar</span>
+        <span class="nota">El denominador por inspector son los procesos exigibles de las líneas
+          que cada uno tocó en cada turno. Si dos inspectores comparten turno y línea, lo que
+          falte le cuenta a los dos: la aplicación no sabe quién tenía asignada cada máquina.</span>
       </div>
-      ${htmlCajas}
-    </div>
-
-    <div class="panel" style="margin-top:16px;">
-      <div class="section-title"><h2>CUMPLIMIENTO POR INSPECTOR</h2>
-        <span style="font-size:.74rem;color:var(--text-dim);">contra los procesos de las líneas que cubrió</span></div>
-      ${!insp.length ? `<div class="empty-mini">Nadie registró nada en ${esc(per.etq)}.</div>`
-      : `<table class="tabla" style="width:100%;">
-          <thead><tr><th style="width:26%;">Inspector</th>
-            <th style="text-align:right;">Rondas</th>
-            <th style="text-align:right;">De las exigidas</th>
-            <th style="width:16%;">Cumplimiento</th>
-            <th style="text-align:right;">Mediciones</th>
-            <th style="text-align:right;">Fuera</th>
-            <th style="text-align:right;">Críticas</th>
-            <th style="text-align:right;">Turnos</th></tr></thead>
-          <tbody>${insp.map(i=>{
-            const cl = i.pct === null ? "" : i.pct >= 95 ? "" : i.pct >= 80 ? "flojo" : "malo";
-            return `<tr>
-              <td><b>${esc(i.nombre)}</b>
-                <span class="lineas" style="display:block;font-size:.67rem;color:var(--text-dim);">${
-                  esc(i.lineas.join(", ") || "sin línea")}</span></td>
-              <td style="text-align:right;">${ent(i.registros)}</td>
-              <td style="text-align:right;">${ent(i.hechos)} de ${ent(i.esperado)}</td>
-              <td><b>${f1(i.pct)}${i.pct===null?"":"%"}</b>
-                <span class="barra-mini"><i class="${cl}" style="width:${
-                  Math.max(0, Math.min(100, i.pct||0))}%;"></i></span></td>
-              <td style="text-align:right;">${ent(i.medidas)}</td>
-              <td style="text-align:right;${i.fuera?"color:var(--warn-text);font-weight:800;":""}">${ent(i.fuera)}</td>
-              <td style="text-align:right;${i.crit?"color:var(--bad);font-weight:800;":""}">${i.crit||""}</td>
-              <td style="text-align:right;">${i.turnos}</td>
-            </tr>`;}).join("")}</tbody></table>
-        <div style="margin-top:10px;font-size:.72rem;color:var(--text-dim);">
-          El denominador son los procesos exigibles de las líneas que cada uno tocó en
-          cada turno. Si dos inspectores comparten turno y línea, lo que falte le cuenta
-          a los dos: la aplicación no sabe quién tenía asignada cada máquina.</div>`}
-    </div>
-
-    <div class="panel" style="margin-top:16px;">
-      <div class="section-title"><h2>ROTACIÓN POR TURNO</h2>
-        <span style="font-size:.74rem;color:var(--text-dim);">${
-          per.modo === "mes" ? "cuántos turnos cubrió cada uno" : "quién estuvo en cada turno"}</span></div>
-      ${!insp.length ? `<div class="empty-mini">Sin registros en ${esc(per.etq)}.</div>`
-      : `<table class="rot"><thead><tr><th>Inspector</th>${
-          TURNOS.map(t=>`<th style="text-align:center;">Turno ${t}</th>`).join("")
-        }</tr></thead><tbody>${filasRot}</tbody></table>`}
     </div>`;
+
+  /* La gráfica va después de pintar: antes el lienzo todavía no existe. */
+  if(graficaKpi){ try{ graficaKpi.destroy(); }catch(e){} graficaKpi = null; }
+  const cv = document.getElementById("cvKpiProc");
+  if(cv && peores.length && window.Chart){
+    graficaKpi = new Chart(cv, {
+      type:"bar",
+      data:{ labels: peores.map(x=>x.corto),
+        datasets:[{ data: peores.map(x=>Math.round(x.pct)),
+          backgroundColor: peores.map(x=> x.pct >= 95 ? "#1f9d55" : x.pct >= 70 ? "#f2b90b" : "#c81d2e"),
+          borderRadius:5, borderSkipped:false, barPercentage:.75, categoryPercentage:.85,
+          /* Un proceso sin una sola ronda vale 0 y no dibujaría nada: con un
+             mínimo visible se ve que está ahí, que es justo el dato grave. */
+          minBarLength:4 }] },
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false},
+          tooltip:{backgroundColor:"#1c1f24", padding:11,
+            callbacks:{ title: it => peores[it[0].dataIndex].nom,
+                        label: it => `${it.parsed.y}% · ${peores[it.dataIndex].cubiertas} de ${
+                          peores[it.dataIndex].total} ${per.modo==="mes"?"días":"turnos"}` }}},
+        scales:{ y:{ beginAtZero:true, max:100, grid:{color:"#eef0f3"},
+                     ticks:{color:"#6e7681", font:{size:11}, callback:v=>v+"%"} },
+                 x:{ grid:{display:false}, ticks:{color:"#6e7681", font:{size:10},
+                     maxRotation:38, minRotation:0,
+                     callback(v){ return String(this.getLabelForValue(v)).slice(0,16); } } } }
+      }
+    });
+  }
 }
 
 /* Los indicadores salen de las CABECERAS de los registros, que ya traen
@@ -5744,7 +5997,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-29-indicadores";
+const APP_VERSION = "2026-10-30-indicadores-2";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
