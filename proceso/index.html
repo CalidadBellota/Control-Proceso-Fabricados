@@ -389,6 +389,48 @@
   .kpi small{display:block;font-size:.7rem;color:var(--text-dim);margin-top:3px;}
   .kpi.malo b{color:var(--bad);}
   .kpi.bueno b{color:var(--ok);}
+  /* --- Indicadores: fila de filtros, casillas y rotación --- */
+  .fila-kpi{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;}
+  .fila-kpi .campo{flex:0 0 auto;margin:0;}
+  .fila-kpi .campo.corto{flex:0 0 160px;}
+  .fila-kpi .campo.der{margin-left:auto;}
+  /* Las casillas son el tablero de planta: se leen de un vistazo y de lejos,
+     así que el color va en toda la caja y el texto es corto. */
+  .casillas{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:10px;}
+  .casilla{border:1px solid var(--border);border-radius:11px;padding:11px 13px;
+    background:#fff;border-left:5px solid var(--border);min-height:92px;
+    display:flex;flex-direction:column;gap:3px;}
+  .casilla .maq{font-weight:800;font-size:.86rem;line-height:1.2;}
+  .casilla .proc{font-size:.7rem;color:var(--text-dim);line-height:1.25;}
+  .casilla .cifra{font-size:1.35rem;font-weight:800;line-height:1.1;margin-top:2px;}
+  .casilla .pie{font-size:.67rem;color:var(--text-dim);margin-top:auto;line-height:1.3;}
+  .casilla.crit{border-left-color:var(--bad);background:var(--bad-bg);}
+  .casilla.crit .cifra{color:var(--bad);}
+  .casilla.fuera{border-left-color:var(--warn);background:var(--warn-bg);}
+  .casilla.fuera .cifra{color:var(--warn-text);}
+  .casilla.ok{border-left-color:var(--ok);}
+  .casilla.ok .cifra{color:var(--ok);}
+  .casilla.sin{border-left-color:#c9ced6;background:#f7f8fa;}
+  .casilla.sin .cifra{color:var(--text-dim);}
+  .grupo-linea{font-size:.72rem;font-weight:800;color:var(--text-dim);
+    text-transform:uppercase;letter-spacing:.04em;margin:16px 0 8px;}
+  .grupo-linea:first-child{margin-top:0;}
+  /* Rotación: quién estuvo en cada turno. */
+  .rot{width:100%;border-collapse:collapse;font-size:.8rem;}
+  .rot th,.rot td{padding:9px 10px;border-bottom:1px solid var(--border);text-align:left;
+    vertical-align:top;}
+  .rot th{font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;}
+  .rot td.turno{text-align:center;width:16%;}
+  .rot .marca{display:inline-block;background:var(--ok-bg);color:#136b3a;border-radius:7px;
+    padding:3px 8px;font-weight:800;font-size:.74rem;}
+  .rot .marca.flojo{background:var(--warn-bg);color:var(--warn-text);}
+  .rot .marca.nada{background:#f2f3f5;color:#9aa1ab;font-weight:600;}
+  .rot .lineas{display:block;font-size:.66rem;color:var(--text-dim);margin-top:3px;}
+  .barra-mini{display:block;height:7px;border-radius:4px;background:#eceef1;
+    overflow:hidden;margin-top:6px;}
+  .barra-mini i{display:block;height:100%;background:var(--ok);}
+  .barra-mini i.flojo{background:var(--warn);}
+  .barra-mini i.malo{background:var(--bad);}
   .chart-box{position:relative;height:320px;}
   .chart-box.corto{height:260px;}
   .leyenda-lim{display:flex;gap:16px;flex-wrap:wrap;font-size:.74rem;color:var(--text-dim);margin-top:10px;}
@@ -792,19 +834,33 @@
       <span id="kpiResumen" style="font-size:.74rem;color:var(--text-dim);"></span>
       <button type="button" class="btn-actualizar" id="btnActualizarKpi"
         title="Volver a leer la hoja compartida">&#8635; Actualizar</button></div>
-    <div class="grid4">
+    <div class="fila-kpi">
       <div class="campo">
-        <label for="kLinea">Línea</label>
-        <select id="kLinea"><option value="">Todas</option></select>
+        <label>Periodo</label>
+        <div class="seg" id="kPeriodo">
+          <button type="button" data-p="turno">Turno actual</button>
+          <button type="button" data-p="dia" class="on">Día</button>
+          <button type="button" data-p="mes">Mes</button>
+        </div>
       </div>
-      <div class="campo">
+      <div class="campo corto" id="kCampoDia">
+        <label for="kDia">Día</label>
+        <input type="date" id="kDia">
+      </div>
+      <div class="campo corto" id="kCampoMes" style="display:none;">
         <label for="kMes">Mes</label>
         <input type="month" id="kMes">
       </div>
-      <div class="campo" style="grid-column:span 2;display:flex;align-items:flex-end;">
-        <div style="font-size:.72rem;color:var(--text-dim);">
-          Cada indicador se compara con el mes anterior. El cumplimiento usa la misma
-          regla que la matriz de Control: cuenta cada día-proceso exigible.</div>
+      <div class="campo corto">
+        <label for="kLinea">Línea</label>
+        <select id="kLinea"><option value="">Todas</option></select>
+      </div>
+      <div class="campo der">
+        <label for="kTodo">Casillas</label>
+        <select id="kTodo">
+          <option value="nc">Sólo con no conformidad</option>
+          <option value="todo">Todas las máquinas y procesos</option>
+        </select>
       </div>
     </div>
   </div>
@@ -4299,8 +4355,6 @@ function inicioMes(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.get
        traía TODAS las mediciones del periodo para contarlas aquí, y eso es
        lo que agotaba la ejecución y acababa en «Failed to fetch».
    ========================================================================== */
-let KPI_DATOS = null;            // lo último que devolvió la hoja
-let KPI_CLAVE = "";              // para qué mes y línea era
 
 function mesAnterior(mes){
   const [y,m] = String(mes).split("-").map(Number);
@@ -4327,146 +4381,395 @@ function varHtml(hoy, antes, bueno){
     <small>frente a ${antes.toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1})}% el mes pasado</small>`;
 }
 
+/* --------------------------------------------------------------------------
+   El periodo que se está mirando. Tres escalas para dos usos distintos: el
+   turno sirve para reaccionar —es el tablero que se cuelga en planta—, el mes
+   para gestionar. El día queda en medio y es el que más se usa.
+   -------------------------------------------------------------------------- */
+function periodoKpi(){
+  const b = document.querySelector("#kPeriodo [data-p].on");
+  const modo = b ? b.dataset.p : "dia";
+  if(modo === "turno"){
+    const fecha = fechaRondaActual(), t = turnoDeHora(horaAhora());
+    return {modo:"turno", fecha:fecha, turno:t, desde:fecha, hasta:fecha,
+            etq:`turno ${t} · ${fFechaCorta(fecha)}`};
+  }
+  if(modo === "mes"){
+    const mes = document.getElementById("kMes").value || mesISO();
+    return {modo:"mes", mes:mes, desde:mes+"-01", hasta:finDeMes(mes), etq:mes};
+  }
+  const dia = document.getElementById("kDia").value || hoyISO();
+  return {modo:"dia", fecha:dia, desde:dia, hasta:dia, etq:fFechaCorta(dia)};
+}
+
+/* Los procesos que SE EXIGEN: ni los condicionales, ni los que no van por
+   ronda, ni los desactivados. Es la misma lista que usa la matriz de Control,
+   para que dos pantallas no den dos cumplimientos distintos. */
+function formatosExigibles(linea){
+  return S.formatos.filter(f => (!linea || f.linea === linea) &&
+    !f.condicional && conRonda(f) && estaActivo(f));
+}
+
+/* La fecha de un registro es la de su TURNO, no la del reloj: lo registrado a
+   las 00:30 pertenece al turno 3 que arrancó el día anterior. */
+function regsDelPeriodo(per, linea){
+  return S.registros.filter(r=>{
+    const f = fechaTurnoDe(r);
+    if(f < per.desde || f > per.hasta) return false;
+    if(per.modo === "turno" && String(r.turno||"") !== per.turno) return false;
+    if(linea && String(r.linea||"").trim() !== linea) return false;
+    return true;
+  });
+}
+
+function cumplimientoPeriodo(per, linea){
+  const fs = formatosExigibles(linea);
+  if(per.modo === "mes") return cumplimientoMes(per.mes, linea);
+  let total = 0, faltan = 0;
+  fs.forEach(f=>{
+    const rs = S.registros.filter(r => r.formatoId === f.id &&
+      fechaTurnoDe(r) === per.fecha &&
+      (per.modo !== "turno" || String(r.turno||"") === per.turno));
+    total++;
+    if(estadoCelda(rs, f) === "r") faltan++;
+  });
+  return {total:total, faltan:faltan, pct: total ? (total-faltan)/total*100 : null};
+}
+
+/* --------------------------------------------------------------------------
+   Cómo se comportó cada inspector.
+   El denominador son los procesos exigibles de las líneas que cubrió en cada
+   turno donde estuvo activo. Es una aproximación, y hay que decirlo: si dos
+   inspectores comparten turno y línea, lo que falte le cuenta a los dos,
+   porque la aplicación no sabe quién tenía asignada cada máquina.
+   -------------------------------------------------------------------------- */
+function inspectoresDe(per, linea){
+  const exigibles = {};                       // id -> true
+  formatosExigibles("").forEach(f=>{ exigibles[f.id] = true; });
+  const porLinea = {};                        // cuántos se exigen en cada línea
+  const cuantosDe = L => {
+    if(porLinea[L] === undefined) porLinea[L] = formatosExigibles(L).length;
+    return porLinea[L];
+  };
+
+  const acum = {};
+  regsDelPeriodo(per, linea).forEach(r=>{
+    const n = String(r.inspector||"").trim() || "(sin nombre)";
+    const o = acum[n] = acum[n] || {turnos:{}, medidas:0, fuera:0, crit:0,
+                                    registros:0, noTrabajo:0};
+    const clave = fechaTurnoDe(r) + "|" + String(r.turno||"");
+    const t = o.turnos[clave] = o.turnos[clave] ||
+      {fecha:fechaTurnoDe(r), turno:String(r.turno||""), lineas:{}};
+    const L = String(r.linea||"").trim();
+    const hechos = t.lineas[L] = t.lineas[L] || {};
+    if(exigibles[r.formatoId]) hechos[r.formatoId] = true;
+    o.registros++;
+    o.medidas += numDe(r.totalVariables) || (r.resultados||[]).length;
+    o.fuera   += ncDe(r);
+    o.crit    += critNCDe(r);
+    if(r.noTrabajo) o.noTrabajo++;
+  });
+
+  return Object.keys(acum).map(n=>{
+    const o = acum[n];
+    let esperado = 0, hechos = 0;
+    const lineas = {}, porTurno = {};
+    Object.keys(o.turnos).forEach(k=>{
+      const t = o.turnos[k];
+      (porTurno[t.turno] = porTurno[t.turno] || {dias:0, lineas:{}}).dias++;
+      Object.keys(t.lineas).forEach(L=>{
+        lineas[L] = true; porTurno[t.turno].lineas[L] = true;
+        esperado += cuantosDe(L);
+        hechos   += Object.keys(t.lineas[L]).length;
+      });
+    });
+    return {nombre:n, turnos:Object.keys(o.turnos).length, porTurno:porTurno,
+            lineas:Object.keys(lineas).sort(), esperado:esperado, hechos:hechos,
+            pct: esperado ? Math.min(100, hechos/esperado*100) : null,
+            medidas:o.medidas, fuera:o.fuera, crit:o.crit,
+            registros:o.registros, noTrabajo:o.noTrabajo};
+  }).sort((a,b)=> (b.pct===null?-1:b.pct) - (a.pct===null?-1:a.pct) || b.hechos - a.hechos);
+}
+
+/* --------------------------------------------------------------------------
+   Las casillas: una por proceso y máquina, como el tablero de planta.
+   -------------------------------------------------------------------------- */
+function casillasDe(per, linea, todas){
+  const cajas = {};
+  const nueva = (f, maq) => ({
+    id: f.id + "|" + maq, linea: f.linea, proceso: f.proceso, maquina: maq,
+    nc:0, crit:0, medidas:0, registros:0, noTrabajo:0, hora:"", quien:"", turno:""
+  });
+
+  if(todas){
+    /* Las que se esperan, hayan trabajado o no: una casilla vacía también
+       informa —dice que nadie controló esa máquina en el periodo. */
+    formatosExigibles(linea).forEach(f=>{
+      const maqs = maquinasDeFormato(f);
+      (maqs.length ? maqs : [""]).forEach(m=>{ cajas[f.id+"|"+m] = nueva(f, m); });
+    });
+  }
+
+  regsDelPeriodo(per, linea).forEach(r=>{
+    const f = S.formatos.find(x=>x.id === r.formatoId);
+    if(!f) return;
+    const maq = String(r.maquina||"").trim();
+    const k = f.id + "|" + maq;
+    const c = cajas[k] = cajas[k] || nueva(f, maq);
+    c.registros++;
+    c.nc      += ncDe(r);
+    c.crit    += critNCDe(r);
+    c.medidas += numDe(r.totalVariables) || (r.resultados||[]).length;
+    if(r.noTrabajo) c.noTrabajo++;
+    const h = fHora(r.hora);
+    if(h >= c.hora){ c.hora = h; c.quien = String(r.inspector||""); c.turno = String(r.turno||""); }
+  });
+
+  return Object.keys(cajas).map(k=>{
+    const c = cajas[k];
+    c.estado = c.crit > 0 ? "crit" : c.nc > 0 ? "fuera" : c.registros ? "ok" : "sin";
+    return c;
+  }).sort((a,b)=>{
+    const orden = {crit:0, fuera:1, ok:2, sin:3};
+    return orden[a.estado] - orden[b.estado] ||
+           a.linea.localeCompare(b.linea) ||
+           a.proceso.localeCompare(b.proceso) ||
+           String(a.maquina).localeCompare(String(b.maquina), "es", {numeric:true});
+  });
+}
+
 function renderKpi(){
   refrescarSelectoresConsulta();
   const sel = document.getElementById("kLinea");
-  if(sel && !sel.options.length){ sel.innerHTML = `<option value="">Todas</option>`; }
-  const mesIn = document.getElementById("kMes");
-  if(mesIn && !mesIn.value) mesIn.value = mesISO();
-  const mes   = mesIn.value || mesISO();
+  if(sel && !sel.options.length) sel.innerHTML = `<option value="">Todas</option>`;
+  const inDia = document.getElementById("kDia");
+  const inMes = document.getElementById("kMes");
+  if(inDia && !inDia.value) inDia.value = hoyISO();
+  if(inMes && !inMes.value) inMes.value = mesISO();
+
+  const per   = periodoKpi();
   const linea = document.getElementById("kLinea").value;
-  const prev  = mesAnterior(mes);
+  const todas = document.getElementById("kTodo").value === "todo";
   const box   = document.getElementById("kpiResultado");
-
-  /* 1) Cumplimiento de inspección: de los registros del equipo. */
-  const cHoy   = cumplimientoMes(mes,  linea);
-  /* Sin un solo registro del mes anterior en el equipo no se puede comparar:
-     dar 0 % confundiría «no se trabajó» con «no lo tengo descargado». */
-  const hayPrev = S.registros.some(r => String(fFecha(r.fecha)).slice(0,7) === prev);
-  const cAntes = hayPrev ? cumplimientoMes(prev, linea) : {total:0, faltan:0, pct:null};
-
-  /* 2) y 3) de la hoja, si ya se pidieron para este mes y línea. */
-  const alDia = KPI_CLAVE === mes + "|" + linea && KPI_DATOS;
-  const K = alDia ? KPI_DATOS : null;
-  const pct = (a, b) => b ? a / b * 100 : null;
-  const confHoy   = K ? pct(K.actual.medidas - K.actual.fuera, K.actual.medidas) : null;
-  const confAntes = K ? pct(K.previo.medidas - K.previo.fuera, K.previo.medidas) : null;
+  document.getElementById("kCampoDia").style.display = per.modo === "dia" ? "" : "none";
+  document.getElementById("kCampoMes").style.display = per.modo === "mes" ? "" : "none";
 
   const f1 = n => n === null || n === undefined
     ? "—" : n.toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1});
+  const ent = n => (n||0).toLocaleString("es-CO");
+
+  const cump  = cumplimientoPeriodo(per, linea);
+  const regs  = regsDelPeriodo(per, linea);
+  const insp  = inspectoresDe(per, linea);
+  /* Las casillas se arman SIEMPRE completas, aunque se muestren filtradas:
+     el indicador de «sin controlar» se cuenta sobre todas, y antes salía
+     siempre en cero porque las vacías ni se creaban. */
+  const cajas = casillasDe(per, linea, true);
+
+  let medidas = 0, fuera = 0, crit = 0;
+  regs.forEach(r=>{
+    medidas += numDe(r.totalVariables) || (r.resultados||[]).length;
+    fuera += ncDe(r); crit += critNCDe(r);
+  });
+  const conf = medidas ? (medidas - fuera) / medidas * 100 : null;
+
+  /* El mes se compara con el anterior; el turno y el día no tienen con qué:
+     comparar el turno 2 con el turno 1 mezcla procesos distintos. */
+  let cmpCump = "", cmpConf = "";
+  if(per.modo === "mes"){
+    const prev = mesAnterior(per.mes);
+    const hayPrev = S.registros.some(r => fechaTurnoDe(r).slice(0,7) === prev);
+    const cAntes = hayPrev ? cumplimientoMes(prev, linea) : {pct:null};
+    cmpCump = varHtml(cump.pct, cAntes.pct, "sube");
+    if(hayPrev){
+      let m2 = 0, f2 = 0;
+      S.registros.filter(r=> fechaTurnoDe(r).slice(0,7) === prev &&
+        (!linea || String(r.linea||"").trim() === linea)).forEach(r=>{
+          m2 += numDe(r.totalVariables) || (r.resultados||[]).length; f2 += ncDe(r);
+        });
+      cmpConf = varHtml(conf, m2 ? (m2-f2)/m2*100 : null, "sube");
+    } else cmpConf = varHtml(conf, null, "sube");
+  }
 
   document.getElementById("kpiResumen").textContent =
-    `${mes}${linea ? " · "+linea : " · todas las líneas"} · comparado con ${prev}`;
+    `${per.etq}${linea ? " · "+linea : " · todas las líneas"} · ${ent(regs.length)} registro(s)`;
 
-  /* Procesos con más incumplimiento: los que más se salen, por porcentaje,
-     dejando fuera los que apenas tienen mediciones —con 3 mediciones un 33%
-     no dice nada y desplazaría a un proceso con 400. */
-  let peores = [];
-  if(K){
-    peores = Object.keys(K.actual.procesos).map(nom=>{
-      const p = K.actual.procesos[nom];
-      const ant = (K.previo.procesos||{})[nom];
-      return {nom:nom, med:p.medidas, fuera:p.fuera, crit:p.criticas,
-              pct: pct(p.fuera, p.medidas),
-              pctAnt: ant && ant.medidas ? pct(ant.fuera, ant.medidas) : null};
-    }).filter(x=> x.fuera > 0 && x.med >= 10)
-      .sort((a,b)=> b.pct - a.pct || b.fuera - a.fuera)
-      .slice(0, 8);
+  const conNC = cajas.filter(c=> c.estado === "crit" || c.estado === "fuera");
+  const sinControlar = cajas.filter(c=> c.estado === "sin").length;
+
+  /* --- las casillas, agrupadas por línea --- */
+  const verCajas = todas ? cajas : conNC;
+  let htmlCajas = "";
+  if(!verCajas.length){
+    htmlCajas = `<div class="empty-mini">${todas
+      ? "No hay procesos ni máquinas que mostrar con este filtro."
+      : "Ninguna máquina ni proceso registró no conformidades en " + esc(per.etq) + "."}</div>`;
+  } else {
+    const porLinea = {};
+    verCajas.forEach(c=>{ (porLinea[c.linea] = porLinea[c.linea] || []).push(c); });
+    htmlCajas = Object.keys(porLinea).sort().map(L=>`
+      <div class="grupo-linea">${esc(L)} · ${porLinea[L].length} casilla(s)</div>
+      <div class="casillas">${porLinea[L].map(c=>`
+        <div class="casilla ${c.estado}">
+          <span class="maq">${esc(c.maquina || "sin máquina")}</span>
+          <span class="proc">${esc(c.proceso)}</span>
+          <span class="cifra">${
+            c.estado === "sin" ? "—"
+            : c.crit ? c.crit + " crítica" + (c.crit>1?"s":"")
+            : c.nc   ? c.nc + " fuera"
+            : "en rango"}</span>
+          <span class="pie">${
+            c.estado === "sin" ? "sin controlar en este periodo"
+            : `${ent(c.medidas)} medición(es) · ${ent(c.registros)} ronda(s)` +
+              (c.crit && c.nc > c.crit ? `<br>${c.nc} fuera de rango en total` : "") +
+              (c.hora ? `<br>última ${esc(c.hora)}${c.turno?" · T"+esc(c.turno):""}${
+                 c.quien?" · "+esc(c.quien):""}` : "")}</span>
+        </div>`).join("")}</div>`).join("");
   }
+
+  /* --- rotación: quién estuvo en cada turno --- */
+  const filasRot = insp.map(i=>{
+    const celdas = TURNOS.map(t=>{
+      const d = i.porTurno[t];
+      if(!d) return `<td class="turno"><span class="marca nada">—</span></td>`;
+      const ls = Object.keys(d.lineas).sort().join(", ");
+      const etq = per.modo === "mes" ? `${d.dias} turno${d.dias>1?"s":""}` : "estuvo";
+      return `<td class="turno"><span class="marca">${esc(etq)}</span>
+        <span class="lineas">${esc(ls)}</span></td>`;
+    }).join("");
+    return `<tr><td><b>${esc(i.nombre)}</b>
+      <span class="lineas">${esc(i.lineas.join(", ") || "sin línea")}</span></td>${celdas}</tr>`;
+  }).join("");
 
   box.innerHTML = `
     <div class="panel">
       <div class="kpis">
-        <div class="kpi ${cHoy.pct !== null && cHoy.pct < 100 ? "ojo" : ""}">
+        <div class="kpi ${cump.pct !== null && cump.pct < 100 ? "ojo" : ""}">
           <span>Cumplimiento de inspección</span>
-          <b>${f1(cHoy.pct)}${cHoy.pct===null?"":"%"}</b>
-          <small>${cHoy.total - cHoy.faltan} de ${cHoy.total} día-proceso exigibles</small>
-          ${varHtml(cHoy.pct, cAntes.pct, "sube")}
+          <b>${f1(cump.pct)}${cump.pct===null?"":"%"}</b>
+          <small>${ent(cump.total - cump.faltan)} de ${ent(cump.total)} ${
+            per.modo === "turno" ? "procesos del turno"
+            : per.modo === "dia" ? "procesos del día" : "día-proceso exigibles"}</small>
+          ${cmpCump}
         </div>
-        <div class="kpi ${confHoy !== null && confHoy < 95 ? "malo" : ""}">
+        <div class="kpi ${conf !== null && conf < 95 ? "malo" : ""}">
           <span>Conformidad de mediciones</span>
-          <b>${f1(confHoy)}${confHoy===null?"":"%"}</b>
-          <small>${K ? `${(K.actual.medidas - K.actual.fuera).toLocaleString("es-CO")} de ${
-            K.actual.medidas.toLocaleString("es-CO")} mediciones juzgadas` : "pulsa Actualizar para pedirlo a la hoja"}</small>
-          ${K ? varHtml(confHoy, confAntes, "sube") : ""}
+          <b>${f1(conf)}${conf===null?"":"%"}</b>
+          <small>${ent(medidas - fuera)} de ${ent(medidas)} mediciones juzgadas</small>
+          ${cmpConf}
+        </div>
+        <div class="kpi ${crit ? "malo" : ""}">
+          <span>No conformidades</span>
+          <b>${ent(fuera)}</b>
+          <small>${crit ? `${ent(crit)} en variable crítica` : "ninguna en variable crítica"}</small>
+          <small>${conNC.length} máquina(s) o proceso(s) afectados</small>
         </div>
         <div class="kpi">
-          <span>Mediciones fuera de rango</span>
-          <b>${K ? K.actual.fuera.toLocaleString("es-CO") : "—"}</b>
-          <small>${K ? (K.actual.criticas ? `${K.actual.criticas} en variable crítica` : "ninguna en variable crítica")
-                     : "sin datos de la hoja todavía"}</small>
-          ${K && K.previo.medidas ? `<small>el mes pasado: ${K.previo.fuera.toLocaleString("es-CO")}</small>` : ""}
+          <span>Inspectores en el periodo</span>
+          <b>${insp.length}</b>
+          <small>${ent(regs.length)} ronda(s) registradas</small>
+          <small>${sinControlar
+            ? `${sinControlar} proceso·máquina sin ronda`
+            : "todo lo exigible fue cubierto"}</small>
         </div>
       </div>
     </div>
 
     <div class="panel" style="margin-top:16px;">
-      <div class="section-title"><h2>PROCESOS CON MÁS INCUMPLIMIENTO</h2>
+      <div class="section-title"><h2>MÁQUINAS Y PROCESOS</h2>
         <span style="font-size:.74rem;color:var(--text-dim);">${
-          K ? "al menos 10 mediciones en el mes" : ""}</span></div>
-      ${!K ? `<div class="empty-mini">Pulsa <b>Actualizar</b> para que la hoja sume los indicadores del mes.</div>`
-        : !peores.length ? `<div class="empty-mini">Ningún proceso tuvo mediciones fuera de rango en ${esc(mes)}.</div>`
-        : `<table class="tabla" style="width:100%;"><thead><tr><th style="width:40%;">Proceso</th>
-             <th style="text-align:right;">Mediciones</th>
-             <th style="text-align:right;">Fuera</th>
-             <th style="text-align:right;">% fuera</th>
-             <th style="text-align:right;">Mes pasado</th>
-             <th style="text-align:right;">Críticas</th></tr></thead><tbody>${
-            peores.map(x=>`<tr>
-              <td>${esc(x.nom)}</td>
-              <td style="text-align:right;">${x.med.toLocaleString("es-CO")}</td>
-              <td style="text-align:right;">${x.fuera}</td>
-              <td style="text-align:right;font-weight:800;${x.pct>=5?"color:var(--bad);":""}">${f1(x.pct)}%</td>
-              <td style="text-align:right;color:var(--text-dim);">${
-                x.pctAnt===null ? "—" : f1(x.pctAnt)+"%"}</td>
-              <td style="text-align:right;${x.crit?"color:var(--bad);font-weight:800;":""}">${x.crit||""}</td>
-            </tr>`).join("")}</tbody></table>`}
+          todas ? "todas las casillas del periodo"
+                : "sólo las que registraron alguna no conformidad"}</span></div>
+      <div style="font-size:.72rem;color:var(--text-dim);margin-bottom:10px;">
+        El cumplimiento de arriba cuenta <b>procesos</b>: un proceso queda cubierto con
+        que se controle una de sus máquinas. Aquí cada máquina va por separado, así que
+        pueden quedar casillas sin ronda aunque el cumplimiento sea del 100 %.</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:.74rem;color:var(--text-dim);margin-bottom:12px;">
+        <span><i class="dot" style="background:var(--bad);"></i> variable crítica fuera de rango</span>
+        <span><i class="dot" style="background:var(--warn);"></i> fuera de rango, no crítica</span>
+        <span><i class="dot" style="background:var(--ok);"></i> controlado y en rango</span>
+        <span><i class="dot" style="background:#c9ced6;"></i> sin controlar</span>
+      </div>
+      ${htmlCajas}
+    </div>
+
+    <div class="panel" style="margin-top:16px;">
+      <div class="section-title"><h2>CUMPLIMIENTO POR INSPECTOR</h2>
+        <span style="font-size:.74rem;color:var(--text-dim);">contra los procesos de las líneas que cubrió</span></div>
+      ${!insp.length ? `<div class="empty-mini">Nadie registró nada en ${esc(per.etq)}.</div>`
+      : `<table class="tabla" style="width:100%;">
+          <thead><tr><th style="width:26%;">Inspector</th>
+            <th style="text-align:right;">Rondas</th>
+            <th style="text-align:right;">De las exigidas</th>
+            <th style="width:16%;">Cumplimiento</th>
+            <th style="text-align:right;">Mediciones</th>
+            <th style="text-align:right;">Fuera</th>
+            <th style="text-align:right;">Críticas</th>
+            <th style="text-align:right;">Turnos</th></tr></thead>
+          <tbody>${insp.map(i=>{
+            const cl = i.pct === null ? "" : i.pct >= 95 ? "" : i.pct >= 80 ? "flojo" : "malo";
+            return `<tr>
+              <td><b>${esc(i.nombre)}</b>
+                <span class="lineas" style="display:block;font-size:.67rem;color:var(--text-dim);">${
+                  esc(i.lineas.join(", ") || "sin línea")}</span></td>
+              <td style="text-align:right;">${ent(i.registros)}</td>
+              <td style="text-align:right;">${ent(i.hechos)} de ${ent(i.esperado)}</td>
+              <td><b>${f1(i.pct)}${i.pct===null?"":"%"}</b>
+                <span class="barra-mini"><i class="${cl}" style="width:${
+                  Math.max(0, Math.min(100, i.pct||0))}%;"></i></span></td>
+              <td style="text-align:right;">${ent(i.medidas)}</td>
+              <td style="text-align:right;${i.fuera?"color:var(--warn-text);font-weight:800;":""}">${ent(i.fuera)}</td>
+              <td style="text-align:right;${i.crit?"color:var(--bad);font-weight:800;":""}">${i.crit||""}</td>
+              <td style="text-align:right;">${i.turnos}</td>
+            </tr>`;}).join("")}</tbody></table>
+        <div style="margin-top:10px;font-size:.72rem;color:var(--text-dim);">
+          El denominador son los procesos exigibles de las líneas que cada uno tocó en
+          cada turno. Si dos inspectores comparten turno y línea, lo que falte le cuenta
+          a los dos: la aplicación no sabe quién tenía asignada cada máquina.</div>`}
+    </div>
+
+    <div class="panel" style="margin-top:16px;">
+      <div class="section-title"><h2>ROTACIÓN POR TURNO</h2>
+        <span style="font-size:.74rem;color:var(--text-dim);">${
+          per.modo === "mes" ? "cuántos turnos cubrió cada uno" : "quién estuvo en cada turno"}</span></div>
+      ${!insp.length ? `<div class="empty-mini">Sin registros en ${esc(per.etq)}.</div>`
+      : `<table class="rot"><thead><tr><th>Inspector</th>${
+          TURNOS.map(t=>`<th style="text-align:center;">Turno ${t}</th>`).join("")
+        }</tr></thead><tbody>${filasRot}</tbody></table>`}
     </div>`;
 }
 
-/* Pedir a la hoja los dos meses de una vez. */
+/* Los indicadores salen de las CABECERAS de los registros, que ya traen
+   totalVariables, fueraDeRango y criticasFuera sumados por la hoja. No hace
+   falta pedir el detalle: una pantalla de gestión no necesita cada medición,
+   necesita los totales, y pedirlas todas es lo que agotaba la ejecución. */
 async function traerKpi(boton){
-  const mes   = document.getElementById("kMes").value || mesISO();
-  const linea = document.getElementById("kLinea").value;
-  const prev  = mesAnterior(mes);
+  const per = periodoKpi();
   if(!S.syncUrl){ renderKpi(); return false; }
-  const txt = boton ? boton.textContent : null;
-  if(boton){ boton.disabled = true; boton.textContent = "Calculando…"; }
-  const t0 = Date.now();
-  LECTURA.motivo = "indicadores del mes";
-  LECTURA.corte  = prev + "-01";
-  try{
-    const d = await pedirJSON(S.syncUrl + "?tipo=kpi"
-      + "&desde="  + mes  + "-01" + "&hasta="  + finDeMes(mes)
-      + "&desde2=" + prev + "-01" + "&hasta2=" + finDeMes(prev), "los indicadores");
-    if(!d || !d.actual) throw new Error("la hoja no conoce los indicadores");
-    KPI_DATOS = d; KPI_CLAVE = mes + "|" + linea;
-    LECTURA.hora = (function(){ const x=new Date(); return `${pad(x.getHours())}:${pad(x.getMinutes())}`; })();
-    LECTURA.sello = Date.now(); LECTURA.ms = Date.now() - t0;
-    LECTURA.recibidos = Object.keys(d.actual.procesos||{}).length;
-    LECTURA.nuevos = 0; LECTURA.error = null;
-    anotarLectura(); actualizarEstadoSync();
-    /* El cumplimiento se calcula aquí con los registros del equipo, así que
-       hay que traer TAMBIÉN los del mes anterior: si no, el mes pasado
-       saldría siempre en 0 % y la comparación sería mentira. Son cabeceras,
-       no mediciones: dos meses de cabeceras siguen siendo una lectura ligera. */
-    await traerLista(prev + "-01", null, "indicadores (cumplimiento)");
-    return true;
-  }catch(e){
-    KPI_DATOS = null; KPI_CLAVE = "";
-    toast("No se pudieron calcular los indicadores · " + (e.message || e));
-    return false;
-  }finally{
-    if(boton){ boton.disabled = false; if(txt) boton.textContent = txt; }
-    renderKpi();
-  }
+  /* En el mes se trae también el anterior, porque los indicadores se comparan
+     con él; dar 0 % por no haberlo descargado sería mentir. */
+  const desde = per.modo === "mes" ? mesAnterior(per.mes) + "-01" : per.desde;
+  const ok = await traerLista(desde, boton, "indicadores");
+  renderKpi();
+  return ok;
 }
 
 document.getElementById("btnActualizarKpi").addEventListener("click", e=> traerKpi(e.target));
-["kLinea","kMes"].forEach(id=>{
+["kLinea","kMes","kDia","kTodo"].forEach(id=>{
   const el = document.getElementById(id);
-  if(el) el.addEventListener("change", ()=>{ KPI_CLAVE = ""; renderKpi(); });
+  if(el) el.addEventListener("change", renderKpi);
 });
+/* El periodo es un grupo de botones, no un desplegable: se pulsa de una vez
+   y en la tableta no abre una lista encima de la pantalla. */
+(function(){
+  const seg = document.getElementById("kPeriodo");
+  if(!seg) return;
+  seg.querySelectorAll("[data-p]").forEach(b=> b.addEventListener("click", ()=>{
+    seg.querySelectorAll("[data-p]").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    renderKpi();
+  }));
+})();
 
 
 /* ==========================================================================
@@ -5441,7 +5744,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-28-encabezado-limas";
+const APP_VERSION = "2026-10-29-indicadores";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
