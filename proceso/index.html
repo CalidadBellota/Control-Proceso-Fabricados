@@ -482,16 +482,24 @@
     font-size:.73rem;color:var(--text-dim);}
   .cal-pie button{margin-left:auto;}
   /* --- Cumplimiento por inspector: una tarjeta por persona --- */
-  .insp-card{display:flex;flex-wrap:wrap;align-items:stretch;gap:0;
+  /* Rejilla, no flex: con flex cada tarjeta se repartía el ancho según su
+     propio contenido —«6 turnos» ocupa menos que «21 turnos»— y las columnas
+     de una tarjeta no caían donde las de la de arriba. Con las mismas pistas
+     para todas, todo queda alineado en vertical. */
+  .insp-card{display:grid;align-items:stretch;
+    grid-template-columns:minmax(210px,1.15fr) 276px 190px minmax(170px,1fr) 300px;
     border:1px solid var(--border);border-radius:12px;background:#fff;
     padding:0;margin-bottom:12px;overflow:hidden;}
   .insp-card:last-child{margin-bottom:0;}
   .insp-g{padding:15px 20px;display:flex;flex-direction:column;gap:7px;
     border-left:1px solid var(--border);min-width:0;}
   .insp-g:first-child{border-left:none;}
-  .insp-g.id{flex:1 1 230px;flex-direction:row;align-items:flex-start;gap:12px;}
-  .insp-g.cump{flex:1 1 260px;justify-content:center;}
-  .insp-g.cump .barra-mini{flex:1 1 auto;min-width:110px;height:9px;}
+  .insp-g.id{flex-direction:row;align-items:flex-start;gap:12px;}
+  .insp-g.cump{justify-content:center;}
+  .insp-g.cump .barra-mini{flex:1 1 auto;min-width:90px;height:9px;}
+  /* Los tres recuadros de un grupo, del mismo ancho: así el 976 y el 140
+     quedan uno debajo del otro aunque tengan distinto número de cifras. */
+  .insp-g .caja{flex:1 1 0;min-width:0;}
   .insp-g .g-tit{font-size:.72rem;font-weight:800;color:var(--text);}
   .insp-g .g-pie{font-size:.66rem;color:var(--text-dim);line-height:1.35;}
   .insp-card .nom{font-size:.98rem;font-weight:800;line-height:1.2;display:block;}
@@ -517,8 +525,14 @@
   .nota-pie{display:flex;gap:12px;align-items:flex-start;font-size:.72rem;
     color:var(--text-dim);line-height:1.5;}
   .nota-pie .ic-sec{width:26px;height:26px;border-radius:8px;}
-  @media(max-width:1100px){
-    .insp-g{border-left:none;border-top:1px solid var(--border);flex:1 1 100%;}
+  @media(max-width:1250px){
+    .insp-card{grid-template-columns:minmax(200px,1fr) 1fr;}
+    .insp-g{border-left:none;border-top:1px solid var(--border);}
+    .insp-g:nth-child(2){border-top:none;border-left:1px solid var(--border);}
+  }
+  @media(max-width:760px){
+    .insp-card{grid-template-columns:1fr;}
+    .insp-g,.insp-g:nth-child(2){border-left:none;border-top:1px solid var(--border);}
     .insp-g:first-child{border-top:none;}
   }
   .pie-leyenda{display:flex;flex-wrap:wrap;gap:18px;align-items:center;font-size:.73rem;
@@ -5135,7 +5149,7 @@ function renderKpi(){
               <span class="g-tit">Mediciones</span>
               <div class="cajas">
                 <div class="caja"><b>${ent(i.medidas)}</b><span>Total</span></div>
-                <div class="caja${i.fuera?" warn":""}"><b>${ent(i.fuera)}</b><span>Fuera de rango</span></div>
+                <div class="caja${i.fuera?" warn":""}"><b>${ent(i.fuera)}</b><span>Fuera</span></div>
                 <div class="caja${i.crit?" bad":""}"><b>${ent(i.crit)}</b><span>Críticas</span></div>
               </div>
             </div>
@@ -6504,7 +6518,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-30-tarjetas-inspector";
+const APP_VERSION = "2026-10-30-tarjetas-2";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
