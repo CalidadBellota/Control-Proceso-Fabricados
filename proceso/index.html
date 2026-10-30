@@ -5724,7 +5724,14 @@ let CALENDARIO = [];                       // lo que vino de la hoja
 const DIAS_SEM = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
 
 function calLocal(){
-  try{ return JSON.parse(localStorage.getItem("cp_calendario") || "[]"); }catch(e){ return []; }
+  let l;
+  try{ l = JSON.parse(localStorage.getItem("cp_calendario") || "[]"); }catch(e){ return []; }
+  /* La versión anterior guardaba filas de «semana tipo» con dia = 1..7. Ya no
+     se usan y, como su fecha no cae en ninguna semana, se quedaban pendientes
+     para siempre inflando el contador del botón. */
+  const limpias = (l||[]).filter(c=> c && String(c.dia||"").length === 10);
+  if(limpias.length !== (l||[]).length) guardarCalLocal(limpias);
+  return limpias;
 }
 function guardarCalLocal(l){ localStorage.setItem("cp_calendario", JSON.stringify(l)); }
 
@@ -5821,8 +5828,20 @@ async function subirCalendario(boton){
   try{
     const ok = await enviarConfig("guardarCalendario", {calendario: pend});
     if(ok){
-      const l = SEMANA_CAL, f = masDias(l, 6);
-      await traerCalendario(l, f, "el calendario");
+      /* Se sube TODO lo pendiente, también lo de otras semanas, pero después
+         sólo se relee la semana en pantalla. Si lo pendiente se limpiara con
+         esa relectura, lo de las demás semanas quedaría marcado para siempre
+         aunque la hoja ya lo tuviera. La hoja dijo que sí: se da por subido. */
+      const enviado = {};
+      pend.forEach(c=>{ enviado[c.clave] = JSON.stringify([c.usuario||"", !!c.borrar]); });
+      guardarCalLocal(calLocal().filter(c=>{
+        if(!c || !c.clave) return false;
+        const e = enviado[c.clave];
+        if(e === undefined) return true;                       // no iba en este envío
+        /* Si lo cambiaron otra vez mientras subía, el cambio nuevo sigue vivo. */
+        return e !== JSON.stringify([c.usuario||"", !!c.borrar]);
+      }));
+      await traerCalendario(SEMANA_CAL, masDias(SEMANA_CAL, 6), "el calendario");
     }
     return ok;
   } finally {
@@ -6426,7 +6445,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-30-calendario-semana";
+const APP_VERSION = "2026-10-30-calendario-2";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
