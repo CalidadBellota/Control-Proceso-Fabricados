@@ -999,7 +999,7 @@
       <div class="campo">
         <label>Periodo</label>
         <div class="seg" id="kPeriodo">
-          <button type="button" data-p="turno">Turno actual</button>
+          <button type="button" data-p="turno">Turno</button>
           <button type="button" data-p="dia" class="on">Día</button>
           <button type="button" data-p="mes">Mes</button>
         </div>
@@ -1007,6 +1007,10 @@
       <div class="campo corto" id="kCampoDia">
         <label for="kDia">Día</label>
         <input type="date" id="kDia">
+      </div>
+      <div class="campo corto" id="kCampoTurno" style="display:none;">
+        <label for="kTurno">Turno</label>
+        <select id="kTurno"></select>
       </div>
       <div class="campo corto" id="kCampoMes" style="display:none;">
         <label for="kMes">Mes</label>
@@ -4616,9 +4620,14 @@ function periodoKpi(){
   const b = document.querySelector("#kPeriodo [data-p].on");
   const modo = b ? b.dataset.p : "dia";
   if(modo === "turno"){
-    const fecha = fechaRondaActual(), t = turnoDeHora(horaAhora());
+    /* El turno en curso viene puesto, pero se puede mirar cualquiera del día:
+       a media tarde hace falta revisar lo que dejó el turno 1. */
+    const inD = document.getElementById("kDia"), inT = document.getElementById("kTurno");
+    const fecha = (inD && inD.value) || fechaRondaActual();
+    const t = (inT && inT.value) || turnoDeHora(horaAhora());
+    const ahora = fecha === fechaRondaActual() && t === turnoDeHora(horaAhora());
     return {modo:"turno", fecha:fecha, turno:t, desde:fecha, hasta:fecha,
-            etq:`turno ${t} · ${fFechaCorta(fecha)}`};
+            etq:`turno ${t} · ${fFechaCorta(fecha)}${ahora ? " · en curso" : ""}`};
   }
   if(modo === "mes"){
     const mes = document.getElementById("kMes").value || mesISO();
@@ -4900,14 +4909,23 @@ function renderKpi(){
   if(sel && !sel.options.length) sel.innerHTML = `<option value="">Todas</option>`;
   const inDia = document.getElementById("kDia");
   const inMes = document.getElementById("kMes");
+  const inTur = document.getElementById("kTurno");
   if(inDia && !inDia.value) inDia.value = hoyISO();
   if(inMes && !inMes.value) inMes.value = mesISO();
+  if(inTur && !inTur.options.length){
+    inTur.innerHTML = TURNOS.map(t=>`<option value="${t}">Turno ${t}</option>`).join("");
+    inTur.value = turnoDeHora(horaAhora());
+  }
 
   const per   = periodoKpi();
   const linea = document.getElementById("kLinea").value;
   const todas = document.getElementById("kTodo").value === "todo";
   const box   = document.getElementById("kpiResultado");
-  document.getElementById("kCampoDia").style.display = per.modo === "dia" ? "" : "none";
+  /* El día se elige también en la vista de turno: así se puede mirar el turno 3
+     de ayer sin cambiar de escala. */
+  document.getElementById("kCampoDia").style.display =
+    (per.modo === "dia" || per.modo === "turno") ? "" : "none";
+  document.getElementById("kCampoTurno").style.display = per.modo === "turno" ? "" : "none";
   document.getElementById("kCampoMes").style.display = per.modo === "mes" ? "" : "none";
 
   const f1 = n => n === null || n === undefined
@@ -5092,10 +5110,22 @@ function renderKpi(){
             .filter(x=>x[0]).map(([n,t])=>
               `<span>${Math.round(n/cajas.length*100)}% ${t}</span>`).join("")
         }</div>` : ""}
-        <div style="margin-top:14px;font-size:.72rem;color:var(--text-dim);">
-          El cumplimiento de la izquierda cuenta <b>procesos</b>: uno queda cubierto con que se
-          controle una de sus máquinas. Aquí cada máquina va por separado, así que pueden
-          quedar casillas sin ronda aunque el cumplimiento sea del 100 %.</div>
+        <div class="nota-pie" style="margin-top:16px;">
+          <span class="ic-sec">${IC_KPI.alerta}</span>
+          <span>Una casilla es <b>un proceso en una máquina</b>: los ${ent(proc.length)} procesos
+          de la ronda se abren aquí en <b>${ent(cajas.length)} casillas</b>${(function(){
+            const mayor = formatosExigibles(linea)
+              .map(f=>({n: f.proceso, m: maquinasDeFormato(f).length}))
+              .sort((a,b)=> b.m - a.m)[0];
+            return mayor && mayor.m > 1
+              ? `, porque un proceso con varias máquinas ocupa una por cada una —${esc(mayor.n)}
+                 tiene ${mayor.m}—` : "";
+          })()}.
+          El cumplimiento cuenta <b>procesos</b> y se da por cubierto con que se controle
+          <b>una</b> de sus máquinas; aquí las demás siguen en gris. Por eso puede verse 94 %
+          de cumplimiento y, a la vez, más de la mitad de las casillas sin ronda: no es una
+          contradicción, es la diferencia entre «pasé por el proceso» y «pasé por todas sus
+          máquinas».</span></div>
       </div>
     </div>
 
@@ -5251,7 +5281,7 @@ async function traerKpi(boton){
 }
 
 document.getElementById("btnActualizarKpi").addEventListener("click", e=> traerKpi(e.target));
-["kLinea","kMes","kDia","kTodo"].forEach(id=>{
+["kLinea","kMes","kDia","kTurno","kTodo"].forEach(id=>{
   const el = document.getElementById(id);
   if(el) el.addEventListener("change", renderKpi);
 });
@@ -5263,6 +5293,13 @@ document.getElementById("btnActualizarKpi").addEventListener("click", e=> traerK
   seg.querySelectorAll("[data-p]").forEach(b=> b.addEventListener("click", ()=>{
     seg.querySelectorAll("[data-p]").forEach(x=>x.classList.remove("on"));
     b.classList.add("on");
+    /* Al entrar a la vista de turno se parte del que está corriendo ahora,
+       que es lo que se quiere ver el 90 % de las veces. */
+    if(b.dataset.p === "turno"){
+      const d = document.getElementById("kDia"), t = document.getElementById("kTurno");
+      if(d) d.value = fechaRondaActual();
+      if(t && t.options.length) t.value = turnoDeHora(horaAhora());
+    }
     renderKpi();
   }));
 })();
@@ -6535,7 +6572,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-30-grafica-ancha";
+const APP_VERSION = "2026-10-30-selector-turno";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
