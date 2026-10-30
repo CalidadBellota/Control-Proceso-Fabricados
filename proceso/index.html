@@ -425,6 +425,9 @@
   .kpi .barra i.bad{background:var(--bad);}
   /* Resumen de estado: los cuatro conteos y la proporción en una barra. */
   .mini-estados{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .mini-estados.ancho .mini-est{padding:14px 18px;}
+  .mini-estados.ancho .mini-est b{font-size:1.8rem;}
+  .mini-estados.ancho .mini-est span{font-size:.74rem;}
   @media(max-width:900px){.mini-estados{grid-template-columns:1fr 1fr;}}
   .mini-est{border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#fff;}
   .mini-est b{display:block;font-size:1.5rem;font-weight:800;line-height:1.1;}
@@ -494,7 +497,9 @@
   .insp-g{padding:15px 20px;display:flex;flex-direction:column;gap:7px;
     border-left:1px solid var(--border);min-width:0;}
   .insp-g:first-child{border-left:none;}
-  .insp-g.id{flex-direction:row;align-items:flex-start;gap:12px;}
+  /* El bloque del nombre va centrado respecto a la altura de la tarjeta: con
+     el avatar arriba, la tarjeta se veía cargada hacia el techo. */
+  .insp-g.id{flex-direction:row;align-items:center;gap:12px;}
   .insp-g.cump{justify-content:center;}
   .insp-g.cump .barra-mini{flex:1 1 auto;min-width:90px;height:9px;}
   /* Los tres recuadros de un grupo, del mismo ancho: así el 976 y el 140
@@ -4879,7 +4884,10 @@ function cumplimientoPorProceso(per, linea){
       TURNOS.filter(t => turnoExiste(per.fecha, t) && turnoYaEmpezo(per.fecha, t))
             .forEach(t => mira(per.fecha, t));
     }
-    if(total) out.push({nom: f.nombre || `${f.linea} · ${f.proceso}`, corto: f.proceso,
+    /* Con todos los procesos a la vista, «Revenido» sale cuatro veces —una por
+       línea— y la etiqueta sola no distingue cuál es. */
+    if(total) out.push({nom: f.nombre || `${f.linea} · ${f.proceso}`,
+                        corto: `${String(f.linea||"").slice(0,3).toUpperCase()} ${f.proceso}`,
                         linea: f.linea, total: total, cubiertas: cubiertas,
                         pct: cubiertas / total * 100});
   });
@@ -4997,7 +5005,10 @@ function renderKpi(){
   }
 
   const proc = cumplimientoPorProceso(per, linea);
-  const peores = proc.slice().sort((a,b)=> a.pct - b.pct || a.nom.localeCompare(b.nom)).slice(0,12);
+  /* Todos los procesos exigibles, del peor al mejor. Antes se mostraban sólo
+     los doce con menos cobertura y, cuando había más de doce en cero, la
+     elección entre ellos era arbitraria y no se veía el resto de la planta. */
+  const peores = proc.slice().sort((a,b)=> a.pct - b.pct || a.nom.localeCompare(b.nom));
 
   box.innerHTML = `
     <div class="panel">
@@ -5039,7 +5050,7 @@ function renderKpi(){
       </div>
     </div>
 
-    <div class="grid2-tend" style="margin-top:16px;">
+    <div style="margin-top:16px;">
       <div class="panel" style="margin:0;">
         <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.barras}</span>
           <h2>CUMPLIMIENTO POR PROCESO</h2>
@@ -5048,19 +5059,21 @@ function renderKpi(){
             : per.modo === "dia" ? "turnos cubiertos del día" : "cubierto en este turno"}</span></div>
         ${!peores.length
           ? `<div class="empty-mini">No hay procesos exigibles con este filtro.</div>`
-          : `<div style="height:300px;"><canvas id="cvKpiProc"></canvas></div>
+          : `<div style="height:${Math.max(330, 300 + Math.max(0, peores.length - 24) * 4)}px;"
+               ><canvas id="cvKpiProc"></canvas></div>
              <div style="margin-top:8px;font-size:.72rem;color:var(--text-dim);">
-               Los ${peores.length} con menor cobertura, de ${proc.length} procesos exigibles.${
-                 (function(){ const z = proc.filter(x=>x.pct===0).length;
-                   return z > peores.length
-                     ? ` <b>${z} están en 0 %</b>, así que la gráfica muestra sólo una parte.`
-                     : z ? ` ${z} en 0 %.` : ""; })()}</div>`}
+               Los ${peores.length} procesos exigibles${linea ? " de "+esc(linea) : ""}, del
+               menos cubierto al más cubierto.${(function(){
+                 const z = proc.filter(x=>x.pct === 0).length;
+                 return z ? ` <b>${z} sin una sola ronda</b> en el periodo.` : ""; })()}</div>`}
       </div>
+    </div>
 
+    <div style="margin-top:16px;">
       <div class="panel" style="margin:0;">
         <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.engranaje}</span>
           <h2>ESTADO DE MÁQUINAS Y PROCESOS</h2></div>
-        <div class="mini-estados">
+        <div class="mini-estados ancho">
           <div class="mini-est"><b style="color:var(--bad);">${nCrit}</b>
             <span><i class="pt" style="background:var(--bad);"></i>Fuera de rango crítica</span></div>
           <div class="mini-est"><b style="color:var(--warn-text);">${nFuera}</b>
@@ -5205,9 +5218,13 @@ function renderKpi(){
                           peores[it.dataIndex].total} ${per.modo==="mes"?"días":"turnos"}` }}},
         scales:{ y:{ beginAtZero:true, max:100, grid:{color:"#eef0f3"},
                      ticks:{color:"#6e7681", font:{size:11}, callback:v=>v+"%"} },
-                 x:{ grid:{display:false}, ticks:{color:"#6e7681", font:{size:10},
-                     maxRotation:38, minRotation:0,
-                     callback(v){ return String(this.getLabelForValue(v)).slice(0,16); } } } }
+                 /* Con 36 procesos las etiquetas sólo caben de canto; se giran
+                    del todo y se recortan, y el nombre completo sale en el globo. */
+                 x:{ grid:{display:false},
+                     ticks:{color:"#6e7681", font:{size: peores.length > 20 ? 9 : 10},
+                       maxRotation:90, minRotation: peores.length > 14 ? 90 : 38,
+                       autoSkip:false,
+                       callback(v){ return String(this.getLabelForValue(v)).slice(0, 18); } } } }
       }
     });
   }
@@ -6518,7 +6535,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-30-tarjetas-2";
+const APP_VERSION = "2026-10-30-grafica-ancha";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
