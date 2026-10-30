@@ -454,6 +454,27 @@
      una sola cosa. */
   .t-insp .col-cump,
   .t-insp .col-turno{padding-left:18px;}
+  /* La letra pequeña que explica la cifra de arriba, dentro de la misma celda. */
+  .t-insp .desglose{display:block;font-size:.65rem;color:var(--text-dim);
+    font-weight:600;margin-top:2px;letter-spacing:.01em;}
+  /* --- Calendario de turnos --- */
+  .cal{width:100%;border-collapse:collapse;font-size:.8rem;}
+  .cal th,.cal td{border:1px solid var(--border);padding:7px 8px;text-align:left;}
+  .cal th{font-size:.7rem;color:var(--text-dim);text-transform:uppercase;
+    letter-spacing:.03em;background:#f7f8fa;white-space:nowrap;}
+  .cal td.cab{font-weight:800;white-space:nowrap;background:#fbfbfc;}
+  .cal td.cab span{display:inline-block;margin-left:6px;font-weight:600;
+    color:var(--text-dim);font-size:.72rem;}
+  .cal td.no-va{color:var(--text-dim);font-size:.72rem;background:#fafafb;}
+  .cal select{width:100%;padding:5px 7px;font-size:.78rem;border:1px solid var(--border);
+    border-radius:7px;background:#fff;font-family:inherit;}
+  /* Lo heredado de la semana tipo se ve más tenue que lo decidido a mano. */
+  .cal select.heredado{color:var(--text-dim);background:#fafbfc;}
+  .cal tr.hoy td{background:var(--bad-bg);}
+  .cal-mes{margin-top:4px;}
+  .cal-pie{display:flex;align-items:center;gap:14px;margin-top:12px;
+    font-size:.73rem;color:var(--text-dim);}
+  .cal-pie button{margin-left:auto;}
   .pie-leyenda{display:flex;flex-wrap:wrap;gap:18px;align-items:center;font-size:.73rem;
     color:var(--text-dim);}
   .pie-leyenda .nota{margin-left:auto;max-width:560px;line-height:1.45;}
@@ -1001,6 +1022,7 @@
       <button data-a="formatos" class="on">Formatos de control <span class="n" id="nFormatos">0</span></button>
       <button data-a="usuarios" id="admTabUsuarios">Usuarios <span class="n" id="nUsuarios">0</span></button>
       <button data-a="especs">Especificaciones <span class="n" id="nEspecs">0</span></button>
+      <button data-a="calendario" id="admTabCal">Calendario de turnos</button>
     </div>
   </div>
 
@@ -1012,6 +1034,24 @@
     </div>
     <div id="formatosAdmin" class="adm-lista"></div>
     <div class="pager" id="pagerFormatos"></div>
+  </div>
+
+  <div class="panel" id="admCalendario" style="display:none;">
+    <div class="section-title"><h2>SEMANA TIPO</h2>
+      <span style="font-size:.74rem;color:var(--text-dim);">quién cubre cada turno cuando no hay novedad</span>
+      <button type="button" class="btn-actualizar" id="btnTraerCal"
+        title="Volver a leer el calendario de la hoja">&#8635; Actualizar</button></div>
+    <div id="calPlantilla"></div>
+    <div class="section-title" style="margin-top:22px;"><h2>AJUSTES DEL MES</h2>
+      <span style="font-size:.74rem;color:var(--text-dim);">cambios, reemplazos e incapacidades</span></div>
+    <div class="fila-kpi" style="margin-bottom:12px;">
+      <div class="campo corto"><label for="calMes">Mes</label>
+        <input type="month" id="calMes"></div>
+      <div class="campo" style="align-self:flex-end;">
+        <span style="font-size:.72rem;color:var(--text-dim);">
+          Una celda en blanco hereda la semana tipo. «Nadie» deja el turno sin responsable.</span></div>
+    </div>
+    <div id="calMesCaja"></div>
   </div>
 
   <div class="panel" id="admFaltantes" style="display:none;">
@@ -4565,6 +4605,32 @@ function cumplimientoPeriodo(per, linea){
    inspectores comparten turno y línea, lo que falte le cuenta a los dos,
    porque la aplicación no sabe quién tenía asignada cada máquina.
    -------------------------------------------------------------------------- */
+/* Los turnos que cada quien ABRIÓ, leídos de la hoja. Es el único registro de
+   «vine a trabajar» que no depende de haber diligenciado nada, y por eso es el
+   denominador correcto: contar sólo los turnos con registros premiaba justo al
+   que no llenaba el formato, porque ese turno le desaparecía de la exigencia. */
+let TURNOS_HOJA = [];
+async function traerTurnos(desde, etiqueta){
+  if(!S.syncUrl) return false;
+  try{
+    const d = await pedirJSON(S.syncUrl + "?tipo=turnos" + (desde ? "&desde=" + desde : ""),
+                              etiqueta || "los turnos abiertos");
+    if(!Array.isArray(d)) throw new Error("respuesta inesperada");
+    TURNOS_HOJA = d;
+    return true;
+  }catch(e){
+    console.warn("turnos:", e);
+    return false;
+  }
+}
+/* Los de la hoja y los que este equipo todavía no ha subido, sin repetir. */
+function turnosConocidos(){
+  const m = {};
+  (leerTurnosLocales()||[]).forEach(t=>{ if(t && t.id) m[t.id] = t; });
+  (TURNOS_HOJA||[]).forEach(t=>{ if(t && t.id) m[t.id] = Object.assign({}, m[t.id]||{}, t); });
+  return Object.keys(m).map(k=>m[k]);
+}
+
 /* El rol de quien registró, buscado por nombre en la lista de usuarios. El
    seguimiento es de los INSPECTORES: el jefe y el coordinador entran a la app
    a revisar y corregir, y mezclarlos en la tabla ensucia la comparación. */
@@ -4578,21 +4644,71 @@ function rolDeNombre(nombre){
 function inspectoresDe(per, linea){
   const exigibles = {};
   formatosExigibles("").forEach(f=>{ exigibles[f.id] = true; });
-  /* Lo exigido NO depende de las líneas que cada uno haya tocado: la ronda es
-     la misma para todos, y hacerla depender de lo registrado premiaba al que
-     menos cubría —si sólo pasaba por Limas, su denominador eran los procesos
-     de Limas y le salía 100 %. Ahora son los procesos exigibles del filtro,
-     por cada turno que trabajó. */
   const porTurnoExig = formatosExigibles(linea).length;
 
   const acum = {};
+  const quien = n => {
+    const k = String(n||"").trim() || "(sin nombre)";
+    return acum[k] = acum[k] || {nombre:k, turnos:{}, medidas:0, fuera:0, crit:0,
+                                 registros:0, noTrabajo:0, lineas:{}};
+  };
+  const claveT = (fecha, turno) => String(fecha).slice(0,10) + "|" + String(turno||"");
+  const dentro = (fecha, turno) => {
+    const f = String(fecha).slice(0,10);
+    if(f < per.desde || f > per.hasta) return false;
+    if(per.modo === "turno" && String(turno||"") !== per.turno) return false;
+    return true;
+  };
+
+  /* 1) El calendario manda: un turno asignado exige la ronda completa aunque
+        la persona no haya abierto siquiera la aplicación. Esto es lo que cierra
+        el hueco de «si no entro, no me cuenta». */
+  let asignados = 0;
+  const nombreDe = u => {
+    const x = (S.usuarios||[]).find(y=>String(y.usuario) === String(u));
+    return x ? (x.nombre || x.usuario) : u;
+  };
+  (function(){
+    const desde = per.desde, hasta = per.hasta;
+    for(let f = desde; f <= hasta; f = diaSiguiente(f)){
+      TURNOS.forEach(t=>{
+        if(per.modo === "turno" && t !== per.turno) return;
+        if(!turnoExiste(f, t) || !turnoYaEmpezo(f, t)) return;
+        const a = asignadoEn(f, t);
+        if(!a || !a.usuario) return;              // sin responsable definido
+        asignados++;
+        const o = quien(a.nombre || nombreDe(a.usuario));
+        const k = claveT(f, t);
+        o.turnos[k] = o.turnos[k] || {fecha:f, turno:t, hechos:{}, lineas:{},
+          abierto:false, asignado:true, esperados: porTurnoExig};
+        o.turnos[k].asignado = true;
+      });
+    }
+  })();
+
+  /* 2) Los turnos abiertos que el calendario no tenía: cubrir a un compañero
+        también exige la ronda de ese turno. */
+  let aperturas = 0;
+  turnosConocidos().forEach(t=>{
+    if(!dentro(t.fecha, t.turno)) return;
+    aperturas++;
+    const o = quien(t.nombre || t.usuario);
+    const k = claveT(t.fecha, t.turno);
+    o.turnos[k] = o.turnos[k] || {fecha:String(t.fecha).slice(0,10),
+      turno:String(t.turno||""), hechos:{}, lineas:{}, abierto:true,
+      /* Cada apertura guardó cuántos procesos se exigían ESE día: si mañana se
+         añade un formato, el mes ya cerrado no se mueve. Con filtro de línea
+         ese número no sirve, porque es de toda la planta. */
+      esperados: linea ? porTurnoExig : (numDe(t.esperados) || porTurnoExig)};
+  });
+
+  /* 3) Y por último los registros, que dicen qué se cubrió en cada turno. */
   regsDelPeriodo(per, linea).forEach(r=>{
-    const n = String(r.inspector||"").trim() || "(sin nombre)";
-    const o = acum[n] = acum[n] || {turnos:{}, medidas:0, fuera:0, crit:0,
-                                    registros:0, noTrabajo:0, lineas:{}};
-    const clave = fechaTurnoDe(r) + "|" + String(r.turno||"");
-    const t = o.turnos[clave] = o.turnos[clave] ||
-      {fecha:fechaTurnoDe(r), turno:String(r.turno||""), hechos:{}, lineas:{}};
+    const o = quien(r.inspector);
+    const k = claveT(fechaTurnoDe(r), r.turno);
+    const t = o.turnos[k] = o.turnos[k] ||
+      {fecha:fechaTurnoDe(r), turno:String(r.turno||""), hechos:{}, lineas:{},
+       abierto:false, esperados: porTurnoExig};
     const L = String(r.linea||"").trim();
     t.lineas[L] = true; o.lineas[L] = true;
     if(exigibles[r.formatoId]) t.hechos[r.formatoId] = true;
@@ -4605,19 +4721,22 @@ function inspectoresDe(per, linea){
 
   return Object.keys(acum).map(n=>{
     const o = acum[n];
-    let hechos = 0;
+    let hechos = 0, esperado = 0, vacios = 0, fueraDePlan = 0;
     const porTurno = {};
     Object.keys(o.turnos).forEach(k=>{
       const t = o.turnos[k];
       (porTurno[t.turno] = porTurno[t.turno] || {dias:0, lineas:{}}).dias++;
       Object.keys(t.lineas).forEach(L=>{ porTurno[t.turno].lineas[L] = true; });
-      hechos += Object.keys(t.hechos).length;
+      const h = Object.keys(t.hechos).length;
+      hechos += h; esperado += t.esperados;
+      if(!h) vacios++;                       // turno exigido sin una sola ronda
+      if(!t.asignado) fueraDePlan++;         // cubrió un turno que no era suyo
     });
     const turnos = Object.keys(o.turnos).length;
-    const esperado = turnos * porTurnoExig;
-    return {nombre:n, rol: rolDeNombre(n), turnos:turnos, porTurno:porTurno,
+    return {nombre:o.nombre, rol: rolDeNombre(o.nombre), turnos:turnos, porTurno:porTurno,
             lineas:Object.keys(o.lineas).sort(), esperado:esperado, hechos:hechos,
-            porTurnoExig: porTurnoExig,
+            vacios:vacios, aperturas:aperturas, asignados:asignados,
+            fueraDePlan:fueraDePlan, porTurnoExig: porTurnoExig,
             pct: esperado ? Math.min(100, hechos/esperado*100) : null,
             medidas:o.medidas, fuera:o.fuera, crit:o.crit,
             registros:o.registros, noTrabajo:o.noTrabajo};
@@ -4818,21 +4937,6 @@ function renderKpi(){
         </div>`).join("")}</div>`).join("");
   }
 
-  /* --- rotación: quién estuvo en cada turno --- */
-  const filasRot = insp.map(i=>{
-    const celdas = TURNOS.map(t=>{
-      const d = i.porTurno[t];
-      if(!d) return `<td class="turno"><span class="marca nada">—</span></td>`;
-      const ls = Object.keys(d.lineas).sort().join(", ");
-      const etq = per.modo === "mes" ? `${d.dias} turno${d.dias>1?"s":""}` : "estuvo";
-      return `<td class="turno"><span class="marca">${esc(etq)}</span>
-        <span class="lineas">${esc(ls)}</span></td>`;
-    }).join("");
-    return `<tr><td><div class="fila-insp"><span class="avatar">${esc(iniciales(i.nombre))}</span>
-      <div><b>${esc(i.nombre)}</b>
-      <span class="lineas">${esc(i.lineas.join(", ") || "sin línea")}</span></div></div></td>${celdas}</tr>`;
-  }).join("");
-
   const proc = cumplimientoPorProceso(per, linea);
   const peores = proc.slice().sort((a,b)=> a.pct - b.pct || a.nom.localeCompare(b.nom)).slice(0,12);
 
@@ -4932,16 +5036,18 @@ function renderKpi(){
       ${htmlCajas}
     </div>
 
-    <div class="grid-insp" style="margin-top:16px;">
+    <div style="margin-top:16px;">
       <div class="panel" style="margin:0;">
         <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.gente}</span>
-          <h2>CUMPLIMIENTO POR INSPECTOR</h2></div>
+          <h2>CUMPLIMIENTO POR INSPECTOR</h2>
+          <span style="font-size:.74rem;color:var(--text-dim);">${esc(per.etq)}</span></div>
         ${!insp.length ? `<div class="empty-mini">Ningún inspector registró nada en ${esc(per.etq)}.</div>`
         : `<table class="tabla t-insp" style="width:100%;">
             <thead><tr><th>Inspector</th>
               <th style="text-align:center;">Turnos</th>
               <th style="text-align:right;">Rondas</th>
-              <th class="col-turno" style="text-align:right;">Por turno</th>
+              <th style="text-align:right;">Turnos en blanco</th>
+              <th class="col-turno" style="text-align:right;">Procesos de la ronda</th>
               <th class="col-cump" style="width:24%;">Cumplimiento</th>
               <th style="text-align:right;">Medic.</th>
               <th style="text-align:right;">Fuera</th>
@@ -4952,12 +5058,16 @@ function renderKpi(){
                   <span class="lineas" title="${esc(i.lineas.join(", "))}">${
                     i.lineas.length === 1 ? esc(i.lineas[0])
                     : i.lineas.length ? i.lineas.length + " líneas" : "sin línea"}</span></div></div></td>
-                <td style="text-align:center;">${i.turnos}</td>
+                <td style="text-align:center;">${i.turnos}
+                  <span class="desglose">${TURNOS.map(t=> i.porTurno[t]
+                    ? `T${t}·${i.porTurno[t].dias}` : "").filter(Boolean).join(" ")}</span></td>
                 <td style="text-align:right;">${ent(i.registros)}</td>
-                <td class="col-turno" style="text-align:right;" title="En total: ${ent(i.hechos)} de ${
-                  ent(i.esperado)} en ${i.turnos} turno(s)"><b>${
-                  i.turnos ? f1(i.hechos/i.turnos) : "—"}</b>
-                  <span style="color:var(--text-dim);"> de ${ent(i.porTurnoExig)}</span></td>
+                <td style="text-align:right;${i.vacios?"color:var(--bad);font-weight:800;":
+                  "color:var(--text-dim);"}">${i.vacios || "—"}</td>
+                <td class="col-turno" style="text-align:right;"><b>${ent(i.hechos)}</b>
+                  <span style="color:var(--text-dim);"> de ${ent(i.esperado)}</span>
+                  <span class="desglose">${i.turnos ? ent(Math.round(i.esperado/i.turnos)) : 0
+                    } por turno × ${i.turnos} turno(s)</span></td>
                 <td class="col-cump"><div class="cump"><span class="barra-mini"><i class="${
                     i.pct===null?"":i.pct>=95?"":i.pct>=80?"flojo":"malo"}" style="width:${
                     ancho(i.pct)}%;"></i></span><b>${f1(i.pct)}${i.pct===null?"":"%"}</b></div></td>
@@ -4966,25 +5076,21 @@ function renderKpi(){
                 <td style="text-align:right;${i.crit?"color:var(--bad);font-weight:800;":""}">${i.crit||""}</td>
               </tr>`).join("")}</tbody></table>
           <div style="margin-top:10px;font-size:.72rem;color:var(--text-dim);">
-            <b>Por turno</b> = procesos distintos que cubrió, en promedio, de los
-            ${ent(insp[0].porTurnoExig)} que pide la ronda${linea ? " en "+esc(linea) : ""}.
-            La exigencia es la misma para todos; lo que cambia entre uno y otro es
-            cuántos turnos trabajó, y por eso se compara por turno y no por el total.${
+            La ronda son <b>${ent(insp[0].turnos
+              ? Math.round(insp[0].esperado/insp[0].turnos) : insp[0].porTurnoExig)
+              } procesos por turno</b>, igual para
+            todos${linea ? " en "+esc(linea) : ""}. Los turnos salen del <b>calendario</b>:
+            uno asignado exige la ronda completa aunque la persona no haya abierto siquiera
+            la aplicación. Los que cubrió sin estar asignado también cuentan.${
+            insp[0].asignados ? "" :
+            ` <b>Ojo:</b> este periodo no tiene calendario cargado, así que los turnos se
+              deducen de las aperturas de sesión y de los registros; quien no entró a la
+              aplicación no aparece. Se carga en Administrar → Calendario de turnos.`}${
             otros.length ? ` Fuera de esta tabla, ${otros.map(o=>
               `<b>${esc(o.nombre)}</b> (${esc(o.rol)}) registró ${ent(o.registros)} ronda(s)`
               ).join(" y ")}.` : ""}</div>`}
       </div>
 
-      <div class="panel" style="margin:0;">
-        <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.reloj}</span>
-          <h2>ROTACIÓN POR TURNO</h2>
-          <span style="font-size:.74rem;color:var(--text-dim);">${
-            per.modo === "mes" ? "turnos cubiertos" : "quién estuvo"}</span></div>
-        ${!insp.length ? `<div class="empty-mini">Sin registros en ${esc(per.etq)}.</div>`
-        : `<table class="rot"><thead><tr><th>Inspector</th>${
-            TURNOS.map(t=>`<th style="text-align:center;">Turno ${t}</th>`).join("")
-          }</tr></thead><tbody>${filasRot}</tbody></table>`}
-      </div>
     </div>
 
     <div class="panel" style="margin-top:16px;">
@@ -5040,6 +5146,9 @@ async function traerKpi(boton){
      con él; dar 0 % por no haberlo descargado sería mentir. */
   const desde = per.modo === "mes" ? mesAnterior(per.mes) + "-01" : per.desde;
   const ok = await traerLista(desde, boton, "indicadores");
+  /* Y las aperturas de turno, que son las que fijan la exigencia de cada
+     inspector. Es una hoja pequeña: una fila por turno y persona. */
+  await traerTurnos(desde, "turnos abiertos");
   renderKpi();
   return ok;
 }
@@ -5592,6 +5701,201 @@ function pintarPager(id, total, pagina, onIr){
   box.querySelectorAll("[data-ir]").forEach(b=>b.addEventListener("click",()=>onIr(+b.dataset.ir)));
 }
 
+/* ==========================================================================
+   CALENDARIO DE TURNOS
+   Quién tenía que cubrir cada turno. Es lo que convierte el cumplimiento por
+   inspector en un dato defendible: sin esto, la exigencia salía de lo que la
+   persona hubiera registrado o abierto, y no entrar a la aplicación le borraba
+   el turno de la cuenta.
+
+   Dos capas: una SEMANA TIPO (lunes a domingo × tres turnos) que se repite
+   sola, y AJUSTES por fecha para los cambios, reemplazos e incapacidades. El
+   ajuste manda sobre la plantilla; un ajuste con «nadie» deja el turno sin
+   responsable a propósito, que no es lo mismo que no haberlo definido.
+   ========================================================================== */
+let CALENDARIO = [];                       // lo que vino de la hoja
+const DIAS_SEM = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+
+function calLocal(){
+  try{ return JSON.parse(localStorage.getItem("cp_calendario") || "[]"); }catch(e){ return []; }
+}
+function guardarCalLocal(l){ localStorage.setItem("cp_calendario", JSON.stringify(l)); }
+
+/* La hoja es la verdad, salvo lo que este equipo cambió y todavía no ha
+   subido: si no, un cambio hecho sin red desaparecería al repintar. */
+function mapaCal(){
+  const m = {};
+  (CALENDARIO||[]).forEach(c=>{ if(c && c.clave) m[c.clave] = c; });
+  calLocal().forEach(c=>{
+    if(!c || !c.clave || !c.pendiente) return;
+    if(c.borrar) delete m[c.clave]; else m[c.clave] = c;
+  });
+  return m;
+}
+function calPendientes(){ return calLocal().filter(c=>c && c.pendiente); }
+
+/** La fecha del día siguiente, en ISO. */
+function diaSiguiente(fechaISO){
+  const d = new Date(String(fechaISO).slice(0,10) + "T12:00:00");
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+/** Día de la semana como 1=lunes … 7=domingo. */
+function diaSemana(fechaISO){ return ((diaDe(fechaISO) + 6) % 7) + 1; }
+
+/** Quién tenía ese turno: la fila del ajuste, la de la plantilla, o nada. */
+function asignadoEn(fechaISO, turno){
+  const m = mapaCal();
+  const d = m["dia|" + String(fechaISO).slice(0,10) + "|" + String(turno)];
+  if(d) return (d.usuario || d.nombre) ? d : null;   // ajuste explícito, «nadie» incluido
+  const p = m["plantilla|" + diaSemana(fechaISO) + "|" + String(turno)];
+  return (p && (p.usuario || p.nombre)) ? p : null;
+}
+
+async function traerCalendario(etiqueta){
+  if(!S.syncUrl) return false;
+  try{
+    const d = await pedirJSON(S.syncUrl + "?tipo=calendario", etiqueta || "el calendario");
+    if(!Array.isArray(d)) throw new Error("respuesta inesperada");
+    CALENDARIO = d;
+    /* Lo que ya está en la hoja deja de estar pendiente en este equipo. */
+    const enHoja = {};
+    d.forEach(c=>{ if(c && c.clave) enHoja[c.clave] = c; });
+    guardarCalLocal(calLocal().filter(c=>{
+      if(!c || !c.pendiente) return false;
+      const h = enHoja[c.clave];
+      if(c.borrar) return !!h;                       // sigue pendiente si aún está
+      return !h || String(h.usuario||"") !== String(c.usuario||"");
+    }));
+    return true;
+  }catch(e){
+    console.warn("calendario:", e);
+    return false;
+  }
+}
+
+/* Se apunta el cambio en el equipo y se intenta subirlo. Si no hay red queda
+   pendiente y se reintenta al guardar de nuevo. */
+function apuntarCal(fila){
+  const l = calLocal().filter(c=> c.clave !== fila.clave);
+  l.push(Object.assign({pendiente:true}, fila));
+  guardarCalLocal(l);
+}
+async function subirCalendario(boton){
+  const pend = calPendientes();
+  if(!pend.length) return true;
+  const txt = boton ? boton.textContent : null;
+  if(boton){ boton.disabled = true; boton.textContent = "Guardando…"; }
+  try{
+    const ok = await enviarConfig("guardarCalendario", {calendario: pend});
+    if(ok) await traerCalendario("el calendario");
+    return ok;
+  } finally {
+    if(boton){ boton.disabled = false; if(txt) boton.textContent = txt; }
+    renderCalendario();
+  }
+}
+
+/** Los que pueden aparecer en el calendario: sólo perfil inspector y activos. */
+function inspectoresActivos(){
+  return (S.usuarios||[]).filter(u=> String(u.rol||"").toLowerCase() === "inspector" &&
+    String(u.activo||"Sí").toLowerCase().indexOf("n") !== 0);
+}
+
+function opcionesInspector(sel, conHerencia, etqHerencia){
+  const l = inspectoresActivos();
+  return (conHerencia
+      ? `<option value="">${esc(etqHerencia || "según la semana tipo")}</option>`
+      : `<option value="">— sin definir —</option>`) +
+    l.map(u=>`<option value="${esc(u.usuario)}"${
+      String(sel) === String(u.usuario) ? " selected" : ""}>${esc(u.nombre || u.usuario)}</option>`).join("") +
+    `<option value="__nadie"${sel === "__nadie" ? " selected" : ""}>Nadie</option>`;
+}
+
+function renderCalendario(){
+  const cajaP = document.getElementById("calPlantilla");
+  const cajaM = document.getElementById("calMesCaja");
+  if(!cajaP || !cajaM) return;
+  const m = mapaCal();
+  const pend = calPendientes().length;
+
+  if(!inspectoresActivos().length){
+    cajaP.innerHTML = `<div class="empty-mini">No hay usuarios con perfil <b>inspector</b>.
+      Créalos en la pestaña Usuarios y vuelve aquí.</div>`;
+    cajaM.innerHTML = "";
+    return;
+  }
+
+  /* --- semana tipo --- */
+  cajaP.innerHTML = `
+    <table class="cal"><thead><tr><th>Turno</th>${
+      DIAS_SEM.map(d=>`<th>${esc(d)}</th>`).join("")}</tr></thead>
+      <tbody>${TURNOS.map(t=>`<tr><td class="cab">Turno ${t}</td>${
+        DIAS_SEM.map((d,i)=>{
+          const f = m["plantilla|" + (i+1) + "|" + t];
+          const v = f ? (f.usuario || (f.nombre ? "" : "__nadie")) : "";
+          return `<td><select class="cal-sel" data-tipo="plantilla" data-dia="${i+1}" data-turno="${t}"
+            >${opcionesInspector(f ? (f.usuario || "__nadie") : "", false)}</select></td>`;
+        }).join("")}</tr>`).join("")}</tbody></table>
+    <div class="cal-pie">
+      <span>Los turnos sin definir no le exigen nada a nadie.</span>
+      <button type="button" class="btn-sec" id="btnGuardarCal"${pend ? "" : " disabled"}
+        >Guardar en la hoja${pend ? ` (${pend})` : ""}</button>
+    </div>`;
+
+  /* --- ajustes del mes --- */
+  const inMes = document.getElementById("calMes");
+  if(inMes && !inMes.value) inMes.value = mesISO();
+  const mes = (inMes && inMes.value) || mesISO();
+  const [y, mm] = mes.split("-").map(Number);
+  const dias = new Date(y, mm, 0).getDate();
+  let filas = "";
+  for(let d = 1; d <= dias; d++){
+    const fecha = `${mes}-${pad(d)}`;
+    const hoy = fecha === hoyISO();
+    filas += `<tr${hoy ? ' class="hoy"' : ""}><td class="cab">${pad(d)}
+      <span>${esc(DIAS_SEM[diaSemana(fecha)-1].slice(0,3))}</span></td>${
+      TURNOS.map(t=>{
+        if(!turnoExiste(fecha, t))
+          return `<td class="no-va">no se trabaja</td>`;
+        const aj = m["dia|" + fecha + "|" + t];
+        const base = asignadoEn(fecha, t);
+        const heredado = !aj;
+        const etq = base
+          ? (base.nombre || base.usuario)
+          : "nadie";
+        return `<td><select class="cal-sel${heredado ? " heredado" : ""}"
+          data-tipo="dia" data-dia="${fecha}" data-turno="${t}"
+          >${opcionesInspector(aj ? (aj.usuario || "__nadie") : "", true,
+            `Semana tipo: ${etq}`)}</select></td>`;
+      }).join("")}</tr>`;
+  }
+  cajaM.innerHTML = `<table class="cal cal-mes"><thead><tr><th>Día</th>${
+    TURNOS.map(t=>`<th>Turno ${t}</th>`).join("")}</tr></thead><tbody>${filas}</tbody></table>`;
+
+  /* --- enganches --- */
+  document.querySelectorAll("#admCalendario .cal-sel").forEach(sel=>{
+    sel.addEventListener("change", ()=>{
+      const tipo = sel.dataset.tipo, dia = sel.dataset.dia, turno = sel.dataset.turno;
+      const clave = `${tipo}|${dia}|${turno}`;
+      const v = sel.value;
+      if(tipo === "dia" && v === ""){
+        apuntarCal({clave, tipo, dia, turno, usuario:"", nombre:"", borrar:true});
+      } else {
+        const u = inspectoresActivos().find(x=>String(x.usuario) === v);
+        apuntarCal({clave, tipo, dia, turno,
+          usuario: v === "__nadie" ? "" : v,
+          nombre: v === "__nadie" ? "" : (u ? (u.nombre||"") : ""),
+          nota: v === "__nadie" ? "sin responsable" : ""});
+      }
+      renderCalendario();
+    });
+  });
+  const bG = document.getElementById("btnGuardarCal");
+  if(bG) bG.addEventListener("click", e=> subirCalendario(e.target));
+}
+
 function renderAdmin(){
   const tabU = document.getElementById("admTabUsuarios");
   tabU.style.display = gestionaUsuarios() ? "block" : "none";
@@ -5603,7 +5907,9 @@ function renderAdmin(){
   document.getElementById("admFormatos").style.display = v==="formatos" ? "block":"none";
   document.getElementById("admUsuarios").style.display = v==="usuarios" ? "block":"none";
   document.getElementById("admEspecs").style.display   = v==="especs"   ? "block":"none";
+  document.getElementById("admCalendario").style.display = v==="calendario" ? "block":"none";
   if(v==="especs") renderEspecs();
+  if(v==="calendario") renderCalendario();
   document.getElementById("nEspecs").textContent = Object.keys(S.especificaciones).length;
   document.getElementById("admReferencias").style.display = v==="formatos" ? "block":"none";
   const falt = formatosFaltantes();
@@ -5627,6 +5933,18 @@ function renderAdmin(){
   if(v==="formatos") renderFormatosAdmin();
   if(v==="usuarios") renderUsuariosAdmin();
 }
+(function(){
+  const mes = document.getElementById("calMes");
+  if(mes) mes.addEventListener("change", renderCalendario);
+  const bt = document.getElementById("btnTraerCal");
+  if(bt) bt.addEventListener("click", async e=>{
+    const t = e.target.textContent;
+    e.target.disabled = true; e.target.textContent = "Leyendo…";
+    await traerCalendario("el calendario");
+    e.target.disabled = false; e.target.textContent = t;
+    renderCalendario();
+  });
+})();
 document.querySelectorAll("#admSeg button").forEach(b=>b.addEventListener("click",()=>{
   document.querySelectorAll("#admSeg button").forEach(x=>x.classList.remove("on"));
   b.classList.add("on"); renderAdmin();
@@ -6034,7 +6352,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-30-por-turno";
+const APP_VERSION = "2026-10-30-calendario";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
