@@ -211,7 +211,7 @@ function jsonSeguro_(txt, porDefecto){
 /* Marca de versión del backend. La app la muestra en el panel de
    sincronización: así se sabe sin adivinar si la hoja está corriendo este
    código o uno anterior que todavía lee todo el histórico en cada petición. */
-const BACKEND_VERSION = "2026-10-30-calendario";
+const BACKEND_VERSION = "2026-10-30-calendario-semana";
 
 function doGet(e){
   try{ return doGet_(e); }
@@ -247,16 +247,31 @@ function doGet_(e){
     return json_(filas);
   }
 
+  /* El calendario se pide por tramo de fechas, no entero: la pantalla mira una
+     semana y los indicadores un mes, y traer años de asignaciones para eso es
+     lo que termina tumbando la ejecución. */
   if(e && e.parameter && e.parameter.tipo === "calendario"){
     const shC = getSheet_(SH_CAL, H_CAL);
     const ultC = shC.getLastRow();
     if(ultC <= 1) return json_([]);
     const headC = headerDe_(shC);
-    const filasC = shC.getRange(2, 1, ultC - 1, headC.length).getValues().map(function(r){
+    const iD = headC.indexOf("dia");
+    const desdeC = String(e.parameter.desde || "");
+    const hastaC = String(e.parameter.hasta || "");
+    const filasC = [];
+    const datos = shC.getRange(2, 1, ultC - 1, headC.length).getValues();
+    for(let i = 0; i < datos.length; i++){
+      const dia = String(fmt_(datos[i][iD], "fecha") || "").slice(0, 10);
+      /* Las filas de semana tipo que pueda haber de la versión anterior tienen
+         «dia» de un solo dígito: no estorban, pero tampoco se devuelven. */
+      if(dia.length !== 10) continue;
+      if(desdeC && dia < desdeC) continue;
+      if(hastaC && dia > hastaC) continue;
       const o = {};
-      headC.forEach(function(h, k){ o[h] = fmt_(r[k], h); });
-      return o;
-    });
+      headC.forEach(function(h, k){ o[h] = fmt_(datos[i][k], h === "dia" ? "fecha" : h); });
+      o.dia = dia;
+      filasC.push(o);
+    }
     return json_(filasC);
   }
 
