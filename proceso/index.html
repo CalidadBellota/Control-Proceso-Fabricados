@@ -452,7 +452,8 @@
   .t-insp th,.t-insp td{white-space:nowrap;}
   /* Un respiro entre el número de exigidos y la barra: pegados parecían
      una sola cosa. */
-  .t-insp .col-cump{padding-left:18px;}
+  .t-insp .col-cump,
+  .t-insp .col-turno{padding-left:18px;}
   .pie-leyenda{display:flex;flex-wrap:wrap;gap:18px;align-items:center;font-size:.73rem;
     color:var(--text-dim);}
   .pie-leyenda .nota{margin-left:auto;max-width:560px;line-height:1.45;}
@@ -4940,8 +4941,7 @@ function renderKpi(){
             <thead><tr><th>Inspector</th>
               <th style="text-align:center;">Turnos</th>
               <th style="text-align:right;">Rondas</th>
-              <th style="text-align:right;">Cubiertos</th>
-              <th style="text-align:right;">Exigidos</th>
+              <th class="col-turno" style="text-align:right;">Por turno</th>
               <th class="col-cump" style="width:24%;">Cumplimiento</th>
               <th style="text-align:right;">Medic.</th>
               <th style="text-align:right;">Fuera</th>
@@ -4954,8 +4954,10 @@ function renderKpi(){
                     : i.lineas.length ? i.lineas.length + " líneas" : "sin línea"}</span></div></div></td>
                 <td style="text-align:center;">${i.turnos}</td>
                 <td style="text-align:right;">${ent(i.registros)}</td>
-                <td style="text-align:right;">${ent(i.hechos)}</td>
-                <td style="text-align:right;color:var(--text-dim);">${ent(i.esperado)}</td>
+                <td class="col-turno" style="text-align:right;" title="En total: ${ent(i.hechos)} de ${
+                  ent(i.esperado)} en ${i.turnos} turno(s)"><b>${
+                  i.turnos ? f1(i.hechos/i.turnos) : "—"}</b>
+                  <span style="color:var(--text-dim);"> de ${ent(i.porTurnoExig)}</span></td>
                 <td class="col-cump"><div class="cump"><span class="barra-mini"><i class="${
                     i.pct===null?"":i.pct>=95?"":i.pct>=80?"flojo":"malo"}" style="width:${
                     ancho(i.pct)}%;"></i></span><b>${f1(i.pct)}${i.pct===null?"":"%"}</b></div></td>
@@ -4964,8 +4966,10 @@ function renderKpi(){
                 <td style="text-align:right;${i.crit?"color:var(--bad);font-weight:800;":""}">${i.crit||""}</td>
               </tr>`).join("")}</tbody></table>
           <div style="margin-top:10px;font-size:.72rem;color:var(--text-dim);">
-            Exigidos = ${ent(insp[0].porTurnoExig)} proceso(s) de la ronda × los turnos que
-            trabajó cada uno${linea ? " en "+esc(linea) : ""}.${
+            <b>Por turno</b> = procesos distintos que cubrió, en promedio, de los
+            ${ent(insp[0].porTurnoExig)} que pide la ronda${linea ? " en "+esc(linea) : ""}.
+            La exigencia es la misma para todos; lo que cambia entre uno y otro es
+            cuántos turnos trabajó, y por eso se compara por turno y no por el total.${
             otros.length ? ` Fuera de esta tabla, ${otros.map(o=>
               `<b>${esc(o.nombre)}</b> (${esc(o.rol)}) registró ${ent(o.registros)} ronda(s)`
               ).join(" y ")}.` : ""}</div>`}
@@ -6030,7 +6034,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-30-inspectores";
+const APP_VERSION = "2026-10-30-por-turno";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
