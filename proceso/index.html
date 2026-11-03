@@ -577,6 +577,32 @@
   .leer-ev b{display:flex;align-items:center;gap:6px;font-size:.72rem;font-weight:800;
     margin-bottom:5px;color:var(--text);}
 
+  /* Resumen de las líneas, encima de las tarjetas. */
+  .lin-resumen{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;
+    border:1px solid var(--border);border-radius:11px;background:#fafbfc;
+    padding:4px 0;margin-bottom:14px;overflow:hidden;}
+  .lin-resumen > div{display:flex;align-items:center;gap:11px;padding:11px 20px;
+    flex:1 1 auto;border-right:1px solid var(--border);}
+  .lin-resumen > div:last-child{border-right:none;}
+  .lin-resumen .ic{width:30px;height:30px;border-radius:9px;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    background:#eef0f3;color:var(--text-dim);}
+  .lin-resumen .ic.ok{background:var(--ok-bg);color:var(--ok);}
+  .lin-resumen .ic.bad{background:var(--bad-bg);color:var(--bad);}
+  .lin-resumen b{font-size:1.35rem;font-weight:800;line-height:1.1;
+    font-variant-numeric:tabular-nums;}
+  .lin-resumen b small{font-size:.8rem;font-weight:700;color:var(--text-dim);}
+  .lin-resumen .t{display:block;font-size:.68rem;color:var(--text-dim);line-height:1.3;}
+  .lin-resumen .v{display:flex;flex-direction:column;gap:1px;min-width:0;}
+  .lin-resumen .peor{background:var(--bad-bg);}
+  .lin-resumen .peor b{font-size:.95rem;color:var(--bad);}
+  .lin-resumen .peor .n{font-size:1.2rem;font-weight:800;color:var(--bad);line-height:1.1;}
+  .lin-resumen .peor.gris{background:#f1f2f4;}
+  .lin-resumen .peor.gris b,.lin-resumen .peor.gris .n{color:var(--text-dim);}
+  @media(max-width:900px){
+    .lin-resumen > div{flex:1 1 45%;border-bottom:1px solid var(--border);}
+  }
+
   /* Tarjetas por línea. */
   .lineas-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;}
   @media(max-width:1150px){.lineas-cards{grid-template-columns:1fr 1fr;}}
@@ -587,8 +613,16 @@
   .lcard.warn{border-left-color:var(--warn);}
   .lcard.bad{border-left-color:var(--bad);background:var(--bad-bg);}
   .lcard.gris{border-left-color:#8b929c;background:#f1f2f4;}
-  .lcard-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .lcard-top{display:flex;align-items:center;gap:10px;}
   .lcard-top h4{font-size:.95rem;font-weight:800;margin:0;}
+  .lcard-top .chip-l{margin-left:auto;}
+  .lcard-ic{width:30px;height:30px;border-radius:9px;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    background:#eef0f3;color:var(--text-dim);}
+  .lcard-ic svg{width:17px;height:17px;}
+  .lcard.ok .lcard-ic{background:var(--ok-bg);color:var(--ok);}
+  .lcard.warn .lcard-ic{background:var(--warn-bg);color:var(--warn-text);}
+  .lcard.bad .lcard-ic{background:#fad7db;color:var(--bad);}
   .chip-l{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.65rem;
     font-weight:800;letter-spacing:.3px;white-space:nowrap;}
   .chip-l.ok{background:var(--ok);color:#fff;}
@@ -609,10 +643,22 @@
   .barra-meta i{display:block;height:100%;border-radius:5px;}
   .barra-meta u{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--text);
     opacity:.45;}
-  .lcard-pie{font-size:.71rem;line-height:1.45;margin-top:11px;padding-top:10px;
+  .lcard-pie{display:flex;gap:6px;margin-top:12px;padding-top:11px;
+    border-top:1px solid var(--border);}
+  .lcard-pie > div{display:flex;align-items:center;gap:7px;flex:1 1 0;min-width:0;}
+  .lcard-pie .ic{width:22px;height:22px;flex:none;display:flex;align-items:center;
+    justify-content:center;color:var(--text-dim);}
+  .lcard-pie .ic svg{width:14px;height:14px;}
+  .lcard-pie .v{display:flex;flex-direction:column;min-width:0;}
+  .lcard-pie b{font-size:.84rem;font-weight:800;line-height:1.15;white-space:nowrap;}
+  .lcard-pie b small{font-size:.64rem;font-weight:700;color:var(--text-dim);}
+  .lcard-pie .v span{font-size:.62rem;color:var(--text-dim);line-height:1.2;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .lcard-pie .mal .ic,.lcard-pie .mal b{color:var(--bad);}
+  .lcard-razon{font-size:.71rem;line-height:1.45;margin-top:11px;padding-top:10px;
     border-top:1px solid var(--border);color:var(--text-dim);}
-  .lcard.bad .lcard-pie{color:var(--bad);font-weight:600;}
-  .lcard.gris .lcard-pie{color:#4b5159;font-weight:600;}
+  .lcard.bad .lcard-razon{color:var(--bad);font-weight:600;}
+  .lcard.gris .lcard-razon{color:#4b5159;font-weight:600;}
 
   /* Desempeño de los procesos: 36 filas que se leen de un barrido. */
   .t-desemp{font-size:.8rem;}
@@ -4763,6 +4809,33 @@ function varHtml(hoy, antes, bueno){
 
 /* Iconos de la pantalla de indicadores. Van en el rojo de la casa, no en los
    azules y morados del boceto: la app tiene una paleta y una sola. */
+/* Un icono por línea. No pretenden ser la herramienta exacta: sirven para
+   encontrar la tarjeta de un vistazo sin leer el nombre. */
+const IC_LINEA = {
+  "Limas":`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+    stroke-linecap="round" stroke-linejoin="round"><path d="M4 16 14 6l4 4L8 20H4z"/>
+    <path d="M15 3.5 20.5 9"/><path d="m7 15 1.5 1.5M9.5 12.5 11 14M12 10l1.5 1.5"/></svg>`,
+  "Machetes":`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+    stroke-linecap="round" stroke-linejoin="round"><path d="M3 17C7 7 13 3 20 3c0 7-4 13-14 17z"/>
+    <path d="M3 17h3v4H3z"/></svg>`,
+  "Cuchillas":`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+    stroke-linecap="round" stroke-linejoin="round"><path d="M4 14 15 3l5 5-11 11z"/>
+    <path d="M9 19H4v-5"/></svg>`,
+  "Palas":`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+    stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v9"/><path d="M9 4h6"/>
+    <path d="M8 11h8l-1 7a3 3 0 0 1-3 3 3 3 0 0 1-3-3z"/></svg>`,
+  "Inyección":`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+    stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5S5.5 10 5.5 14.5a6.5 6.5 0
+    0 0 13 0C18.5 10 12 2.5 12 2.5z"/></svg>`,
+  "Dureza":`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+    stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 7 6-7 14L5 8z"/>
+    <path d="M5 8h14"/><path d="m9.5 8 2.5 14 2.5-14"/></svg>`,
+  "*":`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+    stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18"
+    rx="3"/><path d="M8 12h8"/></svg>`
+};
+function iconoLinea(l){ return IC_LINEA[String(l||"").trim()] || IC_LINEA["*"]; }
+
 const IC_KPI = {
   ronda:`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
     stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8"
@@ -5607,6 +5680,13 @@ function renderKpi(){
       <td><span class="chip-p ${d.prio}">${etq}</span></td></tr>`;
   }).join("");
 
+  /* El calendario sólo se traía al pulsar Actualizar. Si no se pulsaba, los
+     turnos se deducían de las aperturas y de los registros, así que un
+     inspector que estuvo en su turno y no registró nada DESAPARECÍA de la
+     tabla —justo el caso que el calendario vino a resolver—. Ahora, si el
+     periodo no tiene ni una asignación, se pide una sola vez y se repinta. */
+  if(!todosQuien.some(x=>x.asignados)) pedirCalendarioSiFalta(per);
+
   const inspEvo = inspectoresDelPeriodo(todosQuien);
   /* Si el que estaba elegido no trabajó en este periodo o esta línea, se
      vuelve al total en vez de dejar una pantalla vacía sin explicación. */
@@ -5817,7 +5897,31 @@ function renderKpi(){
           <span style="font-size:.74rem;color:var(--text-dim);margin-left:auto;">${esc(per.etq)}</span></div>
         ${!porLinea.length
           ? `<div class="empty-mini">Sin líneas con rondas exigidas en ${esc(per.etq)}.</div>`
-          : `<div class="lineas-cards">${porLinea.map(l=>{
+          : `<div class="lin-resumen">
+              <div><span class="ic">${IC_KPI.barras}</span>
+                <div class="v"><b>${porLinea.length}</b>
+                  <span class="t">Líneas evaluadas</span></div></div>
+              <div><span class="ic ok">${IC_KPI.tic}</span>
+                <div class="v"><b>${porLinea.filter(l=> l.conf !== null &&
+                  l.conf >= META_CONF).length}<small> de ${
+                  porLinea.filter(l=> l.conf !== null).length}</small></b>
+                  <span class="t">En meta de conformidad</span></div></div>
+              <div><span class="ic bad">${IC_KPI.alerta}</span>
+                <div class="v"><b>${ent(porLinea.reduce((n,l)=> n + l.fuera, 0))}</b>
+                  <span class="t">Desviaciones totales</span></div></div>
+              ${(function(){
+                /* El peor con veredicto: una línea «sin evidencia» no es la peor,
+                   es la que no se puede juzgar, y ponerla aquí desviaría la
+                   atención del proceso que de verdad se está saliendo. */
+                const p = porLinea.filter(l=> l.ind !== null &&
+                  veredictoLinea(l).cl !== "gris")[0];
+                return p ? `<div class="peor"><div class="v"><span class="t">Peor resultado</span>
+                  <b>${esc(p.nom)}</b><span class="n">${f1(p.ind)}%</span></div></div>`
+                  : `<div class="peor gris"><div class="v"><span class="t">Peor resultado</span>
+                  <b>sin juzgar</b><span class="n">—</span></div></div>`;
+              })()}
+            </div>
+            <div class="lineas-cards">${porLinea.map(l=>{
               const v = veredictoLinea(l);
               const gris = v.cl === "gris";
               /* La barra de conformidad arranca en 90: entre 0 y 90 no pasa
@@ -5832,26 +5936,39 @@ function renderKpi(){
               const cInd = {ok:"var(--ok)", warn:"var(--warn-text)",
                             bad:"var(--bad)", gris:"var(--text-dim)"}[v.cl];
               return `<div class="lcard ${v.cl}">
-                <div class="lcard-top"><h4>${esc(l.nom)}</h4>
-                  <span class="chip-l ${v.cl}">${v.et}</span></div>
-                <div class="lcard-ind"><b style="color:${cInd};">${f1k(l.ind)}${
+                <div class="lcard-top">
+                  <span class="lcard-ic">${iconoLinea(l.nom)}</span>
+                  <h4>${esc(l.nom)}</h4>
+                  <span class="chip-l ${v.cl}" title="${esc(v.razon.replace(/<[^>]+>/g,""))}"
+                    >${v.et}</span></div>
+                <div class="lcard-ind"><b style="color:${cInd};">${f1(l.ind)}${
                   l.ind===null?"":"%"}</b><span>conformidad<br>demostrada</span></div>
                 <div class="lcard-met">
-                  <div class="met-cab"><span>Cumplimiento de rondas</span><b>${f1k(l.cump)}${
+                  <div class="met-cab"><span>Cumplimiento de rondas</span><b>${f1(l.cump)}${
                     l.cump===null?"":"%"}</b></div>
                   <span class="barra-meta"><i style="width:${
                     Math.max(0, Math.min(100, l.cump||0))}%;background:${cCump};"></i>
                     <u style="left:${META_CUMP}%;"></u></span>
                 </div>
                 <div class="lcard-met">
-                  <div class="met-cab"><span>Conformidad</span><b>${f1k(l.conf)}${
+                  <div class="met-cab"><span>Conformidad de mediciones</span><b>${f1(l.conf)}${
                     l.conf===null?"":"%"}</b></div>
                   <span class="barra-meta"><i style="width:${anchoConf}%;background:${
                     cConf};"></i><u style="left:${(META_CONF-90)/10*100}%;"></u></span>
                 </div>
-                <div class="lcard-pie">${l.hechos} de ${l.procs} procesos · ${
-                  ent(l.medidas)} medición(es) · ${l.fuera} fuera de rango${
-                  l.crit ? ` · <b>${l.crit} crítica(s)</b>` : ""}<br>${v.razon}</div>
+                <div class="lcard-pie">
+                  <div><span class="ic">${IC_KPI.engranaje}</span>
+                    <div class="v"><b>${l.hechos}/${l.procs}</b>
+                      <span>Procesos</span></div></div>
+                  <div><span class="ic">${IC_KPI.barras}</span>
+                    <div class="v"><b>${ent(l.medidas)}</b>
+                      <span>Mediciones</span></div></div>
+                  <div class="${l.fuera ? "mal" : ""}"><span class="ic">${IC_KPI.alerta}</span>
+                    <div class="v"><b>${l.fuera}${
+                      l.crit ? ` <small>(${l.crit} crít.)</small>` : ""}</b>
+                      <span>Fuera de rango</span></div></div>
+                </div>
+                <div class="lcard-razon">${v.razon}</div>
               </div>`;
             }).join("")}</div>
             <div class="nota-pie" style="margin-top:14px;">
@@ -5943,7 +6060,7 @@ function renderKpi(){
             Los turnos salen del <b>calendario</b>: uno asignado exige la ronda completa aunque
             la persona no haya abierto siquiera la aplicación. Los que cubrió sin estar
             asignado también cuentan.${insp[0].asignados ? "" :
-            ` <b>Ojo:</b> este periodo no tiene calendario cargado, así que los turnos se
+            ` <b>Ojo:</b> no hay turnos asignados en el calendario para este periodo, así que se
               deducen de las aperturas de sesión y de los registros; quien no entró a la
               aplicación no aparece. Se carga en Administrar → Calendario de turnos.`}${
             otros.length ? ` Fuera de esta tabla, ${otros.map(o=>
@@ -6090,6 +6207,21 @@ function renderKpi(){
    totalVariables, fueraDeRango y criticasFuera sumados por la hoja. No hace
    falta pedir el detalle: una pantalla de gestión no necesita cada medición,
    necesita los totales, y pedirlas todas es lo que agotaba la ejecución. */
+/* Una sola petición por tramo: sin la marca, cada repintado volvería a pedir
+   y un calendario de verdad vacío provocaría una consulta sin fin. */
+let CAL_PEDIDO = "";
+async function pedirCalendarioSiFalta(per){
+  if(!S.syncUrl) return;
+  const k = per.desde + "|" + per.hasta;
+  if(CAL_PEDIDO === k) return;
+  CAL_PEDIDO = k;
+  /* Se pide la semana entera del tramo, no sólo el día: cuesta lo mismo y
+     evita otra petición en cuanto se mueva un día el filtro. */
+  const ok = await traerCalendario(lunesDe(per.desde), masDias(lunesDe(per.hasta), 6),
+                                   "el calendario de turnos");
+  if(ok) renderKpi();
+}
+
 async function traerKpi(boton){
   const per = periodoKpi();
   if(!S.syncUrl){ renderKpi(); return false; }
@@ -7583,7 +7715,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-11-03-prio2";
+const APP_VERSION = "2026-11-03-lineas";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
