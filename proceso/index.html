@@ -622,6 +622,7 @@
   .t-desemp tr.fila-alta{background:var(--bad-bg);}
   .t-desemp tr.fila-alta:hover{background:#fbe3e6;}
   .t-desemp tr.fila-alta td:first-child{font-weight:700;}
+  .t-desemp th:last-child,.t-desemp td:last-child{text-align:center;}
   .chip-p{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.66rem;
     font-weight:800;letter-spacing:.3px;white-space:nowrap;}
   .chip-p.alta{background:var(--bad);color:#fff;}
@@ -5140,18 +5141,42 @@ function desempenoDe(per, linea, cobertura){
     /* Dureza se controla por lote: no tiene rondas exigidas, así que su
        cobertura no está «vacía», es que no existe. */
     o.porLote = sinRonda(o.linea);
+    o.conf = o.medidas ? Math.round((o.medidas - o.fuera) / o.medidas * 1000) / 10 : null;
     /* La cobertura sólo pesa cuando se sabe: con pct nulo, «null < 70» era
        cierto y un proceso limpio salía marcado como Media. */
     const floja = !o.porLote && o.pct !== null && o.pct < 70;
-    o.prio = o.crit >= 3 ? "alta" : (o.fuera >= 3 || floja) ? "media" : "baja";
+    /* La prioridad sale de la CONFORMIDAD, no de contar desviaciones. Contarlas
+       no se ajustaba al periodo: tres fuera de rango en un turno es gravísimo y
+       tres en un mes sobre 500 mediciones no es nada, y la tabla los marcaba
+       igual. En vista de mes acababa casi todo en «Media» y el indicador dejaba
+       de separar. El porcentaje, en cambio, vale igual en un turno que en un mes.
+
+       Con el guardia de las pocas mediciones: por debajo de MIN_MED_PRIO el
+       porcentaje no decide nada —dos de cuatro dan 50 % y no son una
+       prioridad—, pero una no conformidad crítica nunca puede quedar en Baja
+       por pocas que sean las mediciones. */
+    const fiable = o.medidas >= MIN_MED_PRIO;
+    o.prio =
+      (fiable && o.crit > 0 && o.conf !== null && o.conf < 96) ? "alta"
+      : o.crit > 0                                             ? "media"
+      : (fiable && o.conf !== null && o.conf < META_CONF)      ? "media"
+      : floja                                                  ? "media"
+      : "baja";
     /* Un «baja» sin una sola no conformidad no tiene nada que mirar: la
        tabla lo esconde para que las cinco filas que sí importan no se pierdan
        entre cuarenta que no dicen nada. */
     o.novedad = o.prio !== "baja" || o.fuera > 0 || o.crit > 0;
     return o;
-  }).sort((a,b)=> b.crit - a.crit || b.fuera - a.fuera ||
-                  (a.pct===null?101:a.pct) - (b.pct===null?101:b.pct) ||
-                  a.nom.localeCompare(b.nom));
+  }).sort((a,b)=>{
+    /* Mismo criterio que la prioridad: primero por gravedad del veredicto,
+       luego por conformidad, y la cobertura desempata. */
+    const r = {alta:0, media:1, baja:2};
+    return r[a.prio] - r[b.prio]
+        || (a.conf===null?101:a.conf) - (b.conf===null?101:b.conf)
+        || b.crit - a.crit || b.fuera - a.fuera
+        || (a.pct===null?101:a.pct) - (b.pct===null?101:b.pct)
+        || a.nom.localeCompare(b.nom);
+  });
 }
 
 /* Pareto: los que acumulan el grueso del problema, con su porcentaje
@@ -5319,6 +5344,9 @@ function evolucionDe(per, linea, insp){
    emite veredicto en absoluto.
    -------------------------------------------------------------------------- */
 const META_CONF = 98, META_CUMP = 95, MIN_EVIDENCIA = 50;
+/* Por debajo de estas mediciones el porcentaje de un proceso no es un dato,
+   es ruido: no se usa para fijar su prioridad. */
+const MIN_MED_PRIO = 20;
 
 function porLineaDe(per, proc){
   const cob = {};
@@ -5563,6 +5591,15 @@ function renderKpi(){
         d.fuera || "—"}</td>
       <td style="text-align:right;${d.crit?"color:var(--bad);font-weight:800;":""}">${
         d.crit || "—"}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;${
+        d.conf === null ? "color:var(--text-dim);"
+        : d.conf < 96 ? "color:var(--bad);font-weight:800;"
+        : d.conf < META_CONF ? "color:var(--warn-text);font-weight:700;" : ""}">${
+        f1(d.conf)}${d.conf===null?"":"%"}${
+        d.conf !== null && d.medidas < MIN_MED_PRIO
+          ? `<br><span style="font-size:.64rem;color:var(--text-dim);font-weight:400;"
+               title="Menos de ${MIN_MED_PRIO} mediciones: el porcentaje no fija la prioridad."
+               >pocas</span>` : ""}</td>
       <td>${d.porLote
         ? `<span style="font-size:.72rem;color:var(--text-dim);">por lote</span>`
         : `<div class="cump"><span class="barra-mini"><i class="${col}" style="width:${
@@ -5639,36 +5676,41 @@ function renderKpi(){
         ${!desemp.length
           ? `<div class="empty-mini">Sin registros en ${esc(per.etq)}.</div>`
           : `<table class="tabla t-desemp" style="width:100%;">
-              <thead><tr><th style="width:30%;">Proceso</th>
+              <thead><tr><th style="width:27%;">Proceso</th>
                 <th style="text-align:right;">Rondas</th>
                 <th style="text-align:right;">Medic.</th>
                 <th style="text-align:right;">Fuera</th>
                 <th style="text-align:right;">Críticas</th>
-                <th style="width:20%;">Cobertura</th>
+                <th style="text-align:right;">Conform.</th>
+                <th style="width:18%;">Cobertura</th>
                 <th>Prioridad</th></tr></thead>
               <tbody>${filaDesemp(conNovedad)}</tbody></table>
             ${sinNovedad.length ? `<details class="sin-novedad">
               <summary>${sinNovedad.length} proceso(s) sin novedad: cobertura aceptable y ninguna no conformidad</summary>
               <table class="tabla t-desemp" style="width:100%;margin-top:10px;">
-                <thead><tr><th style="width:30%;">Proceso</th>
+                <thead><tr><th style="width:27%;">Proceso</th>
                   <th style="text-align:right;">Rondas</th>
                   <th style="text-align:right;">Medic.</th>
                   <th style="text-align:right;">Fuera</th>
                   <th style="text-align:right;">Críticas</th>
-                  <th style="width:20%;">Cobertura</th>
+                  <th style="text-align:right;">Conform.</th>
+                  <th style="width:18%;">Cobertura</th>
                   <th>Prioridad</th></tr></thead>
                 <tbody>${filaDesemp(sinNovedad)}</tbody></table>
             </details>` : ""}
             <div class="nota-pie" style="margin-top:12px;">
               <span class="ic-sec">${IC_KPI.alerta}</span>
-              <span>Ordenados por <b>impacto</b>, no por porcentaje: primero el que más no
-              conformidades acumula. Un 50&nbsp;% de fuera de rango sobre 4 mediciones no es
-              una prioridad, y ordenando por porcentaje se veía igual de grave que un proceso
-              con 400 mediciones y 20 desviaciones. «Cobertura» es qué parte de las rondas
-              exigidas de ese proceso se cumplió. Arriba salen los de prioridad
-              <b>alta</b> y <b>media</b>, y los de <b>baja</b> que registraron alguna no
-              conformidad; los demás están completos en la lista plegada, no se han
-              quitado.</span></div>`}
+              <span><b>La prioridad</b> sale de la conformidad, no de contar desviaciones,
+              para que valga igual en un turno que en un mes:
+              <b>Alta</b> = hay críticas y la conformidad está por debajo del 96&nbsp;%;
+              <b>Media</b> = hay críticas, o la conformidad no llega al ${META_CONF}&nbsp;%,
+              o la cobertura está por debajo del 70&nbsp;%;
+              <b>Baja</b> = el resto. Con menos de ${MIN_MED_PRIO} mediciones el porcentaje
+              no decide —dos de cuatro dan 50&nbsp;% y no son una prioridad— y la columna lo
+              marca como <b>pocas</b>; una crítica, en cambio, nunca queda en Baja.
+              «Cobertura» es qué parte de las rondas exigidas de ese proceso se cumplió.
+              Arriba salen alta y media, y las bajas que registraron alguna no conformidad;
+              el resto está completo en la lista plegada, no se ha quitado.</span></div>`}
       </div>
     </div>
 
@@ -7541,7 +7583,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-11-03-novedad";
+const APP_VERSION = "2026-11-03-prio2";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
