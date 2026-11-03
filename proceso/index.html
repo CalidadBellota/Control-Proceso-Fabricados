@@ -3547,6 +3547,7 @@ function refrescarSelectoresTendencia(){
    sale directa como antes. */
 /* Los 6 puntos de dureza son la misma medida en seis sitios del filo. */
 const TODAS_LAS_VARS = "__todas";
+const TODOS_ACEROS   = "__todos";
 /* Rótulo de una barra del histograma. Va el TRAMO, no el centro: rotular
    860–900 como «890» hace leer 890 como una medida que no existe, que es
    justo lo que pasó. Si todas las medidas son iguales no hay tramo que
@@ -3603,14 +3604,11 @@ function filtrosTendDe(f){
      exigir un dato que no existe y la gráfica no saldría nunca. En la línea
      Dureza se activa marcando «Proveedor» en el formato. */
   const prov = pideProveedorAcero(f.linea) || enc.indexOf("proveedor") !== -1;
-  /* Con una sola variable sale UNA GRÁFICA POR ACERO, cada una con su banda:
-     el 1074 trabaja a 870-900 y el 65MN a 850-890, así que superponerlos
-     obliga a un eje tan abierto que no se aprecia ninguno de los dos.
-     Con los 6 puntos de dureza sí van juntos —comparten banda— y por eso
-     ahí hay que elegir un acero. */
-  const seisPuntos = document.getElementById("tVariable") &&
-                     document.getElementById("tVariable").value === TODAS_LAS_VARS;
-  return {acero: tieneAcero && seisPuntos, prov: prov, porAcero: tieneAcero && !seisPuntos};
+  /* El acero se pide SIEMPRE que el formato lo lleve, mire una variable o las
+     seis. Antes con una sola variable no salía el desplegable y la pantalla
+     decidía sola sacar las dos gráficas; ahora se elige, y «Todos los aceros»
+     es una opción como cualquier otra, no el hueco por rellenar. */
+  return {acero: tieneAcero, prov: prov};
 }
 function refrescarFiltrosTend(f){
   const ca = document.getElementById("tCampoAcero"), cp = document.getElementById("tCampoProv");
@@ -3624,8 +3622,9 @@ function refrescarFiltrosTend(f){
     const lista = acerosDe(lineaDeReferencias(f));
     const prev = sa.value;
     sa.innerHTML = `<option value="">Selecciona el acero</option>` +
+      `<option value="${TODOS_ACEROS}">Todos los aceros</option>` +
       lista.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
-    sa.value = (prev && lista.indexOf(prev) !== -1) ? prev : "";
+    sa.value = (prev === TODOS_ACEROS || (prev && lista.indexOf(prev) !== -1)) ? prev : "";
   } else sa.value = "";
 
   if(quiere.prov){
@@ -3639,14 +3638,16 @@ function refrescarFiltrosTend(f){
   } else sp.value = "";
 
   const falta = faltanFiltrosTend(f);
+  const todos = quiere.acero && sa.value === TODOS_ACEROS;
   document.getElementById("tNotaFiltro").textContent = falta.length
     ? "Falta elegir: " + falta.join(" y ")
-    : (quiere.porAcero ? "Una gráfica por cada acero, con su propia banda." : "");
+    : (todos ? "Una gráfica por cada acero, con su propia banda." : "");
 }
 /* Qué filtros aplicables están todavía vacíos. Vacío = se puede graficar. */
 function faltanFiltrosTend(f){
-  /* El proveedor NO es obligatorio: vacío significa «todos». El acero sólo
-     hace falta con los 6 puntos de dureza, donde no caben los dos aceros. */
+  /* El proveedor NO es obligatorio: vacío significa «todos». El acero SÍ,
+     porque «todos los aceros» ya es una opción que se elige a mano y dejarlo
+     en blanco no puede significar lo mismo que elegirla. */
   const quiere = filtrosTendDe(f), falta = [];
   if(quiere.acero && !document.getElementById("tAcero").value) falta.push("tipo de acero");
   return falta;
@@ -3654,10 +3655,13 @@ function faltanFiltrosTend(f){
 function filtroTendActual(){
   const f = S.formatos.find(x=>x.id===document.getElementById("tProceso").value);
   const quiere = filtrosTendDe(f);
+  const sel = quiere.acero ? document.getElementById("tAcero").value : "";
   return {
-    acero:    quiere.acero ? document.getElementById("tAcero").value : "",
+    /* «Todos» viaja como filtro vacío: a la hoja se le pide todo y el reparto
+       por acero lo hace la pantalla. */
+    acero:    sel === TODOS_ACEROS ? "" : sel,
     prov:     quiere.prov  ? document.getElementById("tProv").value  : "",
-    porAcero: !!quiere.porAcero
+    porAcero: sel === TODOS_ACEROS
   };
 }
 
@@ -3997,6 +4001,11 @@ function renderPorAcero(box, ctx){
 
 function renderComparada(box, ctx){
   const {f, vDef, grupos, etqModo, per, filtro, unidad} = ctx;
+  /* Con «todos los aceros» se dibuja una comparación por cada uno, así que el
+     lienzo no puede llamarse siempre igual ni el bloque puede borrar al
+     anterior. */
+  const idCv  = ctx.idCv || "cvTend";
+  const anexa = !!ctx.anexa;
   const nombres = Object.keys(grupos);
   /* Eje X común: la unión de las fechas de todas las series, porque Chart.js
      alinea los datasets por índice. Donde una serie no midió va null. */
@@ -4088,12 +4097,14 @@ function renderComparada(box, ctx){
       insp:p.insp||"", turno:p.turno||"", estado: estadoEn(bandas[s.nombre], p.y)
     })))).sort((a,b)=> String(a.x).localeCompare(String(b.x))).slice(-10).reverse();
 
-  box.innerHTML = `
+  const html = `
     <div class="panel">
-      <div class="section-title"><h2>${esc(etqModo==="acero" ? "COMPARACIÓN POR ACERO" : "LOS PUNTOS, UNO FRENTE A OTRO")}</h2>
-        <span style="font-size:.74rem;color:var(--text-dim);">${esc(per.etq)}${
+      <div class="section-title"><h2>${esc(ctx.titulo || (etqModo==="acero"
+        ? "COMPARACIÓN POR ACERO" : "LOS PUNTOS, UNO FRENTE A OTRO"))}</h2>
+        <span style="font-size:.74rem;color:var(--text-dim);">${
+          ctx.titulo ? "Los puntos, uno frente a otro · " : ""}${esc(per.etq)}${
           filtro.prov ? " · "+esc(filtro.prov) : ""}${
-          filtro.acero && etqModo!=="acero" ? " · "+esc(filtro.acero) : ""}</span></div>
+          filtro.acero && etqModo!=="acero" && !ctx.titulo ? " · "+esc(filtro.acero) : ""}</span></div>
       <table class="tabla" style="margin-bottom:14px;">
         <thead><tr><th>${esc(etqModo==="acero"?"Acero":"Punto")}</th>
           <th style="text-align:right;">Mediciones</th>
@@ -4113,7 +4124,7 @@ function renderComparada(box, ctx){
             ? esc(String(r.banda.min))+" a "+esc(String(r.banda.max))
             : "sin especificación"}</td></tr>`).join("")}</tbody>
       </table>
-      <div style="height:360px;"><canvas id="cvTend"></canvas></div>
+      <div style="height:360px;"><canvas id="${idCv}"></canvas></div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:.74rem;color:var(--text-dim);margin-top:8px;">
         <span>El color del punto dice de qué serie es; el aro, cómo salió:</span>
         ${unicas.some(b=>margenDe(b)!==null)
@@ -4141,6 +4152,7 @@ function renderComparada(box, ctx){
           </div>`).join("")}
       </div>
     </div>`;
+  if(anexa) box.insertAdjacentHTML("beforeend", html); else box.innerHTML = html;
 
   const puntosY = [].concat.apply([], series.map(s=>s.puntos.map(p=>p.y)));
   const extremos = puntosY.slice();
@@ -4200,8 +4212,10 @@ function renderComparada(box, ctx){
     }
   };
 
-  if(graficaTend) graficaTend.destroy();
-  graficaTend = new Chart(document.getElementById("cvTend"), {
+  /* Anexando no se destruye nada: destruir mataría la gráfica del acero
+     anterior, cuyo lienzo sigue en pantalla. */
+  if(!anexa && graficaTend){ graficaTend.destroy(); graficaTend = null; }
+  const chCmp = new Chart(document.getElementById(idCv), {
     type:"line",
     plugins:[pintaLimites],
     data:{ labels: labels,
@@ -4248,6 +4262,7 @@ function renderComparada(box, ctx){
       }
     }
   });
+  if(!anexa) graficaTend = chCmp;
 }
 
 function renderTendencia(){
@@ -4288,6 +4303,40 @@ function renderTendencia(){
      la banda se buscaría con una clave que ya no es la de la serie pedida. */
   const claveActual = claveSerieActual(fId, vNom, desde, hasta);
   const hayserie = S.serie.clave === claveActual && S.serie.puntos.length;
+
+  /* Los 6 puntos CON «todos los aceros»: una comparación completa por cada
+     acero, porque el 1074 y el 65MN tienen bandas distintas y superponerlos
+     obliga a un eje tan abierto que no se aprecia ninguno de los dos. */
+  if(vNom === TODAS_LAS_VARS && fTend.porAcero && hayserie){
+    const porAc = {};
+    S.serie.puntos.slice()
+      .sort((a,b)=> String(a.fecha+a.registroId).localeCompare(String(b.fecha+b.registroId)))
+      .forEach(pt=>{
+        const n = parseFloat(String(pt.valor).replace(",","."));
+        if(isNaN(n)) return;
+        const ac = String(pt.acero || "").trim();
+        const vr = String(pt.variable || "").trim();
+        if(!ac || !vr) return;
+        const g = porAc[ac] = porAc[ac] || {};
+        (g[vr] = g[vr] || []).push({x: fFecha(pt.fecha), y: n,
+          insp: pt.inspector || "", turno: pt.turno || ""});
+      });
+    const aceros = Object.keys(porAc).sort();
+    if(aceros.length){
+      if(graficaTend){ graficaTend.destroy(); graficaTend = null; }
+      box.innerHTML = "";
+      const u0 = (varsNumericas(f)[0]||{}).unidad || vDef.unidad || "";
+      aceros.forEach((ac, i)=>{
+        renderComparada(box, {f:f, vDef:(varsNumericas(f)[0]||{nombre:vNom}),
+          grupos: porAc[ac], etqModo:"variable", per:per,
+          /* La banda de cada punto se busca con ESTE acero, no con el filtro
+             vacío que se le mandó a la hoja. */
+          filtro: Object.assign({}, fTend, {acero: ac}),
+          unidad: u0, titulo: ac, idCv: "cvTendAc" + i, anexa: true});
+      });
+      return;
+    }
+  }
 
   /* ¿Hay que comparar varias series? Por punto de dureza, o por acero. */
   const modo = vNom === TODAS_LAS_VARS ? "variable" : (fTend.porAcero ? "acero" : "");
@@ -4408,7 +4457,11 @@ function renderTendencia(){
 
     <div class="panel">
       <div class="section-title"><h2>${esc(vNom).toUpperCase()}${
-          vDef.unidad?` <span style="font-weight:700;text-transform:none;">(${esc(vDef.unidad)})</span>`:""}</h2>
+          /* En dureza la variable ya se llama «Dureza punto 2 (HRC)»: repetir
+             la unidad dejaba el título en «… (HRC) (HRC)». */
+          (vDef.unidad && String(vNom).toUpperCase().indexOf(
+            "(" + String(vDef.unidad).toUpperCase() + ")") === -1)
+          ?` <span style="font-weight:700;text-transform:none;">(${esc(vDef.unidad)})</span>`:""}</h2>
         <span style="font-size:.74rem;color:var(--text-dim);">${esc(f.linea)} · ${esc(f.proceso)}${
           planos?` · todas las medidas valen ${f1(ys[0])}${esc(u)}`:""}</span></div>
       <div class="chart-box"><canvas id="cvTend"></canvas></div>
@@ -7295,7 +7348,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-11-03-evolucion";
+const APP_VERSION = "2026-11-03-aceros";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -8732,8 +8785,12 @@ async function traerSerie(fId, vNom, desde, hasta, boton){
                       data[0].acero === undefined && data[0].proveedor === undefined;
     /* Lo mismo para los 6 puntos: una hoja vieja no entiende «variables» y
        devuelve vacío, o devuelve puntos sin decir de qué variable son. */
+    /* Con los 6 puntos repartidos por acero hacen falta las DOS columnas: sin
+       «acero» se pintarían los dos aceros revueltos en una sola gráfica, que
+       es justo lo que se quiere evitar. */
     const sinVariable = (multi || ft.porAcero) && data.length && data[0] &&
-                        (multi ? data[0].variable === undefined : data[0].acero === undefined);
+      ((multi && data[0].variable === undefined) ||
+       (ft.porAcero && data[0].acero === undefined));
     S.serie = {clave: claveSerieActual(fId, vNom, desde, hasta), puntos: data,
                sinFiltro: !!sinFiltro, sinVariable: !!sinVariable,
                vacioMulti: !!(multi && !data.length)};
