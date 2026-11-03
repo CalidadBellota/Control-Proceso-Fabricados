@@ -540,16 +540,28 @@
     border-radius:9px;padding:6px 12px;font-size:.76rem;font-weight:700;color:var(--text);
     background:#fff;}
   .chip-per svg{color:var(--text-dim);}
-  .evo-filtro{display:flex;align-items:center;gap:8px;margin-left:auto;}
-  .evo-filtro label{margin:0;font-size:.7rem;font-weight:700;text-transform:uppercase;
-    letter-spacing:.4px;color:var(--text-dim);white-space:nowrap;}
+  .evo-filtro{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    background:#fafbfc;border:1px solid var(--border);border-radius:10px;
+    padding:9px 13px;margin:-2px 0 16px;}
+  .evo-filtro label{margin:0;font-size:.7rem;font-weight:800;text-transform:uppercase;
+    letter-spacing:.5px;color:var(--text-dim);white-space:nowrap;}
+  .evo-filtro-ayuda{font-size:.72rem;color:var(--text-dim);}
   .sel-mini{height:32px;padding:4px 9px;font-size:.78rem;border:1px solid var(--border);
     border-radius:7px;background:#fff;color:var(--text);font-family:inherit;width:auto;
-    max-width:230px;}
-  @media(max-width:760px){
-    .evo-filtro{margin-left:0;width:100%;}
+    min-width:190px;max-width:260px;}
+  @media(max-width:620px){
     .sel-mini{flex:1 1 auto;max-width:none;}
+    .evo-filtro-ayuda{flex:1 1 100%;}
   }
+  /* El resto de la tabla de desempeño, plegado. */
+  .sin-novedad{margin-top:12px;}
+  .sin-novedad summary{cursor:pointer;font-size:.76rem;font-weight:700;color:var(--text-dim);
+    padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:#fafbfc;
+    list-style:none;}
+  .sin-novedad summary::-webkit-details-marker{display:none;}
+  .sin-novedad summary::before{content:"▸ ";font-weight:800;}
+  .sin-novedad[open] summary::before{content:"▾ ";}
+  .sin-novedad summary:hover{background:#f3f4f6;color:var(--text);}
 
   /* Evolución: dos gráficas, una por pregunta. */
   .grid2-ev{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
@@ -5128,6 +5140,14 @@ function desempenoDe(per, linea, cobertura){
     /* Dureza se controla por lote: no tiene rondas exigidas, así que su
        cobertura no está «vacía», es que no existe. */
     o.porLote = sinRonda(o.linea);
+    /* La cobertura sólo pesa cuando se sabe: con pct nulo, «null < 70» era
+       cierto y un proceso limpio salía marcado como Media. */
+    const floja = !o.porLote && o.pct !== null && o.pct < 70;
+    o.prio = o.crit >= 3 ? "alta" : (o.fuera >= 3 || floja) ? "media" : "baja";
+    /* Un «baja» sin una sola no conformidad no tiene nada que mirar: la
+       tabla lo esconde para que las cinco filas que sí importan no se pierdan
+       entre cuarenta que no dicen nada. */
+    o.novedad = o.prio !== "baja" || o.fuera > 0 || o.crit > 0;
     return o;
   }).sort((a,b)=> b.crit - a.crit || b.fuera - a.fuera ||
                   (a.pct===null?101:a.pct) - (b.pct===null?101:b.pct) ||
@@ -5235,15 +5255,18 @@ function cumplimientoInspectorPorDia(desde, hasta, linea, insp){
   return out;
 }
 
-/* Quién puede salir en el filtro: perfil inspector, y además quien registró
-   algo aunque no tenga perfil, para que nadie quede invisible. */
+/* Quién sale en el filtro. Salen TODOS los inspectores activos, trabajaran o
+   no en el periodo: uno que no registró nada es justo al que hay que poder
+   mirar, y si sólo aparecieran los que tuvieron turno se volvería invisible.
+   Se añade además quien registró algo sin tener perfil, para que nadie falte. */
 function inspectoresDelPeriodo(lista){
   const n = {};
+  inspectoresActivos().forEach(u=>{ n[u.nombre || u.usuario] = true; });
   (lista||[]).forEach(i=>{
     const rol = String(i.rol||"");
     if(rol === "inspector" || rol === "") n[i.nombre] = true;
   });
-  return Object.keys(n).sort();
+  return Object.keys(n).filter(x=>x && x !== "(sin nombre)").sort();
 }
 
 /* --------------------------------------------------------------------------
@@ -5272,14 +5295,19 @@ function evolucionDe(per, linea, insp){
   const dias = Object.keys(cump).sort();
   Object.keys(porDia).forEach(f=>{ if(dias.indexOf(f) === -1) dias.push(f); });
   dias.sort();
+  const serieCump = dias.map(f=> cump[f] === undefined ? null : cump[f]);
+  const serieConf = dias.map(f=>{
+    const d = porDia[f];
+    return d && d.medidas
+      ? Math.round((d.medidas - d.fuera) / d.medidas * 1000) / 10 : null;
+  });
   return {
     etq: v.etq, desde: desde, hasta: hasta, dias: dias,
-    cump: dias.map(f=> cump[f] === undefined ? null : cump[f]),
-    conf: dias.map(f=>{
-      const d = porDia[f];
-      return d && d.medidas
-        ? Math.round((d.medidas - d.fuera) / d.medidas * 1000) / 10 : null;
-    }),
+    /* Con un inspector elegido puede no haber absolutamente nada: ni turnos
+       asignados ni registros. Dibujar dos lienzos en blanco no lo explica. */
+    vacio: serieCump.every(x=>x === null) && serieConf.every(x=>x === null),
+    cump: serieCump,
+    conf: serieConf,
     noCrit: dias.map(f=> porDia[f] ? porDia[f].fuera - porDia[f].crit : 0),
     crit:   dias.map(f=> porDia[f] ? porDia[f].crit : 0)
   };
@@ -5516,6 +5544,32 @@ function renderKpi(){
         crit: linea ? (hayCrit ? sumaCrit : 0) : (K[v].criticas || 0),
         donde: mios.sort((a,b)=> vFuera(ps[b]) - vFuera(ps[a]))[0] || ""};
     }), "fuera") : [];
+  /* La tabla de desempeño sólo muestra lo que pide acción: alta, media, y las
+     bajas que al menos registraron una no conformidad. El resto se guarda
+     plegado, que no es lo mismo que esconderlo. */
+  const conNovedad = desemp.filter(d=> d.novedad);
+  const sinNovedad = desemp.filter(d=> !d.novedad);
+  const filaDesemp = lista => lista.map(d=>{
+    const etq = d.prio === "alta" ? "Alta" : d.prio === "media" ? "Media" : "Baja";
+    const col = d.pct === null ? "" : d.pct >= 95 ? "" : d.pct >= 70 ? "flojo" : "malo";
+    return `<tr${d.prio === "alta" ? ' class="fila-alta"' : ""}>
+      <td><i class="dot" style="background:${
+        !d.rondas ? "#c9ced6"
+        : d.crit ? "var(--bad)" : d.fuera ? "var(--warn)" : "var(--ok)"};"></i>
+        ${esc(d.nom)}</td>
+      <td style="text-align:right;">${ent(d.rondas)}</td>
+      <td style="text-align:right;">${ent(d.medidas)}</td>
+      <td style="text-align:right;${d.fuera?"color:var(--warn-text);font-weight:800;":""}">${
+        d.fuera || "—"}</td>
+      <td style="text-align:right;${d.crit?"color:var(--bad);font-weight:800;":""}">${
+        d.crit || "—"}</td>
+      <td>${d.porLote
+        ? `<span style="font-size:.72rem;color:var(--text-dim);">por lote</span>`
+        : `<div class="cump"><span class="barra-mini"><i class="${col}" style="width:${
+            ancho(d.pct)}%;"></i></span><b>${f1(d.pct)}${d.pct===null?"":"%"}</b></div>`}</td>
+      <td><span class="chip-p ${d.prio}">${etq}</span></td></tr>`;
+  }).join("");
+
   const inspEvo = inspectoresDelPeriodo(todosQuien);
   /* Si el que estaba elegido no trabajó en este periodo o esta línea, se
      vuelve al total en vez de dejar una pantalla vacía sin explicación. */
@@ -5592,38 +5646,29 @@ function renderKpi(){
                 <th style="text-align:right;">Críticas</th>
                 <th style="width:20%;">Cobertura</th>
                 <th>Prioridad</th></tr></thead>
-              <tbody>${desemp.map(d=>{
-                /* La cobertura sólo pesa cuando se sabe: con pct nulo, «null < 70»
-                   era cierto y un proceso limpio salía marcado como Media. */
-                const floja = !d.porLote && d.pct !== null && d.pct < 70;
-                const cl = d.crit >= 3 ? "alta" : (d.fuera >= 3 || floja) ? "media" : "baja";
-                const etq = cl === "alta" ? "Alta" : cl === "media" ? "Media" : "Baja";
-                const col = d.pct === null ? "" : d.pct >= 95 ? "" : d.pct >= 70 ? "flojo" : "malo";
-                return `<tr${cl === "alta" ? ' class="fila-alta"' : ""}>
-                  <td><i class="dot" style="background:${
-                    !d.rondas ? "#c9ced6"
-                    : d.crit ? "var(--bad)" : d.fuera ? "var(--warn)" : "var(--ok)"};"></i>
-                    ${esc(d.nom)}</td>
-                  <td style="text-align:right;">${ent(d.rondas)}</td>
-                  <td style="text-align:right;">${ent(d.medidas)}</td>
-                  <td style="text-align:right;${d.fuera?"color:var(--warn-text);font-weight:800;":""}">${d.fuera || "—"}</td>
-                  <td style="text-align:right;${d.crit?"color:var(--bad);font-weight:800;":""}">${d.crit || "—"}</td>
-                  <td>${d.porLote
-                    ? `<span style="font-size:.72rem;color:var(--text-dim);">por lote</span>`
-                    : `<div class="cump"><span class="barra-mini"><i class="${col}" style="width:${
-                        ancho(d.pct)}%;"></i></span><b>${f1(d.pct)}${
-                        d.pct===null?"":"%"}</b></div>`}</td>
-                  <td><span class="chip-p ${cl}">${etq}</span></td></tr>`;
-              }).join("")}</tbody></table>
+              <tbody>${filaDesemp(conNovedad)}</tbody></table>
+            ${sinNovedad.length ? `<details class="sin-novedad">
+              <summary>${sinNovedad.length} proceso(s) sin novedad: cobertura aceptable y ninguna no conformidad</summary>
+              <table class="tabla t-desemp" style="width:100%;margin-top:10px;">
+                <thead><tr><th style="width:30%;">Proceso</th>
+                  <th style="text-align:right;">Rondas</th>
+                  <th style="text-align:right;">Medic.</th>
+                  <th style="text-align:right;">Fuera</th>
+                  <th style="text-align:right;">Críticas</th>
+                  <th style="width:20%;">Cobertura</th>
+                  <th>Prioridad</th></tr></thead>
+                <tbody>${filaDesemp(sinNovedad)}</tbody></table>
+            </details>` : ""}
             <div class="nota-pie" style="margin-top:12px;">
               <span class="ic-sec">${IC_KPI.alerta}</span>
               <span>Ordenados por <b>impacto</b>, no por porcentaje: primero el que más no
               conformidades acumula. Un 50&nbsp;% de fuera de rango sobre 4 mediciones no es
               una prioridad, y ordenando por porcentaje se veía igual de grave que un proceso
               con 400 mediciones y 20 desviaciones. «Cobertura» es qué parte de las rondas
-              exigidas de ese proceso se cumplió; los de <b>Dureza</b> dicen <b>por lote</b>
-              porque esa línea no se exige por turno y no tiene rondas contra las cuales
-              medirla.</span></div>`}
+              exigidas de ese proceso se cumplió. Arriba salen los de prioridad
+              <b>alta</b> y <b>media</b>, y los de <b>baja</b> que registraron alguna no
+              conformidad; los demás están completos en la lista plegada, no se han
+              quitado.</span></div>`}
       </div>
     </div>
 
@@ -5657,18 +5702,28 @@ function renderKpi(){
         <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.reloj}</span>
           <div><h2>EVOLUCIÓN</h2>
             <span style="font-size:.72rem;color:var(--text-dim);">¿vamos mejorando o empeorando?</span></div>
-          <div class="evo-filtro">
-            <label for="kEvoInsp">Inspector</label>
-            <select id="kEvoInsp" class="sel-mini">
-              <option value="">Todos — la planta entera</option>
-              ${inspEvo.map(n=>`<option value="${esc(n)}"${
-                n === INSP_EVO ? " selected" : ""}>${esc(n)}</option>`).join("")}
-            </select>
-          </div>
-          <span style="font-size:.74rem;color:var(--text-dim);">${esc(evo.etq)}${
+          <span style="font-size:.74rem;color:var(--text-dim);margin-left:auto;">${esc(evo.etq)}${
             linea ? " · " + esc(linea) : " · todas las líneas"}</span></div>
+        <div class="evo-filtro">
+          <label for="kEvoInsp">Ver</label>
+          <select id="kEvoInsp" class="sel-mini">
+            <option value="">Toda la planta</option>
+            ${inspEvo.map(n=>`<option value="${esc(n)}"${
+              n === INSP_EVO ? " selected" : ""}>${esc(n)}</option>`).join("")}
+          </select>
+          <span class="evo-filtro-ayuda">${INSP_EVO
+            ? "el cumplimiento es suyo; la conformidad es lo que encontró"
+            : "elige un inspector para ver sólo sus rondas"}</span>
+        </div>
         ${!evo.dias.length
           ? `<div class="empty-mini">No hay días con jornada en este tramo.</div>`
+          : evo.vacio
+          ? `<div class="empty-mini">${INSP_EVO
+              ? `<b>${esc(INSP_EVO)}</b> no tiene turnos asignados ni rondas registradas en
+                 ${esc(evo.etq)}${linea ? " en " + esc(linea) : ""}.<br>
+                 <span style="font-size:.78rem;">Si sí trabajó, es que el calendario de turnos
+                 no lo tiene puesto y además no abrió la aplicación.</span>`
+              : `No hay rondas ni mediciones en este tramo.`}</div>`
           : `<div class="grid2-ev">
               <div>
                 <div class="tit-mini">Cumplimiento de rondas</div>
@@ -7486,7 +7541,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-11-03-juzgadas";
+const APP_VERSION = "2026-11-03-novedad";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
