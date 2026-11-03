@@ -30,7 +30,12 @@ const H_REG = ["id","fecha","hora","turno","linea","proceso","formatoId","codigo
                "ordenFabricacion","referencia","tipoAcero","proveedor","espesorAcero","maquina",
                "tipoLima","noTrabajo",
                "inspector","observaciones",
-               "totalVariables","fueraDeRango","criticasFuera",
+               /* «juzgadas» son las que de verdad se pudieron comparar contra una
+                  cota. Sin ella la conformidad dividía entre TODAS las variables, así
+                  que lo que no tenía cota caía del lado de lo conforme por descarte e
+                  inflaba el indicador en silencio. Las filas viejas no la traen y se
+                  siguen calculando como antes: el pasado no se reescribe. */
+               "totalVariables","juzgadas","fueraDeRango","criticasFuera",
                "correcciones"];
 
 const H_DET = ["registroId","fecha","linea","proceso","ordenFabricacion","referencia","maquina",
@@ -211,7 +216,7 @@ function jsonSeguro_(txt, porDefecto){
 /* Marca de versión del backend. La app la muestra en el panel de
    sincronización: así se sabe sin adivinar si la hoja está corriendo este
    código o uno anterior que todavía lee todo el histórico en cada petición. */
-const BACKEND_VERSION = "2026-10-30-pareto-variable";
+const BACKEND_VERSION = "2026-11-03-juzgadas";
 
 function doGet(e){
   try{ return doGet_(e); }
@@ -945,6 +950,11 @@ function guardar_(r){
     const datos = {};
     H_REG.forEach(function(h){ datos[h] = (r[h] !== undefined) ? r[h] : ""; });
     datos.totalVariables = res.length;
+    /* «Sin especificación», «Sin dato» y «No aplica» no son conformes ni no
+       conformes: no hay con qué juzgarlas y no pueden entrar al denominador. */
+    datos.juzgadas       = res.filter(function(v){
+      return v.resultado === "Conforme" || v.resultado === "Fuera de rango";
+    }).length;
     datos.fueraDeRango   = res.filter(function(v){ return v.resultado === "Fuera de rango"; }).length;
     datos.criticasFuera  = res.filter(function(v){
       return v.resultado === "Fuera de rango" && String(v.critica||"").toLowerCase().indexOf("s") === 0;
