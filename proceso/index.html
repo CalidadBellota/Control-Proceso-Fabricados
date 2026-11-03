@@ -593,8 +593,11 @@
     font-variant-numeric:tabular-nums;}
   .lin-resumen b small{font-size:.8rem;font-weight:700;color:var(--text-dim);}
   .lin-resumen .t{display:block;font-size:.68rem;color:var(--text-dim);line-height:1.3;}
+  .lin-resumen .t2{display:block;font-size:.63rem;color:var(--warn-text);line-height:1.25;
+    margin-top:2px;}
   .lin-resumen .v{display:flex;flex-direction:column;gap:1px;min-width:0;}
   .lin-resumen .peor{background:var(--bad-bg);}
+  .lin-resumen .peor .fila{display:flex;align-items:baseline;gap:9px;}
   .lin-resumen .peor b{font-size:.95rem;color:var(--bad);}
   .lin-resumen .peor .n{font-size:1.2rem;font-weight:800;color:var(--bad);line-height:1.1;}
   .lin-resumen .peor.gris{background:#f1f2f4;}
@@ -613,6 +616,7 @@
   .lcard.warn{border-left-color:var(--warn);}
   .lcard.bad{border-left-color:var(--bad);background:var(--bad-bg);}
   .lcard.gris{border-left-color:#8b929c;background:#f1f2f4;}
+  .lcard.curso{border-left-color:#1f5fb0;background:#f4f8fd;}
   .lcard-top{display:flex;align-items:center;gap:10px;}
   .lcard-top h4{font-size:.95rem;font-weight:800;margin:0;}
   .lcard-top .chip-l{margin-left:auto;}
@@ -621,6 +625,7 @@
     background:#eef0f3;color:var(--text-dim);}
   .lcard-ic svg{width:17px;height:17px;}
   .lcard.ok .lcard-ic{background:var(--ok-bg);color:var(--ok);}
+  .lcard.curso .lcard-ic{background:#e7f0fb;color:#1f5fb0;}
   .lcard.warn .lcard-ic{background:var(--warn-bg);color:var(--warn-text);}
   .lcard.bad .lcard-ic{background:#fad7db;color:var(--bad);}
   .chip-l{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.65rem;
@@ -630,10 +635,13 @@
     box-shadow:inset 0 0 0 1px rgba(0,0,0,.07);}
   .chip-l.bad{background:var(--bad);color:#fff;}
   .chip-l.gris{background:#8b929c;color:#fff;}
+  .chip-l.curso{background:#e7f0fb;color:#1f5fb0;box-shadow:inset 0 0 0 1px #c3d8f1;}
   .lcard-ind{display:flex;align-items:baseline;gap:9px;padding:10px 0 12px;}
   .lcard-ind b{font-size:1.95rem;font-weight:800;line-height:1;
     font-variant-numeric:tabular-nums;}
-  .lcard-ind span{font-size:.68rem;color:var(--text-dim);line-height:1.3;}
+  .lcard-ind span{font-size:.68rem;color:var(--text-dim);line-height:1.3;max-width:120px;}
+  .lcard-ind span small{display:block;font-size:.63rem;margin-top:2px;
+    font-variant-numeric:tabular-nums;color:#8b929c;white-space:nowrap;}
   .lcard-met{margin-bottom:9px;}
   .lcard-met .met-cab{display:flex;justify-content:space-between;align-items:baseline;
     font-size:.71rem;color:var(--text-dim);margin-bottom:4px;}
@@ -659,6 +667,7 @@
     border-top:1px solid var(--border);color:var(--text-dim);}
   .lcard.bad .lcard-razon{color:var(--bad);font-weight:600;}
   .lcard.gris .lcard-razon{color:#4b5159;font-weight:600;}
+  .lcard.curso .lcard-razon{color:#1b4e94;font-weight:600;}
 
   /* Desempeño de los procesos: 36 filas que se leen de un barrido. */
   .t-desemp{font-size:.8rem;}
@@ -4900,15 +4909,19 @@ function periodoKpi(){
     const fecha = (inD && inD.value) || fechaRondaActual();
     const t = (inT && inT.value) || turnoDeHora(horaAhora());
     const ahora = fecha === fechaRondaActual() && t === turnoDeHora(horaAhora());
-    return {modo:"turno", fecha:fecha, turno:t, desde:fecha, hasta:fecha,
+    return {modo:"turno", fecha:fecha, turno:t, desde:fecha, hasta:fecha, enCurso: ahora,
             etq:`turno ${t} · ${fFechaCorta(fecha)}${ahora ? " · en curso" : ""}`};
   }
   if(modo === "mes"){
     const mes = document.getElementById("kMes").value || mesISO();
-    return {modo:"mes", mes:mes, desde:mes+"-01", hasta:finDeMes(mes), etq:mes};
+    /* El mes en curso tampoco ha terminado: lo que falta por inspeccionar
+       todavía se puede inspeccionar. */
+    return {modo:"mes", mes:mes, desde:mes+"-01", hasta:finDeMes(mes),
+            enCurso: mes === mesISO(), etq:mes};
   }
   const dia = document.getElementById("kDia").value || hoyISO();
-  return {modo:"dia", fecha:dia, desde:dia, hasta:dia, etq:fFechaCorta(dia)};
+  return {modo:"dia", fecha:dia, desde:dia, hasta:dia,
+          enCurso: dia === fechaRondaActual(), etq:fFechaCorta(dia)};
 }
 
 /* Los procesos que SE EXIGEN: ni los condicionales, ni los que no van por
@@ -5454,7 +5467,7 @@ function porLineaDe(per, proc){
 }
 
 /** El veredicto de una línea: el gris se decide antes que nada. */
-function veredictoLinea(l){
+function veredictoLinea(l, enCurso){
   /* Dureza se controla por lote y no se exige por turno: no tiene cumplimiento
      de rondas, así que tampoco puede tener conformidad demostrada. Decirlo es
      mejor que marcarla «sin datos», que suena a que falta algo. */
@@ -5462,16 +5475,26 @@ function veredictoLinea(l){
     razon:`Esta línea no se exige por turno, así que no tiene cumplimiento de rondas ` +
           `contra el cual medir. Su conformidad es del ${f1k(l.conf)}% sobre ` +
           `${l.medidas} medición(es).`};
-  if(l.cump === null || l.conf === null) return {cl:"gris", et:"SIN DATOS",
+  if(l.cump === null || l.conf === null) return {cl: enCurso ? "curso" : "gris",
+    et: enCurso ? "EN CURSO" : "SIN DATOS",
     razon: l.conf === null
-      ? "No hay mediciones de esta línea en el periodo."
+      ? (enCurso ? "Todavía no hay mediciones de esta línea en este periodo, que no ha terminado."
+                 : "No hay mediciones de esta línea en el periodo.")
       : "No hay rondas exigidas de esta línea en el periodo."};
-  if(l.cump < MIN_EVIDENCIA) return {cl:"gris", et:"SIN EVIDENCIA",
-    razon:`Sólo se cubrió el ${f1k(l.cump)}% de las rondas (${l.hechos} de ${l.procs} ` +
-          `procesos). El ${f1k(l.conf)}% de conformidad no alcanza para juzgar la línea.`};
+  /* Lo medido, medido está: una conformidad mala se puede afirmar aunque el
+     turno siga corriendo. Lo que NO se puede es condenar la cobertura a media
+     jornada —las rondas que faltan todavía se pueden hacer—, y eso era lo que
+     sacaba «sin vigilancia» a mitad del turno 2. */
   if(l.conf < 96) return {cl:"bad", et:"NO CONFORME",
     razon:`La conformidad está ${f1k(META_CONF - l.conf)} puntos por debajo de la meta` +
           (l.crit ? `, con ${l.crit} desviación(es) en variable crítica.` : ".")};
+  if(enCurso && l.cump < META_CUMP) return {cl:"curso", et:"EN CURSO",
+    razon:`Lleva el ${f1k(l.cump)}% de las rondas (${l.hechos} de ${l.procs} procesos) y el ` +
+          `periodo no ha terminado: el cumplimiento todavía puede subir, así que no se ` +
+          `emite veredicto. La conformidad de lo que ya se midió es del ${f1k(l.conf)}%.`};
+  if(l.cump < MIN_EVIDENCIA) return {cl:"gris", et:"SIN EVIDENCIA",
+    razon:`Sólo se cubrió el ${f1k(l.cump)}% de las rondas (${l.hechos} de ${l.procs} ` +
+          `procesos). El ${f1k(l.conf)}% de conformidad no alcanza para juzgar la línea.`};
   if(l.cump < 70) return {cl:"bad", et:"SIN VIGILANCIA",
     razon:`Se dejaron de hacer el ${f1k(100 - l.cump)}% de las rondas. La conformidad se ve ` +
           `bien porque se midió poco, no porque el proceso esté controlado.`};
@@ -5898,14 +5921,24 @@ function renderKpi(){
         ${!porLinea.length
           ? `<div class="empty-mini">Sin líneas con rondas exigidas en ${esc(per.etq)}.</div>`
           : `<div class="lin-resumen">
-              <div><span class="ic">${IC_KPI.barras}</span>
-                <div class="v"><b>${porLinea.length}</b>
-                  <span class="t">Líneas evaluadas</span></div></div>
-              <div><span class="ic ok">${IC_KPI.tic}</span>
-                <div class="v"><b>${porLinea.filter(l=> l.conf !== null &&
-                  l.conf >= META_CONF).length}<small> de ${
-                  porLinea.filter(l=> l.conf !== null).length}</small></b>
-                  <span class="t">En meta de conformidad</span></div></div>
+              ${(function(){
+                /* El denominador no son todas las líneas: una línea sin una sola
+                   medición no está «fuera de meta», es que no hay con qué
+                   compararla. Decir «2 de 2» sin aclarar cuántas quedaron fuera
+                   de la cuenta hacía que el cuadro pareciera equivocado. */
+                const conMed = porLinea.filter(l=> l.conf !== null);
+                const enMeta = conMed.filter(l=> l.conf >= META_CONF);
+                const sinMed = porLinea.length - conMed.length;
+                return `<div><span class="ic">${IC_KPI.barras}</span>
+                    <div class="v"><b>${porLinea.length}</b>
+                      <span class="t">Líneas con rondas exigidas</span></div></div>
+                  <div><span class="ic ${enMeta.length === conMed.length && conMed.length
+                      ? "ok" : ""}">${IC_KPI.tic}</span>
+                    <div class="v"><b>${enMeta.length}<small> de ${conMed.length}</small></b>
+                      <span class="t">Con la conformidad en meta (≥&nbsp;${META_CONF}&nbsp;%)</span>
+                      ${sinMed ? `<span class="t2">${sinMed} línea(s) más sin ninguna
+                        medición en el periodo</span>` : ""}</div></div>`;
+              })()}
               <div><span class="ic bad">${IC_KPI.alerta}</span>
                 <div class="v"><b>${ent(porLinea.reduce((n,l)=> n + l.fuera, 0))}</b>
                   <span class="t">Desviaciones totales</span></div></div>
@@ -5913,16 +5946,23 @@ function renderKpi(){
                 /* El peor con veredicto: una línea «sin evidencia» no es la peor,
                    es la que no se puede juzgar, y ponerla aquí desviaría la
                    atención del proceso que de verdad se está saliendo. */
-                const p = porLinea.filter(l=> l.ind !== null &&
-                  veredictoLinea(l).cl !== "gris")[0];
+                /* Ni «sin evidencia» ni «en curso»: una línea que no se puede
+                   juzgar no es la peor, y un turno a medias tampoco. */
+                const p = porLinea.filter(l=>{
+                  if(l.ind === null) return false;
+                  const c = veredictoLinea(l, per.enCurso).cl;
+                  return c !== "gris" && c !== "curso";
+                })[0];
                 return p ? `<div class="peor"><div class="v"><span class="t">Peor resultado</span>
-                  <b>${esc(p.nom)}</b><span class="n">${f1(p.ind)}%</span></div></div>`
+                  <span class="fila"><b>${esc(p.nom)}</b
+                  ><span class="n">${f1(p.ind)}%</span></span></div></div>`
                   : `<div class="peor gris"><div class="v"><span class="t">Peor resultado</span>
-                  <b>sin juzgar</b><span class="n">—</span></div></div>`;
+                  <span class="fila"><b>${per.enCurso ? "periodo en curso" : "sin juzgar"}</b
+                  ><span class="n">—</span></span></div></div>`;
               })()}
             </div>
             <div class="lineas-cards">${porLinea.map(l=>{
-              const v = veredictoLinea(l);
+              const v = veredictoLinea(l, per.enCurso);
               const gris = v.cl === "gris";
               /* La barra de conformidad arranca en 90: entre 0 y 90 no pasa
                  nada y comprimir ahí los cuatro puntos que importan la vuelve
@@ -5942,7 +5982,10 @@ function renderKpi(){
                   <span class="chip-l ${v.cl}" title="${esc(v.razon.replace(/<[^>]+>/g,""))}"
                     >${v.et}</span></div>
                 <div class="lcard-ind"><b style="color:${cInd};">${f1(l.ind)}${
-                  l.ind===null?"":"%"}</b><span>conformidad<br>demostrada</span></div>
+                  l.ind===null?"":"%"}</b>
+                  <span>conformidad demostrada
+                    <small>${l.ind === null ? "cumplimiento × conformidad"
+                      : `${f1(l.cump)}% × ${f1(l.conf)}%`}</small></span></div>
                 <div class="lcard-met">
                   <div class="met-cab"><span>Cumplimiento de rondas</span><b>${f1(l.cump)}${
                     l.cump===null?"":"%"}</b></div>
@@ -7715,7 +7758,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-11-03-lineas";
+const APP_VERSION = "2026-11-03-encurso";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
