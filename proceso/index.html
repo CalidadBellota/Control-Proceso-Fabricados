@@ -527,6 +527,22 @@
     border-radius:9px;padding:6px 12px;font-size:.76rem;font-weight:700;color:var(--text);
     background:#fff;}
   .chip-per svg{color:var(--text-dim);}
+  /* Desempeño de los procesos: 36 filas que se leen de un barrido. */
+  .t-desemp{font-size:.8rem;}
+  .t-desemp th{white-space:nowrap;}
+  .t-desemp td{padding:7px 10px;vertical-align:middle;}
+  .t-desemp tbody tr:hover{background:#fafbfc;}
+  .t-desemp tr.fila-alta{background:var(--bad-bg);}
+  .t-desemp tr.fila-alta:hover{background:#fbe3e6;}
+  .t-desemp tr.fila-alta td:first-child{font-weight:700;}
+  .chip-p{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.66rem;
+    font-weight:800;letter-spacing:.3px;white-space:nowrap;}
+  .chip-p.alta{background:var(--bad);color:#fff;}
+  .chip-p.media{background:var(--warn-bg);color:var(--warn-text);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);}
+  .chip-p.baja{background:#eef0f3;color:var(--text-dim);}
+  .tit-mini{font-size:.72rem;font-weight:800;letter-spacing:.6px;text-transform:uppercase;
+    color:var(--text-dim);margin-bottom:9px;}
   .nota-pie{display:flex;gap:12px;align-items:flex-start;font-size:.72rem;
     color:var(--text-dim);line-height:1.5;}
   .nota-pie .ic-sec{width:26px;height:26px;border-radius:8px;}
@@ -4606,7 +4622,9 @@ const IC_KPI = {
     stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12"
     r="9"/><path d="M12 7v5l3 2"/></svg>`
 };
-let graficaKpi = null;
+let GRAFICAS_KPI = [];
+let KPI_VARS = null;          // no conformidades por variable, sumadas por la hoja
+let KPI_CLAVE = "";           // para qué periodo y línea son
 
 /* Las iniciales del inspector para el círculo de la tabla. */
 function iniciales(nombre){
@@ -4907,6 +4925,98 @@ function cumplimientoPorProceso(per, linea){
   return out;
 }
 
+/* --------------------------------------------------------------------------
+   Desempeño de los procesos. Una fila por proceso con lo que de verdad decide
+   dónde actuar: cuántas no conformidades acumula, cuántas son críticas y qué
+   parte de sus rondas se cumplió. Ordenado por impacto, no por porcentaje: un
+   50 % de fuera de rango sobre 4 mediciones no es una prioridad.
+   -------------------------------------------------------------------------- */
+function desempenoDe(per, linea, cobertura){
+  const cob = {};
+  (cobertura||[]).forEach(c=>{ cob[c.nom] = c; });
+  const acum = {};
+  regsDelPeriodo(per, linea).forEach(r=>{
+    const f = S.formatos.find(x=>x.id === r.formatoId);
+    const nom = f ? (f.nombre || `${f.linea} · ${f.proceso}`)
+                  : `${String(r.linea||"").trim()} · ${String(r.proceso||"").trim()}`;
+    const o = acum[nom] = acum[nom] || {nom:nom, rondas:0, medidas:0, fuera:0, crit:0};
+    o.rondas++;
+    o.medidas += numDe(r.totalVariables) || (r.resultados||[]).length;
+    o.fuera   += ncDe(r);
+    o.crit    += critNCDe(r);
+  });
+  /* También los que no registraron nada: un proceso sin una sola ronda es
+     justamente el que hay que mirar, y si no aparece se vuelve invisible. */
+  (cobertura||[]).forEach(c=>{
+    if(!acum[c.nom]) acum[c.nom] = {nom:c.nom, rondas:0, medidas:0, fuera:0, crit:0};
+  });
+  return Object.keys(acum).map(k=>{
+    const o = acum[k];
+    const c = cob[o.nom];
+    o.pct = c ? c.pct : null;
+    return o;
+  }).sort((a,b)=> b.crit - a.crit || b.fuera - a.fuera ||
+                  (a.pct===null?101:a.pct) - (b.pct===null?101:b.pct) ||
+                  a.nom.localeCompare(b.nom));
+}
+
+/* Pareto: los que acumulan el grueso del problema, con su porcentaje
+   acumulado. Se corta donde el acumulado pasa del 90 % o a los 12, lo que
+   llegue antes: la cola larga de «uno cada uno» no ayuda a decidir. */
+function paretoDe(lista, campo){
+  const d = lista.filter(x=>x[campo] > 0).sort((a,b)=> b[campo] - a[campo]);
+  const total = d.reduce((s,x)=> s + x[campo], 0);
+  if(!total) return [];
+  const out = []; let ac = 0;
+  for(let i = 0; i < d.length && i < 12; i++){
+    ac += d[i][campo];
+    out.push(Object.assign({}, d[i], {acum: Math.round(ac/total*100)}));
+    if(ac/total >= 0.9) break;
+  }
+  return out;
+}
+
+/* --------------------------------------------------------------------------
+   Evolución. Un indicador suelto no dice si el proceso se está yendo.
+   En el mes se recorren sus días; en el día y en el turno se muestran las dos
+   semanas que acaban en esa fecha, porque la evolución de un solo día no
+   existe.
+   -------------------------------------------------------------------------- */
+function evolucionDe(per, linea){
+  let desde, hasta, etq;
+  if(per.modo === "mes"){
+    desde = per.desde; hasta = per.hasta > hoyISO() ? hoyISO() : per.hasta;
+    etq = "día a día del mes";
+  } else {
+    hasta = per.fecha; desde = masDias(hasta, -13);
+    etq = "los 14 días hasta " + fFechaCorta(hasta);
+  }
+  const porDia = {}, porLinea = {};
+  S.registros.forEach(r=>{
+    const f = fechaTurnoDe(r);
+    if(f < desde || f > hasta) return;
+    const L = String(r.linea||"").trim();
+    if(linea && L !== linea) return;
+    const med = numDe(r.totalVariables) || (r.resultados||[]).length;
+    const d = porDia[f] = porDia[f] || {medidas:0, fuera:0, crit:0};
+    d.medidas += med; d.fuera += ncDe(r); d.crit += critNCDe(r);
+    const l = porLinea[L] = porLinea[L] || {medidas:0, fuera:0};
+    l.medidas += med; l.fuera += ncDe(r);
+  });
+  const dias = Object.keys(porDia).sort();
+  return {
+    etq: etq, desde: desde, hasta: hasta,
+    dias: dias,
+    conf: dias.map(f=> porDia[f].medidas
+      ? Math.round((porDia[f].medidas - porDia[f].fuera) / porDia[f].medidas * 1000)/10 : null),
+    noCrit: dias.map(f=> porDia[f].fuera - porDia[f].crit),
+    crit: dias.map(f=> porDia[f].crit),
+    lineas: Object.keys(porLinea).sort(),
+    confLinea: Object.keys(porLinea).sort().map(L=> porLinea[L].medidas
+      ? Math.round((porLinea[L].medidas - porLinea[L].fuera) / porLinea[L].medidas * 1000)/10 : null)
+  };
+}
+
 function renderKpi(){
   refrescarSelectoresConsulta();
   const sel = document.getElementById("kLinea");
@@ -5026,11 +5136,31 @@ function renderKpi(){
         </div>`).join("")}</div>`).join("");
   }
 
-  const proc = cumplimientoPorProceso(per, linea);
-  /* Todos los procesos exigibles, del peor al mejor. Antes se mostraban sólo
-     los doce con menos cobertura y, cuando había más de doce en cero, la
-     elección entre ellos era arbitraria y no se veía el resto de la planta. */
-  const peores = proc.slice().sort((a,b)=> a.pct - b.pct || a.nom.localeCompare(b.nom));
+  const proc   = cumplimientoPorProceso(per, linea);
+  const desemp = desempenoDe(per, linea, proc);
+  const pareto = paretoDe(desemp, "fuera");
+  /* Las variables las suma la hoja: el detalle completo no está en el equipo.
+     Lo que devuelve no viene filtrado por línea —sumarlo dos veces costaría
+     otra ejecución—, así que el filtro se aplica aquí usando los procesos en
+     los que se salió cada variable, que vienen con su línea delante. */
+  const K = (KPI_CLAVE === per.desde + "|" + per.hasta) ? KPI_VARS : null;
+  /* La hoja antigua devolvía un número por proceso y la nueva {fuera,criticas}:
+     se aceptan las dos para que la pantalla no quede en blanco mientras no se
+     publique la versión nueva del código de la hoja. */
+  const vFuera = x => typeof x === "object" && x ? (x.fuera || 0) : (x || 0);
+  const vCrit  = x => typeof x === "object" && x ? (x.criticas || 0) : null;
+  const parVar = K ? paretoDe(Object.keys(K).map(v=>{
+      const ps = K[v].procesos || {};
+      const mios = Object.keys(ps).filter(p=> !linea ||
+        String(p).split(" · ")[0].trim() === linea);
+      const sumaCrit = mios.reduce((s,p)=> s + (vCrit(ps[p]) || 0), 0);
+      const hayCrit = mios.some(p=> vCrit(ps[p]) !== null);
+      return {nom: v,
+        fuera: linea ? mios.reduce((s,p)=> s + vFuera(ps[p]), 0) : (K[v].fuera || 0),
+        crit: linea ? (hayCrit ? sumaCrit : 0) : (K[v].criticas || 0),
+        donde: mios.sort((a,b)=> vFuera(ps[b]) - vFuera(ps[a]))[0] || ""};
+    }), "fuera") : [];
+  const evo = evolucionDe(per, linea);
 
   box.innerHTML = `
     <div class="panel">
@@ -5075,70 +5205,108 @@ function renderKpi(){
     <div style="margin-top:16px;">
       <div class="panel" style="margin:0;">
         <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.barras}</span>
-          <h2>CUMPLIMIENTO POR PROCESO</h2>
-          <span style="font-size:.74rem;color:var(--text-dim);">${
-            per.modo === "mes" ? "días cubiertos de los exigidos"
-            : per.modo === "dia" ? "turnos cubiertos del día" : "cubierto en este turno"}</span></div>
-        ${!peores.length
-          ? `<div class="empty-mini">No hay procesos exigibles con este filtro.</div>`
-          : `<div style="height:${Math.max(330, 300 + Math.max(0, peores.length - 24) * 4)}px;"
-               ><canvas id="cvKpiProc"></canvas></div>
+          <div><h2>DESEMPEÑO DE LOS PROCESOS</h2>
+            <span style="font-size:.72rem;color:var(--text-dim);">¿dónde se están generando los problemas?</span></div>
+        </div>
+        ${!desemp.length
+          ? `<div class="empty-mini">Sin registros en ${esc(per.etq)}.</div>`
+          : `<table class="tabla t-desemp" style="width:100%;">
+              <thead><tr><th style="width:30%;">Proceso</th>
+                <th style="text-align:right;">Rondas</th>
+                <th style="text-align:right;">Medic.</th>
+                <th style="text-align:right;">Fuera</th>
+                <th style="text-align:right;">Críticas</th>
+                <th style="width:20%;">Cobertura</th>
+                <th>Prioridad</th></tr></thead>
+              <tbody>${desemp.map(d=>{
+                /* La cobertura sólo pesa cuando se sabe: con pct nulo, «null < 70»
+                   era cierto y un proceso limpio salía marcado como Media. */
+                const floja = d.pct !== null && d.pct < 70;
+                const cl = d.crit >= 3 ? "alta" : (d.fuera >= 3 || floja) ? "media" : "baja";
+                const etq = cl === "alta" ? "Alta" : cl === "media" ? "Media" : "Baja";
+                const col = d.pct === null ? "" : d.pct >= 95 ? "" : d.pct >= 70 ? "flojo" : "malo";
+                return `<tr${cl === "alta" ? ' class="fila-alta"' : ""}>
+                  <td><i class="dot" style="background:${
+                    !d.rondas ? "#c9ced6"
+                    : d.crit ? "var(--bad)" : d.fuera ? "var(--warn)" : "var(--ok)"};"></i>
+                    ${esc(d.nom)}</td>
+                  <td style="text-align:right;">${ent(d.rondas)}</td>
+                  <td style="text-align:right;">${ent(d.medidas)}</td>
+                  <td style="text-align:right;${d.fuera?"color:var(--warn-text);font-weight:800;":""}">${d.fuera || "—"}</td>
+                  <td style="text-align:right;${d.crit?"color:var(--bad);font-weight:800;":""}">${d.crit || "—"}</td>
+                  <td><div class="cump"><span class="barra-mini"><i class="${col}" style="width:${
+                    ancho(d.pct)}%;"></i></span><b>${f1(d.pct)}${d.pct===null?"":"%"}</b></div></td>
+                  <td><span class="chip-p ${cl}">${etq}</span></td></tr>`;
+              }).join("")}</tbody></table>
+            <div class="nota-pie" style="margin-top:12px;">
+              <span class="ic-sec">${IC_KPI.alerta}</span>
+              <span>Ordenados por <b>impacto</b>, no por porcentaje: primero el que más no
+              conformidades acumula. Un 50&nbsp;% de fuera de rango sobre 4 mediciones no es
+              una prioridad, y ordenando por porcentaje se veía igual de grave que un proceso
+              con 400 mediciones y 20 desviaciones. «Cobertura» es qué parte de las rondas
+              exigidas de ese proceso se cumplió.</span></div>`}
+      </div>
+    </div>
+
+    <div class="grid2-tend" style="margin-top:16px;">
+      <div class="panel" style="margin:0;">
+        <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.barras}</span>
+          <h2>PARETO DE NO CONFORMIDADES</h2>
+          <span style="font-size:.74rem;color:var(--text-dim);">por proceso</span></div>
+        ${!pareto.length
+          ? `<div class="empty-mini">Ningún proceso registró no conformidades en ${esc(per.etq)}.</div>`
+          : `<div style="height:290px;"><canvas id="cvPareto"></canvas></div>
              <div style="margin-top:8px;font-size:.72rem;color:var(--text-dim);">
-               Los ${peores.length} procesos exigibles${linea ? " de "+esc(linea) : ""}, del
-               menos cubierto al más cubierto.${(function(){
-                 const z = proc.filter(x=>x.pct === 0).length;
-                 return z ? ` <b>${z} sin una sola ronda</b> en el periodo.` : ""; })()}</div>`}
+               La línea es el acumulado: dónde está el 80&nbsp;% del problema.</div>`}
+      </div>
+      <div class="panel" style="margin:0;">
+        <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.alerta}</span>
+          <h2>PARETO POR VARIABLE</h2>
+          <span style="font-size:.74rem;color:var(--text-dim);">qué se sale</span></div>
+        ${!parVar.length
+          ? `<div class="empty-mini">${K
+              ? "Ninguna variable se salió de su cota en " + esc(per.etq) + "."
+              : "Pulsa <b>Actualizar</b> para que la hoja sume las variables del periodo."}</div>`
+          : `<div style="height:290px;"><canvas id="cvParVar"></canvas></div>
+             <div style="margin-top:8px;font-size:.72rem;color:var(--text-dim);">
+               Qué parámetro se desvía, no sólo en qué proceso. Es la pregunta que lleva a la causa.</div>`}
       </div>
     </div>
 
     <div style="margin-top:16px;">
       <div class="panel" style="margin:0;">
-        <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.engranaje}</span>
-          <h2>ESTADO DE MÁQUINAS Y PROCESOS</h2></div>
-        <div class="mini-estados ancho">
-          <div class="mini-est"><b style="color:var(--bad);">${nCrit}</b>
-            <span><i class="pt" style="background:var(--bad);"></i>Fuera de rango crítica</span></div>
-          <div class="mini-est"><b style="color:var(--warn-text);">${nFuera}</b>
-            <span><i class="pt" style="background:var(--warn);"></i>Fuera de rango no crítica</span></div>
-          <div class="mini-est"><b style="color:var(--ok);">${nOk}</b>
-            <span><i class="pt" style="background:var(--ok);"></i>Controlado y en rango</span></div>
-          <div class="mini-est"><b style="color:var(--text-dim);">${sinControlar}</b>
-            <span><i class="pt" style="background:#c9ced6;"></i>Sin controlar</span></div>
-        </div>
-        ${cajas.length ? `<div class="apilada">${
-          [[nCrit,"var(--bad)"],[nFuera,"var(--warn)"],[nOk,"var(--ok)"],[sinControlar,"#c9ced6"]]
-            .map(([n,c])=> n ? `<i style="width:${n/cajas.length*100}%;background:${c};"></i>` : "").join("")
-        }</div>
-        <div class="apilada-pies">${
-          [[nCrit,"crítica"],[nFuera,"fuera"],[nOk,"en rango"],[sinControlar,"sin ronda"]]
-            .filter(x=>x[0]).map(([n,t])=>
-              `<span>${Math.round(n/cajas.length*100)}% ${t}</span>`).join("")
-        }</div>` : ""}
-        <div class="nota-pie" style="margin-top:16px;">
-          <span class="ic-sec">${IC_KPI.alerta}</span>
-          <span>Una casilla es <b>un proceso en una máquina</b>: los ${ent(proc.length)} procesos
-          de la ronda se abren aquí en <b>${ent(cajas.length)} casillas</b>${(function(){
-            const mayor = formatosExigibles(linea)
-              .map(f=>({n: f.proceso, m: maquinasDeFormato(f).length}))
-              .sort((a,b)=> b.m - a.m)[0];
-            return mayor && mayor.m > 1
-              ? `, porque un proceso con varias máquinas ocupa una por cada una —${esc(mayor.n)}
-                 tiene ${mayor.m}—` : "";
-          })()}.
-          El cumplimiento cuenta <b>procesos</b> y se da por cubierto con que se controle
-          <b>una</b> de sus máquinas; aquí las demás siguen en gris. Por eso puede verse 94 %
-          de cumplimiento y, a la vez, más de la mitad de las casillas sin ronda: no es una
-          contradicción, es la diferencia entre «pasé por el proceso» y «pasé por todas sus
-          máquinas».</span></div>
+        <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.reloj}</span>
+          <div><h2>EVOLUCIÓN</h2>
+            <span style="font-size:.72rem;color:var(--text-dim);">¿vamos mejorando o empeorando?</span></div>
+          <span style="font-size:.74rem;color:var(--text-dim);margin-left:auto;">${esc(evo.etq)}</span></div>
+        ${!evo.dias.length
+          ? `<div class="empty-mini">No hay días con registros en este tramo.</div>`
+          : `<div class="grid2-tend">
+              <div>
+                <div class="tit-mini">Conformidad día a día</div>
+                <div style="height:250px;"><canvas id="cvEvoConf"></canvas></div>
+              </div>
+              <div>
+                <div class="tit-mini">No conformidades por día</div>
+                <div style="height:250px;"><canvas id="cvEvoNC"></canvas></div>
+              </div>
+            </div>
+            <div class="tit-mini" style="margin-top:18px;">Conformidad por línea</div>
+            <div style="height:${Math.max(150, evo.lineas.length * 42)}px;"><canvas id="cvEvoLinea"></canvas></div>
+            <div style="margin-top:10px;font-size:.72rem;color:var(--text-dim);">
+              Un indicador suelto no dice si el proceso se está yendo: ${esc(evo.etq)}, con la
+              meta del 98&nbsp;% marcada en rojo.</div>`}
       </div>
     </div>
 
     <div class="panel" style="margin-top:16px;">
       <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.casillas}</span>
-        <h2>MÁQUINAS Y PROCESOS</h2>
-        <span style="font-size:.74rem;color:var(--text-dim);">${
-          todas ? "todas las casillas del periodo"
-                : "sólo las que registraron alguna no conformidad"}</span></div>
+        <div><h2>REQUIERE ATENCIÓN</h2>
+          <span style="font-size:.72rem;color:var(--text-dim);">${
+            todas ? "todas las máquinas y procesos del periodo"
+                  : "máquinas y procesos con no conformidades registradas"}</span></div>
+        <span style="font-size:.74rem;color:var(--text-dim);margin-left:auto;">${
+          conNC.length} de ${ent(cajas.length)} casilla(s)</span></div>
       ${htmlCajas}
     </div>
 
@@ -5231,36 +5399,126 @@ function renderKpi(){
       </div>
     </div>`;
 
-  /* La gráfica va después de pintar: antes el lienzo todavía no existe. */
-  if(graficaKpi){ try{ graficaKpi.destroy(); }catch(e){} graficaKpi = null; }
-  const cv = document.getElementById("cvKpiProc");
-  if(cv && peores.length && window.Chart){
-    graficaKpi = new Chart(cv, {
+  /* Las gráficas van después de pintar: antes los lienzos no existen. */
+  GRAFICAS_KPI.forEach(g=>{ try{ g.destroy(); }catch(e){} });
+  GRAFICAS_KPI = [];
+  if(!window.Chart) return;
+
+  const ejeComun = {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false},
+      tooltip:{backgroundColor:"#1c1f24", padding:11} },
+    scales:{ y:{ beginAtZero:true, grid:{color:"#eef0f3"},
+                 ticks:{color:"#6e7681", font:{size:10}, precision:0} },
+             x:{ grid:{display:false},
+                 ticks:{color:"#6e7681", font:{size:9}, maxRotation:52, minRotation:52,
+                        autoSkip:false,
+                        callback(v){ return String(this.getLabelForValue(v)).slice(0,20); } } } }
+  };
+  const pintaPareto = (id, datos, etiqueta) => {
+    const cv = document.getElementById(id);
+    if(!cv || !datos.length) return;
+    const o = JSON.parse(JSON.stringify(ejeComun));
+    /* El acumulado va en su propio eje a la derecha: sin eso, una línea del
+       80 % y unas barras de 14 no caben en la misma escala. */
+    o.scales.y1 = {position:"right", min:0, max:100, grid:{display:false},
+      ticks:{color:"#6e7681", font:{size:10}, callback:v=>v+"%"}};
+    o.plugins.tooltip.callbacks = {
+      title: it => datos[it[0].dataIndex].nom,
+      label: it => it.datasetIndex === 0
+        ? `${it.parsed.y} no conformidad(es)${datos[it.dataIndex].crit
+            ? ` · ${datos[it.dataIndex].crit} crítica(s)` : ""}${datos[it.dataIndex].donde
+            ? ` · sobre todo en ${datos[it.dataIndex].donde}` : ""}`
+        : `${it.parsed.y}% acumulado`
+    };
+    GRAFICAS_KPI.push(new Chart(cv, {
+      data:{ labels: datos.map(x=> etiqueta(x)),
+        datasets:[
+          {type:"bar", data: datos.map(x=>x.fuera),
+           backgroundColor: datos.map(x=> x.crit ? "#c81d2e" : "#f2b90b"),
+           borderRadius:5, borderSkipped:false, barPercentage:.78},
+          {type:"line", data: datos.map(x=>x.acum), yAxisID:"y1",
+           borderColor:"#1c1f24", borderWidth:2, pointRadius:3,
+           pointBackgroundColor:"#1c1f24", tension:.2, fill:false}
+        ]},
+      options:o
+    }));
+  };
+  pintaPareto("cvPareto", pareto, x=>{
+    const t = String(x.nom||"").split(" · ");
+    return t.length > 1 ? `${t[0].slice(0,3).toUpperCase()} ${t.slice(1).join(" ")}` : x.nom;
+  });
+  pintaPareto("cvParVar", parVar, x=>x.nom);
+
+  /* --- evolución --- */
+  const etqDia = f => String(f).slice(8,10) + "/" + String(f).slice(5,7);
+  const cvC = document.getElementById("cvEvoConf");
+  if(cvC && evo.dias.length){
+    const o = JSON.parse(JSON.stringify(ejeComun));
+    o.scales.x.maxRotation = 0; o.scales.x.minRotation = 0; o.scales.x.ticks.autoSkip = true;
+    o.scales.x.ticks.maxTicksLimit = 12;
+    o.scales.y.beginAtZero = false;
+    /* El eje no arranca en cero: entre 97 % y 99 % está toda la información, y
+       con el cero la línea se ve plana aunque el proceso se esté yendo. */
+    const minV = Math.min.apply(null, evo.conf.filter(x=>x !== null).concat([98]));
+    o.scales.y.min = Math.max(0, Math.floor(minV) - 1);
+    o.scales.y.max = 100;
+    o.scales.y.ticks.callback = v => v + "%";
+    o.plugins.tooltip.callbacks = {
+      title: it => fFechaCorta(evo.dias[it[0].dataIndex]),
+      label: it => it.datasetIndex === 0 ? `conformidad ${f1(it.parsed.y)}%` : "meta 98%"
+    };
+    GRAFICAS_KPI.push(new Chart(cvC, {
+      type:"line",
+      data:{ labels: evo.dias.map(etqDia),
+        datasets:[
+          {data: evo.conf, borderColor:"#1f9d55", backgroundColor:"rgba(31,157,85,.10)",
+           borderWidth:2, fill:true, tension:.25, spanGaps:true,
+           pointRadius:3, pointBorderColor:"#fff", pointBorderWidth:1,
+           pointBackgroundColor: evo.conf.map(v=> v === null ? "#c9ced6"
+             : v >= 98 ? "#1f9d55" : v >= 95 ? "#f2b90b" : "#c81d2e")},
+          {data: evo.dias.map(()=>98), borderColor:"#c81d2e", borderWidth:1.5,
+           borderDash:[6,4], pointRadius:0, fill:false}
+        ]},
+      options:o
+    }));
+  }
+  const cvN = document.getElementById("cvEvoNC");
+  if(cvN && evo.dias.length){
+    const o = JSON.parse(JSON.stringify(ejeComun));
+    o.scales.x.maxRotation = 0; o.scales.x.minRotation = 0; o.scales.x.ticks.autoSkip = true;
+    o.scales.x.ticks.maxTicksLimit = 12;
+    o.scales.x.stacked = true; o.scales.y.stacked = true;
+    o.plugins.legend = {display:true, position:"bottom",
+      labels:{usePointStyle:true, boxWidth:8, font:{size:10}, color:"#6e7681"}};
+    o.plugins.tooltip.callbacks = { title: it => fFechaCorta(evo.dias[it[0].dataIndex]) };
+    GRAFICAS_KPI.push(new Chart(cvN, {
       type:"bar",
-      data:{ labels: peores.map(x=>x.corto),
-        datasets:[{ data: peores.map(x=>Math.round(x.pct)),
-          backgroundColor: peores.map(x=> x.pct >= 95 ? "#1f9d55" : x.pct >= 70 ? "#f2b90b" : "#c81d2e"),
-          borderRadius:5, borderSkipped:false, barPercentage:.75, categoryPercentage:.85,
-          /* Un proceso sin una sola ronda vale 0 y no dibujaría nada: con un
-             mínimo visible se ve que está ahí, que es justo el dato grave. */
-          minBarLength:4 }] },
-      options:{ responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{display:false},
-          tooltip:{backgroundColor:"#1c1f24", padding:11,
-            callbacks:{ title: it => peores[it[0].dataIndex].nom,
-                        label: it => `${it.parsed.y}% · ${peores[it.dataIndex].cubiertas} de ${
-                          peores[it.dataIndex].total} ${per.modo==="mes"?"días":"turnos"}` }}},
-        scales:{ y:{ beginAtZero:true, max:100, grid:{color:"#eef0f3"},
-                     ticks:{color:"#6e7681", font:{size:11}, callback:v=>v+"%"} },
-                 /* Con 36 procesos las etiquetas sólo caben de canto; se giran
-                    del todo y se recortan, y el nombre completo sale en el globo. */
-                 x:{ grid:{display:false},
-                     ticks:{color:"#6e7681", font:{size: peores.length > 20 ? 9 : 10},
-                       maxRotation:90, minRotation: peores.length > 14 ? 90 : 38,
-                       autoSkip:false,
-                       callback(v){ return String(this.getLabelForValue(v)).slice(0, 18); } } } }
-      }
-    });
+      data:{ labels: evo.dias.map(etqDia),
+        datasets:[
+          {label:"Críticas", data: evo.crit, backgroundColor:"#c81d2e", borderRadius:4},
+          {label:"Fuera de rango", data: evo.noCrit, backgroundColor:"#f2b90b", borderRadius:4}
+        ]},
+      options:o
+    }));
+  }
+  const cvL = document.getElementById("cvEvoLinea");
+  if(cvL && evo.lineas.length){
+    const o = JSON.parse(JSON.stringify(ejeComun));
+    o.indexAxis = "y";
+    o.scales.x = {min: Math.max(0, Math.floor(Math.min.apply(null,
+        evo.confLinea.filter(v=>v!==null).concat([98]))) - 2), max:100,
+      grid:{color:"#eef0f3"}, ticks:{color:"#6e7681", font:{size:10}, callback:v=>v+"%"}};
+    o.scales.y = {grid:{display:false}, ticks:{color:"#6e7681", font:{size:11}}};
+    o.plugins.tooltip.callbacks = { label: it => `conformidad ${f1(it.parsed.x)}%` };
+    GRAFICAS_KPI.push(new Chart(cvL, {
+      type:"bar",
+      data:{ labels: evo.lineas,
+        datasets:[{data: evo.confLinea, borderRadius:5, barPercentage:.6,
+          backgroundColor: evo.confLinea.map(v=> v === null ? "#c9ced6"
+            : v >= 98 ? "#1f9d55" : v >= 96 ? "#f2b90b" : "#c81d2e")}]},
+      options:o
+    }));
   }
 }
 
@@ -5280,8 +5538,30 @@ async function traerKpi(boton){
   await traerTurnos(desde, "turnos abiertos");
   /* Y el calendario del periodo, que es el que fija la exigencia. */
   await traerCalendario(desde, per.hasta, "el calendario de turnos");
+  /* Y las variables que se salieron, que las suma la hoja. Es la única cifra
+     de esta pantalla que no se puede sacar de las cabeceras: el nombre de la
+     variable está en el detalle, y bajar el detalle entero es justamente lo
+     que agotaba la ejecución. Va sólo al pulsar Actualizar, nunca al repintar. */
+  await traerVariablesKpi(per);
   renderKpi();
   return ok;
+}
+
+/* Las no conformidades agrupadas por variable. Si falla no se interrumpe nada:
+   el resto de la pantalla sale de los registros que ya están en el equipo. */
+async function traerVariablesKpi(per){
+  if(!S.syncUrl) return false;
+  try{
+    const d = await pedirJSON(S.syncUrl + "?tipo=kpi&desde=" + per.desde +
+      "&hasta=" + per.hasta, "las variables del periodo");
+    KPI_VARS  = (d && d.actual && d.actual.variables) || {};
+    KPI_CLAVE = per.desde + "|" + per.hasta;
+    return true;
+  }catch(e){
+    console.warn("variables del periodo:", e);
+    KPI_VARS = null; KPI_CLAVE = "";
+    return false;
+  }
 }
 
 document.getElementById("btnActualizarKpi").addEventListener("click", e=> traerKpi(e.target));
@@ -6576,7 +6856,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-30-inyectoras";
+const APP_VERSION = "2026-10-30-desempeno";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
