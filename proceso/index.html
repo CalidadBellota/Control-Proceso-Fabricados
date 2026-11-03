@@ -481,6 +481,18 @@
   .cal th.hoy{background:var(--bad-bg);color:var(--red-dark);}
   .cal th span{display:block;font-weight:600;text-transform:none;letter-spacing:0;
     color:var(--text-dim);font-size:.68rem;margin-top:2px;}
+  .cal th .fes{display:block;font-weight:700;text-transform:none;letter-spacing:0;
+    font-size:.66rem;color:var(--bad);margin-top:2px;line-height:1.2;}
+  .cal tr.cal-jor td{background:#fbfbfc;}
+  .cal tr.cal-jor td.no-va{background:#fafafb;}
+  button.jor{width:100%;padding:5px 7px;font-size:.72rem;font-weight:800;cursor:pointer;
+    border-radius:7px;border:1px solid var(--border);background:#fff;color:var(--text-dim);
+    letter-spacing:.2px;}
+  button.jor.si{border-color:#bfe0cc;background:#f1f9f4;color:#1f7a44;}
+  button.jor.no{border-color:#f0c2c8;background:var(--bad-bg);color:var(--bad);}
+  button.jor:hover{filter:brightness(.97);}
+  .fes-ex{display:block;font-size:.62rem;color:var(--text-dim);margin-top:3px;
+    text-align:center;line-height:1.2;}
   .cal-pie{display:flex;align-items:center;gap:14px;margin-top:12px;
     font-size:.73rem;color:var(--text-dim);}
   .cal-pie button{margin-left:auto;}
@@ -5623,7 +5635,107 @@ function regSinJuzgar(r){
 /* El sábado no entra turno 3 y el domingo no se trabaja: marcar esos turnos
    como "sin diligenciar" es una alarma falsa. Y un turno que todavía no ha
    empezado no se puede reclamar: se muestra aparte, no como incumplimiento. */
+/* ==========================================================================
+   FESTIVOS Y JORNADA
+   Un festivo no es «un turno sin asignar»: ese día no hay jornada, así que no
+   debe exigir rondas ni contar como día-proceso en el cumplimiento. Dejarlo
+   «sin definir» libraba al inspector, pero el proceso seguía apareciendo como
+   no inspeccionado y hundía el indicador del mes.
+
+   Los festivos de Colombia se calculan, no se escriben: son fijos, de Pascua,
+   o trasladados al lunes siguiente por la Ley Emiliani. Encima va un AJUSTE
+   por fecha para las excepciones —la planta trabaja un festivo, o para un día
+   hábil por inventario o vacaciones colectivas—, y el ajuste manda.
+   ========================================================================== */
+
+/** Domingo de Pascua (algoritmo de Meeus/Butcher, calendario gregoriano). */
+function pascuaDe(y){
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100;
+  const d = Math.floor(b / 4), e = b % 4;
+  const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mes = Math.floor((h + l - 7 * m + 114) / 31);
+  const dia = ((h + l - 7 * m + 114) % 31) + 1;
+  return `${y}-${pad(mes)}-${pad(dia)}`;
+}
+/** El lunes siguiente, o la misma fecha si ya es lunes (Ley Emiliani). */
+function aLunes(fechaISO){
+  const w = diaDe(fechaISO);
+  return w === 1 ? fechaISO : masDias(fechaISO, (8 - w) % 7);
+}
+const FESTIVOS_CACHE = {};
+function festivosCO(y){
+  if(FESTIVOS_CACHE[y]) return FESTIVOS_CACHE[y];
+  const P = pascuaDe(y), out = {};
+  const fijo  = (m, d, n) => out[`${y}-${pad(m)}-${pad(d)}`] = n;
+  const lunes = (m, d, n) => out[aLunes(`${y}-${pad(m)}-${pad(d)}`)] = n;
+  const pasc  = (n, nom, mueve) => {
+    const fe = masDias(P, n);
+    out[mueve ? aLunes(fe) : fe] = nom;
+  };
+  fijo(1, 1, "Año Nuevo");
+  lunes(1, 6, "Reyes Magos");
+  lunes(3, 19, "San José");
+  pasc(-3, "Jueves Santo", false);
+  pasc(-2, "Viernes Santo", false);
+  fijo(5, 1, "Día del Trabajo");
+  pasc(39, "Ascensión", true);
+  pasc(60, "Corpus Christi", true);
+  pasc(68, "Sagrado Corazón", true);
+  lunes(6, 29, "San Pedro y San Pablo");
+  fijo(7, 20, "Independencia");
+  fijo(8, 7, "Batalla de Boyacá");
+  lunes(8, 15, "Asunción");
+  lunes(10, 12, "Día de la Raza");
+  lunes(11, 1, "Todos los Santos");
+  lunes(11, 11, "Independencia de Cartagena");
+  fijo(12, 8, "Inmaculada Concepción");
+  fijo(12, 25, "Navidad");
+  FESTIVOS_CACHE[y] = out;
+  return out;
+}
+/** El nombre del festivo de esa fecha, o cadena vacía. */
+function festivoDe(fechaISO){
+  const f = String(fechaISO || "").slice(0, 10);
+  const y = Number(f.slice(0, 4));
+  if(!y) return "";
+  return festivosCO(y)[f] || "";
+}
+
+/* Los ajustes se guardan aparte del resto del calendario y no se borran nunca:
+   la hoja se consulta por semanas, y si dependieran de lo descargado, un mes
+   cerrado volvería a contar un festivo en cuanto se mirara otra semana. */
+let JORNADAS = {};
+function cargarJornadas(){
+  try{ JORNADAS = JSON.parse(localStorage.getItem("cp_jornadas") || "{}") || {}; }
+  catch(e){ JORNADAS = {}; }
+}
+function guardarJornadas(){
+  try{ localStorage.setItem("cp_jornadas", JSON.stringify(JORNADAS)); }catch(e){}
+}
+cargarJornadas();
+
+/** ¿Hay jornada ese día? El ajuste manda sobre el festivo. */
+function diaLaboral(fechaISO){
+  const f = String(fechaISO || "").slice(0, 10);
+  const o = JORNADAS[f];
+  if(o === "no") return false;
+  if(o === "si") return true;
+  return !festivoDe(f);
+}
+/** Por qué no se trabaja: el festivo, el ajuste, o el domingo. */
+function motivoSinJornada(fechaISO){
+  const f = String(fechaISO || "").slice(0, 10);
+  if(!HORARIOS[diaDe(f)]) return "domingo";
+  if(JORNADAS[f] === "no") return festivoDe(f) || "día no laboral";
+  return festivoDe(f) || "";
+}
+
 function turnoExiste(fechaISO, t){
+  if(!diaLaboral(fechaISO)) return false;
   const hh = HORARIOS[diaDe(fechaISO)];
   if(!hh) return false;
   return t === "3" ? hh.t3 != null : true;
@@ -5795,8 +5907,11 @@ function renderCumplimiento(){
     html += `</tbody></table>`;
     const NOMBRE_DIA = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
     const hayJornada = TURNOS.some(t => turnoExiste(dia, t));
+    /* Si es festivo se dice cuál: «no se trabaja» a secas deja al inspector
+       pensando que la aplicación se equivocó de día. */
+    const porQue = festivoDe(dia) ? `festivo · ${festivoDe(dia)}` : NOMBRE_DIA[diaDe(dia)];
     document.getElementById("cumpResumen").textContent = !hayJornada
-      ? `${fFechaCorta(dia)} · ${NOMBRE_DIA[diaDe(dia)]}: no se trabaja, no hay controles que exigir`
+      ? `${fFechaCorta(dia)} · ${porQue}: no se trabaja, no hay controles que exigir`
       : `${fFechaCorta(dia)} · faltan ${faltan} de ${total} controles por turno`;
   } else {
     const [y,m] = mes.split("-").map(Number);
@@ -6208,6 +6323,25 @@ async function traerCalendario(desde, hasta, etiqueta){
     d.forEach(c=>{ if(c && c.clave) m[c.clave] = c; });
     CALENDARIO = Object.keys(m).map(k=>m[k]);
 
+    /* Los ajustes de jornada que pusieron en otra tableta. Van a su propio
+       guardado, que no se vacía al cambiar de semana. */
+    let tocado = false;
+    d.forEach(c=>{
+      if(!c || String(c.tipo||"") !== "jornada") return;
+      const dia = String(c.dia||"").slice(0,10);
+      if(dia.length !== 10) return;
+      const v = String(c.usuario||"");
+      if(v === "si" || v === "no"){ JORNADAS[dia] = v; } else { delete JORNADAS[dia]; }
+      tocado = true;
+    });
+    /* Y los que alguien quitó: dentro del tramo, lo que no vino ya no está. */
+    Object.keys(JORNADAS).forEach(dia=>{
+      if(desde && dia < desde) return;
+      if(hasta && dia > hasta) return;
+      if(!m["jornada|" + dia]){ delete JORNADAS[dia]; tocado = true; }
+    });
+    if(tocado) guardarJornadas();
+
     const enHoja = {};
     d.forEach(c=>{ if(c && c.clave) enHoja[c.clave] = c; });
     guardarCalLocal(calLocal().filter(c=>{
@@ -6270,6 +6404,19 @@ function inspectoresActivos(){
 /* La semana que se está viendo, siempre un lunes. */
 let SEMANA_CAL = lunesDe(hoyISO());
 
+/* El ajuste de jornada: "no" cierra el día, "si" lo abre aunque sea festivo, y
+   "" vuelve a lo que diga el calendario de festivos. Va al mismo sitio que el
+   resto del calendario para que lo vean las demás tabletas. */
+function ponerJornada(fecha, valor){
+  const f = String(fecha).slice(0, 10);
+  if(valor) JORNADAS[f] = valor; else delete JORNADAS[f];
+  guardarJornadas();
+  const clave = "jornada|" + f;
+  if(valor) apuntarCal({clave, tipo:"jornada", dia:f, turno:"", usuario:valor, nombre:"",
+    nota: valor === "no" ? (festivoDe(f) || "no se trabaja") : "festivo trabajado"});
+  else apuntarCal({clave, tipo:"jornada", dia:f, turno:"", usuario:"", nombre:"", borrar:true});
+}
+
 function ponerCal(fecha, turno, usuario){
   const clave = `dia|${fecha}|${turno}`;
   if(usuario === ""){                       // volver a «sin definir» = quitar la fila
@@ -6315,16 +6462,33 @@ function renderCalendario(){
   caja.innerHTML = `
     <table class="cal"><thead><tr><th>Turno</th>${
       dias.map((f,i)=>`<th${f===hoyISO()?' class="hoy"':''}>${esc(DIAS_SEM[i].slice(0,3))}
-        <span>${esc(fechaCortita(f))}</span></th>`).join("")}</tr></thead>
-      <tbody>${TURNOS.map(t=>`<tr><td class="cab">Turno ${t}</td>${
+        <span>${esc(fechaCortita(f))}</span>${
+        festivoDe(f) ? `<span class="fes">${esc(festivoDe(f))}</span>` : ""}</th>`).join("")}</tr></thead>
+      <tbody>
+        <tr class="cal-jor"><td class="cab">Jornada</td>${
+          dias.map(f=>{
+            /* El domingo no se toca: no hay horario que activar. */
+            if(!HORARIOS[diaDe(f)]) return `<td class="no-va">domingo</td>`;
+            const lab = diaLaboral(f), fes = festivoDe(f);
+            return `<td><button type="button" class="jor ${lab ? "si" : "no"}"
+              data-dia="${f}" title="${lab
+                ? "Pulsa si ese día no se trabajó"
+                : "Pulsa si ese día sí se trabajó"}">${
+              lab ? "se trabaja" : "no se trabaja"}</button>${
+              fes && lab ? `<span class="fes-ex">festivo trabajado</span>`
+              : (!fes && !lab) ? `<span class="fes-ex">cierre manual</span>` : ""}</td>`;
+          }).join("")}</tr>
+        ${TURNOS.map(t=>`<tr><td class="cab">Turno ${t}</td>${
         dias.map(f=>{
-          if(!turnoExiste(f, t)) return `<td class="no-va">no se trabaja</td>`;
+          if(!turnoExiste(f, t))
+            return `<td class="no-va">${esc(motivoSinJornada(f) || "no se trabaja")}</td>`;
           const c = m["dia|" + f + "|" + t];
           return `<td><select class="cal-sel" data-dia="${f}" data-turno="${t}"
             >${opciones(c ? (c.usuario || "__nadie") : "")}</select></td>`;
         }).join("")}</tr>`).join("")}</tbody></table>
     <div class="cal-pie">
-      <span>Un turno sin definir no le exige nada a nadie.</span>
+      <span>Un turno sin definir no le exige nada a nadie. Los festivos de Colombia
+        salen marcados solos; si la planta trabajó uno, pulsa su <b>Jornada</b>.</span>
       <button type="button" class="btn-sec" id="btnCalCopiar"
         title="Trae la asignación de la semana anterior tal cual">Copiar semana anterior</button>
       <button type="button" class="btn-sec" id="btnCalRotar"
@@ -6336,6 +6500,17 @@ function renderCalendario(){
   caja.querySelectorAll(".cal-sel").forEach(sel=>{
     sel.addEventListener("change", ()=>{
       ponerCal(sel.dataset.dia, sel.dataset.turno, sel.value);
+      renderCalendario();
+    });
+  });
+  caja.querySelectorAll("button.jor").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const f = b.dataset.dia;
+      const nuevo = !diaLaboral(f);                 // lo que quedará tras pulsar
+      /* Si el resultado coincide con lo que ya dice el calendario de festivos,
+         no se guarda un ajuste: se borra el que hubiera. Así la hoja no se
+         llena de filas que no dicen nada. */
+      ponerJornada(f, nuevo === !festivoDe(f) ? "" : (nuevo ? "si" : "no"));
       renderCalendario();
     });
   });
@@ -6856,7 +7031,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-10-30-desempeno";
+const APP_VERSION = "2026-11-03-festivos";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
