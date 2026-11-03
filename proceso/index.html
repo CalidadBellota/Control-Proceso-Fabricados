@@ -387,6 +387,8 @@
   .kpi{background:#fff;border:1px solid var(--border);border-radius:11px;padding:14px 16px;}
   .kpi span{display:block;font-size:.72rem;color:var(--text-dim);}
   .kpi b{display:block;font-size:1.7rem;font-weight:800;margin-top:4px;line-height:1.1;}
+  /* Un nombre no cabe en el tamaño de una cifra. */
+  .kpi b.nom{font-size:1.1rem;line-height:1.3;margin-top:5px;}
   .kpi small{display:block;font-size:.7rem;color:var(--text-dim);margin-top:3px;}
   .kpi.malo b{color:var(--bad);}
   .kpi.bueno b{color:var(--ok);}
@@ -4882,8 +4884,29 @@ const IC_KPI = {
     r="9"/><path d="M12 7v5l3 2"/></svg>`
 };
 let GRAFICAS_KPI = [];
-/* A quién mira la evolución. Vacío = toda la planta, que es el arranque. */
-let INSP_EVO = "";
+/* A quién mira la evolución. Vacío = toda la planta, que es el arranque.
+   INSP_EVO_MANUAL recuerda si lo eligió la persona: si lo eligió ella, el
+   calendario que llegue después no se lo pisa. */
+let INSP_EVO = "", INSP_EVO_MANUAL = false, INSP_EVO_AUTO = "";
+
+/** El nombre con el que sale un usuario en los desplegables. */
+function nombreDeUsuario(u){
+  const x = (S.usuarios||[]).find(y=>String(y.usuario) === String(u));
+  return x ? (x.nombre || x.usuario) : String(u||"");
+}
+
+/* En vista de TURNO el filtro arranca en el inspector que el calendario puso
+   en ese turno: mirar un turno es mirar a quien lo cubrió. En día y en mes no,
+   porque ahí se cruzan tres personas y el total es lo que tiene sentido. */
+function ajustarInspEvo(){
+  INSP_EVO_MANUAL = false;
+  const per = periodoKpi();
+  if(per.modo !== "turno"){ INSP_EVO = ""; INSP_EVO_AUTO = ""; return; }
+  const a = asignadoEn(per.fecha, per.turno);
+  INSP_EVO = (a && (a.nombre || a.usuario))
+    ? (a.nombre || nombreDeUsuario(a.usuario)) : "";
+  INSP_EVO_AUTO = INSP_EVO;
+}
 let KPI_VARS = null;          // no conformidades por variable, sumadas por la hoja
 let KPI_CLAVE = "";           // para qué periodo y línea son
 
@@ -5758,15 +5781,44 @@ function renderKpi(){
           <small>${crit ? `${ent(crit)} en variable crítica` : "ninguna en variable crítica"}</small>
           <small>${conNC.length} máquina(s) o proceso(s) afectados</small>
         </div>
-        <div class="kpi">
-          <span class="ic">${IC_KPI.gente}</span>
-          <span>Inspectores en el periodo</span>
-          <b>${insp.length}</b>
-          <small>${ent(regs.length)} ronda(s) registradas</small>
-          <small>${sinControlar
-            ? `${sinControlar} proceso·máquina sin ronda`
-            : "todo lo exigible fue cubierto"}</small>
-        </div>
+        ${(function(){
+          /* En un turno concreto el número de inspectores no dice nada —es uno—
+             así que la casilla pasa a decir QUIÉN lo cubría. */
+          if(per.modo !== "turno") return `<div class="kpi">
+            <span class="ic">${IC_KPI.gente}</span>
+            <span>Inspectores en el periodo</span>
+            <b>${insp.length}</b>
+            <small>${ent(regs.length)} ronda(s) registradas</small>
+            <small>${sinControlar
+              ? `${sinControlar} proceso·máquina sin ronda`
+              : "todo lo exigible fue cubierto"}</small>
+          </div>`;
+          const a = asignadoEn(per.fecha, per.turno);
+          const asignado = (a && (a.nombre || a.usuario))
+            ? (a.nombre || nombreDeUsuario(a.usuario)) : "";
+          const vistos = [];
+          regs.forEach(r=>{
+            const n = String(r.inspector||"").trim();
+            if(n && vistos.indexOf(n) === -1) vistos.push(n);
+          });
+          const otros = vistos.filter(n=> n !== asignado);
+          const titulo = asignado || vistos[0] || "Sin asignar";
+          return `<div class="kpi ${asignado ? "" : "t-warn"}">
+            <span class="ic">${IC_KPI.gente}</span>
+            <span>Inspector del turno ${esc(per.turno)}</span>
+            <b class="nom">${esc(titulo)}</b>
+            <small>${ent(regs.length)} ronda(s) registradas</small>
+            <small>${!asignado
+              ? (vistos.length
+                  ? "no estaba asignado en el calendario: cubrió fuera de plan"
+                  : "el calendario no tiene a nadie en este turno")
+              : !vistos.length
+                ? "no registró ninguna ronda en este turno"
+                : otros.length
+                  ? "también registró: " + esc(otros.join(", "))
+                  : "asignado en el calendario"}</small>
+          </div>`;
+        })()}
       </div>
     </div>
 
@@ -5857,8 +5909,12 @@ function renderKpi(){
               n === INSP_EVO ? " selected" : ""}>${esc(n)}</option>`).join("")}
           </select>
           <span class="evo-filtro-ayuda">${INSP_EVO
-            ? "el cumplimiento es suyo; la conformidad es lo que encontró"
-            : "elige un inspector para ver sólo sus rondas"}</span>
+            ? (INSP_EVO === INSP_EVO_AUTO && !INSP_EVO_MANUAL
+                ? "puesto solo: es quien el calendario asignó a este turno · el cumplimiento es suyo, la conformidad es lo que encontró"
+                : "el cumplimiento es suyo; la conformidad es lo que encontró")
+            : per.modo === "turno"
+              ? "el calendario no tiene a nadie asignado a este turno"
+              : "elige un inspector para ver sólo sus rondas"}</span>
         </div>
         ${!evo.dias.length
           ? `<div class="empty-mini">No hay días con jornada en este tramo.</div>`
@@ -6130,6 +6186,7 @@ function renderKpi(){
   const selEvo = document.getElementById("kEvoInsp");
   if(selEvo) selEvo.addEventListener("change", ()=>{
     INSP_EVO = selEvo.value;
+    INSP_EVO_MANUAL = true;
     renderKpi();
     const p = document.getElementById("kEvoInsp");
     if(p) p.scrollIntoView({block:"center"});
@@ -6262,7 +6319,11 @@ async function pedirCalendarioSiFalta(per){
      evita otra petición en cuanto se mueva un día el filtro. */
   const ok = await traerCalendario(lunesDe(per.desde), masDias(lunesDe(per.hasta), 6),
                                    "el calendario de turnos");
-  if(ok) renderKpi();
+  if(!ok) return;
+  /* El calendario puede llegar después de pintar: si nadie ha tocado el filtro
+     a mano, ahora sí se puede saber a quién le tocaba ese turno. */
+  if(!INSP_EVO_MANUAL) ajustarInspEvo();
+  renderKpi();
 }
 
 async function traerKpi(boton){
@@ -6304,9 +6365,15 @@ async function traerVariablesKpi(per){
 }
 
 document.getElementById("btnActualizarKpi").addEventListener("click", e=> traerKpi(e.target));
-["kLinea","kMes","kDia","kTurno","kTodo"].forEach(id=>{
+["kLinea","kMes","kTodo"].forEach(id=>{
   const el = document.getElementById(id);
   if(el) el.addEventListener("change", renderKpi);
+});
+/* Cambiar de día o de turno es cambiar de periodo: el filtro de la evolución
+   se vuelve a decidir, no se arrastra el de antes. */
+["kDia","kTurno"].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener("change", ()=>{ ajustarInspEvo(); renderKpi(); });
 });
 /* El periodo es un grupo de botones, no un desplegable: se pulsa de una vez
    y en la tableta no abre una lista encima de la pantalla. */
@@ -6323,6 +6390,7 @@ document.getElementById("btnActualizarKpi").addEventListener("click", e=> traerK
       if(d) d.value = fechaRondaActual();
       if(t && t.options.length) t.value = turnoDeHora(horaAhora());
     }
+    ajustarInspEvo();
     renderKpi();
   }));
 })();
@@ -7758,7 +7826,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-11-03-encurso";
+const APP_VERSION = "2026-11-03-casillainsp";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
