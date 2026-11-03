@@ -211,7 +211,7 @@ function jsonSeguro_(txt, porDefecto){
 /* Marca de versión del backend. La app la muestra en el panel de
    sincronización: así se sabe sin adivinar si la hoja está corriendo este
    código o uno anterior que todavía lee todo el histórico en cada petición. */
-const BACKEND_VERSION = "2026-10-30-calendario-semana";
+const BACKEND_VERSION = "2026-10-30-pareto-variable";
 
 function doGet(e){
   try{ return doGet_(e); }
@@ -448,12 +448,16 @@ function doGet_(e){
     const h2 = String(e.parameter.hasta2 || "");
     const shK = getSheet_(SH_DET, H_DET);
     const ultK = shK.getLastRow();
-    const vacio = {medidas:0, fuera:0, criticas:0, procesos:{}};
+    const vacio = {medidas:0, fuera:0, criticas:0, procesos:{}, variables:{}};
     if(ultK <= 1) return json_({actual:vacio, previo:vacio});
 
     const hK = headerDe_(shK);
     const iFe = hK.indexOf("fecha"), iPr = hK.indexOf("proceso");
     const iLi = hK.indexOf("linea"), iRe = hK.indexOf("resultado"), iCr = hK.indexOf("critica");
+    /* La variable es la que lleva a la causa: «se sale la temperatura de la
+       zona 1» dice mucho más que «se sale el temple». Se suma aquí, no en el
+       navegador, porque bajar el detalle entero es lo que agota la ejecución. */
+    const iVa = hK.indexOf("variable");
     if(iFe === -1 || iRe === -1) return json_({actual:vacio, previo:vacio});
 
     /* El tramo arranca en el más viejo de los dos periodos. */
@@ -467,9 +471,10 @@ function doGet_(e){
     const colPr = iPr === -1 ? null : shK.getRange(tr[0], iPr + 1, n, 1).getValues();
     const colLi = iLi === -1 ? null : shK.getRange(tr[0], iLi + 1, n, 1).getValues();
     const colCr = iCr === -1 ? null : shK.getRange(tr[0], iCr + 1, n, 1).getValues();
+    const colVa = iVa === -1 ? null : shK.getRange(tr[0], iVa + 1, n, 1).getValues();
 
-    const acc = {actual:{medidas:0, fuera:0, criticas:0, procesos:{}},
-                 previo:{medidas:0, fuera:0, criticas:0, procesos:{}}};
+    const acc = {actual:{medidas:0, fuera:0, criticas:0, procesos:{}, variables:{}},
+                 previo:{medidas:0, fuera:0, criticas:0, procesos:{}, variables:{}}};
     for(let i = 0; i < n; i++){
       const f = String(fmt_(colFe[i][0], "fecha")).slice(0, 10);
       if(!f) continue;
@@ -496,6 +501,21 @@ function doGet_(e){
                   (colPr ? String(colPr[i][0] || "") : "");
       const p = a.procesos[nom] = a.procesos[nom] || {medidas:0, fuera:0, criticas:0};
       p.medidas++; if(fuera) p.fuera++; if(crit) p.criticas++;
+
+      /* De las variables sólo interesan las que se salen: guardar las 40.000
+         conformes engordaría la respuesta sin decir nada. */
+      if(fuera && colVa){
+        const vn = String(colVa[i][0] || "").trim();
+        if(vn){
+          const v = a.variables[vn] = a.variables[vn] || {fuera:0, criticas:0, procesos:{}};
+          v.fuera++; if(crit) v.criticas++;
+          /* Por proceso se guardan las dos cuentas: con el filtro de línea
+             puesto, el navegador tiene que poder rehacer la suma sin pedir
+             otra ejecución a la hoja. */
+          const vp = v.procesos[nom] = v.procesos[nom] || {fuera:0, criticas:0};
+          vp.fuera++; if(crit) vp.criticas++;
+        }
+      }
     }
     return json_({actual: acc.actual, previo: acc.previo, backend: BACKEND_VERSION});
   }
