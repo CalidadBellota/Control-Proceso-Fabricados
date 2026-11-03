@@ -540,6 +540,17 @@
     border-radius:9px;padding:6px 12px;font-size:.76rem;font-weight:700;color:var(--text);
     background:#fff;}
   .chip-per svg{color:var(--text-dim);}
+  .evo-filtro{display:flex;align-items:center;gap:8px;margin-left:auto;}
+  .evo-filtro label{margin:0;font-size:.7rem;font-weight:700;text-transform:uppercase;
+    letter-spacing:.4px;color:var(--text-dim);white-space:nowrap;}
+  .sel-mini{height:32px;padding:4px 9px;font-size:.78rem;border:1px solid var(--border);
+    border-radius:7px;background:#fff;color:var(--text);font-family:inherit;width:auto;
+    max-width:230px;}
+  @media(max-width:760px){
+    .evo-filtro{margin-left:0;width:100%;}
+    .sel-mini{flex:1 1 auto;max-width:none;}
+  }
+
   /* Evolución: dos gráficas, una por pregunta. */
   .grid2-ev{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
   @media(max-width:1000px){.grid2-ev{grid-template-columns:1fr;}}
@@ -2111,12 +2122,20 @@ function ordenLinea(l){
 }
 /* ==========================================================================
    LÍNEAS SIN RONDA
-   Dureza es una línea más —sale como un chip igual que Machetes o Palas— pero
-   no se controla una vez por turno: tratamiento térmico toma varias muestras
-   por lote, o ninguna. Por eso sus tarjetas no desaparecen al diligenciar y
-   en vez de "faltan N de M" llevan el contador de tomas del turno.
+   Una línea de aquí no se exige una vez por turno: no entra en el
+   cumplimiento, no genera casillas y sus tarjetas no desaparecen al
+   diligenciar, sino que llevan el contador de tomas del turno.
+
+   Dureza estuvo aquí hasta el 3 de noviembre de 2026, porque tratamiento
+   térmico toma varias muestras por lote. Se sacó a propósito: la consecuencia
+   de no exigirla era que no aparecía en el cumplimiento ni se podía juzgar su
+   cobertura, y eso pesaba más que la irregularidad del muestreo. Ahora se
+   exige por turno como cualquier otra línea.
+
+   La lista se deja viva: devolver una línea aquí es escribir su nombre y nada
+   más —el resto de la aplicación ya sabe qué hacer con eso—.
    ====================================================================== */
-const LINEAS_SIN_RONDA = ["Dureza"];
+const LINEAS_SIN_RONDA = [];
 
 /* La dureza es un ensayo, pero la línea de la que sale la muestra sí puede
    parar un turno entero, y entonces hay que dejar constancia de que se
@@ -3207,6 +3226,34 @@ document.getElementById("cLinea").addEventListener("change", refrescarSelectores
    sale de las columnas que la propia hoja ya guarda por registro. Son el
    mismo número: se escriben al guardar, contando ese detalle. */
 function numDe(v){ const n = parseInt(String(v), 10); return isNaN(n) ? 0 : n; }
+function hayDato(v){ return v !== undefined && v !== null && v !== ""; }
+
+/* --------------------------------------------------------------------------
+   Las mediciones que cuentan para la conformidad son SÓLO las que se pudieron
+   juzgar. «Sin especificación», «Sin dato» y «No aplica» no son conformes ni
+   no conformes: metidas en el denominador caían del lado de lo conforme por
+   descarte —nunca pueden sumar a «fuera de rango»— e inflaban el indicador
+   en silencio. Una ronda de 10 con 4 sin cota y 1 fuera daba 90 % cuando lo
+   cierto era 83,3 %.
+
+   Las filas guardadas antes del 3 de noviembre de 2026 no traen «juzgadas» y
+   se siguen calculando con el total, igual que siempre: el pasado no se
+   reescribe desde aquí.
+   -------------------------------------------------------------------------- */
+function medidasDe(r){
+  if(!r) return 0;
+  if(hayDato(r.juzgadas)) return numDe(r.juzgadas);
+  const rs = r.resultados || [];
+  if(rs.length) return rs.filter(x=> x.resultado === "Conforme" ||
+                                     x.resultado === "Fuera de rango").length;
+  return numDe(r.totalVariables);
+}
+/** Las que se capturaron pero no se pudieron juzgar: cotas que faltan. */
+function sinJuzgarDe(r){
+  if(!r) return 0;
+  const tot = numDe(r.totalVariables) || (r.resultados||[]).length;
+  return Math.max(0, tot - medidasDe(r));
+}
 function ncDe(r){
   if(r && r.sinDetalle) return numDe(r.fueraDeRango);
   return (r.resultados||[]).filter(x=>x.resultado==="Fuera de rango").length;
@@ -4740,6 +4787,8 @@ const IC_KPI = {
     r="9"/><path d="M12 7v5l3 2"/></svg>`
 };
 let GRAFICAS_KPI = [];
+/* A quién mira la evolución. Vacío = toda la planta, que es el arranque. */
+let INSP_EVO = "";
 let KPI_VARS = null;          // no conformidades por variable, sumadas por la hoja
 let KPI_CLAVE = "";           // para qué periodo y línea son
 
@@ -4925,7 +4974,7 @@ function inspectoresDe(per, linea){
     t.lineas[L] = true; o.lineas[L] = true;
     if(exigibles[r.formatoId]) t.hechos[r.formatoId] = true;
     o.registros++;
-    o.medidas += numDe(r.totalVariables) || (r.resultados||[]).length;
+    o.medidas += medidasDe(r);
     o.fuera   += ncDe(r);
     o.crit    += critNCDe(r);
     if(r.noTrabajo) o.noTrabajo++;
@@ -4946,6 +4995,9 @@ function inspectoresDe(per, linea){
     });
     const turnos = Object.keys(o.turnos).length;
     return {nombre:o.nombre, rol: rolDeNombre(o.nombre), turnos:turnos, porTurno:porTurno,
+            /* El detalle turno a turno lo necesita la evolución para repartir
+               el cumplimiento de una persona por día. */
+            detalle:o.turnos,
             lineas:Object.keys(o.lineas).sort(), esperado:esperado, hechos:hechos,
             vacios:vacios, aperturas:aperturas, asignados:asignados,
             fueraDePlan:fueraDePlan, porTurnoExig: porTurnoExig,
@@ -4983,7 +5035,7 @@ function casillasDe(per, linea, todas){
     c.registros++;
     c.nc      += ncDe(r);
     c.crit    += critNCDe(r);
-    c.medidas += numDe(r.totalVariables) || (r.resultados||[]).length;
+    c.medidas += medidasDe(r);
     if(r.noTrabajo) c.noTrabajo++;
     const h = fHora(r.hora);
     if(h >= c.hora){ c.hora = h; c.quien = String(r.inspector||""); c.turno = String(r.turno||""); }
@@ -5056,21 +5108,26 @@ function desempenoDe(per, linea, cobertura){
     const f = S.formatos.find(x=>x.id === r.formatoId);
     const nom = f ? (f.nombre || `${f.linea} · ${f.proceso}`)
                   : `${String(r.linea||"").trim()} · ${String(r.proceso||"").trim()}`;
-    const o = acum[nom] = acum[nom] || {nom:nom, rondas:0, medidas:0, fuera:0, crit:0};
+    const o = acum[nom] = acum[nom] || {nom:nom, rondas:0, medidas:0, fuera:0, crit:0,
+      linea: f ? f.linea : String(r.linea||"").trim()};
     o.rondas++;
-    o.medidas += numDe(r.totalVariables) || (r.resultados||[]).length;
+    o.medidas += medidasDe(r);
     o.fuera   += ncDe(r);
     o.crit    += critNCDe(r);
   });
   /* También los que no registraron nada: un proceso sin una sola ronda es
      justamente el que hay que mirar, y si no aparece se vuelve invisible. */
   (cobertura||[]).forEach(c=>{
-    if(!acum[c.nom]) acum[c.nom] = {nom:c.nom, rondas:0, medidas:0, fuera:0, crit:0};
+    if(!acum[c.nom]) acum[c.nom] = {nom:c.nom, rondas:0, medidas:0, fuera:0, crit:0,
+      linea: c.linea};
   });
   return Object.keys(acum).map(k=>{
     const o = acum[k];
     const c = cob[o.nom];
     o.pct = c ? c.pct : null;
+    /* Dureza se controla por lote: no tiene rondas exigidas, así que su
+       cobertura no está «vacía», es que no existe. */
+    o.porLote = sinRonda(o.linea);
     return o;
   }).sort((a,b)=> b.crit - a.crit || b.fuera - a.fuera ||
                   (a.pct===null?101:a.pct) - (b.pct===null?101:b.pct) ||
@@ -5108,12 +5165,14 @@ function ventanaEvolucion(per){
   if(hasta > hoyISO()) hasta = hoyISO();
   let desde = mes + "-01";
   let etq = "día a día de " + nombreMes(mes);
-  /* A principios de mes todavía no hay mes: se completa hacia atrás para que
-     no se vea un muñón de dos puntos. */
+  /* A principios de mes todavía no hay mes: se completa hacia atrás hasta
+     treinta días, que es el tramo que la gente espera ver. Con quince se veía
+     corto y parecía que faltaban datos. A partir del día 15 el mes ya se
+     sostiene solo y manda el mes. */
   const dias = (new Date(hasta + "T12:00:00") - new Date(desde + "T12:00:00")) / 86400000;
   if(dias < 14){
-    desde = masDias(hasta, -14);
-    etq = "los 15 días hasta " + fFechaCorta(hasta);
+    desde = masDias(hasta, -29);
+    etq = "los 30 días hasta " + fFechaCorta(hasta);
   }
   return {desde: desde, hasta: hasta, etq: etq};
 }
@@ -5149,23 +5208,63 @@ function cumplimientoPorDia(desde, hasta, linea){
   return out;
 }
 
+/* El cumplimiento día a día de UNA persona. No es el de la planta filtrado:
+   su exigencia son los procesos de los turnos que el calendario le asignó, no
+   los 36 de todos los días. En los días que no le tocaba no hay dato —hueco en
+   la línea—, que no es lo mismo que un cero. */
+function cumplimientoInspectorPorDia(desde, hasta, linea, insp){
+  const out = {};
+  for(let f = desde; f <= hasta; f = diaSiguiente(f)){
+    if(TURNOS.some(t => turnoExiste(f, t))) out[f] = null;
+  }
+  const yo = inspectoresDe({modo:"mes", desde:desde, hasta:hasta,
+                            mes:String(desde).slice(0,7), etq:""}, linea)
+             .find(x=> x.nombre === insp);
+  if(!yo) return out;
+  const agg = {};
+  Object.keys(yo.detalle || {}).forEach(k=>{
+    const t = yo.detalle[k];
+    const a = agg[t.fecha] = agg[t.fecha] || {hechos:0, esperados:0};
+    a.hechos    += Object.keys(t.hechos).length;
+    a.esperados += t.esperados;
+  });
+  Object.keys(agg).forEach(f=>{
+    out[f] = agg[f].esperados
+      ? Math.min(100, Math.round(agg[f].hechos / agg[f].esperados * 1000) / 10) : null;
+  });
+  return out;
+}
+
+/* Quién puede salir en el filtro: perfil inspector, y además quien registró
+   algo aunque no tenga perfil, para que nadie quede invisible. */
+function inspectoresDelPeriodo(lista){
+  const n = {};
+  (lista||[]).forEach(i=>{
+    const rol = String(i.rol||"");
+    if(rol === "inspector" || rol === "") n[i.nombre] = true;
+  });
+  return Object.keys(n).sort();
+}
+
 /* --------------------------------------------------------------------------
    Evolución. Dos preguntas, dos series, cada una con su meta: ¿se inspeccionó
    lo exigido? y ¿lo que se midió salió conforme? Juntarlas en una sola gráfica
    obligaba a comparar dos escalas que no se comparan, y a 97 % de conformidad
    la diferencia entre ambas cabía en el grosor de la línea.
    -------------------------------------------------------------------------- */
-function evolucionDe(per, linea){
+function evolucionDe(per, linea, insp){
   const v = ventanaEvolucion(per);
   const desde = v.desde, hasta = v.hasta;
-  const cump = cumplimientoPorDia(desde, hasta, linea);
+  const cump = insp ? cumplimientoInspectorPorDia(desde, hasta, linea, insp)
+                    : cumplimientoPorDia(desde, hasta, linea);
   const porDia = {};
   S.registros.forEach(r=>{
     const f = fechaTurnoDe(r);
     if(f < desde || f > hasta) return;
     if(linea && String(r.linea||"").trim() !== linea) return;
+    if(insp && String(r.inspector||"").trim() !== insp) return;
     const d = porDia[f] = porDia[f] || {medidas:0, fuera:0, crit:0};
-    d.medidas += numDe(r.totalVariables) || (r.resultados||[]).length;
+    d.medidas += medidasDe(r);
     d.fuera += ncDe(r); d.crit += critNCDe(r);
   });
   /* El eje son los días con jornada, no sólo los que tuvieron registros: un día
@@ -5205,7 +5304,7 @@ function porLineaDe(per, proc){
   regsDelPeriodo(per, "").forEach(r=>{
     const L = String(r.linea||"").trim();
     const o = med[L] = med[L] || {medidas:0, fuera:0, crit:0};
-    o.medidas += numDe(r.totalVariables) || (r.resultados||[]).length;
+    o.medidas += medidasDe(r);
     o.fuera += ncDe(r); o.crit += critNCDe(r);
   });
   const nombres = {};
@@ -5305,10 +5404,11 @@ function renderKpi(){
      siempre en cero porque las vacías ni se creaban. */
   const cajas = casillasDe(per, linea, true);
 
-  let medidas = 0, fuera = 0, crit = 0;
+  let medidas = 0, fuera = 0, crit = 0, sinJuzgar = 0;
   regs.forEach(r=>{
-    medidas += numDe(r.totalVariables) || (r.resultados||[]).length;
+    medidas += medidasDe(r);
     fuera += ncDe(r); crit += critNCDe(r);
+    sinJuzgar += sinJuzgarDe(r);
   });
   const conf = medidas ? (medidas - fuera) / medidas * 100 : null;
 
@@ -5330,7 +5430,7 @@ function renderKpi(){
       let m2 = 0, f2 = 0;
       S.registros.filter(r=> fechaTurnoDe(r).slice(0,7) === prev &&
         (!linea || String(r.linea||"").trim() === linea)).forEach(r=>{
-          m2 += numDe(r.totalVariables) || (r.resultados||[]).length; f2 += ncDe(r);
+          m2 += medidasDe(r); f2 += ncDe(r);
         });
       confAntes = m2 ? (m2-f2)/m2*100 : null;
     }
@@ -5416,7 +5516,11 @@ function renderKpi(){
         crit: linea ? (hayCrit ? sumaCrit : 0) : (K[v].criticas || 0),
         donde: mios.sort((a,b)=> vFuera(ps[b]) - vFuera(ps[a]))[0] || ""};
     }), "fuera") : [];
-  const evo = evolucionDe(per, linea);
+  const inspEvo = inspectoresDelPeriodo(todosQuien);
+  /* Si el que estaba elegido no trabajó en este periodo o esta línea, se
+     vuelve al total en vez de dejar una pantalla vacía sin explicación. */
+  if(INSP_EVO && inspEvo.indexOf(INSP_EVO) === -1) INSP_EVO = "";
+  const evo = evolucionDe(per, linea, INSP_EVO);
   const porLinea = porLineaDe(per, proc);
 
   box.innerHTML = `
@@ -5438,6 +5542,9 @@ function renderKpi(){
           <b>${f1(conf)}${conf===null?"":"%"}</b>
           <span class="barra"><i class="${clBarra(conf,98,95)}" style="width:${ancho(conf)}%;"></i></span>
           <small>${ent(medidas - fuera)} de ${ent(medidas)} mediciones juzgadas</small>
+          ${sinJuzgar ? `<small style="color:var(--warn-text);font-weight:700;"
+            title="Variables capturadas sin cota cargada: no son conformes ni no conformes, así que no entran en este porcentaje.">
+            ${ent(sinJuzgar)} más sin cota, fuera de la cuenta</small>` : ""}
           ${cmpConf}
         </div>
         <div class="kpi ${tono(demostrada, 93, 80)}">
@@ -5488,7 +5595,7 @@ function renderKpi(){
               <tbody>${desemp.map(d=>{
                 /* La cobertura sólo pesa cuando se sabe: con pct nulo, «null < 70»
                    era cierto y un proceso limpio salía marcado como Media. */
-                const floja = d.pct !== null && d.pct < 70;
+                const floja = !d.porLote && d.pct !== null && d.pct < 70;
                 const cl = d.crit >= 3 ? "alta" : (d.fuera >= 3 || floja) ? "media" : "baja";
                 const etq = cl === "alta" ? "Alta" : cl === "media" ? "Media" : "Baja";
                 const col = d.pct === null ? "" : d.pct >= 95 ? "" : d.pct >= 70 ? "flojo" : "malo";
@@ -5501,8 +5608,11 @@ function renderKpi(){
                   <td style="text-align:right;">${ent(d.medidas)}</td>
                   <td style="text-align:right;${d.fuera?"color:var(--warn-text);font-weight:800;":""}">${d.fuera || "—"}</td>
                   <td style="text-align:right;${d.crit?"color:var(--bad);font-weight:800;":""}">${d.crit || "—"}</td>
-                  <td><div class="cump"><span class="barra-mini"><i class="${col}" style="width:${
-                    ancho(d.pct)}%;"></i></span><b>${f1(d.pct)}${d.pct===null?"":"%"}</b></div></td>
+                  <td>${d.porLote
+                    ? `<span style="font-size:.72rem;color:var(--text-dim);">por lote</span>`
+                    : `<div class="cump"><span class="barra-mini"><i class="${col}" style="width:${
+                        ancho(d.pct)}%;"></i></span><b>${f1(d.pct)}${
+                        d.pct===null?"":"%"}</b></div>`}</td>
                   <td><span class="chip-p ${cl}">${etq}</span></td></tr>`;
               }).join("")}</tbody></table>
             <div class="nota-pie" style="margin-top:12px;">
@@ -5511,7 +5621,9 @@ function renderKpi(){
               conformidades acumula. Un 50&nbsp;% de fuera de rango sobre 4 mediciones no es
               una prioridad, y ordenando por porcentaje se veía igual de grave que un proceso
               con 400 mediciones y 20 desviaciones. «Cobertura» es qué parte de las rondas
-              exigidas de ese proceso se cumplió.</span></div>`}
+              exigidas de ese proceso se cumplió; los de <b>Dureza</b> dicen <b>por lote</b>
+              porque esa línea no se exige por turno y no tiene rondas contra las cuales
+              medirla.</span></div>`}
       </div>
     </div>
 
@@ -5545,7 +5657,15 @@ function renderKpi(){
         <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.reloj}</span>
           <div><h2>EVOLUCIÓN</h2>
             <span style="font-size:.72rem;color:var(--text-dim);">¿vamos mejorando o empeorando?</span></div>
-          <span style="font-size:.74rem;color:var(--text-dim);margin-left:auto;">${esc(evo.etq)}${
+          <div class="evo-filtro">
+            <label for="kEvoInsp">Inspector</label>
+            <select id="kEvoInsp" class="sel-mini">
+              <option value="">Todos — la planta entera</option>
+              ${inspEvo.map(n=>`<option value="${esc(n)}"${
+                n === INSP_EVO ? " selected" : ""}>${esc(n)}</option>`).join("")}
+            </select>
+          </div>
+          <span style="font-size:.74rem;color:var(--text-dim);">${esc(evo.etq)}${
             linea ? " · " + esc(linea) : " · todas las líneas"}</span></div>
         ${!evo.dias.length
           ? `<div class="empty-mini">No hay días con jornada en este tramo.</div>`
@@ -5561,9 +5681,7 @@ function renderKpi(){
                 <div style="height:255px;"><canvas id="cvEvoConf"></canvas></div>
               </div>
             </div>
-            <div class="tit-mini" style="margin-top:20px;">No conformidades por día</div>
-            <div class="tit-meta">cuántas fueron y de qué gravedad</div>
-            <div style="height:215px;"><canvas id="cvEvoNC"></canvas></div>
+            <div class="tit-mini" style="margin-top:18px;">Cómo se leen las dos de arriba, juntas</div>
             <div class="leer-ev">
               <div style="border-top-color:var(--ok);">
                 <b><i class="dot" style="background:var(--ok);"></i>Las dos verdes</b>
@@ -5580,7 +5698,17 @@ function renderKpi(){
               <div style="border-top-color:var(--bad);">
                 <b><i class="dot" style="background:var(--bad);"></i>Las dos rojas</b>
                 Ni se vigila, ni lo poco que se vigila sale bien.</div>
-            </div>`}
+            </div>
+            ${INSP_EVO ? `<div class="nota-pie" style="margin-top:14px;">
+              <span class="ic-sec">${IC_KPI.alerta}</span>
+              <span>Mirando a <b>${esc(INSP_EVO)}</b>. El <b>cumplimiento</b> sí habla de él:
+              son los procesos de los turnos que el calendario le asignó, y los días que no le
+              tocaba salen en blanco, no en cero. La <b>conformidad</b> no habla de él: es lo
+              que encontró en las máquinas que le tocaron. Una conformidad baja no es culpa
+              suya — al contrario, es trabajo suyo bien hecho.</span></div>` : ""}
+            <div class="tit-mini" style="margin-top:22px;">No conformidades por día</div>
+            <div class="tit-meta">cuántas fueron y de qué gravedad</div>
+            <div style="height:215px;"><canvas id="cvEvoNC"></canvas></div>`}
       </div>
     </div>
 
@@ -5739,6 +5867,16 @@ function renderKpi(){
           cuenta procesos: uno queda cubierto con que se controle una de sus máquinas.</span>
       </div>
     </div>`;
+
+  /* El filtro de la evolución vive dentro del cuadro que se acaba de repintar,
+     así que se vuelve a enganchar cada vez. */
+  const selEvo = document.getElementById("kEvoInsp");
+  if(selEvo) selEvo.addEventListener("change", ()=>{
+    INSP_EVO = selEvo.value;
+    renderKpi();
+    const p = document.getElementById("kEvoInsp");
+    if(p) p.scrollIntoView({block:"center"});
+  });
 
   /* Las gráficas van después de pintar: antes los lienzos no existen. */
   GRAFICAS_KPI.forEach(g=>{ try{ g.destroy(); }catch(e){} });
@@ -7348,7 +7486,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-11-03-aceros";
+const APP_VERSION = "2026-11-03-juzgadas";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
