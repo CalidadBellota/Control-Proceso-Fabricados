@@ -328,6 +328,10 @@
   .fila-ult .estado{font-size:.74rem;font-weight:700;white-space:nowrap;display:flex;
     align-items:center;gap:6px;min-width:118px;}
   .fila-ult .estado i{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .hereda{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;
+    font-size:.64rem;font-weight:800;letter-spacing:.3px;vertical-align:middle;
+    background:#e7f0fb;color:#1f5fb0;}
+  .hereda.mal{background:var(--bad-bg);color:var(--bad);cursor:help;}
   .marca-off{background:#eef1f6;color:#5a6270;border:1px solid #cfd6e0;padding:1px 7px;
     border-radius:20px;font-size:.66rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase;}
   .item.inactivo{opacity:.62;}
@@ -674,11 +678,17 @@
   /* Desempeño de los procesos: 36 filas que se leen de un barrido. */
   .t-desemp{font-size:.8rem;}
   .t-desemp th{white-space:nowrap;}
-  /* Altura fija: la etiqueta «pocas» añade un renglón y hacía que unas filas
-     fueran más altas que otras. Se reserva el sitio en todas. */
-  .t-desemp td{padding:6px 10px;vertical-align:middle;height:46px;}
-  .t-desemp td > .sub{display:block;font-size:.64rem;color:var(--text-dim);
-    font-weight:400;line-height:1.1;margin-top:1px;}
+  /* Altura fija. La etiqueta «pocas» añadía un renglón y unas filas salían más
+     altas que otras. No basta con dar altura al td —la celda crece con su
+     contenido—: el contenido va dentro de una caja de alto fijo que centra lo
+     que lleve, con o sin segundo renglón. */
+  .t-desemp td{padding:6px 10px;vertical-align:middle;height:46px;line-height:1.25;}
+  .t-desemp .celda2{height:34px;display:flex;flex-direction:column;
+    align-items:flex-end;justify-content:center;}
+  .t-desemp .celda2 .sub{font-size:.64rem;color:var(--text-dim);font-weight:400;
+    line-height:1.1;margin-top:1px;}
+  .t-desemp td.c-conf{text-align:right;font-variant-numeric:tabular-nums;}
+  .t-desemp td:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .t-desemp tbody tr:hover{background:#fafbfc;}
   .t-desemp tr.fila-alta{background:var(--bad-bg);}
   .t-desemp tr.fila-alta:hover{background:#fbe3e6;}
@@ -1611,7 +1621,7 @@ function pideProveedorAcero(linea){ return LINEAS_ACERO.indexOf(linea) !== -1; }
 const ESPESORES = {
   "Machetes":  ["1.3","1.6","1.8","1.9","2.0","2.2","2.4"],
   "Cuchillas": ["1.6","2.4"],
-  "Palas":     ["1.3","1.6","2.7"],
+  "Palas":     ["1.3","1.6","1.9","2.7"],
   "Limas":     [],     // no aplica
   "Inyección": []      // no aplica
 };
@@ -2376,10 +2386,20 @@ function formatosExigibles(){
    referencias de Machetes. Así no hay que configurar nada aparte. */
 function lineaDeReferencias(f){
   if(!f) return "";
-  if(!sinRonda(f.linea)) return f.linea;
+  const L = String(f.linea || "").trim();
+  if(LINEAS_BASE.indexOf(L) !== -1) return L;
+  /* Una línea transversal —Dureza— no tiene catálogo propio: su proceso dice
+     de qué línea viene ("Palas · Revenido").
+
+     Esto se decidía antes con sinRonda(), y el 3 de noviembre, al sacar Dureza
+     de las líneas sin ronda para que se exigiera por turno, la deducción dejó
+     de hacerse: «Dureza · Palas · Revenido» pasó a ofrecer el acero genérico
+     —SAE 1074 y 65MN— en vez del 50MN de Palas, y se quedó sin espesor. Ahora
+     depende de si la línea tiene catálogo propio, que es lo que de verdad
+     decide, y no de cómo se exija la ronda. */
   const txt = String(f.proceso || "");
   const hit = LINEAS_BASE.filter(l => txt.toLowerCase().indexOf(String(l).toLowerCase()) === 0)[0];
-  return hit || "";
+  return hit || L;
 }
 
 function lineas(){
@@ -2702,7 +2722,11 @@ function renderEncabezado(f){
         <input type="text" id="e_${k}_otra" placeholder="Escribe la máquina"
                style="margin-top:8px;display:none;"></div>`);
     } else if(k === "espesorAcero"){
-      const es = espesoresDe(f.linea);
+      /* Igual que el acero: en la línea Dureza el espesor es el de la línea
+         base que dice el proceso ("Palas · Revenido" → los de Palas). Mirando
+         f.linea, ESPESORES["Dureza"] no existe y el campo desaparecía sin
+         avisar, aunque el formato lo pidiera. */
+      const es = espesoresDe(lineaDeReferencias(f) || f.linea);
       if(!es.length) return;                    // línea sin espesor: el campo no va
       campos.push(`<div class="campo esp"><label for="e_${k}">${c.etq}${c.oblig?" *":""}</label>
         <select id="e_${k}"><option value="">—</option>${
@@ -5564,6 +5588,14 @@ function veredictoLinea(l, enCurso){
             `Hay que cargar sus límites en Administrar → Especificaciones.`};
     if(enCurso) return {cl:"curso", et:"EN CURSO",
       razon:"Todavía no hay mediciones de esta línea en este periodo, que no ha terminado."};
+    /* Ronda cubierta y cero mediciones: pasa, y hay que decir cómo. Si los
+       contadores de arriba no lo resolvieron es que los registros vienen de la
+       hoja sin el detalle, así que se nombran las dos causas posibles. */
+    if(l.cump !== null && l.cump >= 100) return {cl:"gris", et:"SIN MEDICIONES",
+      razon:`La ronda está cubierta —los ${l.procs} procesos se atendieron— pero no hay ` +
+            `ninguna medición que juzgar. Sólo puede ser por dos cosas: que los procesos se ` +
+            `registraran como «no trabajó», o que lo que se midió no tenga cota cargada y ` +
+            `quede como «sin especificación».`};
     return {cl:"gris", et:"SIN DATOS",
       razon:"No hay mediciones de esta línea en el periodo."};
   }
@@ -5778,15 +5810,15 @@ function renderKpi(){
         d.fuera || "—"}</td>
       <td style="text-align:right;${d.crit?"color:var(--bad);font-weight:800;":""}">${
         d.crit || "—"}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;${
+      <td class="c-conf"><div class="celda2" style="${
         d.conf === null ? "color:var(--text-dim);"
         : d.conf < 96 ? "color:var(--bad);font-weight:800;"
-        : d.conf < META_CONF ? "color:var(--warn-text);font-weight:700;" : ""}">${
-        f1(d.conf)}${d.conf===null?"":"%"}${
+        : d.conf < META_CONF ? "color:var(--warn-text);font-weight:700;" : ""}"
+        ><span>${f1(d.conf)}${d.conf===null?"":"%"}</span>${
         d.conf !== null && d.medidas < MIN_MED_PRIO
           ? `<span class="sub"
                title="Menos de ${MIN_MED_PRIO} mediciones: el porcentaje no fija la prioridad."
-               >pocas</span>` : ""}</td>
+               >pocas</span>` : ""}</div></td>
       <td>${d.porLote
         ? `<span style="font-size:.72rem;color:var(--text-dim);">por lote</span>`
         : `<div class="cump"><span class="barra-mini"><i class="${col}" style="width:${
@@ -5955,11 +5987,16 @@ function renderKpi(){
       <div class="panel" style="margin:0;">
         <div class="section-title con-ic"><span class="ic-sec">${IC_KPI.alerta}</span>
           <h2>PARETO POR VARIABLE</h2>
-          <span style="font-size:.74rem;color:var(--text-dim);">qué se sale</span></div>
+          <span style="font-size:.74rem;color:var(--text-dim);">qué se sale</span>
+          <button type="button" class="btn-actualizar" id="btnVarKpi"
+            title="Le pide a la hoja sólo las variables de este periodo. Es una consulta pequeña: no vuelve a bajar los registros.">↻ ${
+            K ? "Recalcular" : "Traer las variables"}</button></div>
         ${!parVar.length
           ? `<div class="empty-mini">${K
               ? "Ninguna variable se salió de su cota en " + esc(per.etq) + "."
-              : "Pulsa <b>Actualizar</b> para que la hoja sume las variables del periodo."}</div>`
+              : `Esta es la única cifra de la pantalla que no sale de los registros del
+                 equipo: el nombre de la variable está en el detalle y lo suma la hoja.<br>
+                 Pulsa <b>Traer las variables</b> aquí arriba.`}</div>`
           : `<div style="height:290px;"><canvas id="cvParVar"></canvas></div>
              <div style="margin-top:8px;font-size:.72rem;color:var(--text-dim);">
                Qué parámetro se desvía, no sólo en qué proceso. Es la pregunta que lleva a la causa.</div>`}
@@ -6255,6 +6292,17 @@ function renderKpi(){
 
   /* El filtro de la evolución vive dentro del cuadro que se acaba de repintar,
      así que se vuelve a enganchar cada vez. */
+  /* El Pareto por variable tiene su propio botón: pedir sólo las variables es
+     una consulta pequeña, y obligar a pulsar Actualizar bajaba otra vez todos
+     los registros del periodo para una cifra que ya estaba. */
+  const bVar = document.getElementById("btnVarKpi");
+  if(bVar) bVar.addEventListener("click", async ()=>{
+    const txt = bVar.textContent;
+    bVar.disabled = true; bVar.textContent = "Consultando…";
+    try{ await traerVariablesKpi(periodoKpi()); }
+    finally{ bVar.disabled = false; bVar.textContent = txt; renderKpi(); }
+  });
+
   const selEvo = document.getElementById("kEvoInsp");
   if(selEvo) selEvo.addEventListener("change", ()=>{
     INSP_EVO = selEvo.value;
@@ -7502,12 +7550,24 @@ function renderFormatosAdmin(){
     const conRango = nums.filter(v=> (v.min??"")!=="" || (v.max??"")!=="").length;
     const crit = (f.variables||[]).filter(v=>v.critica).length;
     const act = estaActivo(f);
+    /* Las líneas sin catálogo propio —Dureza— heredan acero, espesor y
+       referencias de la línea que nombra su proceso. Si el nombre cambia, la
+       herencia se rompe en silencio y el formato acaba ofreciendo el acero de
+       otra línea; aquí se ve de un vistazo a qué línea está apuntando. */
+    const propia = LINEAS_BASE.indexOf(String(f.linea||"").trim()) !== -1;
+    const base = propia ? "" : lineaDeReferencias(f);
+    const hereda = propia ? ""
+      : (LINEAS_BASE.indexOf(base) !== -1
+          ? `<span class="hereda">hereda de ${esc(base)}</span>`
+          : `<span class="hereda mal" title="El proceso tiene que empezar por el nombre de la línea, como «Palas · Revenido». Sin eso no se sabe qué acero, espesor ni referencias ofrecer.">no se pudo deducir la línea</span>`);
     return `<div class="item${act?"":" inactivo"}">
       <div class="info"><b>${esc(f.linea)} · ${esc(f.proceso)}</b>${
-        act?"":` <span class="marca-off">desactivado</span>`}
+        act?"":` <span class="marca-off">desactivado</span>`}${hereda}
         <span class="meta">${(f.variables||[]).length} variables · ${nums.length} numéricas${
           nums.length?` (${conRango} con rango)`:""}${crit?` · ${crit} crítica(s)`:""} · ${esc(f.codigoDoc||"sin código")}${
-          f.condicional?" · según referencia":""}</span></div>
+          f.condicional?" · según referencia":""}${
+          base && LINEAS_BASE.indexOf(base) !== -1
+            ? ` · acero y espesor de ${esc(base)}` : ""}</span></div>
       <div class="acciones">
         <button class="btn-sec" data-edit="${idx}">Editar</button>
         <button class="btn-sec" data-act="${idx}">${act?"Desactivar":"Activar"}</button>
@@ -7885,7 +7945,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-11-04-sincota";
+const APP_VERSION = "2026-11-04-hereda";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
