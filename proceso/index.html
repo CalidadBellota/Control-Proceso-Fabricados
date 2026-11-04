@@ -674,7 +674,11 @@
   /* Desempeño de los procesos: 36 filas que se leen de un barrido. */
   .t-desemp{font-size:.8rem;}
   .t-desemp th{white-space:nowrap;}
-  .t-desemp td{padding:7px 10px;vertical-align:middle;}
+  /* Altura fija: la etiqueta «pocas» añade un renglón y hacía que unas filas
+     fueran más altas que otras. Se reserva el sitio en todas. */
+  .t-desemp td{padding:6px 10px;vertical-align:middle;height:46px;}
+  .t-desemp td > .sub{display:block;font-size:.64rem;color:var(--text-dim);
+    font-weight:400;line-height:1.1;margin-top:1px;}
   .t-desemp tbody tr:hover{background:#fafbfc;}
   .t-desemp tr.fila-alta{background:var(--bad-bg);}
   .t-desemp tr.fila-alta:hover{background:#fbe3e6;}
@@ -5506,19 +5510,27 @@ function porLineaDe(per, proc){
   const med = {};
   regsDelPeriodo(per, "").forEach(r=>{
     const L = String(r.linea||"").trim();
-    const o = med[L] = med[L] || {medidas:0, fuera:0, crit:0};
+    const o = med[L] = med[L] || {medidas:0, fuera:0, crit:0,
+                                  sinCota:0, noTrabajo:0, registros:0};
     o.medidas += medidasDe(r);
     o.fuera += ncDe(r); o.crit += critNCDe(r);
+    /* Dos cosas que dejan una línea en cero mediciones y hay que distinguir:
+       que no estuviera trabajando, y que midiera sin tener cotas cargadas. */
+    o.sinCota += sinJuzgarDe(r);
+    o.registros++;
+    if(r.noTrabajo) o.noTrabajo++;
   });
   const nombres = {};
   Object.keys(cob).forEach(L=>{ if(L) nombres[L] = 1; });
   Object.keys(med).forEach(L=>{ if(L) nombres[L] = 1; });
   return Object.keys(nombres).map(L=>{
-    const c = cob[L], m = med[L] || {medidas:0, fuera:0, crit:0};
+    const c = cob[L], m = med[L] || {medidas:0, fuera:0, crit:0,
+                                     sinCota:0, noTrabajo:0, registros:0};
     const cump = (c && c.total) ? Math.round(c.cub / c.total * 1000) / 10 : null;
     const conf = m.medidas
       ? Math.round((m.medidas - m.fuera) / m.medidas * 1000) / 10 : null;
     return {nom:L, cump:cump, conf:conf, medidas:m.medidas, fuera:m.fuera, crit:m.crit,
+      sinCota:m.sinCota, noTrabajo:m.noTrabajo, registros:m.registros,
       procs: c ? c.procs : 0, hechos: c ? c.hechos : 0,
       /* Conformidad demostrada: la conformidad sobre lo EXIGIDO, no sobre lo
          medido. Lo que no se inspeccionó no entra como conforme. */
@@ -5536,19 +5548,37 @@ function veredictoLinea(l, enCurso){
     razon:`Esta línea no se exige por turno, así que no tiene cumplimiento de rondas ` +
           `contra el cual medir. Su conformidad es del ${f1k(l.conf)}% sobre ` +
           `${l.medidas} medición(es).`};
-  if(l.cump === null || l.conf === null) return {cl: enCurso ? "curso" : "gris",
-    et: enCurso ? "EN CURSO" : "SIN DATOS",
-    razon: l.conf === null
-      ? (enCurso ? "Todavía no hay mediciones de esta línea en este periodo, que no ha terminado."
-                 : "No hay mediciones de esta línea en el periodo.")
-      : "No hay rondas exigidas de esta línea en el periodo."};
+  if(l.cump === null || l.conf === null){
+    if(l.conf !== null) return {cl:"gris", et:"SIN DATOS",
+      razon:"No hay rondas exigidas de esta línea en el periodo."};
+    /* Cero mediciones con el cumplimiento al 100 % no es una contradicción:
+       la línea no estuvo trabajando y sus procesos se registraron como «no
+       trabajó», que cubre la ronda sin dejar nada que medir. */
+    if(l.noTrabajo && l.noTrabajo === l.registros) return {cl:"gris", et:"NO TRABAJÓ",
+      razon:`La línea no estuvo trabajando: sus ${l.noTrabajo} registro(s) son «no trabajó». ` +
+            `Por eso la ronda sale cubierta —el inspector hizo lo que tenía que hacer— y no ` +
+            `hay nada que juzgar.`};
+    if(l.sinCota) return {cl:"gris", et:"SIN COTAS",
+      razon:`Se tomaron ${l.sinCota} medición(es), pero ninguna tiene cota cargada: quedan ` +
+            `como «sin especificación» y no cuentan ni como conformes ni como no conformes. ` +
+            `Hay que cargar sus límites en Administrar → Especificaciones.`};
+    if(enCurso) return {cl:"curso", et:"EN CURSO",
+      razon:"Todavía no hay mediciones de esta línea en este periodo, que no ha terminado."};
+    return {cl:"gris", et:"SIN DATOS",
+      razon:"No hay mediciones de esta línea en el periodo."};
+  }
+  /* Con mediciones juzgadas, pero con otras que se quedaron sin cota, se avisa
+     igual: el porcentaje que se ve está calculado sobre menos de lo medido. */
+  const avisoCota = l.sinCota
+    ? ` Ojo: ${l.sinCota} medición(es) más quedaron sin cota y no entran en este porcentaje.`
+    : "";
   /* Lo medido, medido está: una conformidad mala se puede afirmar aunque el
      turno siga corriendo. Lo que NO se puede es condenar la cobertura a media
      jornada —las rondas que faltan todavía se pueden hacer—, y eso era lo que
      sacaba «sin vigilancia» a mitad del turno 2. */
   if(l.conf < 96) return {cl:"bad", et:"NO CONFORME",
     razon:`La conformidad está ${f1k(META_CONF - l.conf)} puntos por debajo de la meta` +
-          (l.crit ? `, con ${l.crit} desviación(es) en variable crítica.` : ".")};
+          (l.crit ? `, con ${l.crit} desviación(es) en variable crítica.` : ".") + avisoCota};
   if(enCurso && l.cump < META_CUMP) return {cl:"curso", et:"EN CURSO",
     razon:`Lleva el ${f1k(l.cump)}% de las rondas (${l.hechos} de ${l.procs} procesos) y el ` +
           `periodo no ha terminado: el cumplimiento todavía puede subir, así que no se ` +
@@ -5558,15 +5588,15 @@ function veredictoLinea(l, enCurso){
           `procesos). El ${f1k(l.conf)}% de conformidad no alcanza para juzgar la línea.`};
   if(l.cump < 70) return {cl:"bad", et:"SIN VIGILANCIA",
     razon:`Se dejaron de hacer el ${f1k(100 - l.cump)}% de las rondas. La conformidad se ve ` +
-          `bien porque se midió poco, no porque el proceso esté controlado.`};
+          `bien porque se midió poco, no porque el proceso esté controlado.` + avisoCota};
   if(l.conf < META_CONF || l.cump < META_CUMP) return {cl:"warn", et:"ATENCIÓN",
     razon: l.conf < META_CONF
       ? `Conformidad por debajo del ${META_CONF}% de meta, con cobertura correcta: el dato ` +
-        `es fiable y el proceso sí se está saliendo.`
-      : `Conformidad en meta, pero faltó el ${f1k(100 - l.cump)}% de las rondas.`};
+        `es fiable y el proceso sí se está saliendo.` + avisoCota
+      : `Conformidad en meta, pero faltó el ${f1k(100 - l.cump)}% de las rondas.` + avisoCota};
   return {cl:"ok", et:"CONFORME",
     razon:`Las dos condiciones cumplidas: ${f1k(l.conf)}% de conformidad sobre el ` +
-          `${f1k(l.cump)}% de las rondas exigidas.`};
+          `${f1k(l.cump)}% de las rondas exigidas.` + avisoCota};
 }
 /* Un formateador suelto: f1() vive dentro de renderKpi y aquí no llega. */
 function f1k(n){
@@ -5754,7 +5784,7 @@ function renderKpi(){
         : d.conf < META_CONF ? "color:var(--warn-text);font-weight:700;" : ""}">${
         f1(d.conf)}${d.conf===null?"":"%"}${
         d.conf !== null && d.medidas < MIN_MED_PRIO
-          ? `<br><span style="font-size:.64rem;color:var(--text-dim);font-weight:400;"
+          ? `<span class="sub"
                title="Menos de ${MIN_MED_PRIO} mediciones: el porcentaje no fija la prioridad."
                >pocas</span>` : ""}</td>
       <td>${d.porLote
@@ -7855,7 +7885,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-11-04-porturno";
+const APP_VERSION = "2026-11-04-sincota";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
