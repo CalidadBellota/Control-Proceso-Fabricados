@@ -4967,18 +4967,48 @@ function regsDelPeriodo(per, linea){
   });
 }
 
-function cumplimientoPeriodo(per, linea){
+/* --------------------------------------------------------------------------
+   El cumplimiento se cuenta por PROCESO y TURNO, que es como se exige la
+   ronda: cada turno tiene que controlar los 42 procesos.
+
+   Antes, en vista de día y de mes, se contaba una celda por proceso y DÍA: un
+   proceso que el turno 3 controló daba el día por cubierto aunque los turnos 1
+   y 2 no lo hubieran tocado. Por eso la casilla decía 95 % el mismo día en que
+   dos de los tres inspectores no habían hecho su ronda, y contradecía a la
+   tabla de desempeño —que sí contaba por turno— en la misma pantalla.
+   -------------------------------------------------------------------------- */
+function cumplimientoTramo(desde, hasta, linea, turnoFijo){
   const fs = formatosExigibles(linea);
-  if(per.modo === "mes") return cumplimientoMes(per.mes, linea);
-  let total = 0, faltan = 0;
-  fs.forEach(f=>{
-    const rs = S.registros.filter(r => r.formatoId === f.id &&
-      fechaTurnoDe(r) === per.fecha &&
-      (per.modo !== "turno" || String(r.turno||"") === per.turno));
-    total++;
-    if(estadoCelda(rs, f) === "r") faltan++;
+  /* Se indexa una vez: recorrer S.registros por cada proceso, día y turno
+     serían decenas de miles de pasadas sobre la misma lista. */
+  const idx = {};
+  S.registros.forEach(r=>{
+    const f = fechaTurnoDe(r);
+    if(f < desde || f > hasta) return;
+    const k = r.formatoId + "|" + f + "|" + String(r.turno||"");
+    (idx[k] = idx[k] || []).push(r);
   });
-  return {total:total, faltan:faltan, pct: total ? (total-faltan)/total*100 : null};
+  const hoy = hoyISO();
+  let total = 0, faltan = 0, turnos = 0;
+  for(let f = desde; f <= hasta && f <= hoy; f = diaSiguiente(f)){
+    TURNOS.forEach(t=>{
+      if(turnoFijo && t !== turnoFijo) return;
+      /* Ni los turnos que no existen —domingo, festivo, sábado noche— ni los
+         que todavía no han arrancado. */
+      if(!turnoExiste(f, t) || !turnoYaEmpezo(f, t)) return;
+      turnos++;
+      fs.forEach(x=>{
+        total++;
+        if(estadoCelda(idx[x.id + "|" + f + "|" + t] || [], x) === "r") faltan++;
+      });
+    });
+  }
+  return {total:total, faltan:faltan, turnos:turnos, procesos:fs.length,
+          pct: total ? (total-faltan)/total*100 : null};
+}
+function cumplimientoPeriodo(per, linea){
+  return cumplimientoTramo(per.desde, per.hasta, linea,
+                           per.modo === "turno" ? per.turno : "");
 }
 
 /* --------------------------------------------------------------------------
@@ -5196,9 +5226,12 @@ function cumplimientoPorProceso(per, linea){
       const dias = new Date(y, m, 0).getDate();
       for(let d = 1; d <= dias; d++){
         const fecha = `${per.mes}-${pad(d)}`;
-        if(!TURNOS.some(t => turnoExiste(fecha, t))) continue;
         if(fecha > hoyISO()) continue;
-        mira(fecha, null);
+        /* Por TURNO, igual que en la vista de día: la ronda se exige a cada
+           turno, no una vez al día. Contarlo por día daba por cubierto un
+           proceso que sólo tocó uno de los tres turnos. */
+        TURNOS.filter(t => turnoExiste(fecha, t) && turnoYaEmpezo(fecha, t))
+              .forEach(t => mira(fecha, t));
       }
     } else if(per.modo === "turno"){
       mira(per.fecha, per.turno);
@@ -5265,11 +5298,16 @@ function desempenoDe(per, linea, cobertura){
        prioridad—, pero una no conformidad crítica nunca puede quedar en Baja
        por pocas que sean las mediciones. */
     const fiable = o.medidas >= MIN_MED_PRIO;
+    /* Una no conformidad en variable CRÍTICA es prioridad alta siempre, por
+       pocas mediciones que haya. El guardia de las pocas mediciones existe
+       para que un porcentaje flojo no decida —dos de cuatro dan 50 % y no son
+       una prioridad—, pero una crítica no es un porcentaje: es un hecho
+       confirmado, y una sola basta. */
     o.prio =
-      (fiable && o.crit > 0 && o.conf !== null && o.conf < 96) ? "alta"
-      : o.crit > 0                                             ? "media"
-      : (fiable && o.conf !== null && o.conf < META_CONF)      ? "media"
-      : floja                                                  ? "media"
+      o.crit > 0                                           ? "alta"
+      : (fiable && o.conf !== null && o.conf < 96)         ? "alta"
+      : (fiable && o.conf !== null && o.conf < META_CONF)  ? "media"
+      : floja                                              ? "media"
       : "baja";
     /* Un «baja» sin una sola no conformidad no tiene nada que mirar: la
        tabla lo esconde para que las cinco filas que sí importan no se pierdan
@@ -5749,8 +5787,10 @@ function renderKpi(){
           <b>${f1(cump.pct)}${cump.pct===null?"":"%"}</b>
           <span class="barra"><i class="${clBarra(cump.pct,95,80)}" style="width:${ancho(cump.pct)}%;"></i></span>
           <small>${ent(cump.total - cump.faltan)} de ${ent(cump.total)} ${
-            per.modo === "turno" ? "procesos del turno"
-            : per.modo === "dia" ? "procesos del día" : "día-proceso exigibles"}</small>
+            per.modo === "turno" ? "procesos del turno" : "controles exigidos"}</small>
+          ${per.modo === "turno" ? "" :
+            `<small>${ent(cump.procesos)} procesos × ${ent(cump.turnos)} turno(s)${
+              per.enCurso ? " hasta ahora" : ""}</small>`}
           ${cmpCump}
         </div>
         <div class="kpi ${tono(conf, 98, 95)}">
@@ -5857,12 +5897,14 @@ function renderKpi(){
               <span class="ic-sec">${IC_KPI.alerta}</span>
               <span><b>La prioridad</b> sale de la conformidad, no de contar desviaciones,
               para que valga igual en un turno que en un mes:
-              <b>Alta</b> = hay críticas y la conformidad está por debajo del 96&nbsp;%;
-              <b>Media</b> = hay críticas, o la conformidad no llega al ${META_CONF}&nbsp;%,
-              o la cobertura está por debajo del 70&nbsp;%;
+              <b>Alta</b> = hay <b>alguna no conformidad crítica</b>, o la conformidad está
+              por debajo del 96&nbsp;%;
+              <b>Media</b> = la conformidad no llega al ${META_CONF}&nbsp;%, o la cobertura
+              está por debajo del 70&nbsp;%;
               <b>Baja</b> = el resto. Con menos de ${MIN_MED_PRIO} mediciones el porcentaje
               no decide —dos de cuatro dan 50&nbsp;% y no son una prioridad— y la columna lo
-              marca como <b>pocas</b>; una crítica, en cambio, nunca queda en Baja.
+              marca como <b>pocas</b>; una crítica, en cambio, es alta siempre, por pocas
+              mediciones que haya.
               «Cobertura» es qué parte de las rondas exigidas de ese proceso se cumplió.
               Arriba salen alta y media, y las bajas que registraron alguna no conformidad;
               el resto está completo en la lista plegada, no se ha quitado.</span></div>`}
@@ -6624,24 +6666,11 @@ function actualizarMiTurno(){
    no esté en el futuro. Está aquí fuera para que la pantalla de KPI y la
    matriz no puedan dar dos cifras distintas de lo mismo: si esta regla
    cambia, cambia para las dos. */
+/* La misma regla que la pantalla de Indicadores: por proceso y turno. */
 function cumplimientoMes(mes, linea){
-  const fs = S.formatos.filter(f=> (!linea || f.linea===linea));
   const [y,m] = String(mes).split("-").map(Number);
   if(!y || !m) return {total:0, faltan:0, pct:null};
-  const dias = new Date(y, m, 0).getDate();
-  let total = 0, faltan = 0;
-  fs.forEach(f=>{
-    if(f.condicional || !conRonda(f) || !estaActivo(f)) return;
-    for(let d=1; d<=dias; d++){
-      const fechaD = `${mes}-${pad(d)}`;
-      if(!TURNOS.some(t=> turnoExiste(fechaD, t))) continue;   // no se trabaja
-      if(fechaD > hoyISO()) continue;                          // todavía no toca
-      const rs = S.registros.filter(r=> r.formatoId===f.id && fechaTurnoDe(r)===fechaD);
-      total++;
-      if(estadoCelda(rs, f) === "r") faltan++;
-    }
-  });
-  return {total:total, faltan:faltan, pct: total ? (total-faltan)/total*100 : null};
+  return cumplimientoTramo(`${mes}-01`, finDeMes(mes), linea, "");
 }
 
 function renderCumplimiento(){
@@ -7826,7 +7855,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-11-03-casillainsp";
+const APP_VERSION = "2026-11-04-porturno";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
