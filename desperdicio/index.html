@@ -7,10 +7,23 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
-  :root{--red:#E2001A;--bg:#f3f4f6;--panel:#fff;--border:#e3e5e9;--text:#1c1f24;--text-dim:#6b7280;--radius:10px;}
+  :root{
+    /* Mismos tokens que Control de Proceso: un solo sistema de color para
+       las dos apps. Si cambia uno, cambia en ambas. */
+    --red:#e2001a; --red-dark:#c81d2e;
+    --bg:#f3f4f6; --panel:#fff; --border:#e3e5e9;
+    --text:#1c1f24; --text-dim:#6b7280;
+    --ok:#1f9d55; --ok-bg:#e8f8ef;
+    --warn:#f2b90b; --warn-text:#92660a; --warn-bg:#fff8e1;
+    --bad:#c81d2e; --bad-bg:#fdeaea;
+    --radius:12px;
+  }
   *{box-sizing:border-box;}
   body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
-  header{background:var(--red);color:#fff;padding:14px 20px;}
+  header{background:var(--red);color:#fff;padding:14px 20px;position:sticky;top:0;z-index:40;}
+  /* En tablet el encabezado no da para todo: el título sobra antes que las
+     pestañas, porque el logo ya dice de quién es la app. */
+  @media(max-width:1100px){.titles{display:none;}}
   .header-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
   .brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit;cursor:pointer;}
   .brand img{height:34px;width:auto;}
@@ -25,8 +38,11 @@
   main{max-width:1250px;margin:0 auto;padding:20px 20px 110px 20px;}
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:18px;}
   label{display:block;font-size:.78rem;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
-  select,input[type=text],input[type=number],input[type=date]{
-    width:100%;padding:10px 11px;font-size:.92rem;background:#fff;border:1px solid var(--border);border-radius:7px;color:var(--text);}
+  select,input[type=text],input[type=number],input[type=date],input[type=month],
+  input[type=password],input[type=time],textarea{
+    width:100%;padding:8px 10px;font-size:.88rem;background:#fff;border:1px solid var(--border);
+    border-radius:7px;color:var(--text);font-family:inherit;height:38px;}
+  textarea{height:auto;}
   /* una sola flecha para todos los desplegables de la app */
   select{appearance:none;-webkit-appearance:none;padding-right:32px;cursor:pointer;
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.4' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>");
@@ -46,6 +62,69 @@
   @media(max-width:600px){.familia-card .foto,.familia-card .foto img{height:52px;}}
 
   .puesto-hint{font-size:.76rem;color:var(--text-dim);margin-top:10px;}
+
+  /* ---- Paso 0: tipo de registro ---- */
+  .tipos{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+  @media(max-width:700px){.tipos{grid-template-columns:1fr;}}
+  .tipo-card{text-align:left;border:2px solid var(--border);border-radius:var(--radius);
+    padding:16px 18px;background:#fff;cursor:pointer;display:flex;flex-direction:column;gap:6px;
+    font-family:inherit;color:var(--text);}
+  .tipo-card:hover{border-color:#c3c9d1;}
+  .tipo-card .ic{font-size:1.5rem;line-height:1;}
+  .tipo-card b{font-size:1rem;}
+  .tipo-card .d{font-size:.8rem;color:var(--text-dim);line-height:1.45;}
+  .tipo-card.active{border-color:var(--red);background:#fdeceb;}
+  .tipo-card.active b{color:var(--red);}
+  .aviso-tipo{margin-top:14px;font-size:.82rem;line-height:1.5;padding:11px 13px;
+    border-radius:9px;background:var(--warn-bg);color:var(--warn-text);border:1px solid #f3e3ae;}
+  .aviso-tipo b{font-weight:800;}
+
+  /* ---- Recorrido de máquinas (sólo auditoría) ---- */
+  .recorrido{margin-top:14px;display:flex;flex-direction:column;gap:7px;}
+  .rec-cab{font-size:.72rem;font-weight:800;letter-spacing:.4px;color:var(--text-dim);}
+  .rec-m{display:flex;align-items:center;gap:10px;padding:8px 11px;border:1px solid var(--border);
+    border-radius:9px;background:#fff;font-size:.86rem;}
+  .rec-m .nom{font-weight:700;flex:1;}
+  .rec-m .et{font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:999px;}
+  .rec-m.pend{border-left:3px solid var(--warn);}
+  .rec-m.hecha{border-left:3px solid var(--ok);background:var(--ok-bg);}
+  .rec-m.cero{border-left:3px solid var(--ok);}
+  .rec-m.notrab{border-left:3px solid #c2c8d0;background:#f7f8fa;color:var(--text-dim);}
+  .rec-m .et.hecha{background:var(--ok-bg);color:var(--ok);}
+  .rec-m .et.cero{background:var(--ok-bg);color:var(--ok);}
+  .rec-m .et.notrab{background:#eef0f3;color:var(--text-dim);}
+  .rec-m button{border:1px solid var(--border);background:#fff;border-radius:7px;padding:5px 9px;
+    font-size:.74rem;font-weight:700;cursor:pointer;color:var(--text-dim);font-family:inherit;}
+  .rec-m button:hover{border-color:var(--red);color:var(--red);}
+  .rec-resumen{font-size:.78rem;color:var(--text-dim);margin-top:4px;}
+
+  .pin-error{font-size:.8rem;color:var(--bad);background:var(--bad-bg);
+    border-radius:8px;padding:8px 10px;margin-top:10px;font-weight:600;}
+
+  /* ---- Reparto entre máquinas ---- */
+  .rep-cab{margin-top:16px;padding-bottom:7px;border-bottom:1px solid var(--border);}
+  .rep-cab b{font-size:.95rem;}
+  .rep-cab span{display:block;font-size:.76rem;color:var(--text-dim);margin-top:2px;}
+  .rep-t{width:100%;border-collapse:collapse;margin-top:9px;font-size:.84rem;}
+  .rep-t th{text-align:left;font-size:.7rem;font-weight:800;letter-spacing:.4px;
+    color:var(--text-dim);padding:5px 8px;border-bottom:1px solid var(--border);}
+  .rep-t td{padding:6px 8px;border-bottom:1px solid #f1f2f4;}
+  .rep-t .n{text-align:right;}
+  .rep-t tbody tr:last-child td{border-bottom:none;}
+  .rep-form{font-size:.78rem;color:var(--text-dim);margin-top:8px;}
+  .rep-nota{font-size:.8rem;color:var(--text-dim);margin-top:8px;line-height:1.5;}
+  .rep-aviso{font-size:.78rem;line-height:1.45;margin-top:8px;padding:8px 11px;border-radius:8px;
+    background:var(--warn-bg);color:var(--warn-text);border:1px solid #f3e3ae;}
+  .rep-pie{margin-top:18px;padding-top:12px;border-top:1px solid var(--border);
+    font-size:.78rem;color:var(--text-dim);line-height:1.5;}
+
+  /* ---- Bitácora de lecturas ---- */
+  .diag-cab{font-size:.68rem;font-weight:800;letter-spacing:.5px;color:var(--red);
+    margin-top:14px;padding-top:10px;border-top:1px solid var(--border);}
+  .diag-lec{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;
+    font-size:.76rem;color:var(--text-dim);padding:4px 0;border-bottom:1px solid #f1f2f4;}
+  .diag-lec span:first-child{font-weight:700;color:var(--text);}
+  .diag-lec span:last-child{text-align:right;}
 
   /* ---- Registro por pasos ---- */
   .cab-reg{display:flex;flex-direction:column;gap:16px;}
@@ -89,7 +168,10 @@
   /* desplegable grande, con icono y flecha propia */
   .sel-grande{position:relative;max-width:460px;}
   .sel-grande .ic{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:1.05rem;color:var(--red);pointer-events:none;}
-  .sel-grande select{appearance:none;-webkit-appearance:none;width:100%;padding:14px 44px 14px 42px;
+  /* El selector grande es la excepción a la altura de 38px de los campos
+     normales: aquí el dedo tiene que acertar en tablet, así que lleva su
+     propia altura y hay que decirlo o la regla general lo recorta. */
+  .sel-grande select{appearance:none;-webkit-appearance:none;width:100%;padding:14px 44px 14px 42px;height:auto;
     font-size:.95rem;font-weight:600;border:2px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.4' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>");
     background-repeat:no-repeat;background-position:right 13px center;background-size:19px;}
@@ -101,7 +183,7 @@
   /* mes + año como dos desplegables propios: el input type=month nativo
      traía su propia tipografía y su icono de calendario, que desentonaban */
   .mes-sel{display:grid;grid-template-columns:1.6fr 1fr;gap:8px;}
-  .mes-sel select{appearance:none;-webkit-appearance:none;padding:10px 30px 10px 11px;cursor:pointer;
+  .mes-sel select{appearance:none;-webkit-appearance:none;padding:10px 30px 10px 11px;cursor:pointer;height:auto;
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.4' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>");
     background-repeat:no-repeat;background-position:right 9px center;background-size:16px;}
 
@@ -122,7 +204,7 @@
     display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;}
   .def-fila .meta .aj{color:#a8431c;font-weight:700;}
   .def-fila .cant-row button{width:31px;height:31px;font-size:1rem;}
-  .def-fila .cant-row input{padding:5px;}
+  .def-fila .cant-row input{padding:5px;height:auto;}
   @media(max-width:620px){
     .def-fila{grid-template-columns:52px 1fr;row-gap:9px;}
     .def-fila .cant-row{grid-column:1/-1;}
@@ -143,11 +225,11 @@
   .def-foot{padding:10px 12px;border-top:1px solid var(--border);background:#fafbfc;}
   .cant-row{display:flex;align-items:center;gap:8px;}
   .cant-row button{width:34px;height:34px;border-radius:7px;border:1px solid var(--border);background:#fff;font-size:1.1rem;font-weight:700;cursor:pointer;}
-  .cant-row input{width:100%;text-align:center;font-weight:700;padding:7px;}
+  .cant-row input{width:100%;text-align:center;font-weight:700;padding:7px;height:auto;}
   .proc-box{margin-top:10px;display:none;}
   .proc-box.show{display:block;}
   .proc-box label{font-size:.66rem;margin-bottom:4px;}
-  .proc-box select{padding:7px 8px;font-size:.78rem;}
+  .proc-box select{padding:7px 8px;font-size:.78rem;height:auto;}
 
 
   .procesos{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
@@ -155,8 +237,8 @@
     border-radius:20px;font-size:.85rem;font-weight:600;cursor:pointer;}
   .procesos button.active{background:var(--red);border-color:var(--red);color:#fff;}
   .procesos button .n{opacity:.65;font-weight:400;font-size:.76rem;margin-left:4px;}
-  .ajeno{background:#fff8e1;border:1px solid #f3e3ae;border-radius:6px;padding:5px 8px;
-    font-size:.7rem;color:#92660a;font-weight:600;margin-top:8px;}
+  .ajeno{background:var(--warn-bg);border:1px solid #f3e3ae;border-radius:6px;padding:5px 8px;
+    font-size:.7rem;color:var(--warn-text);font-weight:600;margin-top:8px;}
   .origen{font-size:.7rem;color:var(--text-dim);margin-top:8px;}
 
   /* ---- Control de máquinas ---- */
@@ -170,35 +252,35 @@
   .kpi .v{font-size:1.7rem;font-weight:800;line-height:1.1;}
   .kpi .l{font-size:.74rem;color:var(--text-dim);font-weight:600;margin-top:4px;}
   .kpi .m{font-size:.72rem;color:var(--text-dim);margin-top:2px;}
-  .kpi.ok .v{color:#1f9d55;} .kpi.warn .v{color:#92660a;} .kpi.bad .v{color:#c81d2e;}
+  .kpi.ok .v{color:var(--ok);} .kpi.warn .v{color:var(--warn-text);} .kpi.bad .v{color:var(--bad);}
 
   .maq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
   .maq{background:#fff;border:2px solid var(--border);border-radius:12px;padding:14px 16px;}
-  .maq.ok{border-color:#22c55e;background:#f2fcf6;}
-  .maq.warn{border-color:#f2b90b;background:#fffdf3;}
-  .maq.bad{border-color:#e53e3e;background:#fef6f6;}
+  .maq.ok{border-color:var(--ok);background:#f2fcf6;}
+  .maq.warn{border-color:var(--warn);background:#fffdf3;}
+  .maq.bad{border-color:var(--bad);background:#fef6f6;}
   .maq.off{opacity:.55;background:#f7f8fa;border-style:dashed;}
   .maq.sin{border-style:dashed;}
   .maq .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
   .maq .nom{font-weight:700;font-size:.92rem;}
   .maq .proc{font-size:.72rem;color:var(--text-dim);}
   .maq .pct{font-size:1.6rem;font-weight:800;margin:8px 0 2px 0;}
-  .maq.ok .pct{color:#1f9d55;} .maq.warn .pct{color:#92660a;} .maq.bad .pct{color:#c81d2e;}
+  .maq.ok .pct{color:var(--ok);} .maq.warn .pct{color:var(--warn-text);} .maq.bad .pct{color:var(--bad);}
   .maq .det{font-size:.75rem;color:var(--text-dim);line-height:1.5;}
   .maq .fila{display:flex;justify-content:space-between;gap:8px;}
   .maq .cfg{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .maq .cfg label{font-size:.66rem;margin-bottom:3px;}
-  .maq .cfg input{padding:6px 8px;font-size:.8rem;}
+  .maq .cfg input{padding:6px 8px;font-size:.8rem;height:auto;}
   .sw{position:relative;display:inline-block;width:40px;height:22px;flex:none;}
   .sw input{opacity:0;width:0;height:0;}
   .sw span{position:absolute;inset:0;background:#cbd2da;border-radius:22px;cursor:pointer;transition:.2s;}
   .sw span:before{content:"";position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;}
-  .sw input:checked + span{background:#22c55e;}
+  .sw input:checked + span{background:var(--ok);}
   .sw input:checked + span:before{transform:translateX(18px);}
 
   .rat-row{display:grid;grid-template-columns:1.4fr 1fr 110px 66px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:.84rem;}
   .rat-row .pr{color:var(--text-dim);font-size:.76rem;}
-  .rat-row input{padding:7px 8px;font-size:.85rem;}
+  .rat-row input{padding:7px 8px;font-size:.85rem;height:auto;}
   .rat-head{font-size:.7rem;color:var(--text-dim);font-weight:700;border-bottom:2px solid var(--border);}
   .prod-panel{background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px 22px;margin-bottom:16px;}
   .prod-head{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
@@ -213,8 +295,8 @@
   .pc3{border:1px solid var(--border);border-radius:12px;background:#fff;overflow:hidden;
        display:flex;flex-direction:column;min-height:158px;}
   .pc3 .accent{height:4px;background:#d5d9df;}
-  .pc3.verde .accent{background:#22c55e;} .pc3.roja .accent{background:#E2001A;}
-  .pc3.ok .accent{background:#22c55e;} .pc3.warn .accent{background:#f2b90b;} .pc3.bad .accent{background:#c81d2e;}
+  .pc3.verde .accent{background:var(--ok);} .pc3.roja .accent{background:#E2001A;}
+  .pc3.ok .accent{background:var(--ok);} .pc3.warn .accent{background:var(--warn);} .pc3.bad .accent{background:var(--bad);}
   .pc3 .body{padding:14px 16px;display:flex;flex-direction:column;flex:1;}
   .pc3 .tit{display:flex;align-items:center;gap:9px;margin-bottom:auto;}
   .pc3 .tit .ci{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex:none;background:#f2f4f7;}
@@ -224,16 +306,16 @@
   .pc3 .tit span{display:block;font-size:.72rem;color:var(--text-dim);margin-top:1px;}
   .pc3 .num{display:flex;align-items:baseline;gap:6px;margin:14px 0 6px 0;}
   .pc3 .num em{font-style:normal;font-size:2rem;font-weight:800;letter-spacing:-.5px;line-height:1;}
-  .pc3.verde .num em{color:#1f9d55;} .pc3.roja .num em{color:#c81d2e;}
-  .pc3.ok .num em{color:#1f9d55;} .pc3.warn .num em{color:#92660a;} .pc3.bad .num em{color:#c81d2e;}
+  .pc3.verde .num em{color:var(--ok);} .pc3.roja .num em{color:var(--bad);}
+  .pc3.ok .num em{color:var(--ok);} .pc3.warn .num em{color:var(--warn-text);} .pc3.bad .num em{color:var(--bad);}
   .pc3 .num i{font-style:normal;font-size:.76rem;color:var(--text-dim);}
   .pc3 .pie{font-size:.72rem;color:var(--text-dim);display:flex;justify-content:space-between;gap:8px;
             border-top:1px solid #f1f2f4;padding-top:9px;margin-top:auto;}
   .pc3 .pie b{color:var(--text);font-weight:700;}
   .pc3 .estado{display:inline-block;padding:3px 9px;border-radius:20px;font-size:.68rem;font-weight:700;}
-  .pc3 .estado.ok{background:#e8f8ef;color:#1f9d55;}
-  .pc3 .estado.warn{background:#fff8e1;color:#92660a;}
-  .pc3 .estado.bad{background:#fdeaea;color:#c81d2e;}
+  .pc3 .estado.ok{background:var(--ok-bg);color:var(--ok);}
+  .pc3 .estado.warn{background:var(--warn-bg);color:var(--warn-text);}
+  .pc3 .estado.bad{background:var(--bad-bg);color:var(--bad);}
   .pc3 input{width:100%;padding:9px 11px;font-size:1.05rem;font-weight:700;margin:12px 0 8px 0;}
   .pc3 .btn{padding:8px 14px;border-radius:7px;font-size:.78rem;font-weight:700;cursor:pointer;
             border:1px solid var(--border);background:#fff;color:var(--text);}
@@ -245,16 +327,16 @@
   .emp-box input{width:150px;padding:9px 10px;}
   .emp-box button{padding:9px 18px;border:none;border-radius:8px;background:var(--red);color:#fff;font-weight:700;font-size:.84rem;cursor:pointer;}
   .emp-box button.lite{background:#fff;color:var(--text);border:1px solid var(--border);}
-  .emp-guardado{background:var(--ok-bg,#e8f8ef);border:1px solid #c7ecd6;color:#1f9d55;
+  .emp-guardado{background:var(--ok-bg,var(--ok-bg));border:1px solid #c7ecd6;color:var(--ok);
     padding:8px 14px;border-radius:8px;font-weight:700;}
-  .emp-falta{background:#fff8e1;border:1px solid #f3e3ae;color:#92660a;padding:8px 14px;border-radius:8px;font-size:.8rem;}
+  .emp-falta{background:var(--warn-bg);border:1px solid #f3e3ae;color:var(--warn-text);padding:8px 14px;border-radius:8px;font-size:.8rem;}
   .emp-detalle{font-size:.78rem;color:var(--text-dim);}
 
   /* ---- Control: filtros y tarjetas de máquina ---- */
   .leyenda-sem{font-size:.72rem;color:var(--text-dim);display:flex;gap:14px;margin-left:auto;padding-left:16px;border-left:1px solid var(--border);}
   .leyenda-sem i{font-style:normal;display:inline-flex;align-items:center;gap:5px;}
   .leyenda-sem i::before{content:"";width:8px;height:8px;border-radius:50%;}
-  .leyenda-sem i.v::before{background:#22c55e;} .leyenda-sem i.a::before{background:#f2b90b;} .leyenda-sem i.r::before{background:#e53e3e;}
+  .leyenda-sem i.v::before{background:var(--ok);} .leyenda-sem i.a::before{background:var(--warn);} .leyenda-sem i.r::before{background:var(--bad);}
   .filtro-fila{display:flex;align-items:center;gap:14px;margin-bottom:9px;flex-wrap:wrap;}
   .filtro-et{font-size:.66rem;font-weight:800;color:var(--text-dim);letter-spacing:.6px;width:104px;flex:none;}
   .chips{display:flex;gap:7px;flex-wrap:wrap;}
@@ -292,8 +374,8 @@
   .mq-title h2{margin:0;font-size:1.35rem;}
   .mq-title p{margin:3px 0 0 0;font-size:.82rem;color:var(--text-dim);}
   .mq-badge{padding:7px 15px;border-radius:20px;font-size:.8rem;font-weight:800;}
-  .mq-badge.ok{background:#e8f8ef;color:#1f9d55;} .mq-badge.warn{background:#fff8e1;color:#92660a;}
-  .mq-badge.bad{background:#fdeaea;color:#c81d2e;} .mq-badge.sin{background:#eef0f3;color:#6b7280;}
+  .mq-badge.ok{background:var(--ok-bg);color:var(--ok);} .mq-badge.warn{background:var(--warn-bg);color:var(--warn-text);}
+  .mq-badge.bad{background:var(--bad-bg);color:var(--bad);} .mq-badge.sin{background:#eef0f3;color:#6b7280;}
   .mq.clic{cursor:pointer;} .mq.clic:hover{box-shadow:0 2px 8px rgba(0,0,0,.07);}
   .mq .ver{font-size:.66rem;color:var(--text-dim);text-decoration:underline;cursor:pointer;}
 
@@ -301,7 +383,7 @@
   .tbl-comp th{text-align:left;font-size:.7rem;color:var(--text-dim);padding:8px 6px;border-bottom:2px solid var(--border);}
   .tbl-comp td{padding:9px 6px;border-bottom:1px solid #f2f3f5;}
   .tbl-comp td.n,.tbl-comp th.n{text-align:right;}
-  .tbl-comp tr.yo{background:#fff8e1;}
+  .tbl-comp tr.yo{background:var(--warn-bg);}
   .tbl-comp tr.yo td{font-weight:700;}
   .tbl-comp tr.tot td{font-weight:800;background:#f8f9fb;border-top:2px solid var(--border);}
   .tbl-comp tr.gris td{color:var(--text-dim);font-style:italic;background:#fbfcfd;}
@@ -339,13 +421,13 @@
   .fnodo .nb{font-weight:700;font-size:.84rem;line-height:1.2;}
   .fnodo .mq{font-size:.72rem;color:var(--text-dim);margin-top:4px;}
   .fnodo .pctp{font-size:.86rem;font-weight:800;margin-top:5px;}
-  .fnodo .pctp.ok{color:#1f9d55;} .fnodo .pctp.warn{color:#92660a;}
-  .fnodo .pctp.bad{color:#c81d2e;} .fnodo .pctp.sin{color:#9aa5b1;font-weight:600;font-size:.75rem;}
+  .fnodo .pctp.ok{color:var(--ok);} .fnodo .pctp.warn{color:var(--warn-text);}
+  .fnodo .pctp.bad{color:var(--bad);} .fnodo .pctp.sin{color:#9aa5b1;font-weight:600;font-size:.75rem;}
   .fdot{position:absolute;top:9px;right:9px;width:11px;height:11px;border-radius:50%;}
-  .fdot.ok{background:#22c55e;} .fdot.warn{background:#f2b90b;} .fdot.bad{background:#e53e3e;} .fdot.sin{background:#c2c8d0;}
+  .fdot.ok{background:var(--ok);} .fdot.warn{background:var(--warn);} .fdot.bad{background:var(--bad);} .fdot.sin{background:#c2c8d0;}
   .fetq{position:absolute;top:-9px;left:50%;transform:translateX(-50%);font-size:.58rem;font-weight:800;
     padding:2px 8px;border-radius:20px;letter-spacing:.4px;white-space:nowrap;}
-  .fetq.co{background:#eef0f3;color:#6b7280;} .fetq.re{background:#fff4d6;color:#92660a;}
+  .fetq.co{background:#eef0f3;color:#6b7280;} .fetq.re{background:#fff4d6;color:var(--warn-text);}
   .fflecha{display:flex;align-items:center;color:#c2c8d0;font-size:1.15rem;padding:0 7px;flex:none;}
   .fnota{font-size:.68rem;color:var(--text-dim);text-align:center;margin-top:6px;max-width:132px;line-height:1.3;}
   .fresumen{display:flex;gap:20px;align-items:center;background:#f7f8fa;border:1px solid var(--border);
@@ -379,7 +461,7 @@
   .dia-acciones .cero{border:1px solid #bde3d1;background:#f2fbf7;color:#1f7a4d;border-radius:8px;
     padding:8px 13px;font-size:.79rem;font-weight:700;cursor:pointer;}
   .dia-acciones .cero:hover{background:#e6f6ee;}
-  .dia-acciones .cero:first-child{border-color:#1f9d55;background:#1f9d55;color:#fff;}
+  .dia-acciones .cero:first-child{border-color:var(--ok);background:var(--ok);color:#fff;}
   .dia-acciones .cero:first-child:hover{background:#1b8a4a;}
   .dia-cuenta{margin-left:auto;font-size:.79rem;color:var(--text-dim);}
   .dia-cuenta b{color:var(--text);}
@@ -423,12 +505,12 @@
     border:1px solid var(--border);border-left:4px solid #e1e4e9;border-radius:9px;background:#fff;padding:9px 11px;}
   .proc-chip .nm{flex:1;font-size:.8rem;font-weight:700;color:var(--text);line-height:1.2;}
   .proc-chip .ct{font-size:.71rem;font-weight:700;color:var(--text-dim);}
-  .proc-chip.ok{border-left-color:#1f9d55;background:#f5fdf8;}
+  .proc-chip.ok{border-left-color:var(--ok);background:#f5fdf8;}
   .proc-chip.parcial{border-left-color:#e0b90c;background:#fffdf3;}
-  .proc-chip.falta{border-left-color:#c81d2e;background:#fdf7f7;}
+  .proc-chip.falta{border-left-color:var(--bad);background:#fdf7f7;}
   .proc-chip.sel{border-color:var(--text);box-shadow:0 0 0 2px rgba(31,35,40,.12);}
   .pt{width:9px;height:9px;border-radius:50%;flex:none;background:#c7ccd3;display:inline-block;}
-  .pt.ok{background:#1f9d55;} .pt.parcial{background:#e0b90c;} .pt.falta{background:#c81d2e;}
+  .pt.ok{background:var(--ok);} .pt.parcial{background:#e0b90c;} .pt.falta{background:var(--bad);}
   .leyenda-proc{display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--text-dim);margin-left:auto;}
   .leyenda-proc .pt{margin-left:7px;}
   .leyenda-proc .pt:first-child{margin-left:0;}
@@ -438,19 +520,19 @@
   .ayer-b .n{font-size:.95rem;font-weight:700;color:var(--text);}
   .ayer-b .e{font-size:.78rem;font-weight:700;}
   .ayer-b .d{font-size:.72rem;color:var(--text-dim);margin-top:2px;}
-  .ayer-b.ok{border-left-color:#1f9d55;background:#f5fdf8;}
-  .ayer-b.ok .e{color:#1f9d55;}
+  .ayer-b.ok{border-left-color:var(--ok);background:#f5fdf8;}
+  .ayer-b.ok .e{color:var(--ok);}
   .ayer-b.parcial{border-left-color:#e0b90c;background:#fffdf5;}
-  .ayer-b.parcial .e{color:#92660a;}
-  .ayer-b.falta{border-left-color:#c81d2e;background:#fdf7f7;}
-  .ayer-b.falta .e{color:#c81d2e;}
+  .ayer-b.parcial .e{color:var(--warn-text);}
+  .ayer-b.falta{border-left-color:var(--bad);background:#fdf7f7;}
+  .ayer-b.falta .e{color:var(--bad);}
   .ayer-b.sel{box-shadow:0 0 0 2px rgba(226,0,26,.28);}
   .ayer-b:hover{border-color:#c9ced6;}
   .ec-leyenda{display:flex;gap:20px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);
     font-size:.76rem;color:var(--text-dim);}
   .ec-leyenda span{display:inline-flex;align-items:center;gap:7px;}
   .ec-leyenda .pt{width:13px;height:13px;border-radius:4px;flex:none;}
-  .ec-leyenda .pt.ok{background:#22c55e;} .ec-leyenda .pt.falta{background:#f6c9cd;border:1px solid #e53e3e;}
+  .ec-leyenda .pt.ok{background:var(--ok);} .ec-leyenda .pt.falta{background:#f6c9cd;border:1px solid var(--bad);}
   .ec-leyenda .pt.na{background:#eef0f3;}
   .tbl-ec{width:100%;border-collapse:collapse;font-size:.8rem;}
   .tbl-ec th{font-size:.68rem;color:var(--text-dim);padding:7px 4px;border-bottom:2px solid var(--border);text-align:center;}
@@ -459,8 +541,8 @@
   .tbl-ec td.d{text-align:left;white-space:nowrap;}
   .tbl-ec td.d span{color:var(--text-dim);font-size:.7rem;text-transform:uppercase;}
   .tbl-ec .cel{display:inline-block;width:26px;height:20px;border-radius:5px;line-height:20px;font-size:.66rem;font-weight:800;}
-  .tbl-ec .cel.ok{background:#dcf5e6;color:#1f9d55;}
-  .tbl-ec .cel.falta{background:#fdeaea;color:#c81d2e;border:1px dashed #e53e3e;cursor:pointer;}
+  .tbl-ec .cel.ok{background:#dcf5e6;color:var(--ok);}
+  .tbl-ec .cel.falta{background:var(--bad-bg);color:var(--bad);border:1px dashed var(--bad);cursor:pointer;}
   .tbl-ec .cel.na{background:#f4f5f7;color:#c2c8d0;}
   .tbl-ec tr.hoy{background:#fffdf3;}
   .tbl-ec .sep{border-left:2px solid var(--border);}
@@ -481,8 +563,8 @@
   .tbl-total td.n,.tbl-total th.n{text-align:right;}
   .tbl-total input{width:110px;padding:7px 9px;text-align:right;font-weight:700;}
   .tbl-total tfoot td{font-weight:800;background:#f8f9fb;border-top:2px solid var(--border);padding:9px 6px;}
-  .tbl-total .sc{color:#92660a;font-weight:700;}
-  .tbl-total .neg{color:#c81d2e;font-weight:700;}
+  .tbl-total .sc{color:var(--warn-text);font-weight:700;}
+  .tbl-total .neg{color:var(--bad);font-weight:700;}
   .grp{margin-top:16px;}
   .grp-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
     border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:10px;flex-wrap:wrap;}
@@ -490,11 +572,11 @@
   .grp-head .gc{font-size:.72rem;color:var(--text-dim);font-weight:400;margin-left:7px;}
   .grp-head .gr{font-size:.72rem;color:var(--text-dim);}
   .grp-head .gr b{font-size:.85rem;margin:0 4px;}
-  .grp-head .gr b.ok{color:#1f9d55;} .grp-head .gr b.warn{color:#92660a;} .grp-head .gr b.bad{color:#c81d2e;}
+  .grp-head .gr b.ok{color:var(--ok);} .grp-head .gr b.warn{color:var(--warn-text);} .grp-head .gr b.bad{color:var(--bad);}
 
   .grp-head .gr{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
   .sep-v{width:1px;height:14px;background:var(--border);display:inline-block;}
-  .sin-clas{background:#fff8e1;border:1px solid #f3e3ae;color:#92660a;padding:2px 9px;border-radius:20px;
+  .sin-clas{background:var(--warn-bg);border:1px solid #f3e3ae;color:var(--warn-text);padding:2px 9px;border-radius:20px;
     font-size:.7rem;font-weight:700;}
   .mini-cap{border:1px dashed var(--border);background:#fff;color:var(--red);font-size:.68rem;font-weight:700;
     padding:2px 9px;border-radius:6px;cursor:pointer;margin-left:2px;}
@@ -505,29 +587,29 @@
   @media(max-width:1050px){.mq-grid{grid-template-columns:repeat(2,1fr);}}
   @media(max-width:680px){.mq-grid{grid-template-columns:1fr;}}
   .mq{border:1px solid var(--border);border-left:4px solid #d5d9df;border-radius:8px;padding:10px 13px;background:#fff;}
-  .mq.ok{border-color:#bfe8cf;border-left-color:#22c55e;background:#f4fdf7;}
-  .mq.warn{border-color:#f3e3ae;border-left-color:#f2b90b;background:#fffdf4;}
-  .mq.bad{border-color:#f6c9cd;border-left-color:#e53e3e;background:#fef6f6;}
+  .mq.ok{border-color:#bfe8cf;border-left-color:var(--ok);background:#f4fdf7;}
+  .mq.warn{border-color:#f3e3ae;border-left-color:var(--warn);background:#fffdf4;}
+  .mq.bad{border-color:#f6c9cd;border-left-color:var(--bad);background:#fef6f6;}
   .mq.sin{border-left-color:#c2c8d0;background:#fafbfc;}
   .mq.off{opacity:.6;border-style:dashed;}
   .mq .r1{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:7px;}
   .mq .nm{font-weight:700;font-size:.85rem;display:flex;align-items:center;gap:8px;}
   .mq .pc{font-size:1.28rem;font-weight:800;line-height:1;}
-  .mq.ok .pc{color:#1f9d55;} .mq.warn .pc{color:#92660a;} .mq.bad .pc{color:#c81d2e;}
+  .mq.ok .pc{color:var(--ok);} .mq.warn .pc{color:var(--warn-text);} .mq.bad .pc{color:var(--bad);}
   .mq.sin .pc{color:#8b939e;font-size:1rem;}
   .mq .r2{display:flex;justify-content:space-between;align-items:center;gap:10px;}
   .mq .dt{font-size:.73rem;color:var(--text-dim);}
   .mq .dt b{color:var(--text);font-size:.82rem;}
   .mq .dt .sep{margin:0 7px;color:#d5d9df;}
   .mq .pill{font-size:.62rem;font-weight:800;letter-spacing:.4px;padding:4px 9px;border-radius:5px;white-space:nowrap;}
-  .mq.ok .pill{background:#e3f7ec;color:#1f9d55;} .mq.warn .pill{background:#fff4d6;color:#92660a;}
-  .mq.bad .pill{background:#fde3e3;color:#c81d2e;} .mq.sin .pill{background:#eef0f3;color:#6b7280;cursor:pointer;}
+  .mq.ok .pill{background:#e3f7ec;color:var(--ok);} .mq.warn .pill{background:#fff4d6;color:var(--warn-text);}
+  .mq.bad .pill{background:#fde3e3;color:var(--bad);} .mq.sin .pill{background:#eef0f3;color:#6b7280;cursor:pointer;}
   .mq.off .pill{background:#eef0f3;color:#6b7280;}
   .sw2{position:relative;display:inline-block;width:34px;height:19px;flex:none;}
   .sw2 input{opacity:0;width:0;height:0;}
   .sw2 span{position:absolute;inset:0;background:#cbd2da;border-radius:19px;cursor:pointer;transition:.15s;}
   .sw2 span:before{content:"";position:absolute;height:13px;width:13px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.15s;}
-  .sw2 input:checked + span{background:#22c55e;}
+  .sw2 input:checked + span{background:var(--ok);}
   .sw2 input:checked + span:before{transform:translateX(15px);}
 
   /* ---- Control: layout de 3 columnas ---- */
@@ -574,12 +656,12 @@
   .pc-card .rt span{font-size:.68rem;color:var(--text-dim);}
   .barra{height:8px;border-radius:5px;background:#e9ecf0;overflow:hidden;display:flex;margin-bottom:9px;}
   .barra i{display:block;height:100%;}
-  .barra i.g{background:#22c55e;} .barra i.a{background:#f2b90b;} .barra i.r{background:#e53e3e;} .barra i.n{background:#c8ced6;}
+  .barra i.g{background:var(--ok);} .barra i.a{background:var(--warn);} .barra i.r{background:var(--bad);} .barra i.n{background:#c8ced6;}
   .dots{display:flex;gap:13px;font-size:.74rem;color:var(--text);}
   .dots span{display:inline-flex;align-items:center;gap:5px;font-weight:700;}
   .dots span::before{content:"";width:9px;height:9px;border-radius:50%;}
-  .dots span.g::before{background:#22c55e;} .dots span.a::before{background:#f2b90b;}
-  .dots span.r::before{background:#e53e3e;} .dots span.n::before{background:#c8ced6;}
+  .dots span.g::before{background:var(--ok);} .dots span.a::before{background:var(--warn);}
+  .dots span.r::before{background:var(--bad);} .dots span.n::before{background:#c8ced6;}
 
   .det-head{border-radius:11px;padding:13px 14px;margin-bottom:14px;background:#fef7f7;border:1px solid #f6c9cd;}
   .det-head .top{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;}
@@ -591,13 +673,13 @@
   .det-lista h5{margin:0 0 6px 0;font-size:.86rem;border-bottom:1px solid var(--border);padding-bottom:7px;}
   .mrow{display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid #f2f3f5;cursor:default;}
   .mrow .dot{width:11px;height:11px;border-radius:50%;flex:none;}
-  .mrow .dot.g{background:#22c55e;} .mrow .dot.a{background:#f2b90b;}
-  .mrow .dot.r{background:#e53e3e;} .mrow .dot.n{background:#c8ced6;}
+  .mrow .dot.g{background:var(--ok);} .mrow .dot.a{background:var(--warn);}
+  .mrow .dot.r{background:var(--bad);} .mrow .dot.n{background:#c8ced6;}
   .mrow .info{flex:1;min-width:0;}
   .mrow .info b{display:block;font-size:.85rem;}
   .mrow .info span{font-size:.72rem;color:var(--text-dim);}
   .mrow .pct{font-weight:800;font-size:.9rem;white-space:nowrap;}
-  .mrow .pct.g{color:#1f9d55;} .mrow .pct.a{color:#92660a;} .mrow .pct.r{color:#c81d2e;} .mrow .pct.n{color:#8b939e;font-size:.8rem;}
+  .mrow .pct.g{color:var(--ok);} .mrow .pct.a{color:var(--warn-text);} .mrow .pct.r{color:var(--bad);} .mrow .pct.n{color:#8b939e;font-size:.8rem;}
   .mrow .sw2{margin-left:4px;}
   .btn-detproc{width:100%;margin-top:14px;padding:11px;border:1px solid var(--border);border-radius:9px;background:#fff;
     font-weight:700;font-size:.84rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;}
@@ -624,9 +706,9 @@
   .kc .ic{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex:none;background:#fdeceb;}
   .kc .v{font-size:1.75rem;font-weight:800;line-height:1;}
   .kc .s{font-size:.72rem;color:var(--text-dim);margin-top:4px;}
-  .kc.ok .v{color:#1f9d55;} .kc.warn .v{color:#92660a;} .kc.bad .v{color:#c81d2e;}
+  .kc.ok .v{color:var(--ok);} .kc.warn .v{color:var(--warn-text);} .kc.bad .v{color:var(--bad);}
   .kc .prog{height:7px;background:#eceef1;border-radius:5px;overflow:hidden;margin-top:7px;}
-  .kc .prog i{display:block;height:100%;background:#22c55e;}
+  .kc .prog i{display:block;height:100%;background:var(--ok);}
 
   .dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px;}
   @media(max-width:1000px){.dash-grid{grid-template-columns:1fr;}}
@@ -649,7 +731,7 @@
   .donut-leg b{display:block;} .donut-leg span{color:var(--text-dim);font-size:.76rem;}
   .donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
   .donut-center b{font-size:1.4rem;} .donut-center span{font-size:.68rem;color:var(--text-dim);}
-  .aviso{background:#fff8e1;border:1px solid #f3e3ae;border-radius:8px;padding:10px 12px;font-size:.78rem;color:#92660a;margin-bottom:16px;}
+  .aviso{background:var(--warn-bg);border:1px solid #f3e3ae;border-radius:8px;padding:10px 12px;font-size:.78rem;color:var(--warn-text);margin-bottom:16px;}
 
   .barra-fija{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);
     padding:12px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;z-index:20;box-shadow:0 -2px 10px rgba(0,0,0,.05);}
@@ -718,10 +800,38 @@
 <section id="viewRegistro">
   <div class="panel cab-reg">
     <div class="cab-txt">
-      <h1>Registro de auditoría</h1>
-      <p>Selecciona el producto, el proceso y el puesto para ver el catálogo de defectos.</p>
+      <h1 id="cabTitulo">Registro de desperdicio</h1>
+      <p id="cabSub">Primero di qué tipo de registro estás haciendo.</p>
     </div>
     <div class="ruta" id="rutaPasos"></div>
+  </div>
+
+  <!-- ====================== PASO 0 · TIPO DE REGISTRO ======================
+       Las dos formas de recoger desperdicio cuentan LAS MISMAS PIEZAS: lo que
+       el patinador pesa al final del turno ya pasó por las máquinas que calidad
+       auditó durante el turno. Por eso nunca se suman, y por eso el tipo se
+       decide ANTES que nada: de él dependen la máquina (sólo auditoría), el
+       PIN (sólo auditoría) y cómo se totaliza después.
+       ===================================================================== -->
+  <div class="panel paso" id="paso0">
+    <div class="paso-cab"><span class="num">0</span>
+      <div><b>Tipo de registro</b><span>Quién registra y cómo. De esto depende todo lo demás.</span></div>
+    </div>
+    <div class="tipos" id="tipos">
+      <button type="button" class="tipo-card" data-tipo="recoleccion">
+        <span class="ic">📦</span>
+        <b>Recolección de turno</b>
+        <span class="d">El patinador cuenta lo recogido al final del turno, por proceso y referencia.
+          <u>No pide máquina</u>, porque no hay forma de saber de cuál salió.</span>
+      </button>
+      <button type="button" class="tipo-card" data-tipo="auditoria">
+        <span class="ic">🔍</span>
+        <b>Auditoría de puesto</b>
+        <span class="d">Calidad recorre máquina por máquina durante el turno.
+          Pide <u>máquina</u> y <u>PIN</u>, y queda firmada.</span>
+      </button>
+    </div>
+    <div class="aviso-tipo" id="avisoTipo" style="display:none;"></div>
   </div>
 
   <div class="panel paso" id="paso1">
@@ -746,8 +856,13 @@
       <span class="ic">⚙</span>
       <select id="puesto"><option value="">Selecciona un puesto</option></select>
     </div>
+    <!-- Recorrido del proceso: a medida que cada máquina se cierra desaparece
+         de los pendientes. Una máquina sin desperdicio NO es lo mismo que una
+         que no trabajó: la primera entra al denominador con cero, la segunda
+         queda fuera. Si se mezclaran, el reparto por participación saldría mal. -->
+    <div class="recorrido" id="recorrido" style="display:none;"></div>
     <div class="puesto-hint" id="puestoHint">
-      Al terminar este puesto, guarda y cambia de puesto o de proceso para continuar la auditoría.
+      Al terminar esta máquina, la app te pregunta si hay más desperdicio con otra referencia.
     </div>
   </div>
 
@@ -756,6 +871,7 @@
       Escribe la cantidad en cada defecto que encuentres en este puesto. Cada defecto muestra su <b>origen típico</b>; si el defecto llegó desde otro proceso queda marcado con ⚠.
     </div>
     <div class="buscador-row">
+      <input type="text" id="observacion" maxlength="150" placeholder="Observación (opcional)" style="max-width:260px;">
       <input type="text" id="buscador" placeholder="Buscar defecto por código o nombre...">
       <span class="contador" id="contadorDefectos"></span>
       <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
@@ -804,12 +920,24 @@
           <option value="3">Turno 3 (22:00–6:00)</option>
         </select>
       </div>
+      <div>
+        <label for="kTipo">Origen de los datos *</label>
+        <select id="kTipo" class="tv-sel">
+          <option value="auditoria">Auditoría de puesto</option>
+          <option value="recoleccion">Recolección de turno</option>
+        </select>
+      </div>
       <button id="kActualizar">Actualizar</button>
       <button class="sec" id="kConfig">Editar ratios</button>
     </div>
     <div style="font-size:.76rem;color:var(--text-dim);margin-top:10px;" id="kInfoTurno"></div>
     <div style="font-size:.72rem;color:var(--text-dim);margin-top:4px;" id="kEstadoRatios"></div>
   </div>
+
+  <!-- Reparto: lo único que une honestamente los dos registros. La recolección
+       dice CUÁNTO hubo de verdad; la auditoría, en qué proporción se repartió
+       entre máquinas. No se suman: una da el total, la otra los pesos. -->
+  <div id="zonaReparto"></div>
 
   <div id="zonaFlujo" style="display:none;">
     <div class="panel">
@@ -1013,6 +1141,13 @@
           <option value="3">Turno 3 (Noche)</option>
         </select>
       </div>
+      <div>
+        <label for="dTipo">Origen de los datos *</label>
+        <select id="dTipo" class="tv-sel">
+          <option value="auditoria">Auditoría de puesto</option>
+          <option value="recoleccion">Recolección de turno</option>
+        </select>
+      </div>
       <button id="dActualizar">Actualizar</button>
       <button id="dPdf" style="background:#fff;color:var(--text);border:1px solid var(--border);">📄 Reporte PDF</button>
     </div>
@@ -1031,11 +1166,52 @@
     <div class="resumen">Total: <b id="totalPiezas">0</b> piezas · <span id="totalDefectos">0</span> defecto(s)</div>
     <div class="contexto" id="contextoBarra">—</div>
   </div>
-  <div class="obs"><input type="text" id="observacion" maxlength="150" placeholder="Observación (opcional)"></div>
+  <!-- La referencia ocupa el sitio donde antes iba la observación: es lo que
+       de verdad hay que decir en cada carga, y sin ella el desperdicio no se
+       puede repartir luego entre productos. La observación sigue existiendo,
+       pero arriba, junto al catálogo, que es donde estorba menos. -->
+  <div class="obs">
+    <select id="referencia"><option value="">Referencia *</option></select>
+  </div>
   <button id="btnRegistrar" disabled>Registrar desperdicio</button>
 </div>
 
 
+
+<!-- Identificación para auditar. La recolección no pasa por aquí: el patinador
+     registra sin entrar, que es lo que se decidió para no frenarlo en planta. -->
+<div class="modal-bg" id="pinModal">
+  <div class="modal" style="max-width:420px;">
+    <h3 style="margin-top:0;">Auditoría de puesto</h3>
+    <p>La auditoría queda firmada con tu nombre. Entra con tu PIN.</p>
+    <div style="margin-bottom:12px;">
+      <label for="pinUsuario">Quién audita</label>
+      <select id="pinUsuario"><option value="">Selecciona tu nombre</option></select>
+    </div>
+    <div style="margin-bottom:4px;">
+      <label for="pinClave">PIN</label>
+      <input type="password" id="pinClave" inputmode="numeric" autocomplete="off" placeholder="····">
+    </div>
+    <div id="pinError" class="pin-error" style="display:none;"></div>
+    <div class="modal-actions">
+      <button id="pinCancelar">Cancelar</button>
+      <button class="primary" id="pinEntrar">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Después de guardar en una máquina: o va otra referencia de la misma
+     máquina, o la máquina se cierra y sale de los pendientes. -->
+<div class="modal-bg" id="masModal">
+  <div class="modal" style="max-width:460px;">
+    <h3 style="margin-top:0;">Guardado</h3>
+    <p id="masTxt">¿Hay más desperdicio en esta máquina, con otra referencia?</p>
+    <div class="modal-actions">
+      <button class="primary" id="masSi">Sí, otra referencia</button>
+      <button id="masNo">No, terminar esta máquina</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal-bg" id="syncModal">
   <div class="modal">
@@ -1094,12 +1270,76 @@ function rutaLinea(nombre){ return "imagenes/" + nombre + ".png"; }
 /* Líneas cuya foto no existe: se anotan una vez y no se vuelven a pedir. */
 const SIN_FOTO = {};
 
+/* Código de esta app. Se compara con el que devuelve la hoja para saber si
+   un dispositivo se quedó con una versión vieja en caché; sin esto no hay
+   forma de verlo desde la pantalla. */
+const APP_VERSION = "2026-11-05-tipos";
+
+/* Catálogo de referencias, el mismo de Control de Proceso. Las líneas de allá
+   son las familias de aquí, así que entra tal cual. */
+const REFERENCIAS = {"Limas":[{"n":"454041","d":"LIMA 4041-4.5"},{"n":"4540412","d":"LIMA 4041-4.5 CM"},{"n":"840551B","d":"LIMA 4055-8 B"},{"n":"840551D","d":"LIMA 4055-8 DC"},{"n":"840552D","d":"LIMA 4055-8 DC MP BELLOTA"},{"n":"840552","d":"LIMA 4055-8 MP"},{"n":"064083MX","d":"LIMA 4083 DE-6 MANGO MADERA MEXICO"},{"n":"084083MX","d":"LIMA 4083 DE-8 MANGO MADERA MEXICO"},{"n":"084083MPMX","d":"LIMA 4083 DE-8 MANGO PLASTICO MEXICO"},{"n":"094083MX","d":"LIMA 4083 DE-9 MANGO MADERA MEXICO"},{"n":"104083","d":"LIMA 4083DE-10 MANGO DE MADERA"},{"n":"104083MP","d":"LIMA 4083DE-10 MANGO PLASTICO"},{"n":"064083","d":"LIMA 4083DE-6 MANGO DE MADERA"},{"n":"064083MP","d":"LIMA 4083DE-6 MANGO PLASTICO"},{"n":"074083","d":"LIMA 4083DE-7 MANGO DE MADERA"},{"n":"074083MP","d":"LIMA 4083DE-7 MANGO PLASTICO"},{"n":"084083","d":"LIMA 4083DE-8 MANGO DE MADERA"},{"n":"084083MP","d":"LIMA 4083DE-8 MANGO PLASTICO"},{"n":"094083","d":"LIMA 4083DE-9 MANGO DE MADERA"},{"n":"094083MP","d":"LIMA 4083DE-9 MANGO PLASTICO"},{"n":"440872","d":"LIMA 4087-4 CM"},{"n":"540871","d":"LIMA 4087-5"},{"n":"540872","d":"LIMA 4087-5 CM"},{"n":"640871","d":"LIMA 4087-6"},{"n":"640872","d":"LIMA 4087-6 CM"},{"n":"640872KIT","d":"LIMA 4087-6 CM KIT"},{"n":"740871","d":"LIMA 4087-7"},{"n":"740872","d":"LIMA 4087-7 CM"},{"n":"840871","d":"LIMA 4087-8"},{"n":"840872","d":"LIMA 4087-8 CM"},{"n":"840872KIT","d":"LIMA 4087-8 CM KIT"},{"n":"940872","d":"LIMA 4087-9 CM"},{"n":"652397","d":"LIMA 52397-6 CM TIB"},{"n":"652397KIT","d":"LIMA 52397-6 KIT TIBURON"},{"n":"074083MX","d":"LIMA DE 4083-7 MANGO MADERA MEXICO"}],"Machetes":[{"n":"MAC200164NQCSR","d":"164 -20 BARRIGON NQCSR"},{"n":"MAC220164NQCSR","d":"164 -22\" BARRIGON NQCSR"},{"n":"MAC180721NQCSR","d":"721-18 TRES CANALES NQCSR"},{"n":"MAC200721NQCSR","d":"721-20 TRES CANALES NQCSR"},{"n":"MAC220721NQCSR","d":"721-22 TRES CANALES NQCSR"},{"n":"MAC180164NQCSR","d":"MAC180164NQCSR"},{"n":"MAC10026PMMD","d":"MACHETE 026-10 PMM DUA"},{"n":"MAC10026PMMSS","d":"MACHETE 026-10 PMMSS"},{"n":"MAC10026PPND","d":"MACHETE 026-10 PPN DUA"},{"n":"MAC12026PMMD","d":"MACHETE 026-12 PMM DUA"},{"n":"MAC12026PMMSS","d":"MACHETE 026-12 PMMSS"},{"n":"MAC12026PPND","d":"MACHETE 026-12 PPN DUA"},{"n":"MAC14026PMMD","d":"MACHETE 026-14 PMM DUA"},{"n":"MAC14026PMMSS","d":"MACHETE 026-14 PMMSS"},{"n":"MAC14026PPND","d":"MACHETE 026-14 PPN DUA"},{"n":"MAC16026PMMD","d":"MACHETE 026-16 PMM DUA"},{"n":"MAC16026PMMSS","d":"MACHETE 026-16 PMMSS"},{"n":"MAC16026PPND","d":"MACHETE 026-16 PPN DUA"},{"n":"MAC18026PMMD","d":"MACHETE 026-18 PMM DUA"},{"n":"MAC18026PMMSS","d":"MACHETE 026-18 PMMSS"},{"n":"MAC18026PPND","d":"MACHETE 026-18 PPN DUA"},{"n":"MAC20026PMMD","d":"MACHETE 026-20 PMM DUA"},{"n":"MAC20026PMMSS","d":"MACHETE 026-20 PMMSS"},{"n":"MAC20026PPND","d":"MACHETE 026-20 PPN DUA"},{"n":"MAC22026PMMD","d":"MACHETE 026-22 PMM DUA"},{"n":"MAC22026PMMSS","d":"MACHETE 026-22 PMMSS"},{"n":"MAC22026PPND","d":"MACHETE 026-22 PPN DUA"},{"n":"141001","d":"MACHETE 1001-14 NMM"},{"n":"141002","d":"MACHETE 1002-14 NMM"},{"n":"141002P","d":"MACHETE 1002-14 PMM"},{"n":"141002NMX","d":"MACHETE 1002-14NMMMX"},{"n":"141004","d":"MACHETE 1004-14 NMM"},{"n":"180104NBM","d":"MACHETE 104-18 NBM"},{"n":"180104P","d":"MACHETE 104-18 PMM"},{"n":"200104NBM","d":"MACHETE 104-20 NBM"},{"n":"200104P","d":"MACHETE 104-20 PMM"},{"n":"220104NBM","d":"MACHETE 104-22 NBM"},{"n":"220104NCPAT","d":"MACHETE 104-22 NCPA TIBURON"},{"n":"220104N","d":"MACHETE 104-22 NMM"},{"n":"220104P","d":"MACHETE 104-22 PMM"},{"n":"220104NBMKIT6","d":"MACHETE 104-22\" NBM KIT LIMA 6"},{"n":"240104NBM","d":"MACHETE 104-24 NBM"},{"n":"240104N","d":"MACHETE 104-24 NMM"},{"n":"201082BM","d":"MACHETE 1082-20 RBM"},{"n":"221082BM","d":"MACHETE 1082-22 RBM"},{"n":"221085","d":"MACHETE 1085B-22 NPR"},{"n":"221085MX","d":"MACHETE 1085B-22 NPRMX"},{"n":"221085GBM","d":"MACHETE 1085G-22 NBM"},{"n":"221085GMX","d":"MACHETE 1085G-22 NPRMX"},{"n":"241173R","d":"MACHETE 1173-24 PPR"},{"n":"271173R","d":"MACHETE 1173-27 PPR"},{"n":"100127SA","d":"MACHETE 127-10 PPNSA"},{"n":"120127SA","d":"MACHETE 127-12 PPNSA"},{"n":"MAC170127KIT6T","d":"MACHETE 127-17 PPN KIT LIMA 6 TIB"},{"n":"MAC220127KIT6T","d":"MACHETE 127-22 PPN KIT LIMA 6 TIB"},{"n":"160127FBM","d":"MACHETE 127F-16 PBM"},{"n":"180127FBM","d":"MACHETE 127F-18 PBM"},{"n":"200127FBM","d":"MACHETE 127F-20 PBM"},{"n":"220127FBM","d":"MACHETE 127F-22 PBM"},{"n":"220127F24","d":"MACHETE 127F-22 PPN-2.4"},{"n":"220127FBMMX","d":"MACHETE 127F-22PBMMX"},{"n":"240127FBM","d":"MACHETE 127F-24 PBM"},{"n":"120127BMMX","d":"MACHETE 127H-12 PBMMX"},{"n":"120127RMX","d":"MACHETE 127H-12 PPRMX"},{"n":"140127BM","d":"MACHETE 127H-14 PBM"},{"n":"140127BMMX","d":"MACHETE 127H-14 PBMMX"},{"n":"160127BM","d":"MACHETE 127H-16 PBM"},{"n":"160127BMMX","d":"MACHETE 127H-16 PBMMX"},{"n":"160127","d":"MACHETE 127H-16 PPN"},{"n":"170127BM","d":"MACHETE 127H-17 PBM"},{"n":"170127","d":"MACHETE 127H-17 PPN"},{"n":"180127BMMX","d":"MACHETE 127H-18 PBMMX"},{"n":"180127","d":"MACHETE 127H-18 PPN"},{"n":"180127RMX","d":"MACHETE 127H-18 PPRMX"},{"n":"200127BMMX","d":"MACHETE 127H-20 PBMMX"},{"n":"200127","d":"MACHETE 127H-20 PPN"},{"n":"220127BM","d":"MACHETE 127H-22 PBM"},{"n":"220127","d":"MACHETE 127H-22 PPN"},{"n":"240127BMMX","d":"MACHETE 127H-24 PBMMX"},{"n":"240127","d":"MACHETE 127H-24 PPN"},{"n":"240127RMX","d":"MACHETE 127H-24 PPRMX"},{"n":"260127BMMX","d":"MACHETE 127H-26 PBMMX"},{"n":"280127RMX","d":"MACHETE 127H-28 PPRMX"},{"n":"120128F","d":"MACHETE 128F-12 PPN"},{"n":"MAC120128FKIT6T","d":"MACHETE 128F-12 PPN KIT LIMA 6 TIB"},{"n":"140128F","d":"MACHETE 128F-14 PPN"},{"n":"160128F","d":"MACHETE 128F-16 PPN"},{"n":"180128F","d":"MACHETE 128F-18 PPN"},{"n":"MAC180128FKIT6T","d":"MACHETE 128F-18 PPN KIT LIMA 6 TIB"},{"n":"200128F","d":"MACHETE 128F-20 PPN"},{"n":"220128FBM","d":"MACHETE 128F-22 PBM"},{"n":"220128F","d":"MACHETE 128F-22 PPN"},{"n":"240128F","d":"MACHETE 128F-24 PPN"},{"n":"MAC240128FKIT6T","d":"MACHETE 128F-24 PPN KIT LIMA 6 TIB"},{"n":"140164NQBM","d":"MACHETE 164-14 NQBM"},{"n":"160164NQBM","d":"MACHETE 164-16 NQBM"},{"n":"180164NQBM","d":"MACHETE 164-18 NQBM"},{"n":"180164BM","d":"MACHETE 164-18 PBM"},{"n":"180164BMKIT6","d":"MACHETE 164-18 PBM KIT6"},{"n":"180164BMKIT8","d":"MACHETE 164-18 PBM KIT8"},{"n":"180164BMMX","d":"MACHETE 164-18 PBMMX"},{"n":"MAC180164PCSR","d":"MACHETE 164-18 PCSR"},{"n":"180164PPNT","d":"MACHETE 164-18 PPN TIBURON"},{"n":"180164","d":"MACHETE 164-18 PPR"},{"n":"200164NQBM","d":"MACHETE 164-20 NQBM"},{"n":"200164BM","d":"MACHETE 164-20 PBM"},{"n":"200164BMMX","d":"MACHETE 164-20 PBMMX"},{"n":"MAC200164PCSR","d":"MACHETE 164-20 PCSR"},{"n":"200164PPNT","d":"MACHETE 164-20 PPN TIBURON"},{"n":"220164NQBM","d":"MACHETE 164-22 NQBM"},{"n":"220164BM","d":"MACHETE 164-22 PBM"},{"n":"220164BMMX","d":"MACHETE 164-22 PBMMX"},{"n":"MAC220164PCSR","d":"MACHETE 164-22 PCSR"},{"n":"220164PPNT","d":"MACHETE 164-22 PPN TIBURON"},{"n":"200165GNEBM","d":"MACHETE 165-20 PUL GNEBM"},{"n":"181778NBM","d":"MACHETE 1778-18 NBM"},{"n":"181778N","d":"MACHETE 1778-18 NMM"},{"n":"201778NBMB","d":"MACHETE 1778-20 NBMB"},{"n":"201778N","d":"MACHETE 1778-20 NMM"},{"n":"201778NB","d":"MACHETE 1778-20 NMM"},{"n":"201778PBMB","d":"MACHETE 1778-20 PBM"},{"n":"201778P","d":"MACHETE 1778-20 PMM"},{"n":"221778NBM","d":"MACHETE 1778-22 NBM"},{"n":"221778N","d":"MACHETE 1778-22 NMM"},{"n":"241778N","d":"MACHETE 1778-24 NMM"},{"n":"210191NE","d":"MACHETE 191-21 PPNSA"},{"n":"240191BM","d":"MACHETE 191-24 PBM"},{"n":"240191NE","d":"MACHETE 191-24 PPN/SA"},{"n":"240191PPNET","d":"MACHETE 191-24 PPNE TIBURON"},{"n":"240191E","d":"MACHETE 191-24 PPR/SA"},{"n":"240191NED","d":"MACHETE 191-24\" PPN DESHIJADOR"},{"n":"240191BBM","d":"MACHETE 191B-24 PBM2.2"},{"n":"240191BE","d":"MACHETE 191B-24 PPN/SA"},{"n":"140241NCM310","d":"MACHETE 241-14 NCM310"},{"n":"140241NCM310SS","d":"MACHETE 241-14 NCM310SS"},{"n":"140241NCM400","d":"MACHETE 241-14 NCM400"},{"n":"140243NCM310SS","d":"MACHETE 243-14 NCM 310 SIN SELLO"},{"n":"140243NCM270","d":"MACHETE 243-14 NCM270"},{"n":"140243NCM310","d":"MACHETE 243-14 NCM310"},{"n":"120031BM","d":"MACHETE 31-12 RBM"},{"n":"120031","d":"MACHETE 31-12 RPN"},{"n":"140031BM","d":"MACHETE 31-14 RBM"},{"n":"140031","d":"MACHETE 31-14 RPN"},{"n":"160031BM","d":"MACHETE 31-16 RBM"},{"n":"160031","d":"MACHETE 31-16 RPN"},{"n":"180031BM","d":"MACHETE 31-18 RBM"},{"n":"180031","d":"MACHETE 31-18 RPN"},{"n":"200031BM","d":"MACHETE 31-20 RBM"},{"n":"200031","d":"MACHETE 31-20 RPN"},{"n":"220031BM","d":"MACHETE 31-22 RBM"},{"n":"220031","d":"MACHETE 31-22 RPN"},{"n":"180031W","d":"MACHETE 31W23-18 PMM"},{"n":"180031WB","d":"MACHETE 31W23-18 PMM"},{"n":"200031WB","d":"MACHETE 31W23-20 PMM"},{"n":"220031WB","d":"MACHETE 31W23-22 PMM"},{"n":"140350P","d":"MACHETE 350-14 PMM"},{"n":"160350P","d":"MACHETE 350-16 PMM"},{"n":"180350P","d":"MACHETE 350-18 PMM"},{"n":"200350P","d":"MACHETE 350-20 PMM"},{"n":"160368EK","d":"MACHETE 368-16 PMM2.4"},{"n":"160368E","d":"MACHETE 368EOGS-16 PMM2.4"},{"n":"135446","d":"MACHETE 446-13.5 PPN"},{"n":"120460","d":"MACHETE 460-12 PPN"},{"n":"140460","d":"MACHETE 460-14 PPN"},{"n":"160460","d":"MACHETE 460-16 PPN"},{"n":"160460R","d":"MACHETE 460-16 PPR"},{"n":"180460BRA","d":"MACHETE 460-18 CP PPN  DUA"},{"n":"180460BRAP","d":"MACHETE 460-18 CP PPN  DUA P"},{"n":"180460","d":"MACHETE 460-18 PPN"},{"n":"180460R","d":"MACHETE 460-18 PPR"},{"n":"180460BMMX","d":"MACHETE 460-18PBMMX"},{"n":"200460BRAP","d":"MACHETE 460-20 CP PPN  DUA P"},{"n":"200460BRA","d":"MACHETE 460-20 CP PPN DUA"},{"n":"200460","d":"MACHETE 460-20 PPN"},{"n":"200460R","d":"MACHETE 460-20 PPR"},{"n":"200460BMMX","d":"MACHETE 460-20PBMMX"},{"n":"220460BRA","d":"MACHETE 460-22 CP PPN DUA"},{"n":"220460BRAP","d":"MACHETE 460-22 CP PPN DUA P"},{"n":"220460R","d":"MACHETE 460-22 PPR"},{"n":"220460BMMX","d":"MACHETE 460-22PBMMX"},{"n":"240460BMMX","d":"MACHETE 460-24PBMMX"},{"n":"260460R","d":"MACHETE 460-26 PPR"},{"n":"260460BMMX","d":"MACHETE 460-26PBMMX"},{"n":"200460B","d":"MACHETE 460B-20 PPN"},{"n":"220460B","d":"MACHETE 460B-22 PPN"},{"n":"120465NQBM","d":"MACHETE 465-12 NQBM"},{"n":"120465BM","d":"MACHETE 465-12 PBM"},{"n":"120465BMA","d":"MACHETE 465-12 PBMA"},{"n":"120465BMMX","d":"MACHETE 465-12 PBMMX"},{"n":"065813","d":"MACHETE 5813 NMM"},{"n":"120066NQBM","d":"MACHETE 66-12 NQBM"},{"n":"140066NQBM","d":"MACHETE 66-14 NQBM"},{"n":"140066BM","d":"MACHETE 66-14 PBM"},{"n":"160066NQBM","d":"MACHETE 66-16 NQBM"},{"n":"160066BM","d":"MACHETE 66-16 PBM"},{"n":"180066NQBM","d":"MACHETE 66-18 NQBM"},{"n":"180066BM","d":"MACHETE 66-18 PBM"},{"n":"200066NQBM","d":"MACHETE 66-20 NQBM"},{"n":"200066BM","d":"MACHETE 66-20 PBM"},{"n":"220706","d":"MACHETE 706-22 PPR"},{"n":"240706BM","d":"MACHETE 706-24 PBM"},{"n":"MAC240706PCSR","d":"MACHETE 706-24 PCSR"},{"n":"240706N","d":"MACHETE 706-24 PPN"},{"n":"240706PPNT","d":"MACHETE 706-24 PPN TIBURON"},{"n":"240706AN","d":"MACHETE 706A-24 NPR"},{"n":"240706A","d":"MACHETE 706A-24 PPR"},{"n":"140721NQBM","d":"MACHETE 721-14 NQBM"},{"n":"140721BM","d":"MACHETE 721-14 PBM"},{"n":"140721","d":"MACHETE 721-14 PPN"},{"n":"160721NQBM","d":"MACHETE 721-16 NQBM"},{"n":"160721BM","d":"MACHETE 721-16 PBM"},{"n":"160721","d":"MACHETE 721-16 PPN"},{"n":"180721NQBM","d":"MACHETE 721-18 NQBM"},{"n":"180721BM","d":"MACHETE 721-18 PBM"},{"n":"MAC180721PCSR","d":"MACHETE 721-18 PCSR"},{"n":"180721","d":"MACHETE 721-18 PPN"},{"n":"180721PPNT","d":"MACHETE 721-18 PPN TIBURON"},{"n":"200721NQBM","d":"MACHETE 721-20 NQBM"},{"n":"200721BM","d":"MACHETE 721-20 PBM"},{"n":"MAC200721PCSR","d":"MACHETE 721-20 PCSR"},{"n":"200721","d":"MACHETE 721-20 PPN"},{"n":"200721PPNT","d":"MACHETE 721-20 PPN TIBURON"},{"n":"220721NQBM","d":"MACHETE 721-22 NQBM"},{"n":"220721BM","d":"MACHETE 721-22 PBM"},{"n":"MAC220721PCSR","d":"MACHETE 721-22 PCSR"},{"n":"220721PPNT","d":"MACHETE 721-22 PPN TIBURON"},{"n":"180722RBMDB","d":"MACHETE 722-18\" RBM DOBLE BISEL"},{"n":"200722RBMDB","d":"MACHETE 722-20\" RBM DOBLE BISEL"},{"n":"220722RBMDB","d":"MACHETE 722-22\" RBM DOBLE BISEL"},{"n":"260781NK","d":"MACHETE 781-26 NMM2"},{"n":"260808BM","d":"MACHETE 808-26 PBM"},{"n":"280808BM","d":"MACHETE 808-28 PBM"},{"n":"150898AD","d":"MACHETE 898AD-15 NMM"},{"n":"150898ADMX","d":"MACHETE 898AD-15 NMMMX"},{"n":"150898DSM","d":"MACHETE 898ADSM-15 N"},{"n":"150898DSMC","d":"MACHETE 898ADSMC-15 N"},{"n":"150898AI","d":"MACHETE 898AI-15 NMM"},{"n":"150898AIMX","d":"MACHETE 898AI-15 NMMMX"},{"n":"150898AIC","d":"MACHETE 898AIC-15 NMM"},{"n":"150898ISMC","d":"MACHETE 898AISMC-15 N"},{"n":"220905R","d":"MACHETE 905-22 PPR"},{"n":"240905BM","d":"MACHETE 905-24 PBM"},{"n":"240905R","d":"MACHETE 905-24 PPR"},{"n":"270905R","d":"MACHETE 905-27 PPR"},{"n":"229127BM","d":"MACHETE 9127-22 PBM"},{"n":"229127R","d":"MACHETE 9127-22 PPR"},{"n":"120930","d":"MACHETE 930-12 P"},{"n":"200980","d":"MACHETE 980-20 NMM"},{"n":"220980","d":"MACHETE 980-22 NMM"},{"n":"200982","d":"MACHETE 982A-20 PPR"},{"n":"220982","d":"MACHETE 982A-22 PPR"},{"n":"120465NEBM","d":"MACHETE JUNGLA 465-12 NEBM"},{"n":"240706BMKIT6","d":"MACHETE RULA 706-24 PBM KIT6"},{"n":"240706BMKIT8","d":"MACHETE RULA 706-24 PBM KIT8"},{"n":"140460BMMX","d":"MACHETE460-14PBMMX"},{"n":"160460BMMX","d":"MACHETE460-16PBMMX"}],"Cuchillas":[{"n":"302425","d":"CUCHILLA 302425"},{"n":"302425P","d":"CUCHILLA 302425 P"},{"n":"352420PSS","d":"CUCHILLA 352420 PULIDA SIN SELLO"},{"n":"352425-DB4200","d":"CUCHILLA 352425 - DB4200"},{"n":"352425PSS","d":"CUCHILLA 352425 PULIDA SIN SELLO"},{"n":"352425-DB4200SC","d":"CUCHILLA 352425 ROJA  PARA DESBROZADORA DB4200SC"},{"n":"352425P","d":"CUCHILLA 352425P"},{"n":"3586CNL","d":"CUCHILLA 3586 CNL"},{"n":"402420-N","d":"CUCHILLA 402420-N"},{"n":"402420-P","d":"CUCHILLA 402420-P"},{"n":"402425-N","d":"CUCHILLA 402425-N"},{"n":"402425-P","d":"CUCHILLA 402425-P"},{"n":"452420-N","d":"CUCHILLA 452420-N"},{"n":"452420-P","d":"CUCHILLA 452420-P"},{"n":"452425-N","d":"CUCHILLA 452425-N"},{"n":"452425-P","d":"CUCHILLA 452425-P"},{"n":"351620P","d":"CUCHILLA CORBATIN 351620 PULIDA"},{"n":"351620","d":"CUCHILLA CORBATIN 351620 ROJA"},{"n":"351625P","d":"CUCHILLA CORBATIN 351625 PULIDA"},{"n":"351625PSS","d":"CUCHILLA CORBATIN 351625 PULIDA SIN SELLO"},{"n":"351625","d":"CUCHILLA CORBATIN 351625 ROJA"},{"n":"352420P","d":"CUCHILLA CORBATIN 352420 PULIDA"},{"n":"352420","d":"CUCHILLA CORBATIN 352420 ROJA"},{"n":"352425NE","d":"CUCHILLA CORBATIN 352425 NEGRA"},{"n":"352425","d":"CUCHILLA CORBATIN 352425 ROJA"},{"n":"351620PSS","d":"CUCHILLA CORBATÍN 351620PULIDA SIN SELLO"},{"n":"351625PBRA","d":"CUCHILLA CORBATÍN 351625 PULIDA BRA"},{"n":"352420NT","d":"CUCHILLA CORBATÍN 352420 NATURALTIBURON"},{"n":"351620PBRA","d":"CUCHILLA CORBATÍN PULIDA BRA"},{"n":"R352420N","d":"CUCHILLA R352420N"},{"n":"R352420P","d":"CUCHILLA R352420P"},{"n":"R352420R","d":"CUCHILLA R352420R"},{"n":"R352425N","d":"CUCHILLA R352425N"},{"n":"R352425P","d":"CUCHILLA R352425P"},{"n":"R352425R","d":"CUCHILLA R352425R"},{"n":"R353025N","d":"CUCHILLA RECTA 3503025 NATURAL"},{"n":"R353025NE","d":"CUCHILLA RECTA 3503025 NEGRA"},{"n":"R353025P","d":"CUCHILLA RECTA 3503025 PULIDA"},{"n":"R353020N","d":"CUCHILLA RECTA 353020 NATURAL"},{"n":"452420-R","d":"CUCHILLA RECTA 452420 ROJA"},{"n":"452425-R","d":"CUCHILLA RECTA 452425 ROJA"}],"Palas":[{"n":"155885","d":"PALA 5501-3 MAP"},{"n":"155805","d":"PALA 5501-4 MAP"},{"n":"300291DMAR","d":"PALA 5502-7 DORADA MAR"},{"n":"300291","d":"PALA 5502-7 MA"},{"n":"300291MAP","d":"PALA 5502-7 MAP"},{"n":"300291L","d":"PALA 5502-7 ML"},{"n":"155838","d":"PALA 5503 MA"},{"n":"301595SC","d":"PALA 5504"},{"n":"301595L","d":"PALA 5504 ML"},{"n":"321227SC","d":"PALA 5504-3"},{"n":"321227","d":"PALA 5504-3 MA"},{"n":"321227L","d":"PALA 5504-3 ML"},{"n":"5505DMAR","d":"PALA 5505 DORADA MAR"},{"n":"5505MA","d":"PALA 5505 MA"},{"n":"5505ML","d":"PALA 5505 ML"},{"n":"155817","d":"PALA 5505H"},{"n":"155818DMAR","d":"PALA 5511 DORADA MAR"},{"n":"155818","d":"PALA 5511 MA"},{"n":"155836","d":"PALA 5511 MAP"},{"n":"155818L","d":"PALA 5511 ML"},{"n":"155820","d":"PALA 5512-2 PUL"},{"n":"155872","d":"PALA 5512-2 SPUL"},{"n":"155813","d":"PALA 5512HA"},{"n":"155815","d":"PALA 5512S"},{"n":"313154","d":"PALA 5522 MAP"},{"n":"155802","d":"PALA 5558 MA"},{"n":"155861","d":"PALA 5558 MA 2"},{"n":"155812","d":"PALA 5558 MAP"},{"n":"155861SP","d":"PALA 5558-2 MA SP"},{"n":"155882","d":"PALA 5560-2"},{"n":"155882T","d":"PALA 5560-2 TIBURON"},{"n":"155882TMAPC","d":"PALA 5560-2 TIBURON MAPC"},{"n":"155882TML","d":"PALA 5560-2 TIBURON ML"},{"n":"155806","d":"PALA 5582-2 MA"},{"n":"155809","d":"PALA 5582-2 MAP"},{"n":"155809MAPC","d":"PALA 5582-2 MAPC"},{"n":"155824","d":"PALA 5582-4"},{"n":"155824MAP","d":"PALA 5582-4 MAP"},{"n":"155832","d":"PALA 5583-2"},{"n":"155816","d":"PALA 5583-2 MA"},{"n":"155853","d":"PALA 5583-2 MAP"},{"n":"155853MAPC","d":"PALA 5583-2 MAPC"},{"n":"155835","d":"PALA 5583-4"},{"n":"155858","d":"PALA CARBONERA 5503-MAP.OPT"},{"n":"155862","d":"PALA CAVAHOYOS  310559 CM"},{"n":"155862SM","d":"PALA CAVAHOYOS  310559 SIN MANGO"},{"n":"155842","d":"PALA CAVAHOYOS 307320 CM"},{"n":"155842METN","d":"PALA CAVAHOYOS 307320 METN"},{"n":"155842SM","d":"PALA CAVAHOYOS 307320 SIN MANGO"},{"n":"155862METN","d":"PALA CAVAHOYOS 310559 METN"},{"n":"155832ML","d":"PALA CUADRADA No 2-5583-2 ML"},{"n":"155835ML","d":"PALA CUADRADA No 4-5583-4 ML"},{"n":"SHP602DMA","d":"PALA DORADA MA"},{"n":"SHP602DSC","d":"PALA DORADA SC"},{"n":"155804","d":"PALA PUNTA 5501-4 MA.CL"},{"n":"155882ML","d":"PALA REDONDA No 2-5560-2 ML"},{"n":"155824ML","d":"PALA REDONDA No 4-5582-4 ML"},{"n":"155881SP","d":"PALIN 5402-10 SP"}]};
+function referenciasDe(fam){ return REFERENCIAS[fam] || []; }
+
+/* ======================================================================
+   DE QUÉ ORIGEN SE ESTÁ MIRANDO
+   Recolección y auditoría cuentan las mismas piezas. Sumarlas duplicaría
+   todo, así que no hay un «total general»: siempre se mira uno de los dos.
+   Un solo sitio decide cuál, y de ahí beben todos los análisis; si cada
+   tabla filtrara por su cuenta, tarde o temprano una se olvidaría.
+   ====================================================================== */
+let TIPO_VISTA = "auditoria";
+function regsVisibles(){
+  return S.registros.filter(r=>
+    tipoDe(r) === TIPO_VISTA && !r.estadoMaquina);
+}
+/* Los cierres —«sin desperdicio» y «no trabajó»— se guardan como filas de
+   cantidad cero. No son defectos, así que quedan fuera de los conteos, pero
+   hacen falta aparte para saber qué máquinas se revisaron de verdad. */
+function cierresVisibles(){
+  return S.registros.filter(r=> tipoDe(r) === TIPO_VISTA && r.estadoMaquina);
+}
+function etiquetaVista(){ return TIPOS[TIPO_VISTA].et; }
+
+function cambiarTipoVista(t){
+  if(!TIPOS[t] || t === TIPO_VISTA) return;
+  TIPO_VISTA = t;
+  localStorage.setItem("cd_tipo_vista", t);
+  document.querySelectorAll(".tv-sel").forEach(s=> s.value = t);
+  if(typeof aplicarVistaControl === "function") aplicarVistaControl();
+  if(typeof renderDashboardTurno === "function"
+     && document.getElementById("viewDashboard").style.display !== "none")
+    renderDashboardTurno();
+}
+
+/* Los dos tipos de registro. Nunca se suman: la auditoría cuenta las mismas
+   piezas que el patinador recogerá al cerrar el turno. */
+const TIPOS = {
+  recoleccion: {et:"Recolección de turno", corto:"Recolección", pideMaquina:false, pidePin:false},
+  auditoria:   {et:"Auditoría de puesto",  corto:"Auditoría",   pideMaquina:true,  pidePin:true}
+};
+/* Las filas viejas de la hoja no traen tipo. Todas se capturaron con máquina
+   obligatoria y las hizo calidad, así que son auditorías. */
+function tipoDe(r){ return String((r && r.tipo) || "auditoria"); }
+function esAuditoria(r){ return tipoDe(r) === "auditoria"; }
+function esRecoleccion(r){ return tipoDe(r) === "recoleccion"; }
+
 const S = {
   registros: JSON.parse(localStorage.getItem("cd_registros")||"[]"),
   syncUrl: localStorage.getItem("cd_sync_url")||"https://script.google.com/macros/s/AKfycbx8FpJy8kGjLDDCMyD4MLP_08zdrZOSoRfOwD6kCMgdfk_rQltbSI9mOwLlxCwqynInTA/exec",
   familia:null, proceso:"", puesto:"",
-  cantidades:{}    // codigo -> cantidad
+  cantidades:{},   // codigo -> cantidad
+  tipo:"",         // "recoleccion" | "auditoria"
+  referencia:"",
+  usuario:null,    // {usuario, nombre} — sólo en auditoría
+  /* Estado del recorrido por turno: qué máquinas ya se cerraron y en qué
+     pasada va el proceso. Vive en el dispositivo porque es el hilo de una
+     sola persona recorriendo la planta, no un dato compartido. */
+  recorrido: JSON.parse(localStorage.getItem("cd_recorrido")||"{}"),
+  usuarios: JSON.parse(localStorage.getItem("cd_usuarios")||"[]")
 };
+function guardarRecorrido(){
+  localStorage.setItem("cd_recorrido", JSON.stringify(S.recorrido));
+}
 
 function pad(n){return String(n).padStart(2,"0");}
 function hoyISO(){const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
@@ -1138,6 +1378,183 @@ function esAjeno(d, proceso, familia){
   return tokens.some(t=>conocidos.includes(t.toLowerCase()));
 }
 
+/* ======================================================================
+   TIPO DE REGISTRO, RECORRIDO DE MÁQUINAS Y REFERENCIA
+   ====================================================================== */
+
+function renderTipos(){
+  document.querySelectorAll("#tipos .tipo-card").forEach(c=>
+    c.classList.toggle("active", c.dataset.tipo === S.tipo));
+  const av = document.getElementById("avisoTipo");
+  if(!S.tipo){ av.style.display="none"; return; }
+  av.style.display="block";
+  av.innerHTML = S.tipo === "recoleccion"
+    ? `<b>Recolección.</b> Cuenta lo que recogiste al cerrar el turno, por proceso y
+       referencia. No se pide máquina. Si un proceso no aparece registrado, se entiende
+       que no hubo desperdicio en él.`
+    : `<b>Auditoría.</b> Vas máquina por máquina. Estas piezas son <b>las mismas</b> que
+       el patinador contará al final del turno, así que la app nunca las suma con la
+       recolección: sirven para saber <b>de qué máquina salió</b> el desperdicio.`;
+}
+
+function seleccionarTipo(t){
+  if(S.tipo === t) return;
+  if(TIPOS[t].pidePin && !S.usuario){ abrirPin(t); return; }
+  aplicarTipo(t);
+}
+
+function aplicarTipo(t){
+  S.tipo = t;
+  if(t === "recoleccion") S.usuario = null;
+  S.puesto = ""; S.cantidades = {}; S.referencia = "";
+  document.getElementById("cabTitulo").textContent =
+    t === "recoleccion" ? "Recolección de turno" : "Auditoría de puesto";
+  document.getElementById("cabSub").textContent = t === "recoleccion"
+    ? "Lo recogido al cerrar el turno, por proceso y referencia."
+    : `Recorrido máquina por máquina${S.usuario ? " · " + S.usuario.nombre : ""}.`;
+  renderTipos(); renderReferencias(); pintarRuta();
+  renderRecorrido(); renderDefectos(); actualizarBarra();
+  irAPaso(S.familia ? "paso2" : "paso1");
+}
+
+/* ---------- Identificación (sólo auditoría) ---------- */
+let TIPO_PENDIENTE = "";
+function abrirPin(t){
+  TIPO_PENDIENTE = t;
+  const sel = document.getElementById("pinUsuario");
+  const act = S.usuarios.filter(u=> String(u.activo||"Sí").toLowerCase().indexOf("s")===0);
+  sel.innerHTML = `<option value="">Selecciona tu nombre</option>` +
+    act.map(u=>`<option value="${u.usuario}">${u.nombre||u.usuario}</option>`).join("");
+  /* Si la hoja todavía no tiene usuarios cargados no se puede dejar a calidad
+     sin poder auditar: se entra escribiendo el nombre y queda la advertencia. */
+  document.getElementById("pinUsuario").style.display = act.length ? "" : "none";
+  document.getElementById("pinClave").style.display  = act.length ? "" : "none";
+  const err = document.getElementById("pinError");
+  if(!act.length){
+    err.style.display = "block";
+    err.innerHTML = `No hay usuarios cargados en la hoja todavía.
+      Escribe tu nombre para firmar la auditoría.
+      <input type="text" id="pinNombre" placeholder="Tu nombre" style="margin-top:8px;">`;
+  } else { err.style.display = "none"; }
+  document.getElementById("pinModal").classList.add("show");
+  setTimeout(()=>{ const c=document.getElementById(act.length?"pinClave":"pinNombre"); if(c) c.focus(); }, 60);
+}
+function cerrarPin(){
+  document.getElementById("pinModal").classList.remove("show");
+  document.getElementById("pinClave").value = "";
+}
+function validarPin(){
+  const act = S.usuarios.filter(u=> String(u.activo||"Sí").toLowerCase().indexOf("s")===0);
+  const err = document.getElementById("pinError");
+  if(!act.length){
+    const n = (document.getElementById("pinNombre")||{}).value || "";
+    if(!n.trim()){ toast("Escribe tu nombre"); return; }
+    S.usuario = {usuario:"", nombre:n.trim()};
+  } else {
+    const u = document.getElementById("pinUsuario").value;
+    const pin = document.getElementById("pinClave").value;
+    const hit = act.find(x=> String(x.usuario) === u);
+    if(!hit){ err.style.display="block"; err.textContent="Selecciona tu nombre."; return; }
+    if(String(hit.pin||"") !== String(pin)){
+      err.style.display="block"; err.textContent="El PIN no coincide."; return;
+    }
+    S.usuario = {usuario:hit.usuario, nombre:hit.nombre||hit.usuario};
+  }
+  cerrarPin();
+  aplicarTipo(TIPO_PENDIENTE || "auditoria");
+}
+
+/* ---------- Recorrido del proceso ---------- */
+function claveRec(){
+  return `${llaveTurno(turnoActual(), fechaTurnoActual())}|${S.familia}|${S.proceso}`;
+}
+function recActual(){
+  const k = claveRec();
+  if(!S.recorrido[k]) S.recorrido[k] = {pasada:1, maq:{}};
+  return S.recorrido[k];
+}
+const ET_REC = {hecha:"con desperdicio", cero:"sin desperdicio", notrab:"no trabajó"};
+
+/* El desplegable de puestos tiene que seguir al recorrido: si una máquina se
+   cierra y sólo desaparece de la lista de pendientes, sigue siendo elegible
+   abajo y se puede registrar dos veces sobre ella. */
+function refrescarPuestos(){
+  const sel = document.getElementById("puesto");
+  if(!sel || !S.familia || !S.proceso) return;
+  const todas = puestosDe(S.familia, S.proceso);
+  const r = S.tipo === "auditoria" ? recActual() : null;
+  const libres = r ? todas.filter(p=> !r.maq[p]) : todas;
+  sel.innerHTML = `<option value="">Selecciona un puesto</option>` +
+    libres.map(p=>`<option value="${p}">${p}</option>`).join("");
+  sel.value = libres.indexOf(S.puesto) !== -1 ? S.puesto : "";
+  if(!sel.value) S.puesto = "";
+}
+
+function cerrarMaquina(m, estado){
+  const r = recActual();
+  r.maq[m] = estado;
+  guardarRecorrido();
+  /* Sin desperdicio y no trabajó también son respuestas: la primera entra al
+     reparto con cero, la segunda se queda fuera del denominador. Se guardan
+     como registro de cantidad cero para que quede constancia de la pasada. */
+  if(estado === "cero" || estado === "notrab") guardarCierre(m, estado);
+  if(S.puesto === m) S.puesto = "";
+  S.cantidades = {}; S.referencia = "";
+  refrescarPuestos();
+  renderRecorrido(); pintarRuta(); renderReferencias();
+  renderDefectos(); actualizarBarra();
+}
+
+function nuevaPasada(){
+  const r = recActual();
+  r.pasada = (r.pasada || 1) + 1;
+  r.maq = {};
+  guardarRecorrido();
+  refrescarPuestos();
+  renderRecorrido(); pintarRuta();
+  toast(`Pasada ${r.pasada} iniciada`);
+}
+
+function renderRecorrido(){
+  const box = document.getElementById("recorrido");
+  if(!box) return;
+  if(S.tipo !== "auditoria" || !S.proceso){ box.style.display = "none"; return; }
+  const r = recActual();
+  const maqs = puestosDe(S.familia, S.proceso);
+  const pend = maqs.filter(m=> !r.maq[m]);
+  box.style.display = "flex";
+  box.innerHTML =
+    `<div class="rec-cab">PASADA ${r.pasada} · ${pend.length} DE ${maqs.length} POR VISITAR</div>` +
+    maqs.map(m=>{
+      const e = r.maq[m];
+      const cls = e ? e : "pend";
+      const et = e ? `<span class="et ${e}">${ET_REC[e]}</span>` : "";
+      const bts = e ? "" :
+        `<button data-m="${m}" data-e="cero">Sin desperdicio</button>
+         <button data-m="${m}" data-e="notrab">No trabajó</button>`;
+      return `<div class="rec-m ${cls}"><span class="nom">${m}</span>${et}${bts}</div>`;
+    }).join("") +
+    (pend.length ? "" :
+      `<div class="rec-resumen">Recorrido completo.
+        <button type="button" id="btnPasada" style="margin-left:6px;">Iniciar pasada ${r.pasada+1}</button></div>`);
+
+  box.querySelectorAll("button[data-m]").forEach(b=>
+    b.addEventListener("click", ()=> cerrarMaquina(b.dataset.m, b.dataset.e)));
+  const bp = document.getElementById("btnPasada");
+  if(bp) bp.addEventListener("click", nuevaPasada);
+}
+
+/* ---------- Referencia ---------- */
+function renderReferencias(){
+  const sel = document.getElementById("referencia");
+  if(!sel) return;
+  const lista = referenciasDe(S.familia);
+  sel.innerHTML = `<option value="">Referencia *</option>` +
+    lista.map(x=>`<option value="${x.n}">${x.n} · ${x.d}</option>`).join("");
+  sel.value = S.referencia || "";
+  sel.disabled = !S.familia;
+}
+
 /* ---------- Familias ---------- */
 function renderFamilias(){
   const box=document.getElementById("familias");
@@ -1164,13 +1581,16 @@ function pintarFoto(caja){
 }
 
 function seleccionarFamilia(familia){
-  S.familia=familia; S.proceso=""; S.puesto=""; S.cantidades={};
+  if(!S.tipo){ toast("Primero di si es recolección o auditoría"); irAPaso("paso0"); return; }
+  S.familia=familia; S.proceso=""; S.puesto=""; S.cantidades={}; S.referencia="";
   // sólo se mueve el resaltado: si se reconstruyeran las tarjetas, la foto
   // desaparecería un instante y volvería a verse el emoji
   document.querySelectorAll("#familias .familia-card")
     .forEach(c=>c.classList.toggle("active", c.dataset.familia===familia));
   renderProcesos();
+  renderReferencias();
   pintarRuta();
+  renderRecorrido();
   renderDefectos();
   actualizarBarra();
   irAPaso("paso2");
@@ -1178,11 +1598,18 @@ function seleccionarFamilia(familia){
 
 /* Ruta 1-2-3 y bloqueo de los paneles que todavía no aplican. */
 function pintarRuta(){
+  /* La ruta cambia de forma según el tipo: la recolección no tiene máquina,
+     así que mostrar un paso que nunca se va a llenar la dejaría «incompleta»
+     para siempre. */
+  const auditoria = S.tipo === "auditoria";
   const pasos = [
-    {t:"Producto",        v:S.familia, vacio:"Selecciona la línea de producto"},
-    {t:"Proceso",         v:S.proceso, vacio:"Selecciona el proceso a auditar"},
-    {t:"Puesto / máquina",v:S.puesto,  vacio:"Selecciona el puesto o máquina"}
+    {t:"Tipo",     v:S.tipo ? TIPOS[S.tipo].corto : "", vacio:"Recolección o auditoría"},
+    {t:"Producto", v:S.familia, vacio:"Selecciona la línea de producto"},
+    {t:"Proceso",  v:S.proceso, vacio:"Selecciona el proceso"}
   ];
+  if(auditoria) pasos.push({t:"Puesto / máquina", v:S.puesto, vacio:"Selecciona el puesto o máquina"});
+  pasos.push({t:"Referencia", v:S.referencia, vacio:"Elige la referencia abajo"});
+
   const hechos = pasos.filter(x=>x.v).length;
   const ruta = document.getElementById("rutaPasos");
   ruta.dataset.hecho = hechos;
@@ -1192,13 +1619,24 @@ function pintarRuta(){
       <span class="t">${x.t}</span><span class="v">${x.v||x.vacio}</span></div>`;
   }).join("");
 
+  document.getElementById("paso1").classList.toggle("bloqueado", !S.tipo);
   document.getElementById("paso2").classList.toggle("bloqueado", !S.familia);
+  /* El paso de máquina sólo existe en la auditoría. En la recolección se
+     esconde entero: el patinador no tiene cómo saber de qué máquina salió. */
+  document.getElementById("paso3").style.display = auditoria ? "" : "none";
   document.getElementById("paso3").classList.toggle("bloqueado", !S.proceso);
   document.getElementById("paso2Sub").textContent = S.familia
     ? `Procesos de ${S.familia}.` : "Primero elige la línea de producto.";
-  const n = S.proceso ? puestosDe(S.familia, S.proceso).length : 0;
-  document.getElementById("paso3Sub").textContent = S.proceso
-    ? `${n} puesto(s) en ${S.proceso}.` : "Primero elige el proceso.";
+  /* En la auditoría lo que importa no es cuántas máquinas tiene el proceso,
+     sino cuántas faltan por visitar en esta pasada. */
+  const todas = S.proceso ? puestosDe(S.familia, S.proceso) : [];
+  const rec = auditoria && S.proceso ? recActual() : null;
+  const libres = rec ? todas.filter(p=> !rec.maq[p]) : todas;
+  document.getElementById("paso3Sub").textContent = !S.proceso
+    ? "Primero elige el proceso."
+    : libres.length
+      ? `${libres.length} de ${todas.length} máquina(s) por visitar en ${S.proceso}.`
+      : `Las ${todas.length} máquinas de ${S.proceso} ya se visitaron en esta pasada.`;
   document.getElementById("puesto").classList.toggle("elegido", !!S.puesto);
   document.getElementById("puestoHint").style.display = S.puesto ? "block" : "none";
 }
@@ -1229,16 +1667,26 @@ function puestosDe(fam, proc){
 }
 
 function seleccionarProceso(proc){
-  S.proceso=proc; S.puesto=""; S.cantidades={};
+  S.proceso=proc; S.puesto=""; S.cantidades={}; S.referencia="";
   renderProcesos();
-  const puestos=puestosDe(S.familia, proc);
+  const auditoria = S.tipo === "auditoria";
+  /* En el recorrido sólo se ofrecen las máquinas que aún no se han cerrado:
+     las ya visitadas desaparecen de la lista, que es lo que pediste. */
+  const r = auditoria ? recActual() : null;
+  const todas = puestosDe(S.familia, proc);
+  const puestos = auditoria ? todas.filter(p=> !r.maq[p]) : todas;
   document.getElementById("puesto").innerHTML=`<option value="">Selecciona un puesto</option>`+
     puestos.map(p=>`<option value="${p}">${p}</option>`).join("");
-  if(puestos.length===1){ document.getElementById("puesto").value=puestos[0]; S.puesto=puestos[0]; }
+  if(auditoria && puestos.length===1){
+    document.getElementById("puesto").value=puestos[0]; S.puesto=puestos[0];
+  }
+  renderReferencias();
   pintarRuta();
+  renderRecorrido();
   renderDefectos();
   actualizarBarra();
-  irAPaso(S.puesto ? "zonaDefectos" : "paso3");
+  /* La recolección no pasa por el paso de máquina: va directo a los defectos. */
+  irAPaso(!auditoria || S.puesto ? "zonaDefectos" : "paso3");
 }
 
 document.getElementById("puesto").addEventListener("change",e=>{
@@ -1260,7 +1708,8 @@ let VD = {vista: localStorage.getItem("cd_vista_defectos")==="lista" ? "lista" :
 
 /* El aviso mientras faltan datos: la ruta de arriba ya lleva el detalle. */
 function pintarPasosPendientes(){
-  const falta = !S.familia ? "la línea de producto"
+  const falta = !S.tipo    ? "si es recolección o auditoría"
+              : !S.familia ? "la línea de producto"
               : !S.proceso ? "el proceso"
               : "el puesto o máquina";
   document.getElementById("mensajeInicialTxt").textContent =
@@ -1268,8 +1717,10 @@ function pintarPasosPendientes(){
 }
 
 function renderDefectos(){
-  // el catálogo no aparece hasta saber QUÉ proceso y QUÉ puesto se está auditando
-  const listo = !!(S.familia && S.proceso && S.puesto);
+  /* El catálogo no aparece hasta saber qué se está registrando. La máquina
+     sólo se exige en la auditoría: en la recolección no existe. */
+  const listo = !!(S.tipo && S.familia && S.proceso
+    && (S.tipo !== "auditoria" || S.puesto));
   document.getElementById("zonaDefectos").style.display = listo?"block":"none";
   document.getElementById("mensajeInicial").style.display = listo?"none":"block";
   document.getElementById("barraFija").style.display = listo?"flex":"none";
@@ -1385,58 +1836,160 @@ document.getElementById("buscador").addEventListener("input",renderDefectos);
 function actualizarBarra(){
   const codigos=Object.keys(S.cantidades);
   const total=codigos.reduce((s,c)=>s+S.cantidades[c],0);
+  const auditoria = S.tipo === "auditoria";
   document.getElementById("totalPiezas").textContent=total;
   document.getElementById("totalDefectos").textContent=codigos.length;
   document.getElementById("contextoBarra").textContent =
-    (S.familia||"—") + (S.proceso? " · "+S.proceso : " · selecciona el proceso")
-    + (S.puesto? " · "+S.puesto : "") + " · Turno "+turnoActual();
+    (S.tipo ? TIPOS[S.tipo].corto : "—") + " · "
+    + (S.familia||"—") + (S.proceso? " · "+S.proceso : " · selecciona el proceso")
+    + (auditoria && S.puesto ? " · "+S.puesto : "")
+    + (S.referencia ? " · Ref. "+S.referencia : "")
+    + " · Turno "+turnoActual();
 
+  /* La máquina sólo se exige en la auditoría. La referencia se exige siempre:
+     sin ella el desperdicio no se puede repartir entre productos. */
   document.getElementById("btnRegistrar").disabled =
-    !(S.familia && S.proceso && S.puesto && codigos.length>0);
+    !(S.tipo && S.familia && S.proceso && S.referencia && codigos.length>0
+      && (!auditoria || S.puesto));
 }
 
 /* ---------- Guardar ---------- */
-function registrarDesperdicio(){
-  const codigos=Object.keys(S.cantidades);
-  if(!codigos.length){toast("Escribe la cantidad en al menos un defecto");return;}
-  if(!S.proceso){toast("Selecciona el proceso que estás auditando");return;}
-  if(!S.puesto){toast("Selecciona el puesto donde estás auditando");return;}
-
+/* Arma las filas comunes a los dos tipos. Una fila por defecto, como ya venía
+   haciendo la app: la referencia y el tipo se repiten en todas las del lote. */
+function filasDe(codigos, extra){
   const now=new Date();
   const turno=turnoActual();
   const turnoKey=llaveTurno(turno,fechaTurnoActual());
   const hora=`${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  const obs=document.getElementById("observacion").value;
+  const obs=(document.getElementById("observacion")||{}).value||"";
   const catalogo=defectosDeFamilia();
-
-  const nuevos=codigos.map((codigo,i)=>{
+  const auditoria = S.tipo === "auditoria";
+  const base = {
+    fecha:hoyISO(), hora, familia:S.familia, proceso:S.proceso,
+    /* En la recolección el puesto va vacío a propósito: inventarlo sería
+       atribuir el desperdicio a una máquina que nadie vio producirlo. */
+    puesto: auditoria ? S.puesto : "",
+    tipo: S.tipo,
+    referencia: S.referencia,
+    pasada: auditoria ? String(recActual().pasada || 1) : "",
+    usuario: auditoria && S.usuario ? (S.usuario.nombre || S.usuario.usuario) : "",
+    observacion:obs, turno, turnoKey,
+    pendienteSync:!!S.syncUrl
+  };
+  return codigos.map((codigo,i)=>{
     const d=catalogo.find(x=>x.code===codigo);
-    return {
+    return Object.assign({
       id:"CD-"+Date.now()+"-"+i+"-"+Math.floor(Math.random()*1000),
-      fecha:hoyISO(), hora, familia:S.familia,
-      proceso:S.proceso, puesto:S.puesto,
       defectoCodigo:codigo, defectoLabel:d?d.name:"",
       origenDefecto: d?origenDefecto(d):"",
       defectoAjeno: (d && esAjeno(d,S.proceso,S.familia)) ? "Sí" : "No",
-      cantidad:S.cantidades[codigo],
-      observacion:obs, turno, turnoKey,
-      pendienteSync:!!S.syncUrl
-    };
+      cantidad:S.cantidades[codigo]
+    }, base, extra||{});
   });
+}
 
+function anotar(nuevos){
   S.registros=nuevos.concat(S.registros);
   localStorage.setItem("cd_registros",JSON.stringify(S.registros));
   if(S.syncUrl) enviarRemotoLote(nuevos);
-
-  toast(`${nuevos.length} defecto(s) registrados en ${S.puesto}`);
-
-  // conserva línea y puesto para seguir auditando; limpia solo las cantidades
-  S.cantidades={};
-  document.getElementById("observacion").value="";
-  renderDefectos();
-  actualizarBarra();
 }
+
+/* Cierre de una máquina sin desperdicio, o que no trabajó. Queda una fila de
+   cantidad cero para que la pasada deje constancia: sin ella no se distingue
+   «la revisé y estaba limpia» de «no pasé por ahí». */
+function guardarCierre(maquina, estado){
+  const now=new Date();
+  const turno=turnoActual();
+  anotar([{
+    id:"CD-"+Date.now()+"-c-"+Math.floor(Math.random()*1000),
+    fecha:hoyISO(), hora:`${pad(now.getHours())}:${pad(now.getMinutes())}`,
+    familia:S.familia, proceso:S.proceso, puesto:maquina,
+    tipo:"auditoria", referencia:"",
+    pasada:String(recActual().pasada||1),
+    usuario:S.usuario ? (S.usuario.nombre||S.usuario.usuario) : "",
+    defectoCodigo:"", defectoLabel:"", origenDefecto:"", defectoAjeno:"No",
+    cantidad:0,
+    estadoMaquina: estado === "notrab" ? "No trabajó" : "Sin desperdicio",
+    observacion:"", turno, turnoKey:llaveTurno(turno,fechaTurnoActual()),
+    pendienteSync:!!S.syncUrl
+  }]);
+}
+
+function registrarDesperdicio(){
+  const codigos=Object.keys(S.cantidades);
+  const auditoria = S.tipo === "auditoria";
+  if(!S.tipo){toast("Primero di si es recolección o auditoría");return;}
+  if(!codigos.length){toast("Escribe la cantidad en al menos un defecto");return;}
+  if(!S.proceso){toast("Selecciona el proceso");return;}
+  if(auditoria && !S.puesto){toast("Selecciona la máquina que estás auditando");return;}
+  if(!S.referencia){toast("Selecciona la referencia");return;}
+
+  const nuevos = filasDe(codigos);
+  anotar(nuevos);
+  toast(`${nuevos.length} defecto(s) · ref. ${S.referencia}`);
+
+  S.cantidades={}; S.referencia="";
+  const obs=document.getElementById("observacion"); if(obs) obs.value="";
+  renderReferencias(); renderDefectos(); actualizarBarra(); pintarRuta();
+
+  /* En la auditoría la misma máquina puede haber corrido dos referencias. Se
+     pregunta antes de darla por terminada; mientras no se cierre, sigue
+     apareciendo en los pendientes del recorrido. */
+  if(auditoria) preguntarMas();
+}
+
+let MAQ_PREGUNTADA = "";
+function preguntarMas(){
+  MAQ_PREGUNTADA = S.puesto;
+  document.getElementById("masTxt").innerHTML =
+    `¿Hay más desperdicio en <b>${S.puesto}</b>, con otra referencia?`;
+  document.getElementById("masModal").classList.add("show");
+}
+function cerrarMas(){ document.getElementById("masModal").classList.remove("show"); }
 document.getElementById("btnRegistrar").addEventListener("click",registrarDesperdicio);
+
+/* ---------- Conexiones de la pantalla nueva ---------- */
+document.querySelectorAll("#tipos .tipo-card").forEach(c=>
+  c.addEventListener("click", ()=> seleccionarTipo(c.dataset.tipo)));
+
+document.getElementById("referencia").addEventListener("change", e=>{
+  S.referencia = e.target.value;
+  pintarRuta(); actualizarBarra();
+});
+
+document.getElementById("pinCancelar").addEventListener("click", cerrarPin);
+document.getElementById("pinEntrar").addEventListener("click", validarPin);
+document.getElementById("pinClave").addEventListener("keydown", e=>{
+  if(e.key === "Enter") validarPin();
+});
+
+document.getElementById("masSi").addEventListener("click", ()=>{
+  /* Se queda en la misma máquina y sólo se borra la referencia, que es
+     justo el caso del cambio de referencia en medio del turno. */
+  cerrarMas();
+  S.referencia = "";
+  renderReferencias(); pintarRuta(); actualizarBarra();
+  irAPaso("barraFija");
+});
+document.getElementById("masNo").addEventListener("click", ()=>{
+  cerrarMas();
+  if(MAQ_PREGUNTADA) cerrarMaquina(MAQ_PREGUNTADA, "hecha");
+  irAPaso("paso3");
+});
+
+/* Usuarios para firmar la auditoría. Si la hoja no los trae, la auditoría
+   sigue siendo posible escribiendo el nombre: no se bloquea a calidad. */
+async function cargarUsuarios(){
+  if(!S.syncUrl) return;
+  try{
+    const d = await pedirJSON(S.syncUrl + "?tipo=usuarios", "los usuarios");
+    const lista = Array.isArray(d) ? d : (d && d.usuarios);
+    if(Array.isArray(lista)){
+      S.usuarios = lista;
+      localStorage.setItem("cd_usuarios", JSON.stringify(lista));
+    }
+  }catch(e){ /* se sigue con lo que haya guardado en el dispositivo */ }
+}
 
 
 /* ---------- Períodos y unidades empacadas ---------- */
@@ -1840,14 +2393,14 @@ function renderEmpBox(fam, periodo, fecha, turno, rango){
 function desgloseTurnos(fam, fecha){
   const f0 = n => Math.round(n).toLocaleString("es-CO");
   return ["1","2","3"].map(t=>{
-    const n = S.registros.filter(r=>r.familia===fam && r.turnoKey===llaveTurno(t,fecha))
+    const n = regsVisibles().filter(r=>r.familia===fam && r.turnoKey===llaveTurno(t,fecha))
                          .reduce((s,r)=>s+r.cantidad, 0);
     return `T${t} <b>${n?f0(n):"—"}</b>`;
   }).join(" · ");
 }
 
 function ncClasificadas(fam, periodo, fecha, turno, rango){
-  return S.registros.filter(r=>{
+  return regsVisibles().filter(r=>{
     if(r.familia!==fam) return false;
     if(periodo==="turno") return r.turnoKey===llaveTurno(turno,fecha);
     const ft=fechaDeTurno(r); return ft>=rango.desde && ft<=rango.hasta;
@@ -1855,7 +2408,7 @@ function ncClasificadas(fam, periodo, fecha, turno, rango){
 }
 
 function ncPendienteTexto(fam, periodo, fecha, turno, rango){
-  const regs = S.registros.filter(r=>{
+  const regs = regsVisibles().filter(r=>{
     if(r.familia!==fam) return false;
     if(periodo==="turno") return r.turnoKey===llaveTurno(turno,fecha);
     const ft=fechaDeTurno(r); return ft>=rango.desde && ft<=rango.hasta;
@@ -1885,14 +2438,14 @@ function recTotalDia(fam, fecha){
 // NC de rondas por proceso y turno
 function ncRondasTurno(fam, fecha, turno){
   const out={};
-  S.registros.filter(r=>r.familia===fam && fechaDeTurno(r)===fecha && String(r.turno)===String(turno))
+  regsVisibles().filter(r=>r.familia===fam && fechaDeTurno(r)===fecha && String(r.turno)===String(turno))
              .forEach(r=> out[r.proceso]=(out[r.proceso]||0)+r.cantidad);
   return out;
 }
 // NC de rondas del día (los 3 turnos) por proceso
 function ncRondasDia(fam, fecha){
   const out={};
-  S.registros.filter(r=>r.familia===fam && fechaDeTurno(r)===fecha)
+  regsVisibles().filter(r=>r.familia===fam && fechaDeTurno(r)===fecha)
              .forEach(r=> out[r.proceso]=(out[r.proceso]||0)+r.cantidad);
   return out;
 }
@@ -2037,7 +2590,7 @@ function pintarFilasMes(fam, mes, dias, hoy, proc){
     const futuro = f > hoy;
     const ncT = esDesp ? {1:0,2:0,3:0} : null;
     if(esDesp){
-      S.registros.filter(r=>r.familia===fam && fechaDeTurno(r)===f && r.proceso===proc)
+      regsVisibles().filter(r=>r.familia===fam && fechaDeTurno(r)===f && r.proceso===proc)
                  .forEach(r=> ncT[r.turno]=(ncT[r.turno]||0)+r.cantidad);
     }
     const celdas = ["1","2","3"].map(t=>{
@@ -2484,7 +3037,7 @@ function renderDashboardTurno(){
   const empacadas = datosEmp.empacadas;
   const recogidas = datosEmp.recogidas;
 
-  const regs = S.registros.filter(r=>{
+  const regs = regsVisibles().filter(r=>{
     if(r.familia!==fam) return false;
     if(periodo==="turno") return r.turnoKey===llaveTurno(turno,fecha);
     const ft = fechaDeTurno(r);
@@ -2576,7 +3129,7 @@ function renderDashboardTurno(){
     ${regs.length?`<div style="overflow-x:auto;"><table><thead><tr>
       <th>Hora</th><th>Proceso</th><th>Puesto</th><th>Defecto</th><th class="num">NC</th><th>Observación</th></tr></thead><tbody>
       ${regs.map(r=>`<tr><td>${r.hora}</td><td>${r.proceso}</td><td>${r.puesto}</td>
-        <td>${r.defectoCodigo} - ${r.defectoLabel}${r.defectoAjeno==="Sí"?` <span style="color:#92660a;font-size:.7rem;">⚠ de ${r.origenDefecto}</span>`:""}</td>
+        <td>${r.defectoCodigo} - ${r.defectoLabel}${r.defectoAjeno==="Sí"?` <span style="color:var(--warn-text);font-size:.7rem;">⚠ de ${r.origenDefecto}</span>`:""}</td>
         <td class="num">${r.cantidad}</td><td>${r.observacion||"—"}</td></tr>`).join("")}
       </tbody></table></div>`:'<div class="empty-mini">Sin registros en este turno.</div>'}
   </div></div>`;
@@ -2809,7 +3362,7 @@ function renderControl(){
   const horas = horasTranscurridas(turno, fecha);
   const meta = METAS[fam] ?? 1;
   const llave = llaveTurno(turno, fecha);
-  const regs = S.registros.filter(r => r.turnoKey===llave && r.familia===fam);
+  const regs = regsVisibles().filter(r => r.turnoKey===llave && r.familia===fam);
 
   document.getElementById("kInfoTurno").textContent =
     `Turno ${turno} · ${horas.toFixed(1)} h transcurridas de ${HORAS_TURNO} · Meta de desperdicio ${fam}: ${meta}%`;
@@ -3258,7 +3811,7 @@ function renderMaquina(){
   const meta = METAS[fam] ?? 1;
   const cubos = diasDelRango(periodo);
 
-  const regsMaq = S.registros.filter(r => r.familia===fam && r.puesto===maq);
+  const regsMaq = regsVisibles().filter(r => r.familia===fam && r.puesto===maq);
   const enRango = regsMaq.filter(r => cubos.includes(claveDe(fechaDeTurno(r), periodo)));
   const nc = enRango.reduce((s,r)=>s+r.cantidad,0);
 
@@ -3278,7 +3831,7 @@ function renderMaquina(){
   // Teórico: solo los turnos de la línea en que hubo auditoría dentro del período.
   // Contar los 3 turnos de todos los días daría una producción inflada (y un % irreal).
   const turnosAuditados = new Set(
-    S.registros.filter(r => r.familia===fam && cubos.includes(claveDe(fechaDeTurno(r),periodo)))
+    regsVisibles().filter(r => r.familia===fam && cubos.includes(claveDe(fechaDeTurno(r),periodo)))
                .map(r => r.turnoKey));
   const nTurnos = turnosAuditados.size;
   teoTotal = (cfgM.activa && cfgM.ratio) ? cfgM.ratio * nTurnos : 0;
@@ -3300,7 +3853,7 @@ function renderMaquina(){
   // posición dentro del proceso
   const hermanas = (ESTRUCTURA[fam]||{})[proc]||[];
   const rank = hermanas.map(m=>{
-    const n = S.registros.filter(r=>r.familia===fam && r.puesto===m &&
+    const n = regsVisibles().filter(r=>r.familia===fam && r.puesto===m &&
       cubos.includes(claveDe(fechaDeTurno(r),periodo))).reduce((s,r)=>s+r.cantidad,0);
     const cf = getCfg(fam,m);
     const t = (cf.activa && cf.ratio) ? cf.ratio*nTurnos : 0;
@@ -3348,7 +3901,7 @@ function renderMaquina(){
         tooltip:{callbacks:{afterLabel:(ctx)=>{
           if(ctx.datasetIndex!==0) return "";
           const k=cubos[ctx.dataIndex];
-          const nT=new Set(S.registros.filter(r=>r.familia===fam && claveDe(fechaDeTurno(r),periodo)===k)
+          const nT=new Set(regsVisibles().filter(r=>r.familia===fam && claveDe(fechaDeTurno(r),periodo)===k)
                                       .map(r=>r.turnoKey)).size;
           return `${nT} turno(s) auditado(s) en la línea`;
         }}}},
@@ -3383,7 +3936,7 @@ function renderMaquina(){
 
   // ---- salientes: originados en este proceso, detectados en otras máquinas ----
   const sal = {};
-  S.registros.filter(r => r.familia===fam && r.defectoAjeno==="Sí" &&
+  regsVisibles().filter(r => r.familia===fam && r.defectoAjeno==="Sí" &&
       String(r.origenDefecto||"").split(";").map(t=>t.trim()).includes(proc) &&
       cubos.includes(claveDe(fechaDeTurno(r),periodo)))
     .forEach(r=>{ sal[r.puesto]=(sal[r.puesto]||0)+r.cantidad; });
@@ -3407,7 +3960,7 @@ function renderMaquina(){
     // NC clasificadas por máquina del proceso en el período
     const porMaq = hermanas.map(m=>({
       maq:m,
-      nc:S.registros.filter(r=>r.familia===fam && r.puesto===m &&
+      nc:regsVisibles().filter(r=>r.familia===fam && r.puesto===m &&
           cubos.includes(claveDe(fechaDeTurno(r),periodo))).reduce((s,r)=>s+r.cantidad,0)
     })).sort((a,b)=>b.nc-a.nc);
 
@@ -3452,7 +4005,7 @@ function renderMaquina(){
             <td class="n">${f0(recogido)}</td><td class="n">—</td><td></td></tr>`:""}
         </tbody>
       </table>
-      ${cobertura!=null && cobertura<30 ? `<div style="font-size:.73rem;color:#92660a;background:#fff8e1;border:1px solid #f3e3ae;
+      ${cobertura!=null && cobertura<30 ? `<div style="font-size:.73rem;color:var(--warn-text);background:var(--warn-bg);border:1px solid #f3e3ae;
         border-radius:7px;padding:8px 11px;margin-top:10px;">⚠ Con ${cobertura.toFixed(0)}% de cobertura, esta distribución
         es una señal, no una conclusión: el ${(100-cobertura).toFixed(0)}% restante podría repartirse distinto.</div>`:""}`;
   })();
@@ -3463,7 +4016,7 @@ function renderMaquina(){
     ? `<div style="overflow-x:auto;"><table class="tbl-mini"><thead><tr>
         <th>Fecha</th><th>Hora</th><th>Turno</th><th>Defecto</th><th class="n">NC</th><th>Observación</th></tr></thead><tbody>
         ${ultimos.map(r=>`<tr><td>${fechaDeTurno(r)}</td><td>${r.hora}</td><td>T${r.turno}</td>
-          <td>${r.defectoCodigo} - ${r.defectoLabel}${r.defectoAjeno==="Sí"?` <span style="color:#92660a;font-size:.7rem;">⚠ de ${r.origenDefecto}</span>`:""}</td>
+          <td>${r.defectoCodigo} - ${r.defectoLabel}${r.defectoAjeno==="Sí"?` <span style="color:var(--warn-text);font-size:.7rem;">⚠ de ${r.origenDefecto}</span>`:""}</td>
           <td class="n">${r.cantidad}</td><td>${r.observacion||"—"}</td></tr>`).join("")}
         </tbody></table></div>`
     : `<div class="empty-mini">Sin registros en el período.</div>`;
@@ -3507,14 +4060,14 @@ function renderFlujo(){
   const meta = METAS[fam] ?? 1;
   const horas = horasTranscurridas(turno, fecha);
   const llave = llaveTurno(turno, fecha);
-  const regs = S.registros.filter(r=>r.turnoKey===llave && r.familia===fam);
+  const regs = regsVisibles().filter(r=>r.turnoKey===llave && r.familia===fam);
   const flujo = FLUJO_LINEA[fam] || [];
   const estructura = ESTRUCTURA[fam] || {};
 
   document.getElementById("fLeyenda").innerHTML = `
-    <span><i class="pt" style="background:#22c55e"></i>≤ ${(meta*UMBRAL_VERDE).toFixed(2)}% Cumple</span>
-    <span><i class="pt" style="background:#f2b90b"></i>${(meta*UMBRAL_VERDE).toFixed(2)} – ${meta.toFixed(2)}% Requiere atención</span>
-    <span><i class="pt" style="background:#e53e3e"></i>&gt; ${meta.toFixed(2)}% No cumple</span>
+    <span><i class="pt" style="background:var(--ok)"></i>≤ ${(meta*UMBRAL_VERDE).toFixed(2)}% Cumple</span>
+    <span><i class="pt" style="background:var(--warn)"></i>${(meta*UMBRAL_VERDE).toFixed(2)} – ${meta.toFixed(2)}% Requiere atención</span>
+    <span><i class="pt" style="background:var(--bad)"></i>&gt; ${meta.toFixed(2)}% No cumple</span>
     <span><i class="pt" style="background:#c2c8d0"></i>Sin ratio</span>
     <span><i class="ln"></i>Paso condicional o retrabajo</span>`;
 
@@ -3600,7 +4153,7 @@ function renderFlujo(){
     · El estado de cada proceso sale del desperdicio de sus máquinas en el turno, comparado contra la meta de ${fam} (≤ ${meta}%).<br>
     · Los pasos con borde punteado son condicionales: no todas las piezas pasan por ahí.<br>
     · Haz clic en cualquier proceso para ver sus máquinas en la pestaña Control.
-    ${conProblema?`<br>· <b style="color:#c81d2e;">${conProblema} proceso(s) por encima de la meta.</b>`:""}
+    ${conProblema?`<br>· <b style="color:var(--bad);">${conProblema} proceso(s) por encima de la meta.</b>`:""}
     ${sinRatio?`<br>· ${sinRatio} proceso(s) sin ratio configurado — no se puede calcular su porcentaje.`:""}
     ${sinMaq.length?`<br>· Sin máquinas registradas en el sistema: ${sinMaq.join(", ")}.`:""}
   </div></div>`;
@@ -3608,7 +4161,128 @@ function renderFlujo(){
 
 /* alternar entre vista de tarjetas y vista de flujo dentro de Control */
 let VISTA_CTRL = "tarjetas";
+/* ======================================================================
+   REPARTO DEL DESPERDICIO ENTRE MÁQUINAS
+   El patinador sabe CUÁNTO hubo; no sabe de dónde salió. La auditoría sabe
+   de dónde, pero sólo de lo que había acumulado al pasar. Juntarlas por suma
+   duplicaría. Lo correcto es usar la auditoría como REPARTO:
+       participación de la máquina = lo que halló en ella / lo que halló en todo
+       estimado de la máquina        = total recogido × participación
+   Dos avisos que no se pueden callar:
+   · Sólo vale dentro de un mismo proceso y una misma pasada. Comparar una
+     máquina vista a las 8 con otra vista a las 13 compara tiempos de
+     acumulación distintos, no ritmos de defecto.
+   · La auditoría se hace en turno 1. Repartir el turno 2 o 3 con los pesos
+     del turno 1 es suponer que la planta se comporta igual, y no consta.
+   ====================================================================== */
+function repartoDe(fam, fecha, turno){
+  const llave = llaveTurno(turno, fecha);
+  const dentro = r=> r.familia===fam && r.turnoKey===llave;
+  const rec = S.registros.filter(r=> dentro(r) && esRecoleccion(r) && !r.estadoMaquina);
+  const aud = S.registros.filter(r=> dentro(r) && esAuditoria(r)  && !r.estadoMaquina);
+  const cie = S.registros.filter(r=> dentro(r) && esAuditoria(r)  && r.estadoMaquina);
+  const procs = {};
+  const toca = (r, campo)=>{
+    const p = r.proceso || "—";
+    procs[p] = procs[p] || {proc:p, recogido:0, hallado:0, maq:{}, cero:[], notrab:[], pasadas:{}};
+    procs[p][campo] += (r.cantidad || 0);
+  };
+  rec.forEach(r=> toca(r, "recogido"));
+  aud.forEach(r=>{
+    toca(r, "hallado");
+    const o = procs[r.proceso || "—"];
+    const m = r.puesto || "—";
+    o.maq[m] = (o.maq[m] || 0) + (r.cantidad || 0);
+    o.pasadas[String(r.pasada||1)] = true;
+  });
+  cie.forEach(r=>{
+    const p = r.proceso || "—";
+    procs[p] = procs[p] || {proc:p, recogido:0, hallado:0, maq:{}, cero:[], notrab:[], pasadas:{}};
+    (r.estadoMaquina === "No trabajó" ? procs[p].notrab : procs[p].cero).push(r.puesto);
+    procs[p].pasadas[String(r.pasada||1)] = true;
+  });
+  return Object.values(procs).map(o=>{
+    /* Una máquina revisada y limpia participa con cero y cuenta como revisada.
+       Una que no trabajó se queda fuera: no tuvo ocasión de generar nada. */
+    o.revisadas = Object.keys(o.maq).length + o.cero.length;
+    o.filas = Object.keys(o.maq).sort((a,b)=> o.maq[b]-o.maq[a]).map(m=>({
+      maq:m, hallado:o.maq[m],
+      parte: o.hallado ? o.maq[m]/o.hallado : null,
+      estimado: null
+    })).concat(o.cero.map(m=>({maq:m, hallado:0, parte:0, estimado:0})));
+    /* Redondear cada fila por su cuenta hace que los estimados no sumen el
+       total recogido (340 se vuelve 341), y entonces la tabla se contradice
+       con su propio encabezado. Se reparte el entero y el resto se da a las
+       máquinas con la fracción más alta, que sí cuadra exacto. */
+    if(o.hallado && o.recogido){
+      const conParte = o.filas.filter(f=> f.parte);
+      let dados = 0;
+      conParte.forEach(f=>{
+        f.exacto = o.recogido * f.parte;
+        f.estimado = Math.floor(f.exacto);
+        dados += f.estimado;
+      });
+      let resto = o.recogido - dados;
+      conParte.slice().sort((a,b)=> (b.exacto - b.estimado) - (a.exacto - a.estimado))
+        .forEach(f=>{ if(resto > 0){ f.estimado++; resto--; } });
+      o.filas.forEach(f=>{ if(f.estimado === null) f.estimado = 0; delete f.exacto; });
+    }
+    o.nPasadas = Object.keys(o.pasadas).length;
+    return o;
+  }).sort((a,b)=> b.recogido - a.recogido || b.hallado - a.hallado);
+}
+
+function renderReparto(){
+  const box = document.getElementById("zonaReparto");
+  if(!box) return;
+  const fam = document.getElementById("kFamilia").value;
+  const fecha = document.getElementById("kFecha").value || hoyISO();
+  const turno = document.getElementById("kTurno").value || turnoActual();
+  if(!fam){ box.innerHTML = ""; return; }
+
+  const datos = repartoDe(fam, fecha, turno).filter(o=> o.recogido || o.hallado);
+  if(!datos.length){ box.innerHTML = ""; return; }
+
+  const pct = v=> v===null ? "—" : (v*100).toLocaleString("es-CO",{maximumFractionDigits:1})+"%";
+  const filas = datos.map(o=>{
+    const cab = `<div class="rep-cab"><b>${o.proc}</b>
+      <span>${o.recogido ? o.recogido.toLocaleString("es-CO")+" recogidas" : "sin recolección"}
+      · ${o.hallado.toLocaleString("es-CO")} halladas en auditoría
+      · ${o.revisadas} máquina(s) revisada(s)${
+        o.notrab.length ? " · "+o.notrab.length+" no trabajó" : ""}</span></div>`;
+    if(!o.hallado) return cab + `<div class="rep-nota">La auditoría no encontró nada en
+      ${o.proc}, así que no hay con qué repartir las ${o.recogido.toLocaleString("es-CO")} recogidas.</div>`;
+    if(!o.recogido) return cab + `<div class="rep-nota">Falta el registro del patinador
+      para este proceso y turno. Sin él sólo se sabe el reparto, no el total.</div>`;
+    const avisos = [];
+    if(o.nPasadas > 1) avisos.push(`La auditoría pasó ${o.nPasadas} veces por este proceso.
+      El reparto mezcla pasadas con tiempos de acumulación distintos.`);
+    if(String(turno) !== "1") avisos.push(`La auditoría se hace en turno 1.
+      Repartir el turno ${turno} con estos pesos supone que la planta se comporta igual.`);
+    return cab + `<table class="rep-t"><thead><tr>
+        <th>Máquina</th><th class="n">Halladas</th><th class="n">Participación</th>
+        <th class="n">Estimado del turno</th></tr></thead><tbody>` +
+      o.filas.map(f=>`<tr><td>${f.maq}</td><td class="n">${f.hallado}</td>
+        <td class="n">${pct(f.parte)}</td>
+        <td class="n"><b>${f.estimado===null?"—":f.estimado.toLocaleString("es-CO")}</b></td></tr>`).join("") +
+      `</tbody></table>
+      <div class="rep-form">${o.recogido.toLocaleString("es-CO")} recogidas
+        × participación de cada máquina = su estimado.
+        Los estimados suman ${o.recogido.toLocaleString("es-CO")}, no más.</div>` +
+      avisos.map(a=>`<div class="rep-aviso">${a}</div>`).join("");
+  }).join("");
+
+  box.innerHTML = `<div class="panel">
+    <div class="section-title"><h2>REPARTO ENTRE MÁQUINAS</h2>
+      <span style="font-size:.74rem;color:var(--text-dim);">De quién fue el desperdicio que recogió el patinador</span></div>
+    ${filas}
+    <div class="rep-pie">Esto <b>no</b> suma los dos registros: la recolección pone el
+      total y la auditoría sólo dice en qué proporción repartirlo. Las piezas son las mismas.</div>
+  </div>`;
+}
+
 function aplicarVistaControl(){
+  renderReparto();
   const flujo = VISTA_CTRL==="flujo";
   document.getElementById("zonaFlujo").style.display = flujo ? "block":"none";
   document.getElementById("zonaTarjetas").style.display = flujo ? "none":"block";
@@ -3716,11 +4390,24 @@ async function asegurarHistorico(desdeISO){
   await cargarRemoto(desdeISO);
 }
 
-async function cargarRemoto(desdeISO){
+/* Bitácora de lecturas. Sin esto, cuando alguien dice «no me aparece lo que
+   registró el otro» no hay forma de saber si la app leyó y no trajo nada, o
+   si directamente no leyó. Vive en memoria: es para mirar ahora, no histórico. */
+const LECTURAS = [];
+function anotarLectura(o){
+  LECTURAS.unshift(o);
+  if(LECTURAS.length > 6) LECTURAS.pop();
+  if(document.getElementById("syncModal").classList.contains("show")) renderDiagSync();
+}
+
+async function cargarRemoto(desdeISO, motivo){
   if(!S.syncUrl) return;
+  const t0 = Date.now();
   try{
     const corte = desdeISO || fechaDesdeCD(60);
     const data = await pedirJSON(S.syncUrl + "?desde=" + corte, "los registros");
+    anotarLectura({hora:new Date(), filas:Array.isArray(data)?data.length:null,
+      ms:Date.now()-t0, motivo:motivo||"sondeo automático", desde:corte, error:null});
     if(Array.isArray(data)){
       if(!CARGADO_DESDE || corte < CARGADO_DESDE) CARGADO_DESDE = corte;
       const m=new Map();
@@ -3731,13 +4418,17 @@ async function cargarRemoto(desdeISO){
       if(document.getElementById("viewDashboard").style.display!=="none") renderDashboardTurno();
       reintentarPendientes(); actualizarEstadoSync();
     }
-  }catch(e){console.error(e);}
+  }catch(e){
+    anotarLectura({hora:new Date(), filas:null, ms:Date.now()-t0,
+      motivo:motivo||"sondeo automático", desde:"", error:String(e && e.message ? e.message : e)});
+    console.error(e);
+  }
 }
 function actualizarEstadoSync(){
   const dot=document.getElementById("syncDot"),label=document.getElementById("syncLabel");
   if(!S.syncUrl){dot.style.background="rgba(255,255,255,.5)";label.textContent="Modo local";return;}
   const p = S.registros.filter(r=>r.pendienteSync).length + leerPendientes().length;
-  if(p>0){dot.style.background="#f2b90b";label.textContent=`Sincronizando... (${p})`;}
+  if(p>0){dot.style.background="var(--warn)";label.textContent=`Sincronizando... (${p})`;}
   else{dot.style.background="#7fe0a4";label.textContent="Sincronizado";}
 }
 function abrirSync(){
@@ -3759,10 +4450,34 @@ function renderDiagSync(){
   const cargue = Object.keys(JSON.parse(localStorage.getItem("cd_empacadas")||"{}")).length;
   const carguePend = leerPendientes().length;
   const total = regsPend + carguePend;
-  const verde = "#1f9d55", rojo = "#c81d2e";
+  const verde = "var(--ok)", rojo = "var(--bad)";
+
+  /* Las dos versiones, una al lado de la otra. Es lo que permite ver desde la
+     pantalla si este equipo se quedó con una copia vieja en caché, o si la
+     hoja todavía corre el Apps Script anterior. Sin esto sólo queda adivinar. */
+  const vHoja = BACKEND.version;
+  const alDia = vHoja && String(vHoja) === String(APP_VERSION);
+  const versiones = `
+      <div class="diag-fila"><span>Código de esta app</span>
+        <b style="color:${alDia?verde:"var(--warn-text)"};">${APP_VERSION}</b></div>
+      <div class="diag-fila"><span>Código de la hoja</span>
+        <b style="color:${vHoja?(alDia?verde:"var(--warn-text)"):rojo};">${vHoja||"no respondió"}</b></div>
+      ${vHoja && !alDia ? `<div class="diag-nota">Las versiones no coinciden. Si acabas de
+        publicar el Apps Script, recarga esta página; si no, falta publicar
+        <b>Nueva versión</b> del despliegue existente.</div>` : ""}`;
+
+  const fmtH = d=> `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const historial = LECTURAS.length ? `
+      <div class="diag-cab">ÚLTIMAS LECTURAS</div>
+      ${LECTURAS.map(l=>`<div class="diag-lec">
+        <span>${fmtH(l.hora)}</span>
+        <span>${l.error ? "falló: "+l.error : (l.filas===null?"—":l.filas+" fila(s)")}</span>
+        <span>${l.motivo}</span>
+        <span>${(l.ms/1000).toFixed(1)} s</span></div>`).join("")}` : "";
 
   box.innerHTML = `
     <div class="diag">
+      ${versiones}
       <div class="diag-fila"><span>Registros del inspector</span><b>${regs}</b></div>
       <div class="diag-fila"><span>Registros sin subir</span><b style="color:${regsPend?rojo:verde};">${regsPend}</b></div>
       <div class="diag-fila"><span>Datos de cargue en este equipo</span><b>${cargue}</b></div>
@@ -3775,7 +4490,20 @@ function renderDiagSync(){
       ${cargue?`<button class="btn-subir sec" id="btnReenviarCargue">Reenviar todo el cargue (${cargue} datos)</button>
         <div class="diag-nota">Úsalo si borraste filas en la hoja o dudas de que haya llegado todo.
           No duplica: la Sheet reemplaza el dato de cada llave.</div>`:""}
+      <button class="btn-subir sec" id="btnLeerYa">Leer la hoja ahora</button>
+      ${historial}
+      <div class="diag-nota">Si alguna lectura dice «sondeo automático» y tú no hiciste nada,
+        es la app sola: lee cada 45 segundos mientras la pestaña está a la vista.</div>
     </div>`;
+
+  const bl = document.getElementById("btnLeerYa");
+  if(bl) bl.addEventListener("click", async ()=>{
+    bl.disabled = true; bl.textContent = "Leyendo…";
+    await comprobarBackend();
+    await cargarRemoto(null, "botón «leer la hoja ahora»");
+    bl.disabled = false; bl.textContent = "Leer la hoja ahora";
+    renderDiagSync();
+  });
 
   const bp = document.getElementById("btnSubirPend");
   if(bp) bp.addEventListener("click", async ()=>{
@@ -3858,7 +4586,17 @@ function migrarProcesosUnificados(){
 /* ---------- Init ---------- */
 migrarProcesosUnificados();
 renderFamilias();
+renderTipos();
+renderReferencias();
 pintarRuta();
+renderDefectos();
+/* El origen elegido se recuerda: casi siempre se mira el mismo. */
+TIPO_VISTA = localStorage.getItem("cd_tipo_vista") || "auditoria";
+if(!TIPOS[TIPO_VISTA]) TIPO_VISTA = "auditoria";
+document.querySelectorAll(".tv-sel").forEach(s=>{
+  s.value = TIPO_VISTA;
+  s.addEventListener("change", e=> cambiarTipoVista(e.target.value));
+});
 document.getElementById("dFecha").value=hoyISO();
 document.getElementById("dTurno").value=turnoActual();
 document.getElementById("kFecha").value=hoyISO();
@@ -3866,7 +4604,7 @@ montarSelectorMes();
 document.getElementById("cxMes").value=hoyISO().slice(0,7);
 document.getElementById("kTurno").value=turnoActual();
 actualizarEstadoSync();
-if(S.syncUrl){comprobarBackend();cargarRemoto();cargarEmpacadas();cargarRatios();reintentarPendientes();
+if(S.syncUrl){comprobarBackend();cargarRemoto();cargarEmpacadas();cargarRatios();reintentarPendientes();cargarUsuarios();
   // ritmo bajo: cada pestaña abierta consume cuota diaria de Apps Script y
   // leer cada pocos segundos desde varios equipos la agota en media jornada
   setInterval(()=>{ if(!document.hidden) cargarRemoto(); }, 45000);
