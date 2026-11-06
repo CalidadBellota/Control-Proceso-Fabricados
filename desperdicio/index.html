@@ -96,7 +96,18 @@
   .rec-m button{border:1px solid var(--border);background:#fff;border-radius:7px;padding:5px 9px;
     font-size:.74rem;font-weight:700;cursor:pointer;color:var(--text-dim);font-family:inherit;}
   .rec-m button:hover{border-color:var(--red);color:var(--red);}
+  .rec-m.hecha .nom{color:var(--text);}
   .rec-resumen{font-size:.78rem;color:var(--text-dim);margin-top:4px;}
+  /* Un proceso ya cargado en esta pasada: se puede volver a él, pero se avisa. */
+  .procesos button.cerrado{border-color:#bfe8cf;background:var(--ok-bg);color:var(--ok);}
+  .procesos button.cerrado .n{color:var(--ok);font-weight:800;}
+
+  /* Observación propia de cada defecto */
+  .obs-def{width:100%;margin-top:7px;padding:6px 8px;font-size:.78rem;height:auto;
+    border:1px solid var(--border);border-radius:6px;color:var(--text);}
+  .obs-def::placeholder{color:#9aa5b1;}
+  .obs-def:focus{outline:2px solid var(--red);}
+  .def-fila .obs-def{margin-top:0;max-width:220px;}
 
   .pin-error{font-size:.8rem;color:var(--bad);background:var(--bad-bg);
     border-radius:8px;padding:8px 10px;margin-top:10px;font-weight:600;}
@@ -133,12 +144,15 @@
   .cab-txt{border-left:4px solid var(--red);padding-left:12px;}
 
   /* la ruta 1-2-3: el trazo va detrás de los círculos y se pinta hasta donde se llegó */
-  .ruta{display:grid;grid-template-columns:repeat(3,1fr);position:relative;}
-  .ruta::before,.ruta::after{content:"";position:absolute;top:15px;left:16.6%;right:16.6%;height:2px;background:var(--border);}
-  .ruta::after{background:var(--red);right:auto;width:0;transition:width .25s;}
-  .ruta[data-hecho="1"]::after{width:33.3%;}
-  .ruta[data-hecho="2"]::after{width:66.6%;}
-  .ruta[data-hecho="3"]::after{width:66.6%;}
+  /* La ruta ya no tiene siempre tres pasos: la recolección lleva cuatro y la
+     auditoría cinco. Con las columnas fijas en tres, el cuarto se caía a una
+     segunda fila. Ahora el número de pasos lo pone el JS en --n y la barra de
+     avance se calcula con él, así que sirve para cualquier cantidad. */
+  .ruta{display:grid;grid-template-columns:repeat(var(--n,3),1fr);position:relative;}
+  .ruta::before,.ruta::after{content:"";position:absolute;top:15px;
+    left:calc(50% / var(--n,3));right:calc(50% / var(--n,3));height:2px;background:var(--border);}
+  .ruta::after{background:var(--red);right:auto;transition:width .25s;
+    width:calc((100% - 100% / var(--n,3)) * var(--hecho,0) / (var(--n,3) - 1));}
   .ruta .r{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;position:relative;z-index:1;}
   .ruta .b{width:32px;height:32px;border-radius:50%;background:#fff;border:2px solid var(--border);color:#9aa2ad;
     display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.84rem;}
@@ -195,7 +209,7 @@
 
   /* vista lista: una fila por defecto, con el mismo contador de la tarjeta */
   .defectos-lista{display:flex;flex-direction:column;gap:8px;}
-  .def-fila{display:grid;grid-template-columns:52px 1fr 158px;gap:12px;align-items:center;background:#fff;
+  .def-fila{display:grid;grid-template-columns:52px 1fr 158px 220px;gap:12px;align-items:center;background:#fff;
     border:1px solid var(--border);border-left:4px solid #e1e4e9;border-radius:10px;padding:9px 13px;}
   .def-fila.con-cantidad{border-color:var(--red);border-left-color:var(--red);background:#fffafa;}
   .def-fila .cod{font-weight:800;color:var(--red);font-size:.85rem;letter-spacing:.2px;}
@@ -207,6 +221,7 @@
   .def-fila .cant-row input{padding:5px;height:auto;}
   @media(max-width:620px){
     .def-fila{grid-template-columns:52px 1fr;row-gap:9px;}
+    .def-fila .obs-def{max-width:none;grid-column:1/-1;}
     .def-fila .cant-row{grid-column:1/-1;}
   }
 
@@ -493,6 +508,31 @@
     color:#fff;font-size:.84rem;font-weight:700;cursor:pointer;font-family:inherit;}
   .btn-subir:disabled{background:#9aa5b1;cursor:default;}
   .btn-subir.sec{background:#fff;color:var(--text);border:1px solid var(--border);margin-top:8px;}
+  /* Títulos de sección y resultado de la prueba, como en Control de Proceso */
+  .diag-tit{font-size:.68rem;font-weight:800;letter-spacing:.5px;color:var(--red);
+    margin-bottom:4px;padding-bottom:4px;}
+  .diag-url{font-size:.68rem;color:var(--text-dim);background:#f7f8fa;border:1px solid var(--border);
+    border-radius:6px;padding:7px 9px;margin-top:4px;word-break:break-all;line-height:1.4;}
+  .prueba{margin-top:10px;display:flex;flex-direction:column;gap:5px;}
+  .prueba .pr{font-size:.74rem;line-height:1.45;padding:7px 10px;border-radius:7px;}
+  .prueba .pr.bien{background:var(--ok-bg);color:#1f7a4d;}
+  .prueba .pr.mal{background:#fdf1f1;color:#a01523;}
+  .prueba .pr b{margin-right:5px;}
+
+  /* ---- Administración de usuarios ---- */
+  .usr-t{width:100%;border-collapse:collapse;font-size:.84rem;margin-top:6px;}
+  .usr-t th{text-align:left;font-size:.68rem;font-weight:800;letter-spacing:.4px;color:var(--text-dim);
+    padding:6px 8px;border-bottom:1px solid var(--border);}
+  .usr-t td{padding:7px 8px;border-bottom:1px solid #f1f2f4;}
+  .usr-t tr.inact{color:var(--text-dim);}
+  .usr-t tr.inact b{font-weight:600;}
+  .usr-t button{border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 10px;
+    font-size:.74rem;font-weight:700;cursor:pointer;color:var(--text-dim);font-family:inherit;}
+  .usr-t button:hover{border-color:var(--red);color:var(--red);}
+  .usr-alta{margin-top:18px;padding-top:14px;border-top:1px solid var(--border);}
+  .usr-cab{font-size:.68rem;font-weight:800;letter-spacing:.5px;color:var(--red);margin-bottom:9px;}
+  .usr-form{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+  @media(max-width:700px){.usr-form{grid-template-columns:repeat(2,1fr);}}
 
   .ayer-nota{margin:0 0 13px;font-size:.76rem;line-height:1.5;color:var(--text-dim);
     background:#f7f8fa;border-left:3px solid var(--border);border-radius:0 7px 7px 0;padding:9px 12px;}
@@ -836,16 +876,19 @@
 
   <div class="panel paso" id="paso1">
     <div class="paso-cab"><span class="num">1</span>
-      <div><b>Línea de producto</b><span>Selecciona la línea que estás auditando.</span></div>
+      <div><b>Línea de producto</b><span id="paso1Sub">Selecciona la línea.</span></div>
     </div>
     <div class="familias" id="familias"></div>
   </div>
 
   <div class="panel paso bloqueado" id="paso2">
     <div class="paso-cab"><span class="num">2</span>
-      <div><b>Proceso que estás auditando</b><span id="paso2Sub">Primero elige la línea de producto.</span></div>
+      <div><b id="paso2Tit">Proceso</b><span id="paso2Sub">Primero elige la línea de producto.</span></div>
     </div>
     <div class="procesos" id="procesos"></div>
+    <!-- En recolección el recorrido es por proceso, no por máquina, así que
+         va aquí y no en el paso de puesto, que allí ni existe. -->
+    <div class="recorrido" id="recorridoProc" style="display:none;"></div>
   </div>
 
   <div class="panel paso bloqueado" id="paso3">
@@ -871,7 +914,6 @@
       Escribe la cantidad en cada defecto que encuentres en este puesto. Cada defecto muestra su <b>origen típico</b>; si el defecto llegó desde otro proceso queda marcado con ⚠.
     </div>
     <div class="buscador-row">
-      <input type="text" id="observacion" maxlength="150" placeholder="Observación (opcional)" style="max-width:260px;">
       <input type="text" id="buscador" placeholder="Buscar defecto por código o nombre...">
       <span class="contador" id="contadorDefectos"></span>
       <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
@@ -891,6 +933,7 @@
   </div>
 
   <span class="footer-link" id="openSync">Sincronización en tiempo real</span>
+  <span class="footer-link" id="openUsr">Administrar usuarios</span>
 </section>
 
 
@@ -1213,16 +1256,56 @@
   </div>
 </div>
 
+<!-- Administración de usuarios. Quien audita queda firmado, así que alguien
+     tiene que poder dar de alta a la gente sin tocar la hoja a mano. -->
+<div class="modal-bg" id="usrModal">
+  <div class="modal" style="max-width:760px;max-height:88vh;overflow-y:auto;">
+    <h3 style="margin-top:0;">Usuarios que pueden auditar</h3>
+    <p>La recolección no necesita usuario: el patinador registra sin entrar.
+      Esta lista es sólo para firmar auditorías.</p>
+    <div id="usrAviso"></div>
+    <div id="usrLista"></div>
+    <div class="usr-alta">
+      <div class="usr-cab">AÑADIR O ACTUALIZAR</div>
+      <div class="usr-form">
+        <div><label for="uUsuario">Identificador *</label>
+          <input type="text" id="uUsuario" maxlength="20" placeholder="ahenao"></div>
+        <div><label for="uNombre">Nombre y apellido *</label>
+          <input type="text" id="uNombre" maxlength="60" placeholder="Andrés Henao"></div>
+        <div><label for="uPin">PIN *</label>
+          <input type="text" id="uPin" inputmode="numeric" maxlength="8" placeholder="1234"></div>
+        <div><label for="uRol">Rol</label>
+          <select id="uRol">
+            <option value="calidad">Calidad</option>
+            <option value="coordinador">Coordinador</option>
+            <option value="jefe">Jefe</option>
+          </select></div>
+        <div><label for="uActivo">Activo</label>
+          <select id="uActivo"><option value="Sí">Sí</option><option value="No">No</option></select></div>
+      </div>
+      <div class="diag-nota">El identificador es la llave: si repites uno que ya existe,
+        se actualiza en vez de crear otro. Un usuario no se borra, se desactiva — si ya
+        firmó auditorías, borrarlo dejaría esas firmas sin dueño.</div>
+      <button class="btn-subir" id="uGuardar">Guardar usuario</button>
+    </div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="primary" id="uCerrar">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="syncModal">
   <div class="modal">
     <h3>Sincronización en tiempo real</h3>
-    <p>Pega la URL de tu Apps Script (Web App, termina en <code>/exec</code>) de este proceso.</p>
+    <label for="syncUrl">URL de la aplicación web de Apps Script</label>
     <input type="text" id="syncUrl" placeholder="https://script.google.com/macros/s/.../exec">
-    <div class="modal-actions">
-      <button id="btnDesconectar">Modo local</button>
-      <button class="primary" id="btnConectar">Conectar</button>
+    <div id="syncDiag" style="margin-top:16px;"></div>
+    <div class="diag-nota" style="margin-top:12px;">
+      La hoja de la empresa ya viene configurada. Solo cambia esta dirección si Calidad te lo indica.</div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button id="btnDesconectar">Trabajar sin conexión</button>
+      <button class="primary" id="btnConectar">Cerrar</button>
     </div>
-    <div id="syncDiag" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);"></div>
     <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
       <span class="footer-link" id="btnBorrarLocal" style="margin:0;">Borrar datos locales de este dispositivo</span>
     </div>
@@ -1323,11 +1406,24 @@ function tipoDe(r){ return String((r && r.tipo) || "auditoria"); }
 function esAuditoria(r){ return tipoDe(r) === "auditoria"; }
 function esRecoleccion(r){ return tipoDe(r) === "recoleccion"; }
 
+/* La hoja que trae la app de fábrica. Tenerla en una constante es lo que
+   permite saber si un equipo quedó apuntando a otra dirección, y poder
+   devolverlo sin que nadie tenga que copiar la URL a mano. */
+const SYNC_POR_DEFECTO = "https://script.google.com/macros/s/AKfycbx8FpJy8kGjLDDCMyD4MLP_08zdrZOSoRfOwD6kCMgdfk_rQltbSI9mOwLlxCwqynInTA/exec";
+
+/* Última lectura de la hoja, para el panel de sincronización. */
+const LECTURA = {recibidos:null, hora:"", sello:0, ms:0, corte:"", motivo:"", error:null};
+/* El resultado de «Probar la conexión». Vive aquí y no en el DOM porque el
+   panel se repinta solo cada pocos segundos y se llevaba la respuesta por
+   delante justo cuando alguien la estaba leyendo. */
+let PRUEBA = [];
+
 const S = {
   registros: JSON.parse(localStorage.getItem("cd_registros")||"[]"),
-  syncUrl: localStorage.getItem("cd_sync_url")||"https://script.google.com/macros/s/AKfycbx8FpJy8kGjLDDCMyD4MLP_08zdrZOSoRfOwD6kCMgdfk_rQltbSI9mOwLlxCwqynInTA/exec",
+  syncUrl: localStorage.getItem("cd_sync_url")||SYNC_POR_DEFECTO,
   familia:null, proceso:"", puesto:"",
   cantidades:{},   // codigo -> cantidad
+  observaciones:{},// codigo -> observación de ESE defecto
   tipo:"",         // "recoleccion" | "auditoria"
   referencia:"",
   usuario:null,    // {usuario, nombre} — sólo en auditoría
@@ -1341,6 +1437,14 @@ function guardarRecorrido(){
   localStorage.setItem("cd_recorrido", JSON.stringify(S.recorrido));
 }
 
+/* Todo lo que venga de la hoja o de lo que escriba la gente pasa por aquí
+   antes de entrar en una plantilla: una comilla en una observación rompería
+   el atributo y se llevaría por delante el resto de la tarjeta. */
+function esc(s){
+  return String(s===undefined||s===null?"":s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
 function pad(n){return String(n).padStart(2,"0");}
 function hoyISO(){const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
 function turnoActual(){const h=new Date().getHours();if(h>=6&&h<14)return "1";if(h>=14&&h<22)return "2";return "3";}
@@ -1406,13 +1510,13 @@ function seleccionarTipo(t){
 function aplicarTipo(t){
   S.tipo = t;
   if(t === "recoleccion") S.usuario = null;
-  S.puesto = ""; S.cantidades = {}; S.referencia = "";
+  S.puesto = ""; S.cantidades = {}; S.observaciones = {}; S.referencia = "";
   document.getElementById("cabTitulo").textContent =
     t === "recoleccion" ? "Recolección de turno" : "Auditoría de puesto";
   document.getElementById("cabSub").textContent = t === "recoleccion"
     ? "Lo recogido al cerrar el turno, por proceso y referencia."
     : `Recorrido máquina por máquina${S.usuario ? " · " + S.usuario.nombre : ""}.`;
-  renderTipos(); renderReferencias(); pintarRuta();
+  renderTipos(); renderProcesos(); renderReferencias(); pintarRuta();
   renderRecorrido(); renderDefectos(); actualizarBarra();
   irAPaso(S.familia ? "paso2" : "paso1");
 }
@@ -1422,7 +1526,15 @@ let TIPO_PENDIENTE = "";
 function abrirPin(t){
   TIPO_PENDIENTE = t;
   const sel = document.getElementById("pinUsuario");
-  const act = S.usuarios.filter(u=> String(u.activo||"Sí").toLowerCase().indexOf("s")===0);
+  /* Para administrar sólo se ofrecen jefes y coordinadores: no tiene sentido
+     dejar elegir a alguien que luego va a ser rechazado. */
+  const act = usuariosActivos().filter(u=> t !== "admin" ||
+    ROL_ADMIN.indexOf(String(u.rol||"").toLowerCase()) !== -1);
+  document.querySelector("#pinModal h3").textContent =
+    t === "admin" ? "Administrar usuarios" : "Auditoría de puesto";
+  document.querySelector("#pinModal p").textContent = t === "admin"
+    ? "Sólo un jefe o coordinador puede dar de alta usuarios."
+    : "La auditoría queda firmada con tu nombre. Entra con tu PIN.";
   sel.innerHTML = `<option value="">Selecciona tu nombre</option>` +
     act.map(u=>`<option value="${u.usuario}">${u.nombre||u.usuario}</option>`).join("");
   /* Si la hoja todavía no tiene usuarios cargados no se puede dejar a calidad
@@ -1458,16 +1570,46 @@ function validarPin(){
     if(String(hit.pin||"") !== String(pin)){
       err.style.display="block"; err.textContent="El PIN no coincide."; return;
     }
-    S.usuario = {usuario:hit.usuario, nombre:hit.nombre||hit.usuario};
+    S.usuario = {usuario:hit.usuario, nombre:hit.nombre||hit.usuario, rol:hit.rol||""};
+  }
+  /* El mismo PIN sirve para dos cosas distintas, así que aquí se bifurca:
+     entrar a auditar, o entrar a administrar usuarios —y para esto último
+     no basta con tener PIN, hace falta el rol. */
+  if(TIPO_PENDIENTE === "admin"){
+    if(!puedeAdministrar()){
+      const err = document.getElementById("pinError");
+      err.style.display = "block";
+      err.textContent = "Ese usuario no es jefe ni coordinador.";
+      S.usuario = null;
+      return;
+    }
+    cerrarPin();
+    renderUsuarios();
+    document.getElementById("usrModal").classList.add("show");
+    return;
   }
   cerrarPin();
   aplicarTipo(TIPO_PENDIENTE || "auditoria");
 }
 
-/* ---------- Recorrido del proceso ---------- */
+/* ---------- Recorrido ----------
+   Las dos rutas recorren algo y lo van cerrando, pero no lo mismo: la
+   auditoría recorre las MÁQUINAS de un proceso, y la recolección recorre los
+   PROCESOS de la línea. Mismo mecanismo, distinto inventario, así que la
+   llave tiene que distinguirlos o se pisarían entre sí. */
 function claveRec(){
-  return `${llaveTurno(turnoActual(), fechaTurnoActual())}|${S.familia}|${S.proceso}`;
+  const tk = llaveTurno(turnoActual(), fechaTurnoActual());
+  return S.tipo === "auditoria"
+    ? `A|${tk}|${S.familia}|${S.proceso}`
+    : `R|${tk}|${S.familia}`;
 }
+/* Qué se está recorriendo ahora mismo. */
+function inventarioRec(){
+  if(S.tipo === "auditoria") return S.proceso ? puestosDe(S.familia, S.proceso) : [];
+  return S.familia ? procesosDe(S.familia) : [];
+}
+/* Y cuál de esos es el que se tiene seleccionado. */
+function itemActual(){ return S.tipo === "auditoria" ? S.puesto : S.proceso; }
 function recActual(){
   const k = claveRec();
   if(!S.recorrido[k]) S.recorrido[k] = {pasada:1, maq:{}};
@@ -1490,56 +1632,82 @@ function refrescarPuestos(){
   if(!sel.value) S.puesto = "";
 }
 
-function cerrarMaquina(m, estado){
+/* Cierra lo que se esté recorriendo: una máquina en auditoría, un proceso en
+   recolección. Es el mismo gesto —«aquí ya terminé»— y conviene que sea el
+   mismo código, para que las dos pantallas no se vayan separando con el uso. */
+function cerrarItem(item, estado){
   const r = recActual();
-  r.maq[m] = estado;
+  r.maq[item] = estado;
   guardarRecorrido();
-  /* Sin desperdicio y no trabajó también son respuestas: la primera entra al
-     reparto con cero, la segunda se queda fuera del denominador. Se guardan
-     como registro de cantidad cero para que quede constancia de la pasada. */
-  if(estado === "cero" || estado === "notrab") guardarCierre(m, estado);
-  if(S.puesto === m) S.puesto = "";
-  S.cantidades = {}; S.referencia = "";
-  refrescarPuestos();
+  /* Sólo la auditoría deja constancia de los cierres en la hoja: ahí «sin
+     desperdicio» significa que la máquina SE REVISÓ y estaba limpia, y eso
+     entra al reparto con cero. En la recolección no se registra nada, porque
+     allí no registrar ya quiere decir que no hubo desperdicio. */
+  if(S.tipo === "auditoria" && (estado === "cero" || estado === "notrab"))
+    guardarCierre(item, estado);
+  if(S.tipo === "auditoria"){
+    if(S.puesto === item) S.puesto = "";
+    refrescarPuestos();
+  } else if(S.proceso === item){
+    S.proceso = "";
+  }
+  S.cantidades = {}; S.observaciones = {}; S.referencia = "";
+  renderProcesos();
   renderRecorrido(); pintarRuta(); renderReferencias();
   renderDefectos(); actualizarBarra();
 }
+/* Nombre viejo, por si quedó alguna llamada suelta. */
+function cerrarMaquina(m, estado){ return cerrarItem(m, estado); }
 
 function nuevaPasada(){
   const r = recActual();
   r.pasada = (r.pasada || 1) + 1;
   r.maq = {};
   guardarRecorrido();
-  refrescarPuestos();
+  if(S.tipo === "auditoria") refrescarPuestos();
+  renderProcesos();
   renderRecorrido(); pintarRuta();
   toast(`Pasada ${r.pasada} iniciada`);
 }
 
 function renderRecorrido(){
-  const box = document.getElementById("recorrido");
+  const auditoria = S.tipo === "auditoria";
+  /* Cada ruta pinta su recorrido donde le corresponde: la auditoría dentro del
+     paso de máquina, la recolección dentro del paso de proceso. */
+  const box  = document.getElementById(auditoria ? "recorrido" : "recorridoProc");
+  const otra = document.getElementById(auditoria ? "recorridoProc" : "recorrido");
+  if(otra) otra.style.display = "none";
   if(!box) return;
-  if(S.tipo !== "auditoria" || !S.proceso){ box.style.display = "none"; return; }
+  const listo = S.tipo && S.familia && (!auditoria || S.proceso);
+  if(!listo){ box.style.display = "none"; return; }
+
   const r = recActual();
-  const maqs = puestosDe(S.familia, S.proceso);
-  const pend = maqs.filter(m=> !r.maq[m]);
+  const items = inventarioRec();
+  if(!items.length){ box.style.display = "none"; return; }
+  const pend = items.filter(m=> !r.maq[m]);
+  const que = auditoria ? "MÁQUINA" : "PROCESO";
   box.style.display = "flex";
   box.innerHTML =
-    `<div class="rec-cab">PASADA ${r.pasada} · ${pend.length} DE ${maqs.length} POR VISITAR</div>` +
-    maqs.map(m=>{
+    `<div class="rec-cab">PASADA ${r.pasada} · ${pend.length} ${que}(S) DE ${items.length} POR CARGAR</div>` +
+    items.map(m=>{
       const e = r.maq[m];
       const cls = e ? e : "pend";
       const et = e ? `<span class="et ${e}">${ET_REC[e]}</span>` : "";
-      const bts = e ? "" :
+      /* Los botones de cierre rápido son sólo de la auditoría: allí hace falta
+         distinguir una máquina revisada y limpia de una que no trabajó. */
+      const bts = (e || !auditoria) ? "" :
         `<button data-m="${m}" data-e="cero">Sin desperdicio</button>
          <button data-m="${m}" data-e="notrab">No trabajó</button>`;
       return `<div class="rec-m ${cls}"><span class="nom">${m}</span>${et}${bts}</div>`;
     }).join("") +
-    (pend.length ? "" :
-      `<div class="rec-resumen">Recorrido completo.
-        <button type="button" id="btnPasada" style="margin-left:6px;">Iniciar pasada ${r.pasada+1}</button></div>`);
+    (pend.length
+      ? (auditoria ? "" : `<div class="rec-resumen">Los procesos que no cargues
+          se entienden como que no tuvieron desperdicio.</div>`)
+      : `<div class="rec-resumen">Recorrido completo.
+          <button type="button" id="btnPasada" style="margin-left:6px;">Iniciar pasada ${r.pasada+1}</button></div>`);
 
   box.querySelectorAll("button[data-m]").forEach(b=>
-    b.addEventListener("click", ()=> cerrarMaquina(b.dataset.m, b.dataset.e)));
+    b.addEventListener("click", ()=> cerrarItem(b.dataset.m, b.dataset.e)));
   const bp = document.getElementById("btnPasada");
   if(bp) bp.addEventListener("click", nuevaPasada);
 }
@@ -1582,7 +1750,7 @@ function pintarFoto(caja){
 
 function seleccionarFamilia(familia){
   if(!S.tipo){ toast("Primero di si es recolección o auditoría"); irAPaso("paso0"); return; }
-  S.familia=familia; S.proceso=""; S.puesto=""; S.cantidades={}; S.referencia="";
+  S.familia=familia; S.proceso=""; S.puesto=""; S.cantidades={}; S.observaciones={}; S.referencia="";
   // sólo se mueve el resaltado: si se reconstruyeran las tarjetas, la foto
   // desaparecería un instante y volvería a verse el emoji
   document.querySelectorAll("#familias .familia-card")
@@ -1613,6 +1781,10 @@ function pintarRuta(){
   const hechos = pasos.filter(x=>x.v).length;
   const ruta = document.getElementById("rutaPasos");
   ruta.dataset.hecho = hechos;
+  /* El CSS necesita saber cuántos pasos hay para repartir las columnas y la
+     barra: si no, con cuatro o cinco el último se baja de fila. */
+  ruta.style.setProperty("--n", pasos.length);
+  ruta.style.setProperty("--hecho", Math.max(0, Math.min(hechos, pasos.length - 1)));
   ruta.innerHTML = pasos.map((x,i)=>{
     const cls = x.v ? "hecho" : (i===hechos ? "activo" : "");
     return `<div class="r ${cls}"><span class="b">${x.v?"✓":i+1}</span>
@@ -1625,6 +1797,13 @@ function pintarRuta(){
      esconde entero: el patinador no tiene cómo saber de qué máquina salió. */
   document.getElementById("paso3").style.display = auditoria ? "" : "none";
   document.getElementById("paso3").classList.toggle("bloqueado", !S.proceso);
+  /* Los rótulos siguen al tipo: en recolección no se audita nada, y dejarlos
+     hablando de auditoría confunde a quien sólo viene a cargar lo recogido. */
+  document.getElementById("paso1Sub").textContent = auditoria
+    ? "Selecciona la línea que estás auditando."
+    : "Selecciona la línea cuyo desperdicio recogiste.";
+  document.getElementById("paso2Tit").textContent = auditoria
+    ? "Proceso que estás auditando" : "Proceso del que recogiste";
   document.getElementById("paso2Sub").textContent = S.familia
     ? `Procesos de ${S.familia}.` : "Primero elige la línea de producto.";
   /* En la auditoría lo que importa no es cuántas máquinas tiene el proceso,
@@ -1652,9 +1831,21 @@ function irAPaso(id){
 function renderProcesos(){
   const box=document.getElementById("procesos");
   const procs=ESTRUCTURA[S.familia]||{};
-  box.innerHTML=Object.keys(procs).map(p=>
-    `<button type="button" data-proc="${p}" class="${S.proceso===p?'active':''}">${p}<span class="n">(${puestosDe(S.familia,p).length})</span></button>`
-  ).join("");
+  /* El número de máquinas sólo importa en la auditoría, que es quien las
+     recorre. En la recolección no hay máquina, así que el contador sobra y
+     sugiere algo que esa pantalla ni pregunta. */
+  const conMaquinas = S.tipo === "auditoria";
+  /* En recolección los procesos ya cerrados se marcan, para no volver a
+     cargarlos por descuido a mitad del turno. */
+  const r = (!conMaquinas && S.tipo && S.familia) ? recActual() : null;
+  box.innerHTML=Object.keys(procs).map(p=>{
+    const cerrado = r && r.maq[p];
+    const cls = [S.proceso===p?'active':'', cerrado?'cerrado':''].filter(Boolean).join(' ');
+    return `<button type="button" data-proc="${p}" class="${cls}"${
+      cerrado ? ' title="Ya cerraste este proceso en esta pasada"' : ''}>${p}${
+      conMaquinas ? `<span class="n">(${puestosDe(S.familia,p).length})</span>`
+                  : (cerrado ? `<span class="n">✓</span>` : "")}</button>`;
+  }).join("");
   box.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>seleccionarProceso(b.dataset.proc)));
 }
 
@@ -1667,7 +1858,7 @@ function puestosDe(fam, proc){
 }
 
 function seleccionarProceso(proc){
-  S.proceso=proc; S.puesto=""; S.cantidades={}; S.referencia="";
+  S.proceso=proc; S.puesto=""; S.cantidades={}; S.observaciones={}; S.referencia="";
   renderProcesos();
   const auditoria = S.tipo === "auditoria";
   /* En el recorrido sólo se ofrecen las máquinas que aún no se han cerrado:
@@ -1767,11 +1958,18 @@ function renderDefectos(){
           <input type="number" class="cant-input" min="0" placeholder="0" value="${cant}">
           <button type="button" class="btn-mas">+</button>
         </div>
+        <!-- La observación va en el defecto, no en una casilla general: cada
+             defecto ya se guarda en su propia fila, así que su nota viaja con
+             él. Antes una sola observación se copiaba igual en todas las
+             filas del lote y no se sabía a cuál se refería. -->
+        <input type="text" class="obs-def" maxlength="150" placeholder="Observación de este defecto"
+               value="${esc(S.observaciones[d.code]||"")}">
       </div>
     </div>`;
   }).join("");
 
   engancharCantidades(grid, ".def-card");
+  engancharObservaciones(grid, ".def-card");
 }
 
 /* Vista lista: el defecto y las unidades a reportar, sin foto ni descripción larga. */
@@ -1796,9 +1994,12 @@ function renderDefectosLista(lista){
         <input type="number" class="cant-input" min="0" placeholder="0" value="${cant}">
         <button type="button" class="btn-mas">+</button>
       </div>
+      <input type="text" class="obs-def" maxlength="150" placeholder="Observación"
+             value="${esc(S.observaciones[d.code]||"")}">
     </div>`;
   }).join("");
   engancharCantidades(caja, ".def-fila");
+  engancharObservaciones(caja, ".def-fila");
 }
 
 /* Un solo manejador de cantidades para las dos vistas. */
@@ -1820,6 +2021,21 @@ function engancharCantidades(caja, selector){
     el.querySelector(".btn-mas").addEventListener("click",()=>{
       const n=(parseInt(input.value)||0)+1;
       input.value=n; aplicar(n);
+    });
+  });
+}
+
+/* Una observación por defecto. Se guarda en el estado y no en el DOM, porque
+   el catálogo se vuelve a pintar con cada búsqueda y lo escrito se perdería. */
+function engancharObservaciones(caja, selector){
+  caja.querySelectorAll(selector).forEach(el=>{
+    const codigo = el.dataset.codigo;
+    const input  = el.querySelector(".obs-def");
+    if(!input) return;
+    input.addEventListener("input", ()=>{
+      const v = input.value.trim();
+      if(v) S.observaciones[codigo] = input.value;
+      else delete S.observaciones[codigo];
     });
   });
 }
@@ -1861,7 +2077,6 @@ function filasDe(codigos, extra){
   const turno=turnoActual();
   const turnoKey=llaveTurno(turno,fechaTurnoActual());
   const hora=`${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  const obs=(document.getElementById("observacion")||{}).value||"";
   const catalogo=defectosDeFamilia();
   const auditoria = S.tipo === "auditoria";
   const base = {
@@ -1871,20 +2086,23 @@ function filasDe(codigos, extra){
     puesto: auditoria ? S.puesto : "",
     tipo: S.tipo,
     referencia: S.referencia,
-    pasada: auditoria ? String(recActual().pasada || 1) : "",
+    pasada: String(recActual().pasada || 1),
     usuario: auditoria && S.usuario ? (S.usuario.nombre || S.usuario.usuario) : "",
-    observacion:obs, turno, turnoKey,
+    turno, turnoKey,
     pendienteSync:!!S.syncUrl
   };
+  /* Lo común primero y lo propio del defecto después: así la observación de
+     cada defecto manda sobre cualquier valor general, que es el punto. */
   return codigos.map((codigo,i)=>{
     const d=catalogo.find(x=>x.code===codigo);
-    return Object.assign({
+    return Object.assign({}, base, {
       id:"CD-"+Date.now()+"-"+i+"-"+Math.floor(Math.random()*1000),
       defectoCodigo:codigo, defectoLabel:d?d.name:"",
       origenDefecto: d?origenDefecto(d):"",
       defectoAjeno: (d && esAjeno(d,S.proceso,S.familia)) ? "Sí" : "No",
-      cantidad:S.cantidades[codigo]
-    }, base, extra||{});
+      cantidad:S.cantidades[codigo],
+      observacion: S.observaciones[codigo] || ""
+    }, extra||{});
   });
 }
 
@@ -1928,21 +2146,24 @@ function registrarDesperdicio(){
   anotar(nuevos);
   toast(`${nuevos.length} defecto(s) · ref. ${S.referencia}`);
 
-  S.cantidades={}; S.referencia="";
-  const obs=document.getElementById("observacion"); if(obs) obs.value="";
+  S.cantidades={}; S.observaciones={}; S.referencia="";
   renderReferencias(); renderDefectos(); actualizarBarra(); pintarRuta();
 
-  /* En la auditoría la misma máquina puede haber corrido dos referencias. Se
-     pregunta antes de darla por terminada; mientras no se cierre, sigue
-     apareciendo en los pendientes del recorrido. */
-  if(auditoria) preguntarMas();
+  /* La misma máquina pudo correr dos referencias, y el mismo proceso también:
+     se pregunta antes de darlo por terminado, y mientras no se cierre sigue
+     apareciendo entre los pendientes. Vale igual para las dos rutas. */
+  preguntarMas();
 }
 
 let MAQ_PREGUNTADA = "";
 function preguntarMas(){
-  MAQ_PREGUNTADA = S.puesto;
+  const auditoria = S.tipo === "auditoria";
+  MAQ_PREGUNTADA = itemActual();
+  if(!MAQ_PREGUNTADA) return;
   document.getElementById("masTxt").innerHTML =
-    `¿Hay más desperdicio en <b>${S.puesto}</b>, con otra referencia?`;
+    `¿Hay más desperdicio en <b>${MAQ_PREGUNTADA}</b>, con otra referencia?`;
+  document.getElementById("masNo").textContent =
+    auditoria ? "No, terminar esta máquina" : "No, cerrar este proceso";
   document.getElementById("masModal").classList.add("show");
 }
 function cerrarMas(){ document.getElementById("masModal").classList.remove("show"); }
@@ -1956,6 +2177,11 @@ document.getElementById("referencia").addEventListener("change", e=>{
   S.referencia = e.target.value;
   pintarRuta(); actualizarBarra();
 });
+
+document.getElementById("openUsr").addEventListener("click", abrirUsuarios);
+document.getElementById("uCerrar").addEventListener("click", ()=>
+  document.getElementById("usrModal").classList.remove("show"));
+document.getElementById("uGuardar").addEventListener("click", e=> guardarUsuario(e.target));
 
 document.getElementById("pinCancelar").addEventListener("click", cerrarPin);
 document.getElementById("pinEntrar").addEventListener("click", validarPin);
@@ -1972,10 +2198,114 @@ document.getElementById("masSi").addEventListener("click", ()=>{
   irAPaso("barraFija");
 });
 document.getElementById("masNo").addEventListener("click", ()=>{
+  const auditoria = S.tipo === "auditoria";
   cerrarMas();
-  if(MAQ_PREGUNTADA) cerrarMaquina(MAQ_PREGUNTADA, "hecha");
-  irAPaso("paso3");
+  if(MAQ_PREGUNTADA) cerrarItem(MAQ_PREGUNTADA, "hecha");
+  irAPaso(auditoria ? "paso3" : "paso2");
 });
+
+/* ======================================================================
+   ADMINISTRACIÓN DE USUARIOS
+   ====================================================================== */
+const ROL_ADMIN = ["jefe","coordinador"];
+function usuariosActivos(){
+  return S.usuarios.filter(u=> String(u.activo||"Sí").toLowerCase().indexOf("s")===0);
+}
+function puedeAdministrar(){
+  /* Mientras no haya nadie dado de alta, cualquiera puede crear el primero:
+     si no, no habría forma de empezar. En cuanto exista un jefe o coordinador,
+     hace falta su PIN. */
+  if(!S.usuarios.length) return true;
+  return !!(S.usuario && ROL_ADMIN.indexOf(String(S.usuario.rol||"").toLowerCase()) !== -1);
+}
+
+async function abrirUsuarios(){
+  await cargarUsuarios();
+  if(!puedeAdministrar()){
+    const admins = S.usuarios.filter(u=>
+      ROL_ADMIN.indexOf(String(u.rol||"").toLowerCase()) !== -1 &&
+      String(u.activo||"Sí").toLowerCase().indexOf("s")===0);
+    if(!admins.length){
+      toast("No hay ningún jefe ni coordinador activo en la hoja");
+      return;
+    }
+    /* Se reutiliza el mismo PIN de la auditoría, pero sólo se deja pasar a
+       quien tenga rol de jefe o coordinador. */
+    abrirPin("admin");
+    return;
+  }
+  renderUsuarios();
+  document.getElementById("usrModal").classList.add("show");
+}
+
+function renderUsuarios(){
+  const box = document.getElementById("usrLista");
+  const av  = document.getElementById("usrAviso");
+  if(!box) return;
+  av.innerHTML = S.usuarios.length ? "" :
+    `<div class="diag-err">La hoja <b>Usuarios</b> está vacía. El primero que crees
+      queda como administrador si le pones rol <b>Jefe</b> o <b>Coordinador</b>;
+      a partir de ahí hará falta su PIN para volver a entrar aquí.</div>`;
+  if(!S.usuarios.length){ box.innerHTML = ""; return; }
+  box.innerHTML = `<table class="usr-t"><thead><tr>
+      <th>Identificador</th><th>Nombre</th><th>Rol</th><th>Activo</th><th></th>
+    </tr></thead><tbody>` +
+    S.usuarios.map(u=>{
+      const act = String(u.activo||"Sí").toLowerCase().indexOf("s")===0;
+      return `<tr class="${act?"":"inact"}">
+        <td><b>${esc(u.usuario)}</b></td>
+        <td>${esc(u.nombre||"—")}</td>
+        <td>${esc(u.rol||"—")}</td>
+        <td>${act?"Sí":"No"}</td>
+        <td><button type="button" data-u="${esc(u.usuario)}">Editar</button></td></tr>`;
+    }).join("") + `</tbody></table>`;
+  box.querySelectorAll("button[data-u]").forEach(b=>
+    b.addEventListener("click", ()=> cargarEnFormulario(b.dataset.u)));
+}
+
+function cargarEnFormulario(id){
+  const u = S.usuarios.find(x=> String(x.usuario) === String(id));
+  if(!u) return;
+  document.getElementById("uUsuario").value = u.usuario || "";
+  document.getElementById("uNombre").value  = u.nombre  || "";
+  document.getElementById("uPin").value     = u.pin     || "";
+  document.getElementById("uRol").value     = String(u.rol||"calidad").toLowerCase();
+  document.getElementById("uActivo").value  =
+    String(u.activo||"Sí").toLowerCase().indexOf("s")===0 ? "Sí" : "No";
+  toast(`Editando ${u.nombre || u.usuario}`);
+}
+
+async function guardarUsuario(boton){
+  const u = {
+    usuario: document.getElementById("uUsuario").value.trim(),
+    nombre:  document.getElementById("uNombre").value.trim(),
+    pin:     document.getElementById("uPin").value.trim(),
+    rol:     document.getElementById("uRol").value,
+    activo:  document.getElementById("uActivo").value
+  };
+  if(!u.usuario){ toast("Falta el identificador"); return; }
+  if(!u.nombre){ toast("Falta el nombre"); return; }
+  if(!u.pin){ toast("Falta el PIN"); return; }
+  if(!S.syncUrl){ toast("Sin conexión no se pueden guardar usuarios"); return; }
+
+  const txt = boton ? boton.textContent : "";
+  if(boton){ boton.disabled = true; boton.textContent = "Guardando…"; }
+  let ok = false;
+  try{
+    const res = await fetch(S.syncUrl, {method:"POST", redirect:"follow",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify({action:"usuario", usuario:u})});
+    const d = await res.json();
+    ok = !!(d && d.ok);
+  }catch(e){ ok = false; }
+  if(boton){ boton.disabled = false; boton.textContent = txt; }
+
+  if(!ok){ toast("No se pudo guardar en la hoja. Revisa la conexión."); return; }
+  await cargarUsuarios();
+  renderUsuarios();
+  ["uUsuario","uNombre","uPin"].forEach(id=> document.getElementById(id).value = "");
+  toast(`${u.nombre} guardado`);
+}
 
 /* Usuarios para firmar la auditoría. Si la hoja no los trae, la auditoría
    sigue siendo posible escribiendo el nombre: no se bloquea a calidad. */
@@ -2191,15 +2521,27 @@ async function reintentarEmpacadas(){
 /* Estado de la última lectura del cargue. Si esto falla en silencio, parece
    que el otro equipo nunca guardó nada, así que se muestra en pantalla. */
 const ESTADO_CARGUE = {hora:null, filas:0, error:null};
-const BACKEND = {version:null};
+/* `leido` distingue dos cosas que se parecen y no son iguales: que la hoja no
+   haya contestado todavía, y que haya contestado sin decir su versión. Lo
+   primero no dice nada; lo segundo sí: está corriendo un Apps Script anterior.
+   Sin esta distinción el panel acusaría a la hoja de vieja nada más abrirlo. */
+const BACKEND = {version:null, leido:false, visto:localStorage.getItem("cd_backend_visto")||""};
 
 /* Consulta barata: dice qué Apps Script está publicado en la hoja. */
 async function comprobarBackend(){
   if(!S.syncUrl) return;
-  try{ const d = await pedirJSON(S.syncUrl + "?tipo=version", "la versión");
-       BACKEND.version = d && d.backend ? d.backend : null; }
-  catch(e){ BACKEND.version = null; }
+  try{
+    const d = await pedirJSON(S.syncUrl + "?tipo=version", "la versión");
+    BACKEND.version = d && d.backend ? d.backend : null;
+    BACKEND.leido = true;
+    if(BACKEND.version){
+      BACKEND.visto = BACKEND.version;
+      localStorage.setItem("cd_backend_visto", BACKEND.version);
+    }
+  }
+  catch(e){ BACKEND.version = null; BACKEND.leido = false; }
   refrescarAvisoCargue();
+  if(document.getElementById("syncModal").classList.contains("show")) renderDiagSync();
 }
 
 async function cargarEmpacadas(){
@@ -4394,9 +4736,19 @@ async function asegurarHistorico(desdeISO){
    registró el otro» no hay forma de saber si la app leyó y no trajo nada, o
    si directamente no leyó. Vive en memoria: es para mirar ahora, no histórico. */
 const LECTURAS = [];
+function horaAhoraCD(){ const d=new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
 function anotarLectura(o){
   LECTURAS.unshift(o);
   if(LECTURAS.length > 6) LECTURAS.pop();
+  /* La bitácora guarda el historial; LECTURA guarda el estado de la última,
+     que es lo que lee el panel arriba. Se actualizan juntas o se contradicen. */
+  LECTURA.recibidos = o.filas;
+  LECTURA.hora   = o.hora;
+  LECTURA.sello  = Date.now();
+  LECTURA.ms     = o.ms;
+  LECTURA.corte  = o.desde;
+  LECTURA.motivo = o.motivo;
+  LECTURA.error  = o.error;
   if(document.getElementById("syncModal").classList.contains("show")) renderDiagSync();
 }
 
@@ -4406,7 +4758,7 @@ async function cargarRemoto(desdeISO, motivo){
   try{
     const corte = desdeISO || fechaDesdeCD(60);
     const data = await pedirJSON(S.syncUrl + "?desde=" + corte, "los registros");
-    anotarLectura({hora:new Date(), filas:Array.isArray(data)?data.length:null,
+    anotarLectura({hora:horaAhoraCD(), filas:Array.isArray(data)?data.length:null,
       ms:Date.now()-t0, motivo:motivo||"sondeo automático", desde:corte, error:null});
     if(Array.isArray(data)){
       if(!CARGADO_DESDE || corte < CARGADO_DESDE) CARGADO_DESDE = corte;
@@ -4419,7 +4771,7 @@ async function cargarRemoto(desdeISO, motivo){
       reintentarPendientes(); actualizarEstadoSync();
     }
   }catch(e){
-    anotarLectura({hora:new Date(), filas:null, ms:Date.now()-t0,
+    anotarLectura({hora:horaAhoraCD(), filas:null, ms:Date.now()-t0,
       motivo:motivo||"sondeo automático", desde:"", error:String(e && e.message ? e.message : e)});
     console.error(e);
   }
@@ -4445,80 +4797,145 @@ document.getElementById("syncLabel").parentElement.addEventListener("click", abr
 function renderDiagSync(){
   const box = document.getElementById("syncDiag");
   if(!box) return;
-  const regs = S.registros.length;
-  const regsPend = S.registros.filter(r=>r.pendienteSync).length;
-  const cargue = Object.keys(JSON.parse(localStorage.getItem("cd_empacadas")||"{}")).length;
-  const carguePend = leerPendientes().length;
-  const total = regsPend + carguePend;
-  const verde = "var(--ok)", rojo = "var(--bad)";
+  const pend      = S.registros.filter(r=>r.pendienteSync);
+  const total     = S.registros.length;
+  const cargue    = Object.keys(JSON.parse(localStorage.getItem("cd_empacadas")||"{}")).length;
+  const carguePend= leerPendientes().length;
+  const propia    = S.syncUrl && S.syncUrl !== SYNC_POR_DEFECTO;
+  const verde = "var(--ok)", rojo = "var(--bad)", gris = "var(--text-dim)";
+  const L = LECTURA;
 
-  /* Las dos versiones, una al lado de la otra. Es lo que permite ver desde la
-     pantalla si este equipo se quedó con una copia vieja en caché, o si la
-     hoja todavía corre el Apps Script anterior. Sin esto sólo queda adivinar. */
-  const vHoja = BACKEND.version;
-  const alDia = vHoja && String(vHoja) === String(APP_VERSION);
-  const versiones = `
-      <div class="diag-fila"><span>Código de esta app</span>
-        <b style="color:${alDia?verde:"var(--warn-text)"};">${APP_VERSION}</b></div>
-      <div class="diag-fila"><span>Código de la hoja</span>
-        <b style="color:${vHoja?(alDia?verde:"var(--warn-text)"):rojo};">${vHoja||"no respondió"}</b></div>
-      ${vHoja && !alDia ? `<div class="diag-nota">Las versiones no coinciden. Si acabas de
-        publicar el Apps Script, recarga esta página; si no, falta publicar
-        <b>Nueva versión</b> del despliegue existente.</div>` : ""}`;
+  const vHoja = (function(){
+    if(BACKEND.version)
+      return `<div class="diag-fila"><span>Código de la hoja</span>
+              <b style="color:${String(BACKEND.version)===String(APP_VERSION)?verde:"var(--warn-text)"};">${esc(BACKEND.version)}</b></div>` +
+        (String(BACKEND.version)===String(APP_VERSION) ? "" :
+         `<div class="diag-nota">Las versiones no coinciden. Si acabas de publicar el Apps Script,
+            recarga esta página; si no, falta publicar <b>Nueva versión</b> del despliegue existente.</div>`);
+    /* Que la hoja no haya contestado aún no la hace vieja: eso sólo se puede
+       afirmar cuando contestó y no dijo su versión. */
+    if(!BACKEND.leido)
+      return `<div class="diag-fila"><span>Código de la hoja</span>
+              <b style="color:${gris};">${BACKEND.visto ? esc(BACKEND.visto)+" · sin confirmar aún" : "todavía sin leer"}</b></div>
+        <div class="diag-nota">La hoja no ha contestado todavía en esta sesión, así que esto no dice
+          nada sobre su versión. Pulsa «Probar la conexión» para saberlo.</div>`;
+    return `<div class="diag-fila"><span>Código de la hoja</span>
+            <b style="color:${rojo};">versión anterior</b></div>
+      <div class="diag-err">La hoja contestó pero no dice su versión: corre un Apps Script anterior,
+        sin las columnas de tipo y referencia. Hay que pegar el <b>Code.gs</b> nuevo y publicar una
+        <b>Nueva versión</b> desde «Implementar → Gestionar implementaciones».</div>`;
+  })();
 
-  const fmtH = d=> `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  const historial = LECTURAS.length ? `
-      <div class="diag-cab">ÚLTIMAS LECTURAS</div>
-      ${LECTURAS.map(l=>`<div class="diag-lec">
-        <span>${fmtH(l.hora)}</span>
-        <span>${l.error ? "falló: "+l.error : (l.filas===null?"—":l.filas+" fila(s)")}</span>
-        <span>${l.motivo}</span>
-        <span>${(l.ms/1000).toFixed(1)} s</span></div>`).join("")}` : "";
+  box.innerHTML = `<div class="diag">
+    ${!S.syncUrl ? `<div class="diag-err" style="margin-bottom:14px;">
+      <b>Estás trabajando sin conexión.</b> Lo que registres se guarda en este equipo pero no sube a la
+      hoja, y no vas a ver lo que registren los demás.
+      <button class="btn-subir" id="btnVolverConectar" style="margin-top:10px;">Volver a conectar con la hoja</button>
+    </div>` : ""}
 
-  box.innerHTML = `
-    <div class="diag">
-      ${versiones}
-      <div class="diag-fila"><span>Registros del inspector</span><b>${regs}</b></div>
-      <div class="diag-fila"><span>Registros sin subir</span><b style="color:${regsPend?rojo:verde};">${regsPend}</b></div>
-      <div class="diag-fila"><span>Datos de cargue en este equipo</span><b>${cargue}</b></div>
-      <div class="diag-fila"><span>Cargue sin subir</span><b style="color:${carguePend?rojo:verde};">${carguePend}</b></div>
-      ${ESTADO_CARGUE.error?`<div class="diag-err">Última lectura de la Sheet: ${ESTADO_CARGUE.error}</div>`
-        :ESTADO_CARGUE.hora?`<div class="diag-ok">Sheet leída a las ${ESTADO_CARGUE.hora} · ${ESTADO_CARGUE.filas} dato(s)</div>`:""}
-      ${total
-        ? `<button class="btn-subir" id="btnSubirPend">Subir ahora los ${total} pendiente(s)</button>`
-        : `<div class="diag-ok" style="margin-top:8px;">✓ Todo lo de este equipo ya está en la Sheet.</div>`}
-      ${cargue?`<button class="btn-subir sec" id="btnReenviarCargue">Reenviar todo el cargue (${cargue} datos)</button>
-        <div class="diag-nota">Úsalo si borraste filas en la hoja o dudas de que haya llegado todo.
-          No duplica: la Sheet reemplaza el dato de cada llave.</div>`:""}
-      <button class="btn-subir sec" id="btnLeerYa">Leer la hoja ahora</button>
-      ${historial}
-      <div class="diag-nota">Si alguna lectura dice «sondeo automático» y tú no hiciste nada,
-        es la app sola: lee cada 45 segundos mientras la pestaña está a la vista.</div>
-    </div>`;
+    <div class="diag-tit">ENVÍO</div>
+    <div class="diag-fila"><span>Registros en este dispositivo</span><b>${total}</b></div>
+    <div class="diag-fila"><span>Enviados a la hoja</span><b style="color:${verde};">${total-pend.length}</b></div>
+    <div class="diag-fila"><span>Pendientes de enviar</span>
+      <b style="color:${pend.length?rojo:verde};">${pend.length}</b></div>
+    <div class="diag-fila"><span>Datos de cargue en este equipo</span><b>${cargue}</b></div>
+    <div class="diag-fila"><span>Cargue sin subir</span>
+      <b style="color:${carguePend?rojo:verde};">${carguePend}</b></div>
+    ${(pend.length+carguePend)
+      ? `<button class="btn-subir" id="btnSubirPend">Subir ahora los ${pend.length+carguePend} pendiente(s)</button>`
+      : `<div class="diag-ok" style="margin-top:8px;">✓ Todo lo de este equipo ya está en la hoja.</div>`}
 
-  const bl = document.getElementById("btnLeerYa");
-  if(bl) bl.addEventListener("click", async ()=>{
-    bl.disabled = true; bl.textContent = "Leyendo…";
+    <div class="diag-tit" style="margin-top:16px;">LECTURA</div>
+    <div class="diag-fila"><span>Registros que devolvió la hoja</span>
+      <b style="color:${L.error?rojo:L.recibidos?verde:gris};">${
+        !S.syncUrl ? "sin conexión" : L.error ? "—"
+          : (L.recibidos==null ? "leyendo…" : L.recibidos)}</b></div>
+    <div class="diag-fila"><span>Última lectura</span><b>${L.hora
+        ? `${esc(L.hora)} · hace ${Math.max(0,Math.round((Date.now()-L.sello)/1000))} s` : "—"}</b></div>
+    <div class="diag-fila"><span>Tardó</span><b>${L.ms ? (L.ms/1000).toFixed(1)+" s" : "—"}</b></div>
+    <div class="diag-fila"><span>Desde qué fecha se pidió</span><b>${L.corte ? esc(L.corte) : "—"}</b></div>
+    <div class="diag-fila"><span>Qué la disparó</span><b style="font-weight:600;">${
+        L.motivo ? esc(L.motivo) : "—"}</b></div>
+    ${L.error ? `<div class="diag-err">No se pudo leer la hoja: ${esc(L.error)}<br>
+      Lo que registres aquí se guarda en este equipo, pero <b>no verás lo de los demás</b>.</div>` : ""}
+    <button class="btn-subir sec" id="btnLeerAhora">Leer la hoja ahora</button>
+    <button class="btn-subir sec" id="btnProbar">Probar la conexión</button>
+    ${PRUEBA.length ? `<div class="prueba">${PRUEBA.map(x=>
+      `<div class="pr ${x.ok?"bien":"mal"}"><b>${x.ok?"✓":"✕"}</b> ${x.txt}</div>`).join("")}</div>` : ""}
+
+    ${LECTURAS.length ? `<div class="diag-tit" style="margin-top:16px;">ÚLTIMAS LECTURAS</div>
+      ${LECTURAS.map(b=>`<div class="diag-lec">
+        <span>${esc(b.hora)}</span>
+        <span>${b.error ? "falló: "+esc(b.error) : (b.filas==null?"—":b.filas+" reg.")}</span>
+        <span${/AUTOM|identificar/i.test(b.motivo)?' style="color:var(--bad);font-weight:700;"':''}>${esc(b.motivo)}</span>
+        <span>${b.ms?(b.ms/1000).toFixed(1)+" s":""}</span></div>`).join("")}
+      <div class="diag-nota">Si alguna dice «sin identificar» o «DISPARO AUTOMÁTICO»,
+        hay algo leyendo por su cuenta.</div>` : ""}
+
+    <div class="diag-fila" style="margin-top:16px;"><span>Código de esta app</span>
+      <b style="color:${verde};">${esc(APP_VERSION)}</b></div>
+    ${vHoja}
+
+    <div class="diag-tit" style="margin-top:16px;">CONEXIÓN DE ESTE EQUIPO</div>
+    <div class="diag-url">${esc(S.syncUrl || "sin conexión")}</div>
+    <div class="diag-nota">${propia
+      ? "⚠ Este equipo apunta a una dirección <b>distinta</b> a la que trae la app. Si los demás usan la de fábrica, no se verán entre sí. Usa «Restaurar la hoja de la empresa»."
+      : "Es la dirección que trae la app de fábrica."}</div>
+    ${propia ? `<button class="btn-subir sec" id="btnRestaurar">Restaurar la hoja de la empresa</button>` : ""}
+    ${cargue?`<button class="btn-subir sec" id="btnReenviarCargue">Reenviar todo el cargue (${cargue} datos)</button>
+      <div class="diag-nota">Úsalo si borraste filas en la hoja o dudas de que haya llegado todo.
+        No duplica: la hoja reemplaza el dato de cada llave.</div>`:""}
+  </div>`;
+}
+
+/* Un solo manejador en el contenedor. El panel se repinta solo cada pocos
+   segundos, y enganchar botón por botón dejaba sin acción a los recién
+   creados: se veían bien y no hacían nada al pulsarlos. */
+document.getElementById("syncDiag").addEventListener("click", async (ev)=>{
+  const b = ev.target.closest ? ev.target.closest("button") : null;
+  if(!b || !b.id) return;
+  if(b.id === "btnLeerAhora"){
+    b.disabled = true; b.textContent = "Leyendo…";
     await comprobarBackend();
     await cargarRemoto(null, "botón «leer la hoja ahora»");
-    bl.disabled = false; bl.textContent = "Leer la hoja ahora";
     renderDiagSync();
-  });
-
-  const bp = document.getElementById("btnSubirPend");
-  if(bp) bp.addEventListener("click", async ()=>{
-    bp.disabled = true; bp.textContent = "Subiendo…";
-    await reintentarPendientes();          // registros del inspector
-    await reintentarEmpacadas();           // cargue
+    return;
+  }
+  if(b.id === "btnProbar") return probarConexion(b);
+  if(b.id === "btnSubirPend"){
+    b.disabled = true; b.textContent = "Subiendo…";
+    await reintentarPendientes();
+    await reintentarEmpacadas();
     const quedan = S.registros.filter(r=>r.pendienteSync).length + leerPendientes().length;
     renderDiagSync();
-    toast(quedan ? `Quedan ${quedan} sin subir. Revisa la conexión.` : "Todo subido a la Sheet");
-  });
-
-  const br = document.getElementById("btnReenviarCargue");
-  if(br) br.addEventListener("click", async ()=>{
-    if(!confirm("Se vuelve a enviar a la Sheet todo el cargue guardado en este equipo. ¿Continuar?")) return;
-    br.disabled = true;
+    toast(quedan ? `Quedan ${quedan} sin subir. Revisa la conexión.` : "Todo subido a la hoja");
+    return;
+  }
+  if(b.id === "btnVolverConectar"){
+    S.syncUrl = SYNC_POR_DEFECTO;
+    localStorage.setItem("cd_sync_url", S.syncUrl);
+    document.getElementById("syncUrl").value = S.syncUrl;
+    actualizarEstadoSync(); renderDiagSync();
+    await comprobarBackend();
+    await cargarRemoto(null, "volver a conectar");
+    renderDiagSync();
+    toast("Conectado de nuevo");
+    return;
+  }
+  if(b.id === "btnRestaurar"){
+    S.syncUrl = SYNC_POR_DEFECTO;
+    localStorage.setItem("cd_sync_url", S.syncUrl);
+    document.getElementById("syncUrl").value = S.syncUrl;
+    actualizarEstadoSync(); renderDiagSync();
+    await comprobarBackend();
+    await cargarRemoto(null, "restaurar la hoja de la empresa");
+    renderDiagSync();
+    toast("Restaurada la hoja de la empresa");
+    return;
+  }
+  if(b.id === "btnReenviarCargue"){
+    if(!confirm("Se vuelve a enviar a la hoja todo el cargue guardado en este equipo. ¿Continuar?")) return;
+    b.disabled = true;
     const all = JSON.parse(localStorage.getItem("cd_empacadas")||"{}");
     const porLinea = {};
     Object.keys(all).forEach(k=>{
@@ -4528,25 +4945,94 @@ function renderDiagSync(){
     let fallos = 0, hechas = 0;
     const lineas = Object.keys(porLinea);
     for(let i=0;i<lineas.length;i++){
-      br.textContent = `Reenviando ${i+1}/${lineas.length} línea(s)…`;
+      b.textContent = `Reenviando ${i+1}/${lineas.length} línea(s)…`;
       const ok = await guardarEnSheet(lineas[i], porLinea[lineas[i]]);
       if(ok) hechas += porLinea[lineas[i]].length; else fallos += porLinea[lineas[i]].length;
     }
     renderDiagSync();
     toast(fallos ? `${hechas} subidos, ${fallos} quedaron en cola` : `${hechas} datos reenviados`);
-  });
-}
-document.getElementById("btnConectar").addEventListener("click",()=>{
-  S.syncUrl=document.getElementById("syncUrl").value.trim();
-  localStorage.setItem("cd_sync_url",S.syncUrl);
-  actualizarEstadoSync();
+  }
+});
+
+/* Pregunta lo mínimo a la hoja y cuenta qué contestó. Es lo que separa «no
+   llega nada» de «llega, pero vacío» y de «la dirección ni existe». */
+async function probarConexion(boton){
+  PRUEBA = [];
+  const paso = (ok, txt)=>{ PRUEBA.push({ok, txt}); renderDiagSync(); };
+  const txtBtn = boton ? boton.textContent : "";
+  if(boton){ boton.disabled = true; boton.textContent = "Probando…"; }
+
+  if(!S.syncUrl){
+    paso(false, "Este equipo está sin conexión configurada.");
+  } else {
+    try{
+      const t0 = Date.now();
+      const d = await pedirJSON(S.syncUrl + "?tipo=version", "la versión");
+      const ms = ((Date.now()-t0)/1000).toFixed(1);
+      if(d && d.backend){
+        BACKEND.version = d.backend; BACKEND.leido = true;
+        BACKEND.visto = d.backend; localStorage.setItem("cd_backend_visto", d.backend);
+        paso(true, `La hoja contestó en ${ms} s y dice ser <b>${esc(d.backend)}</b>.`);
+        paso(String(d.backend)===String(APP_VERSION),
+          String(d.backend)===String(APP_VERSION)
+            ? "Coincide con el código de esta app."
+            : `Esta app es <b>${esc(APP_VERSION)}</b>: no coinciden. Falta publicar una versión nueva del Apps Script, o recargar esta página.`);
+      } else {
+        BACKEND.version = null; BACKEND.leido = true;
+        paso(false, "La hoja contestó pero no dice su versión: corre un Apps Script anterior.");
+      }
+    }catch(e){
+      BACKEND.leido = false;
+      paso(false, `No se pudo leer la versión: ${esc(e && e.message ? e.message : e)}`);
+    }
+    try{
+      const t0 = Date.now();
+      const d = await pedirJSON(S.syncUrl + "?desde=" + hoyISO(), "los registros");
+      const ms = ((Date.now()-t0)/1000).toFixed(1);
+      if(Array.isArray(d)){
+        paso(true, `Pidiendo sólo lo de hoy devolvió <b>${d.length}</b> fila(s) en ${ms} s.`);
+        /* Si la hoja devuelve filas sin la columna nueva, el Code.gs es viejo
+           aunque la versión haya contestado: conviene decirlo aquí mismo. */
+        if(d.length && d[0].tipo === undefined)
+          paso(false, "Las filas vienen sin la columna <b>tipo</b>: la hoja todavía no tiene el Code.gs nuevo.");
+      } else {
+        paso(false, "Respondió algo que no es una lista de registros.");
+      }
+    }catch(e){
+      paso(false, `No se pudieron leer los registros: ${esc(e && e.message ? e.message : e)}`);
+    }
+    try{
+      const u = await pedirJSON(S.syncUrl + "?tipo=usuarios", "los usuarios");
+      const n = Array.isArray(u) ? u.length : 0;
+      paso(n>0, n>0 ? `Hay <b>${n}</b> usuario(s) para firmar auditorías.`
+        : "La hoja <b>Usuarios</b> está vacía: la auditoría pedirá escribir el nombre a mano.");
+    }catch(e){
+      paso(false, "No se pudo leer la hoja <b>Usuarios</b>: falta crearla, o el Code.gs es anterior.");
+    }
+  }
+  if(boton){ boton.disabled = false; boton.textContent = txtBtn; }
+  renderDiagSync();
+}document.getElementById("btnConectar").addEventListener("click",()=>{
+  /* El botón cierra, pero antes recoge la dirección: si alguien la cambió y
+     se limitara a cerrar, el cambio se perdería sin decir nada. */
+  const u = document.getElementById("syncUrl").value.trim();
+  if(u !== S.syncUrl){
+    S.syncUrl = u;
+    if(u) localStorage.setItem("cd_sync_url", u); else localStorage.removeItem("cd_sync_url");
+    actualizarEstadoSync();
+    comprobarBackend();
+    cargarRemoto(null, "cambio de dirección");
+  }
   document.getElementById("syncModal").classList.remove("show");
-  cargarRemoto();
 });
 document.getElementById("btnDesconectar").addEventListener("click",()=>{
   S.syncUrl="";localStorage.removeItem("cd_sync_url");
   actualizarEstadoSync();
-  document.getElementById("syncModal").classList.remove("show");
+  /* No se cierra el panel: así queda a la vista el aviso de que se está sin
+     conexión, con el botón para volver. Cerrarlo dejaba el equipo desconectado
+     sin que nadie se enterara hasta el día siguiente. */
+  renderDiagSync();
+  toast("Trabajando sin conexión");
 });
 document.getElementById("btnBorrarLocal").addEventListener("click",()=>{
   if(confirm("Esto borra los registros guardados en este dispositivo (no toca la Sheet). ¿Continuar?")){
@@ -4604,7 +5090,7 @@ montarSelectorMes();
 document.getElementById("cxMes").value=hoyISO().slice(0,7);
 document.getElementById("kTurno").value=turnoActual();
 actualizarEstadoSync();
-if(S.syncUrl){comprobarBackend();cargarRemoto();cargarEmpacadas();cargarRatios();reintentarPendientes();cargarUsuarios();
+if(S.syncUrl){comprobarBackend();cargarRemoto(null,"apertura de la app (turno actual)");cargarEmpacadas();cargarRatios();reintentarPendientes();cargarUsuarios();
   // ritmo bajo: cada pestaña abierta consume cuota diaria de Apps Script y
   // leer cada pocos segundos desde varios equipos la agota en media jornada
   setInterval(()=>{ if(!document.hidden) cargarRemoto(); }, 45000);
