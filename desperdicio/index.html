@@ -98,7 +98,7 @@
   .rec-m button:hover{border-color:var(--red);color:var(--red);}
   .rec-m.hecha .nom{color:var(--text);}
   .rec-resumen{font-size:.78rem;color:var(--text-dim);margin-top:4px;}
-  /* Un proceso ya cargado en esta pasada: se puede volver a él, pero se avisa. */
+  /* Un proceso ya cargado: se puede volver a él, pero se avisa. */
   .procesos button.cerrado{border-color:#bfe8cf;background:var(--ok-bg);color:var(--ok);}
   .procesos button.cerrado .n{color:var(--ok);font-weight:800;}
 
@@ -249,38 +249,65 @@
 
   /* Rejilla de procesos. El dibujo se reconoce antes de leer, que en tablet
      y con guantes es la diferencia entre acertar a la primera o no. El texto
-     manda igual: hay procesos parecidos y el icono solo no basta. */
-  .procesos{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));
+     manda igual: hay procesos parecidos y el icono solo no basta.
+     La tarjeta no es un botón sino un contenedor: dentro van el botón de
+     elegir y los dos atajos de cierre. Anidar botones no es HTML válido y
+     los clics se pelean entre sí. */
+  .procesos{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));
     gap:10px;margin-bottom:16px;}
-  .proc-card{position:relative;display:flex;flex-direction:column;align-items:center;
-    justify-content:flex-start;gap:7px;padding:13px 8px 11px;min-height:92px;
+  .proc-card{position:relative;display:flex;flex-direction:column;
     border:1.5px solid var(--border);border-radius:var(--radius);background:#fff;
-    color:var(--text-dim);cursor:pointer;font-family:inherit;transition:border-color .12s;}
+    overflow:hidden;transition:border-color .12s,background .12s;}
   .proc-card:hover{border-color:#c3c9d1;}
+  .proc-card .pick{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;
+    padding:13px 8px 11px;background:none;border:0;cursor:pointer;font-family:inherit;width:100%;}
   .proc-card .ic{display:block;width:30px;height:30px;color:var(--text-dim);}
   .proc-card .ic svg{width:100%;height:100%;display:block;}
-  .proc-card .nom{font-size:.78rem;font-weight:700;line-height:1.2;text-align:center;
-    color:var(--text);}
-  /* Esquina: o el número de máquinas, o en qué quedó el proceso. Nunca las dos. */
+  .proc-card .nom{font-size:.78rem;font-weight:700;line-height:1.2;text-align:center;color:var(--text);}
   .proc-card .n,.proc-card .marca{position:absolute;top:6px;right:7px;min-width:18px;height:18px;
     display:flex;align-items:center;justify-content:center;border-radius:9px;
     font-size:.68rem;font-weight:800;padding:0 4px;}
   .proc-card .n{background:#f1f2f4;color:var(--text-dim);}
+
+  /* Pie con los atajos. Se separa con una línea para que no se lea como
+     parte de la zona de elegir. */
+  .proc-card .pie{display:flex;align-items:center;justify-content:center;gap:2px;
+    border-top:1px solid var(--border);background:#fafbfc;min-height:32px;padding:0 4px;}
+  .proc-card .pie .acc{flex:1;display:flex;align-items:center;justify-content:center;
+    height:30px;background:none;border:0;cursor:pointer;color:#aab2bd;padding:0;}
+  .proc-card .pie .acc svg{width:17px;height:17px;}
+  .proc-card .pie .acc:hover{color:var(--red);}
+  /* Marcado: el pie entero es el botón de deshacer. Con un aspa aparte el
+     texto no cabía y se cortaba, y además el objetivo quedaba diminuto para
+     un dedo con guante. */
+  .proc-card .pie.marcado{padding:0;}
+  .proc-card .pie .acc.des{gap:5px;padding:0 6px;}
+  .proc-card .pie .acc.des span{font-size:.58rem;font-weight:800;letter-spacing:0;
+    text-transform:uppercase;white-space:nowrap;}
+  .proc-card .pie .acc.des svg{width:12px;height:12px;flex:0 0 12px;opacity:.55;}
+  .proc-card .pie .acc.des:hover svg{opacity:1;}
+
+  /* Elegido manda sobre cualquier estado: es dónde está la persona ahora. */
   .proc-card.active{border-color:var(--red);background:#fdeceb;}
   .proc-card.active .nom,.proc-card.active .ic{color:var(--red);}
   .proc-card.active .n{background:var(--red);color:#fff;}
+  .proc-card.active .pie{background:#fde3e1;border-top-color:#f7c9c5;}
+
+  /* Concluido —cargado o revisado sin desperdicio— en verde; sin trabajar, gris. */
   .proc-card.est-hecha,.proc-card.est-cero{border-color:#bfe8cf;background:var(--ok-bg);}
   .proc-card.est-hecha .ic,.proc-card.est-cero .ic{color:var(--ok);}
   .proc-card.est-hecha .marca,.proc-card.est-cero .marca{background:var(--ok);color:#fff;}
-  .proc-card.est-notrab{background:#f7f8fa;border-color:var(--border);}
+  .proc-card.est-hecha .pie,.proc-card.est-cero .pie{background:#dcf2e6;border-top-color:#bfe8cf;}
+  .proc-card.est-hecha .pie .des,.proc-card.est-cero .pie .des{color:#1f7a4d;}
+  .proc-card.est-notrab{background:#f4f5f7;border-color:var(--border);}
   .proc-card.est-notrab .nom,.proc-card.est-notrab .ic{color:#9aa5b1;}
-  .proc-card.est-notrab .marca{background:#dfe3e8;color:#6b7280;}
-  /* Si ya está cerrado y además es el que se mira, manda el rojo de elegido. */
-  .proc-card.active.est-hecha,.proc-card.active.est-cero,
-  .proc-card.active.est-notrab{border-color:var(--red);background:#fdeceb;}
+  .proc-card.est-notrab .marca{background:#c9cfd6;color:#fff;}
+  .proc-card.est-notrab .pie{background:#eceef1;}
+  .proc-card.est-notrab .pie .des{color:#6b7280;}
+
   @media(max-width:620px){
-    .procesos{grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;}
-    .proc-card{min-height:82px;padding:11px 6px 9px;}
+    .procesos{grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;}
+    .proc-card .pick{padding:11px 6px 9px;}
     .proc-card .ic{width:26px;height:26px;}
     .proc-card .nom{font-size:.72rem;}
   }
@@ -918,9 +945,6 @@
       <div><b id="paso2Tit">Proceso</b><span id="paso2Sub">Primero elige la línea de producto.</span></div>
     </div>
     <div class="procesos" id="procesos"></div>
-    <!-- En recolección el recorrido es por proceso, no por máquina, así que
-         va aquí y no en el paso de puesto, que allí ni existe. -->
-    <div class="recorrido" id="recorridoProc" style="display:none;"></div>
   </div>
 
   <div class="panel paso bloqueado" id="paso3">
@@ -1644,8 +1668,10 @@ function inventarioRec(){
 function itemActual(){ return S.tipo === "auditoria" ? S.puesto : S.proceso; }
 function recActual(){
   const k = claveRec();
-  if(!S.recorrido[k]) S.recorrido[k] = {pasada:1, maq:{}};
-  return S.recorrido[k];
+  if(!S.recorrido[k]) S.recorrido[k] = {maq:{}, cerradas:{}};
+  const r = S.recorrido[k];
+  if(!r.cerradas) r.cerradas = {};            // recorridos guardados antes del cambio
+  return r;
 }
 const ET_REC = {hecha:"con desperdicio", cero:"sin desperdicio", notrab:"no trabajó"};
 
@@ -1678,6 +1704,10 @@ function cerrarItem(item, estado){
      proceso que estuvo limpio del que ni siquiera corrió, que es lo que
      decide si entra o no al denominador. */
   if(estado === "cero" || estado === "notrab") guardarCierre(item, estado);
+  /* Se cuenta DESPUÉS de guardar, para que la fila del cierre lleve la pasada
+     en la que ocurrió y no la siguiente. */
+  r.cerradas[item] = (r.cerradas[item] || 0) + 1;
+  guardarRecorrido();
   if(S.tipo === "auditoria"){
     if(S.puesto === item) S.puesto = "";
     refrescarPuestos();
@@ -1692,26 +1722,37 @@ function cerrarItem(item, estado){
 /* Nombre viejo, por si quedó alguna llamada suelta. */
 function cerrarMaquina(m, estado){ return cerrarItem(m, estado); }
 
-function nuevaPasada(){
+/* La pasada ya no se maneja a mano. Se deduce: si un sitio se cerró y
+   después se vuelve a cargar, esa carga es de una pasada posterior. Así el
+   dato se conserva para el reparto —comparar máquinas vistas con horas de
+   acumulación distintas no vale— sin un contador que nadie quería ver. */
+function pasadaDe(item){
+  if(!item) return 1;
   const r = recActual();
-  r.pasada = (r.pasada || 1) + 1;
-  r.maq = {};
+  return (r.cerradas[item] || 0) + 1;
+}
+
+/* Deshacer una marca puesta por error. Sin esto, un toque mal dado dejaba el
+   proceso cerrado para el resto del turno. */
+function reabrirItem(item){
+  const r = recActual();
+  delete r.maq[item];
   guardarRecorrido();
   if(S.tipo === "auditoria") refrescarPuestos();
-  renderProcesos();
-  renderRecorrido(); pintarRuta();
-  toast(`Pasada ${r.pasada} iniciada`);
+  renderProcesos(); renderRecorrido(); pintarRuta();
+  toast(`${item}: marca quitada`);
 }
 
 function renderRecorrido(){
   const auditoria = S.tipo === "auditoria";
   /* Cada ruta pinta su recorrido donde le corresponde: la auditoría dentro del
      paso de máquina, la recolección dentro del paso de proceso. */
-  const box  = document.getElementById(auditoria ? "recorrido" : "recorridoProc");
-  const otra = document.getElementById(auditoria ? "recorridoProc" : "recorrido");
-  if(otra) otra.style.display = "none";
+  /* En recolección el recorrido vive en las propias tarjetas de proceso:
+     repetirlo aquí abajo ocupaba media pantalla diciendo lo mismo. */
+  const box = document.getElementById("recorrido");
   if(!box) return;
-  const listo = S.tipo && S.familia && (!auditoria || S.proceso);
+  if(!auditoria){ box.style.display = "none"; return; }
+  const listo = S.tipo && S.familia && S.proceso;
   if(!listo){ box.style.display = "none"; return; }
 
   const r = recActual();
@@ -1721,11 +1762,12 @@ function renderRecorrido(){
   const que = auditoria ? "MÁQUINA" : "PROCESO";
   box.style.display = "flex";
   box.innerHTML =
-    `<div class="rec-cab">PASADA ${r.pasada} · ${pend.length} ${que}(S) DE ${items.length} POR CARGAR</div>` +
+    `<div class="rec-cab">${pend.length} ${que}(S) DE ${items.length} POR CARGAR</div>` +
     items.map(m=>{
       const e = r.maq[m];
       const cls = e ? e : "pend";
-      const et = e ? `<span class="et ${e}">${ET_REC[e]}</span>` : "";
+      const et = e ? `<span class="et ${e}">${ET_REC[e]}</span>
+        <button data-m="${m}" title="Quitar la marca">✕</button>` : "";
       /* Hace falta en las dos rutas: una cosa es que estuviera limpio y otra
          que no trabajara, y sólo quien está ahí lo sabe. */
       const bts = e ? "" :
@@ -1737,13 +1779,11 @@ function renderRecorrido(){
       ? `<div class="rec-resumen">Marca también los que no dieron desperdicio o no
           trabajaron: un ${auditoria?"puesto":"proceso"} sin respuesta no se distingue
           de uno que se quedó sin registrar.</div>`
-      : `<div class="rec-resumen">Recorrido completo.
-          <button type="button" id="btnPasada" style="margin-left:6px;">Iniciar pasada ${r.pasada+1}</button></div>`);
+      : `<div class="rec-resumen">Recorrido completo.</div>`);
 
   box.querySelectorAll("button[data-m]").forEach(b=>
-    b.addEventListener("click", ()=> cerrarItem(b.dataset.m, b.dataset.e)));
-  const bp = document.getElementById("btnPasada");
-  if(bp) bp.addEventListener("click", nuevaPasada);
+    b.addEventListener("click", ()=> b.dataset.e
+      ? cerrarItem(b.dataset.m, b.dataset.e) : reabrirItem(b.dataset.m)));
 }
 
 /* ---------- Referencia ---------- */
@@ -1850,6 +1890,12 @@ const ICONOS_PROC = {
 const ICONO_GENERICO = SVG_(`<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12h8"/>`);
 function iconoProceso(p){ return ICONOS_PROC[p] || ICONO_GENERICO; }
 
+/* Los tres glifos del pie de la tarjeta. Van aparte del catálogo de procesos
+   porque son acciones, no procesos. */
+const IC_CERO     = SVG_(`<circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.2l2.4 2.4 4.6-5"/>`);
+const IC_NOTRAB   = SVG_(`<circle cx="12" cy="12" r="8.5"/><path d="M8 12h8"/>`);
+const IC_DESHACER = SVG_(`<path d="M8 8l8 8M16 8l-8 8"/>`);
+
 /* ---------- Familias ---------- */
 function renderFamilias(){
   const box=document.getElementById("familias");
@@ -1934,7 +1980,7 @@ function pintarRuta(){
   document.getElementById("paso2Sub").textContent = S.familia
     ? `Procesos de ${S.familia}.` : "Primero elige la línea de producto.";
   /* En la auditoría lo que importa no es cuántas máquinas tiene el proceso,
-     sino cuántas faltan por visitar en esta pasada. */
+     sino cuántas faltan por visitar. */
   const todas = S.proceso ? puestosDe(S.familia, S.proceso) : [];
   const rec = auditoria && S.proceso ? recActual() : null;
   const libres = rec ? todas.filter(p=> !rec.maq[p]) : todas;
@@ -1942,7 +1988,7 @@ function pintarRuta(){
     ? "Primero elige el proceso."
     : libres.length
       ? `${libres.length} de ${todas.length} máquina(s) por visitar en ${S.proceso}.`
-      : `Las ${todas.length} máquinas de ${S.proceso} ya se visitaron en esta pasada.`;
+      : `Ya marcaste las ${todas.length} máquinas de ${S.proceso}.`;
   document.getElementById("puesto").classList.toggle("elegido", !!S.puesto);
   document.getElementById("puestoHint").style.display = S.puesto ? "block" : "none";
 }
@@ -1962,27 +2008,53 @@ function renderProcesos(){
      recorre. En la recolección no hay máquina, así que el contador sobra y
      sugiere algo que esa pantalla ni pregunta. */
   const conMaquinas = S.tipo === "auditoria";
-  /* En recolección los procesos ya cerrados se marcan, para no volver a
-     cargarlos por descuido a mitad del turno. */
-  const r = (!conMaquinas && S.tipo && S.familia) ? recActual() : null;
-  const MARCA = {hecha:["✓","Ya lo cargaste en esta pasada"],
-                 cero:["0","Marcado sin desperdicio"],
-                 notrab:["—","Marcado como que no trabajó"]};
+  /* Y al revés: los dos atajos de cierre son de la recolección, porque ahí lo
+     que se cierra es el proceso entero. En auditoría se cierran las máquinas,
+     una por una, en su propio paso. */
+  const conCierre = S.tipo === "recoleccion" && S.familia;
+  const r = conCierre ? recActual() : null;
+
+  const MARCA = {hecha:["✓","Ya lo cargaste"],
+                 cero:["0","Sin desperdicio"],
+                 notrab:["—","No trabajó"]};
   box.innerHTML=Object.keys(procs).map(p=>{
     const est = r && r.maq[p];
     const cls = ["proc-card", S.proceso===p?"active":"", est?"est-"+est:""]
       .filter(Boolean).join(" ");
-    /* La esquina lleva una sola cosa: el estado si ya se cerró, y si no el
-       número de máquinas —que únicamente interesa cuando hay que recorrerlas. */
     const esq = est
-      ? `<span class="marca">${MARCA[est][0]}</span>`
+      ? `<span class="marca" title="${MARCA[est][1]}">${MARCA[est][0]}</span>`
       : (conMaquinas ? `<span class="n">${puestosDe(S.familia,p).length}</span>` : "");
-    return `<button type="button" data-proc="${esc(p)}" class="${cls}"${
-      est ? ` title="${MARCA[est][1]}"` : ""}>
-      <span class="ic">${iconoProceso(p)}</span>
-      <span class="nom">${esc(p)}</span>${esq}</button>`;
+    /* El pie de la tarjeta: o los dos atajos, o en qué quedó con su aspa para
+       deshacer. Un toque mal dado tiene que poder corregirse. */
+    let pie = "";
+    if(conCierre){
+      pie = est
+        ? `<div class="pie marcado">
+             <button type="button" class="acc des" data-proc="${esc(p)}" data-e=""
+               title="Quitar la marca de ${esc(p)}" aria-label="Quitar la marca de ${esc(p)}"
+               ><span>${MARCA[est][1]}</span>${IC_DESHACER}</button></div>`
+        : `<div class="pie"><button type="button" class="acc" data-proc="${esc(p)}" data-e="cero"
+               title="Sin desperdicio" aria-label="${esc(p)}: sin desperdicio">${IC_CERO}</button>
+             <button type="button" class="acc" data-proc="${esc(p)}" data-e="notrab"
+               title="No trabajó" aria-label="${esc(p)}: no trabajó">${IC_NOTRAB}</button></div>`;
+    }
+    return `<div class="${cls}">
+      <button type="button" class="pick" data-proc="${esc(p)}"${
+        est ? ` title="${MARCA[est][1]}"` : ""}>
+        <span class="ic">${iconoProceso(p)}</span>
+        <span class="nom">${esc(p)}</span>${esq}</button>${pie}</div>`;
   }).join("");
-  box.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>seleccionarProceso(b.dataset.proc)));
+
+  box.querySelectorAll("button.pick").forEach(b=>
+    b.addEventListener("click",()=>seleccionarProceso(b.dataset.proc)));
+  /* Los atajos no deben arrastrar la selección del proceso: se marca y se
+     sigue en el que se estaba. */
+  box.querySelectorAll("button.acc").forEach(b=>
+    b.addEventListener("click",ev=>{
+      ev.stopPropagation();
+      if(b.dataset.e) cerrarItem(b.dataset.proc, b.dataset.e);
+      else reabrirItem(b.dataset.proc);
+    }));
 }
 
 const PUESTO_GENERICO = "Sin máquina asignada";
@@ -2222,7 +2294,7 @@ function filasDe(codigos, extra){
     puesto: auditoria ? S.puesto : "",
     tipo: S.tipo,
     referencia: S.referencia,
-    pasada: String(recActual().pasada || 1),
+    pasada: String(pasadaDe(itemActual())),
     usuario: auditoria && S.usuario ? (S.usuario.nombre || S.usuario.usuario) : "",
     turno, turnoKey,
     pendienteSync:!!S.syncUrl
@@ -2268,7 +2340,7 @@ function guardarCierre(item, estado){
        fila suya: el cierre es del proceso completo. */
     puesto: auditoria ? item : "",
     tipo: S.tipo, referencia:"",
-    pasada:String(recActual().pasada||1),
+    pasada:String(pasadaDe(item)),
     usuario: auditoria && S.usuario ? (S.usuario.nombre||S.usuario.usuario) : "",
     defectoCodigo:"", defectoLabel:"", origenDefecto:"", defectoAjeno:"No",
     cantidad:0,
