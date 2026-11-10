@@ -63,6 +63,23 @@
 
   .puesto-hint{font-size:.76rem;color:var(--text-dim);margin-top:10px;}
 
+  /* ---- Selector de jornada ---- */
+  .jor{display:grid;grid-template-columns:200px 160px max-content;gap:12px;align-items:end;}
+  @media(max-width:700px){.jor{grid-template-columns:1fr 1fr;}.j-hoy{grid-column:1/-1;}}
+  .j-hoy{height:38px;padding:0 14px;border:1px solid var(--border);background:#fff;
+    border-radius:7px;font-family:inherit;font-size:.82rem;font-weight:700;
+    color:var(--text-dim);cursor:pointer;}
+  .j-hoy:hover{border-color:var(--red);color:var(--red);}
+  .j-aviso{margin-top:14px;font-size:.84rem;line-height:1.5;padding:12px 14px;border-radius:9px;}
+  .j-aviso b{font-weight:800;}
+  .j-aviso.abierta{background:#f2f8fe;color:#1d5c93;border:1px solid #bcd9f5;}
+  .j-aviso.cargada{background:var(--warn-bg);color:var(--warn-text);border:1px solid #f3e3ae;}
+  .j-aviso.cerrada{background:var(--bad-bg);color:#a01523;border:1px solid #f3c4c0;}
+  .j-aviso button{margin-top:10px;padding:8px 13px;border-radius:7px;border:1px solid currentColor;
+    background:#fff;color:inherit;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;}
+  /* Con la jornada cerrada no se puede tocar nada: se ve, pero no se edita. */
+  .bloqueado-jor{opacity:.45;pointer-events:none;}
+
   /* ---- Paso 0: tipo de registro ---- */
   .tipos{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
   @media(max-width:700px){.tipos{grid-template-columns:1fr;}}
@@ -954,6 +971,30 @@
     <div class="ruta" id="rutaPasos"></div>
   </div>
 
+  <!-- ======================= JORNADA QUE SE CARGA ========================
+       Va antes que nada porque de ella dependen la llave del recorrido y la
+       fecha de cada fila. Cambiarla a mitad de una carga movería de sitio lo
+       ya registrado, así que al cambiarla se reinicia la selección.
+       ==================================================================== -->
+  <div class="panel paso" id="pasoJornada">
+    <div class="paso-cab"><span class="num">J</span>
+      <div><b>Jornada que estás cargando</b>
+        <span id="jSub">El día y el turno a los que pertenece este desperdicio.</span></div>
+    </div>
+    <div class="jor">
+      <div><label for="jFecha">Día</label>
+        <input type="date" id="jFecha"></div>
+      <div><label for="jTurno">Turno</label>
+        <select id="jTurno">
+          <option value="1">Turno 1</option>
+          <option value="2">Turno 2</option>
+          <option value="3">Turno 3</option>
+        </select></div>
+      <button type="button" id="jHoy" class="j-hoy">Hoy, turno actual</button>
+    </div>
+    <div id="jEstado"></div>
+  </div>
+
   <!-- ====================== PASO 0 · TIPO DE REGISTRO ======================
        Las dos formas de recoger desperdicio cuentan LAS MISMAS PIEZAS: lo que
        el patinador pesa al final del turno ya pasó por las máquinas que calidad
@@ -1480,7 +1521,7 @@ const SIN_FOTO = {};
    permite saber desde el propio panel si un dispositivo se quedó con un index
    viejo en caché. Hay que subirlo en cada entrega: si se queda quieto, el
    panel dice «al día» aunque el archivo tenga una semana. */
-const APP_VERSION = "2026-11-10-botones";
+const APP_VERSION = "2026-11-10-jornada";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -1488,7 +1529,12 @@ const APP_VERSION = "2026-11-10-botones";
    que se guarda. Exigir que fueran iguales obligaba a publicar el backend
    sin motivo, así que se compara «suficiente o no», no «igual o no».
    Funciona como comparación de texto porque todas empiezan por la fecha. */
-const BACKEND_MINIMO = "2026-11-05-tipos";
+/* Sube a 2026-11-10: sin la columna `capturadoEl` el bloqueo de jornadas no
+   puede funcionar. Al releer de la hoja, cada fila volvería sin esa marca y
+   la app la tomaría por digitada el mismo día de la jornada, de modo que una
+   jornada de ayer quedaría bloqueada en cuanto se guardara la primera fila
+   —justo a mitad de la carga de la mañana. */
+const BACKEND_MINIMO = "2026-11-10-jornada";
 function hojaSuficiente(v){ return !!v && String(v) >= BACKEND_MINIMO; }
 
 /* Catálogo de referencias, el mismo de Control de Proceso. Las líneas de allá
@@ -1587,6 +1633,33 @@ function fechaTurnoActual(){
   return hoyISO();
 }
 function llaveTurno(t,f){return `T${t}-${f}`;}
+
+/* ======================================================================
+   LA JORNADA QUE SE ESTÁ CARGANDO
+   Hasta ahora la fecha y el turno salían del reloj, lo que da por supuesto
+   que se registra en el momento. Hoy no es así: calidad recoge en papel los
+   tres turnos y los digita a la mañana siguiente. Si el reloj mandara, todo
+   quedaría apuntado al turno 1 del día equivocado.
+   Por eso la jornada se elige, y el reloj pasa a ser sólo el valor inicial.
+   Cuando el patinador registre en su propio turno, bastará con dejar el
+   selector en el día y turno actuales: no hay que deshacer nada.
+   ====================================================================== */
+const JORNADA = {fecha:"", turno:""};
+function jornadaFecha(){ return JORNADA.fecha || fechaTurnoActual(); }
+function jornadaTurno(){ return JORNADA.turno || turnoActual(); }
+function jornadaLlave(){ return llaveTurno(jornadaTurno(), jornadaFecha()); }
+function jornadaEsHoy(){ return jornadaFecha() >= hoyISO(); }
+function fFechaCortaCD(f){
+  const d = parseISOLocal(f);
+  return `${pad(d.getDate())}/${pad(d.getMonth()+1)}`;
+}
+function fFechaLarga(f){
+  const d = parseISOLocal(f);
+  const DIAS=["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+  const MES=["enero","febrero","marzo","abril","mayo","junio","julio",
+             "agosto","septiembre","octubre","noviembre","diciembre"];
+  return `${DIAS[d.getDay()]} ${d.getDate()} de ${MES[d.getMonth()]}`;
+}
 function feStr(r){ return String(r.fecha).slice(0,10); }
 function parseISOLocal(s){ const [y,m,d]=String(s).split("-").map(Number); return new Date(y,m-1,d); }
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2200);}
@@ -1619,6 +1692,93 @@ function esAjeno(d, proceso, familia){
    TIPO DE REGISTRO, RECORRIDO DE MÁQUINAS Y REFERENCIA
    ====================================================================== */
 
+/* ======================================================================
+   ESTADO DE LA JORNADA
+   Una jornada ya cargada no se vuelve a tocar por descuido. Pero la regla
+   no puede ser «todo lo que no sea hoy está cerrado», porque justo lo que
+   se hace cada mañana es cargar los tres turnos de AYER. La regla que sí
+   funciona: está cerrada cuando ya tiene registros Y ninguno se digitó hoy.
+   Así, lo que se carga esta mañana sigue abierto todo el día, y a partir de
+   mañana queda protegido.
+   ====================================================================== */
+const DESBLOQUEADAS = {};
+function claveJornada(){ return `${S.tipo}|${jornadaLlave()}`; }
+function registrosDeJornada(){
+  const k = jornadaLlave();
+  return S.registros.filter(r=> r.turnoKey === k && tipoDe(r) === S.tipo);
+}
+function jornadaCerrada(){
+  if(!S.tipo) return false;
+  if(DESBLOQUEADAS[claveJornada()]) return false;
+  const rs = registrosDeJornada();
+  if(!rs.length) return false;
+  if(jornadaEsHoy()) return false;
+  return !rs.some(r=> String(r.capturadoEl || r.fecha).slice(0,10) === hoyISO());
+}
+
+function renderJornada(){
+  const fi = document.getElementById("jFecha");
+  const ti = document.getElementById("jTurno");
+  if(!fi) return;
+  fi.value = jornadaFecha();
+  ti.value = jornadaTurno();
+  fi.max = hoyISO();            // no se carga desperdicio del futuro
+  document.getElementById("jSub").textContent =
+    `${fFechaLarga(jornadaFecha())} · turno ${jornadaTurno()}` +
+    (jornadaEsHoy() ? " · es la jornada de hoy" : "");
+
+  const caja = document.getElementById("jEstado");
+  const rs = registrosDeJornada();
+  const cerrada = jornadaCerrada();
+  const desbloq = !!DESBLOQUEADAS[claveJornada()];
+
+  if(!S.tipo){
+    caja.innerHTML = `<div class="j-aviso abierta">Elige abajo si es recolección
+      o auditoría para ver qué hay cargado en esta jornada.</div>`;
+  }
+  else if(cerrada){
+    const dia = String(rs[0].capturadoEl || rs[0].fecha).slice(0,10);
+    caja.innerHTML = `<div class="j-aviso cerrada">
+      <b>Esta jornada ya está cargada.</b> Tiene ${rs.length} registro(s), digitados
+      el ${fFechaLarga(dia)}. Para no pisar lo que ya se reportó, está bloqueada.
+      <br><button type="button" id="jAbrir">Desbloquear para corregir</button></div>`;
+    document.getElementById("jAbrir").addEventListener("click", ()=>{
+      if(!confirm(`Vas a modificar una jornada ya cargada (${fFechaLarga(jornadaFecha())}, turno ${jornadaTurno()}).\n\n`
+        + `Lo que añadas se suma a lo que ya hay, no lo reemplaza. ¿Continuar?`)) return;
+      DESBLOQUEADAS[claveJornada()] = true;
+      refrescarJornada();
+      toast("Jornada desbloqueada");
+    });
+  }
+  else if(rs.length){
+    caja.innerHTML = `<div class="j-aviso ${desbloq ? "cerrada" : "cargada"}">
+      ${desbloq ? "<b>Jornada desbloqueada para corregir.</b> " : ""}
+      Esta jornada ya tiene <b>${rs.length} registro(s)</b> cargados.
+      Los procesos que ya registraste están en «Ya validados».</div>`;
+  }
+  else {
+    caja.innerHTML = `<div class="j-aviso abierta">
+      Sin registros todavía en esta jornada.</div>`;
+  }
+
+  /* El bloqueo tapa todo lo que viene después del selector: se puede mirar,
+     no tocar. */
+  ["paso0","paso1","paso2","paso3","zonaDefectos","barraFija"].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.classList.toggle("bloqueado-jor", cerrada);
+  });
+}
+
+/* Cambiar de jornada reinicia la carga en curso: el recorrido, los procesos
+   cerrados y las cantidades pertenecen a la jornada que se estaba cargando,
+   y arrastrarlos a otra los pondría en el turno equivocado. */
+function refrescarJornada(){
+  S.proceso = ""; S.puesto = ""; S.cantidades = {};
+  S.observaciones = {}; S.referencia = "";
+  renderJornada(); renderProcesos(); renderReferencias();
+  renderRecorrido(); pintarRuta(); renderDefectos(); actualizarBarra();
+}
+
 function renderTipos(){
   document.querySelectorAll("#tipos .tipo-card").forEach(c=>
     c.classList.toggle("active", c.dataset.tipo === S.tipo));
@@ -1649,7 +1809,7 @@ function aplicarTipo(t){
   document.getElementById("cabSub").textContent = t === "recoleccion"
     ? "Lo recogido al cerrar el turno, por proceso y referencia."
     : `Recorrido máquina por máquina${S.usuario ? " · " + S.usuario.nombre : ""}.`;
-  renderTipos(); renderProcesos(); renderReferencias(); pintarRuta();
+  renderJornada(); renderTipos(); renderProcesos(); renderReferencias(); pintarRuta();
   renderRecorrido(); renderDefectos(); actualizarBarra();
   irAPaso(S.familia ? "paso2" : "paso1");
 }
@@ -1731,7 +1891,7 @@ function validarPin(){
    PROCESOS de la línea. Mismo mecanismo, distinto inventario, así que la
    llave tiene que distinguirlos o se pisarían entre sí. */
 function claveRec(){
-  const tk = llaveTurno(turnoActual(), fechaTurnoActual());
+  const tk = jornadaLlave();
   return S.tipo === "auditoria"
     ? `A|${tk}|${S.familia}|${S.proceso}`
     : `R|${tk}|${S.familia}`;
@@ -1750,7 +1910,7 @@ function recActual(){
   if(!r.cerradas) r.cerradas = {};            // recorridos guardados antes del cambio
   return r;
 }
-const ET_REC = {hecha:"con desperdicio", cero:"sin desperdicio", notrab:"no trabajó"};
+const ET_REC = {hecha:"con desperdicio", cero:"sin desperdicio", notrab:"no ha trabajado"};
 
 /* El desplegable de puestos tiene que seguir al recorrido: si una máquina se
    cierra y sólo desaparece de la lista de pendientes, sigue siendo elegible
@@ -1849,7 +2009,7 @@ function renderRecorrido(){
          que no trabajara, y sólo quien está ahí lo sabe. */
       const bts = e ? "" :
         `<button data-m="${m}" data-e="cero">Sin desperdicio</button>
-         <button data-m="${m}" data-e="notrab">No trabajó</button>`;
+         <button data-m="${m}" data-e="notrab">No ha trabajado</button>`;
       return `<div class="rec-m ${cls}"><span class="nom">${m}</span>${et}${bts}</div>`;
     }).join("") +
     (pend.length
@@ -2129,11 +2289,23 @@ window.addEventListener("resize", ()=>{
 /* Los cuatro estados de un proceso, con su color y su etiqueta. Son los
    mismos en toda la aplicación: si cada pantalla los nombrara a su manera,
    la gente tendría que traducir mentalmente de una a otra. */
+/* Lo que se escribe en la hoja cuando algo no trabajó. Cambió de «No trabajó»
+   a «No ha trabajado» el 10-11-2026, así que al leer hay que aceptar las dos:
+   las filas de antes de esa fecha llevan la primera, y si sólo se comparara
+   con la nueva, el histórico pasaría a contarse como «sin desperdicio» —es
+   decir, máquinas que entrarían al reparto sin haber trabajado. */
+const NO_TRABAJO = "No ha trabajado";
+const NO_TRABAJO_ANTIGUO = "No trabajó";
+function esNoTrabajo(v){
+  const t = String(v || "").trim();
+  return t === NO_TRABAJO || t === NO_TRABAJO_ANTIGUO;
+}
+
 const ESTADOS_PROC = {
   pend:   {et:"Pendiente de registro", corto:"Pendiente",       marca:"·"},
   hecha:  {et:"Con desperdicio",       corto:"Con desperdicio", marca:"✓"},
   cero:   {et:"Sin desperdicio",       corto:"Sin desperdicio", marca:"0"},
-  notrab: {et:"No trabajado",          corto:"No trabajado",    marca:"—"}
+  notrab: {et:"No ha trabajado",       corto:"No ha trabajado", marca:"—"}
 };
 
 function renderProcesos(){
@@ -2164,7 +2336,7 @@ function renderProcesos(){
            <button type="button" class="acc cero" data-proc="${esc(p)}" data-e="cero"
              aria-label="${esc(p)}: sin desperdicio">${IC_CERO}<span>Sin desperdicio</span></button>
            <button type="button" class="acc notrab" data-proc="${esc(p)}" data-e="notrab"
-             aria-label="${esc(p)}: no trabajado">${IC_NOTRAB}<span>No trabajado</span></button></div>`
+             aria-label="${esc(p)}: no ha trabajado">${IC_NOTRAB}<span>No ha trabajado</span></button></div>`
       : "";
     return `<div class="${cls}">
       <button type="button" class="pick" data-proc="${esc(p)}">
@@ -2451,7 +2623,7 @@ function actualizarBarra(){
     + (S.familia||"—") + (S.proceso? " · "+S.proceso : " · selecciona el proceso")
     + (auditoria && S.puesto ? " · "+S.puesto : "")
     + (S.referencia ? " · Ref. "+S.referencia : "")
-    + " · Turno "+turnoActual();
+    + " · " + fFechaCortaCD(jornadaFecha()) + " T" + jornadaTurno();
 
   /* La máquina sólo se exige en la auditoría. La referencia se exige siempre:
      sin ella el desperdicio no se puede repartir entre productos. */
@@ -2465,13 +2637,16 @@ function actualizarBarra(){
    haciendo la app: la referencia y el tipo se repiten en todas las del lote. */
 function filasDe(codigos, extra){
   const now=new Date();
-  const turno=turnoActual();
-  const turnoKey=llaveTurno(turno,fechaTurnoActual());
+  const turno=jornadaTurno();
+  const turnoKey=jornadaLlave();
   const hora=`${pad(now.getHours())}:${pad(now.getMinutes())}`;
   const catalogo=defectosDeFamilia();
   const auditoria = S.tipo === "auditoria";
   const base = {
-    fecha:hoyISO(), hora, familia:S.familia, proceso:S.proceso,
+    /* `fecha` es la jornada a la que pertenece el desperdicio y `capturadoEl`
+       el día en que alguien lo digitó. No son lo mismo cuando se carga al día
+       siguiente, y mezclarlos haría imposible saber qué se apuntó tarde. */
+    fecha:jornadaFecha(), capturadoEl:hoyISO(), hora, familia:S.familia, proceso:S.proceso,
     /* En la recolección el puesto va vacío a propósito: inventarlo sería
        atribuir el desperdicio a una máquina que nadie vio producirlo. */
     puesto: auditoria ? S.puesto : "",
@@ -2501,6 +2676,7 @@ function anotar(nuevos){
   S.registros=nuevos.concat(S.registros);
   localStorage.setItem("cd_registros",JSON.stringify(S.registros));
   if(S.syncUrl) enviarRemotoLote(nuevos);
+  renderJornada();
 }
 
 /* Cierre de una máquina sin desperdicio, o que no trabajó. Queda una fila de
@@ -2512,11 +2688,12 @@ function anotar(nuevos){
    es el mismo, así que es la misma fila con el puesto vacío o no. */
 function guardarCierre(item, estado){
   const now=new Date();
-  const turno=turnoActual();
+  const turno=jornadaTurno();
   const auditoria = S.tipo === "auditoria";
   anotar([{
     id:"CD-"+Date.now()+"-c-"+Math.floor(Math.random()*1000),
-    fecha:hoyISO(), hora:`${pad(now.getHours())}:${pad(now.getMinutes())}`,
+    fecha:jornadaFecha(), capturadoEl:hoyISO(),
+    hora:`${pad(now.getHours())}:${pad(now.getMinutes())}`,
     familia:S.familia,
     proceso: auditoria ? S.proceso : item,
     /* En recolección no hay máquina que anotar, igual que en cualquier otra
@@ -2527,8 +2704,8 @@ function guardarCierre(item, estado){
     usuario: auditoria && S.usuario ? (S.usuario.nombre||S.usuario.usuario) : "",
     defectoCodigo:"", defectoLabel:"", origenDefecto:"", defectoAjeno:"No",
     cantidad:0,
-    estadoMaquina: estado === "notrab" ? "No trabajó" : "Sin desperdicio",
-    observacion:"", turno, turnoKey:llaveTurno(turno,fechaTurnoActual()),
+    estadoMaquina: estado === "notrab" ? NO_TRABAJO : "Sin desperdicio",
+    observacion:"", turno, turnoKey:jornadaLlave(),
     pendienteSync:!!S.syncUrl
   }]);
 }
@@ -2570,6 +2747,23 @@ function cerrarMas(){ document.getElementById("masModal").classList.remove("show
 document.getElementById("btnRegistrar").addEventListener("click",registrarDesperdicio);
 
 /* ---------- Conexiones de la pantalla nueva ---------- */
+document.getElementById("jFecha").addEventListener("change", e=>{
+  const v = e.target.value;
+  if(!v){ renderJornada(); return; }
+  /* Una jornada futura no existe todavía: dejarla pasar metería registros
+     en un turno que aún no ha ocurrido. */
+  if(v > hoyISO()){ toast("No se puede cargar una jornada futura"); renderJornada(); return; }
+  JORNADA.fecha = v; refrescarJornada();
+});
+document.getElementById("jTurno").addEventListener("change", e=>{
+  JORNADA.turno = e.target.value; refrescarJornada();
+});
+document.getElementById("jHoy").addEventListener("click", ()=>{
+  JORNADA.fecha = ""; JORNADA.turno = "";
+  refrescarJornada();
+  toast(`Jornada de hoy, turno ${jornadaTurno()}`);
+});
+
 document.querySelectorAll("#tipos .tipo-card").forEach(c=>
   c.addEventListener("click", ()=> seleccionarTipo(c.dataset.tipo)));
 
@@ -4958,7 +5152,7 @@ function repartoDe(fam, fecha, turno){
   cie.forEach(r=>{
     const p = r.proceso || "—";
     procs[p] = procs[p] || {proc:p, recogido:0, hallado:0, maq:{}, cero:[], notrab:[], pasadas:{}};
-    (r.estadoMaquina === "No trabajó" ? procs[p].notrab : procs[p].cero).push(r.puesto);
+    (esNoTrabajo(r.estadoMaquina) ? procs[p].notrab : procs[p].cero).push(r.puesto);
     procs[p].pasadas[String(r.pasada||1)] = true;
   });
   /* Lo que el patinador marcó sin desperdicio o sin trabajar. No aporta
@@ -5017,7 +5211,7 @@ function renderReparto(){
       <span>${o.recogido ? o.recogido.toLocaleString("es-CO")+" recogidas" : "sin recolección"}
       · ${o.hallado.toLocaleString("es-CO")} halladas en auditoría
       · ${o.revisadas} máquina(s) revisada(s)${
-        o.notrab.length ? " · "+o.notrab.length+" no trabajó" : ""}</span></div>`;
+        o.notrab.length ? " · "+o.notrab.length+" no ha trabajado" : ""}</span></div>`;
     if(!o.hallado) return cab + `<div class="rep-nota">La auditoría no encontró nada en
       ${o.proc}, así que no hay con qué repartir las ${o.recogido.toLocaleString("es-CO")} recogidas.</div>`;
     if(!o.recogido) return cab + (o.dicePatinador
@@ -5509,6 +5703,7 @@ function migrarProcesosUnificados(){
 /* ---------- Init ---------- */
 migrarProcesosUnificados();
 renderFamilias();
+renderJornada();
 renderTipos();
 renderReferencias();
 pintarRuta();
