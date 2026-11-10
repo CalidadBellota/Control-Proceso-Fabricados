@@ -306,12 +306,23 @@
      Material, y aquí son dos objetivos pequeños y pegados cuyas acciones NO
      son intercambiables: «sin desperdicio» entra al reparto con cero y «no
      trabajó» sale del denominador. Un dedo con guante no puede fallar eso. */
-  .proc-card .pie{display:flex;align-items:center;justify-content:center;gap:6px;
-    border-top:1px solid var(--border);background:#fafbfc;min-height:48px;padding:2px 5px;}
-  .proc-card .pie .acc{flex:1;display:flex;align-items:center;justify-content:center;
-    height:44px;border-radius:7px;background:none;border:0;cursor:pointer;color:#98a2ae;padding:0;}
-  .proc-card .pie .acc:active{background:rgba(0,0,0,.06);}
-  .proc-card .pie .acc svg{width:21px;height:21px;stroke-width:1.7;}
+  /* Los dos atajos van uno debajo del otro y CON TEXTO. Como iconos sueltos
+     eran dos círculos grises casi idénticos: el símbolo no es convencional
+     para «sin desperdicio» ni para «no trabajado», así que había que saberlo
+     de antemano. Cada uno lleva además el color del estado que va a dejar,
+     para que la relación se aprenda sola. */
+  .proc-card .pie{display:flex;flex-direction:column;gap:2px;
+    border-top:1px solid var(--border);background:#fafbfc;padding:4px;}
+  .proc-card .pie .acc{display:flex;align-items:center;gap:7px;width:100%;
+    height:42px;padding:0 9px;border-radius:7px;background:none;border:0;cursor:pointer;
+    font-family:inherit;text-align:left;}
+  .proc-card .pie .acc span{font-size:.72rem;font-weight:700;white-space:nowrap;}
+  .proc-card .pie .acc svg{width:18px;height:18px;flex:0 0 18px;stroke-width:1.8;}
+  .proc-card .pie .acc.cero{color:#2b8a5c;}
+  .proc-card .pie .acc.notrab{color:#7b8694;}
+  .proc-card .pie .acc.cero:hover{background:var(--ok-bg);}
+  .proc-card .pie .acc.notrab:hover{background:#eceef1;}
+  .proc-card .pie .acc:active{background:rgba(0,0,0,.09);}
   .proc-card .pie .acc:hover{color:var(--red);}
   /* ---- Los cuatro estados ----
      Pendiente en azul, con desperdicio en rojo, sin desperdicio en verde y
@@ -1459,7 +1470,7 @@ const SIN_FOTO = {};
    permite saber desde el propio panel si un dispositivo se quedó con un index
    viejo en caché. Hay que subirlo en cada entrega: si se queda quieto, el
    panel dice «al día» aunque el archivo tenga una semana. */
-const APP_VERSION = "2026-11-10-estados";
+const APP_VERSION = "2026-11-10-atajos";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -1953,7 +1964,11 @@ function iconoProceso(p){ return ICONOS_PROC[p] || ICONO_GENERICO; }
 ICONOS_PROC["Control"] = SVG_(`<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/>
   <path d="M8 10.6l1.8 1.8 3.3-3.6"/>`);
 
-const IC_CERO     = SVG_(`<circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.2l2.4 2.4 4.6-5"/>`);
+/* Antes era un visto. Se cambió porque ✓ en una rejilla se lee como
+   «confirmar» o «ya terminé», y lo que graba este botón es un CERO: alguien
+   que acababa de cargar cantidades podía pulsarlo creyendo que cerraba, y
+   dejar un cero falso en la hoja. Un círculo tachado dice «nada», no «hecho». */
+const IC_CERO     = SVG_(`<circle cx="12" cy="12" r="8.5"/><path d="M6.2 17.8L17.8 6.2"/>`);
 const IC_NOTRAB   = SVG_(`<circle cx="12" cy="12" r="8.5"/><path d="M8 12h8"/>`);
 const IC_DESHACER = SVG_(`<path d="M8 8l8 8M16 8l-8 8"/>`);
 
@@ -2131,10 +2146,11 @@ function renderProcesos(){
       .filter(Boolean).join(" ");
     const esq = conMaquinas ? `<span class="n">${puestosDe(S.familia,p).length}</span>` : "";
     const pie = conCierre
-      ? `<div class="pie"><button type="button" class="acc" data-proc="${esc(p)}" data-e="cero"
-             title="Sin desperdicio" aria-label="${esc(p)}: sin desperdicio">${IC_CERO}</button>
-           <button type="button" class="acc" data-proc="${esc(p)}" data-e="notrab"
-             title="No trabajado" aria-label="${esc(p)}: no trabajado">${IC_NOTRAB}</button></div>`
+      ? `<div class="pie">
+           <button type="button" class="acc cero" data-proc="${esc(p)}" data-e="cero"
+             aria-label="${esc(p)}: sin desperdicio">${IC_CERO}<span>Sin desperdicio</span></button>
+           <button type="button" class="acc notrab" data-proc="${esc(p)}" data-e="notrab"
+             aria-label="${esc(p)}: no trabajado">${IC_NOTRAB}<span>No trabajado</span></button></div>`
       : "";
     return `<div class="${cls}">
       <button type="button" class="pick" data-proc="${esc(p)}">
