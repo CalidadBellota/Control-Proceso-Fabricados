@@ -311,18 +311,28 @@
      para «sin desperdicio» ni para «no trabajado», así que había que saberlo
      de antemano. Cada uno lleva además el color del estado que va a dejar,
      para que la relación se aprenda sola. */
-  .proc-card .pie{display:flex;flex-direction:column;gap:2px;
-    border-top:1px solid var(--border);background:#fafbfc;padding:4px;}
+  .proc-card .pie{display:flex;flex-direction:column;gap:5px;
+    border-top:1px solid var(--border);background:#f4f6f8;padding:6px;}
+  /* Cada atajo tiene cuerpo de botón EN REPOSO: fondo blanco, borde y un
+     filo inferior. Antes el fondo sólo aparecía al pasar el ratón, y en
+     tablet no hay ratón: quedaban como dos etiquetas de estado que nadie
+     pensaría en tocar. El relieve es lo único que dice «esto se pulsa»
+     cuando no existe el hover. */
   .proc-card .pie .acc{display:flex;align-items:center;gap:7px;width:100%;
-    height:42px;padding:0 9px;border-radius:7px;background:none;border:0;cursor:pointer;
-    font-family:inherit;text-align:left;}
-  .proc-card .pie .acc span{font-size:.72rem;font-weight:700;white-space:nowrap;}
+    height:42px;padding:0 10px;border-radius:8px;background:#fff;
+    border:1px solid #d7dce3;box-shadow:0 1px 0 rgba(16,24,40,.05);
+    cursor:pointer;font-family:inherit;text-align:left;}
+  .proc-card .pie .acc span{font-size:.72rem;font-weight:700;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;min-width:0;}
   .proc-card .pie .acc svg{width:18px;height:18px;flex:0 0 18px;stroke-width:1.8;}
-  .proc-card .pie .acc.cero{color:#2b8a5c;}
-  .proc-card .pie .acc.notrab{color:#7b8694;}
-  .proc-card .pie .acc.cero:hover{background:var(--ok-bg);}
-  .proc-card .pie .acc.notrab:hover{background:#eceef1;}
-  .proc-card .pie .acc:active{background:rgba(0,0,0,.09);}
+  .proc-card .pie .acc.cero{color:#1f7a4d;border-color:#b7e0c9;}
+  .proc-card .pie .acc.notrab{color:#5d6775;}
+  .proc-card .pie .acc.cero:hover{background:var(--ok-bg);border-color:var(--ok);}
+  .proc-card .pie .acc.notrab:hover{background:#edeff2;border-color:#aeb6c0;}
+  /* Al pulsar se hunde: en pantalla táctil el dedo tapa el botón y sin esto
+     no hay forma de saber si el toque entró. */
+  .proc-card .pie .acc:active{transform:translateY(1px);box-shadow:none;
+    background:#e9ecf0;}
   .proc-card .pie .acc:hover{color:var(--red);}
   /* ---- Los cuatro estados ----
      Pendiente en azul, con desperdicio en rojo, sin desperdicio en verde y
@@ -1470,7 +1480,7 @@ const SIN_FOTO = {};
    permite saber desde el propio panel si un dispositivo se quedó con un index
    viejo en caché. Hay que subirlo en cada entrega: si se queda quieto, el
    panel dice «al día» aunque el archivo tenga una semana. */
-const APP_VERSION = "2026-11-10-atajos";
+const APP_VERSION = "2026-11-10-botones";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -2089,10 +2099,14 @@ function ajustarColumnas(){
   const n = box.children.length;
   if(!n){ box.style.removeProperty("grid-template-columns"); return; }
   const HUECO = 10;
-  /* 108px es lo que necesita la tarjeta para que cada atajo siga midiendo
-     46px de ancho, que es el verdadero suelo. 172 es el techo: más ancha, el
-     icono y el nombre quedan perdidos en medio de la tarjeta. */
-  const MINIMO = 108, MAXIMO = 172;
+  /* El suelo depende de lo que lleve la tarjeta dentro. En recolección los
+     atajos van con su nombre escrito —«Sin desperdicio»— y por debajo de
+     150px esa palabra se corta a media letra. En auditoría no hay atajos y
+     basta con 108. Tenerlo fijo en 108 era lo que descuadraba la rejilla al
+     ir cerrando procesos: con menos tarjetas caben más por fila, se estrechan
+     y el texto deja de caber. */
+  const MINIMO = (S.tipo === "recoleccion") ? 150 : 108;
+  const MAXIMO = 172;
   const ancho = box.clientWidth;
   if(!ancho) return;                  // todavía no está en pantalla
   const anchoCon = c => (ancho - (c - 1) * HUECO) / c;
