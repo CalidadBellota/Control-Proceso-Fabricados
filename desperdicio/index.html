@@ -1417,10 +1417,20 @@ function rutaLinea(nombre){ return "imagenes/" + nombre + ".png"; }
 /* Líneas cuya foto no existe: se anotan una vez y no se vuelven a pedir. */
 const SIN_FOTO = {};
 
-/* Código de esta app. Se compara con el que devuelve la hoja para saber si
-   un dispositivo se quedó con una versión vieja en caché; sin esto no hay
-   forma de verlo desde la pantalla. */
-const APP_VERSION = "2026-11-05-tipos";
+/* Código de ESTE archivo. Sube cada vez que cambia la pantalla, y es lo que
+   permite saber desde el propio panel si un dispositivo se quedó con un index
+   viejo en caché. Hay que subirlo en cada entrega: si se queda quieto, el
+   panel dice «al día» aunque el archivo tenga una semana. */
+const APP_VERSION = "2026-11-10-tarjetas";
+
+/* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
+   No es lo mismo que la de arriba y no tienen por qué coincidir: el index
+   cambia cada vez que se toca la pantalla, y la hoja sólo cuando cambia lo
+   que se guarda. Exigir que fueran iguales obligaba a publicar el backend
+   sin motivo, así que se compara «suficiente o no», no «igual o no».
+   Funciona como comparación de texto porque todas empiezan por la fecha. */
+const BACKEND_MINIMO = "2026-11-05-tipos";
+function hojaSuficiente(v){ return !!v && String(v) >= BACKEND_MINIMO; }
 
 /* Catálogo de referencias, el mismo de Control de Proceso. Las líneas de allá
    son las familias de aquí, así que entra tal cual. */
@@ -5088,10 +5098,12 @@ function renderDiagSync(){
   const vHoja = (function(){
     if(BACKEND.version)
       return `<div class="diag-fila"><span>Código de la hoja</span>
-              <b style="color:${String(BACKEND.version)===String(APP_VERSION)?verde:"var(--warn-text)"};">${esc(BACKEND.version)}</b></div>` +
-        (String(BACKEND.version)===String(APP_VERSION) ? "" :
-         `<div class="diag-nota">Las versiones no coinciden. Si acabas de publicar el Apps Script,
-            recarga esta página; si no, falta publicar <b>Nueva versión</b> del despliegue existente.</div>`);
+              <b style="color:${hojaSuficiente(BACKEND.version)?verde:"var(--warn-text)"};">${esc(BACKEND.version)}</b></div>` +
+        (hojaSuficiente(BACKEND.version) ? "" :
+         `<div class="diag-nota">La hoja corre un Apps Script anterior a <b>${esc(BACKEND_MINIMO)}</b>,
+            que es el mínimo que necesita esta pantalla. Hay que publicar <b>Nueva versión</b>
+            del despliegue existente. No tiene que coincidir con el código de la app:
+            basta con que sea esa o posterior.</div>`);
     /* Que la hoja no haya contestado aún no la hace vieja: eso sólo se puede
        afirmar cuando contestó y no dijo su versión. */
     if(!BACKEND.leido)
@@ -5152,8 +5164,12 @@ function renderDiagSync(){
       <div class="diag-nota">Si alguna dice «sin identificar» o «DISPARO AUTOMÁTICO»,
         hay algo leyendo por su cuenta.</div>` : ""}
 
-    <div class="diag-fila" style="margin-top:16px;"><span>Código de esta app</span>
+    <div class="diag-tit" style="margin-top:16px;">QUÉ VERSIÓN ESTÁS USANDO</div>
+    <div class="diag-fila"><span>Código de esta app</span>
       <b style="color:${verde};">${esc(APP_VERSION)}</b></div>
+    <div class="diag-nota">Si este código no es el que te pasaron en la última entrega,
+      el navegador se quedó con un archivo viejo: recarga forzando
+      (<b>Ctrl+Shift+R</b>, o <b>Cmd+Shift+R</b> en Mac).</div>
     ${vHoja}
 
     <div class="diag-tit" style="margin-top:16px;">CONEXIÓN DE ESTE EQUIPO</div>
@@ -5253,10 +5269,10 @@ async function probarConexion(boton){
         BACKEND.version = d.backend; BACKEND.leido = true;
         BACKEND.visto = d.backend; localStorage.setItem("cd_backend_visto", d.backend);
         paso(true, `La hoja contestó en ${ms} s y dice ser <b>${esc(d.backend)}</b>.`);
-        paso(String(d.backend)===String(APP_VERSION),
-          String(d.backend)===String(APP_VERSION)
-            ? "Coincide con el código de esta app."
-            : `Esta app es <b>${esc(APP_VERSION)}</b>: no coinciden. Falta publicar una versión nueva del Apps Script, o recargar esta página.`);
+        paso(hojaSuficiente(d.backend), hojaSuficiente(d.backend)
+          ? `Sirve para esta pantalla, que pide <b>${esc(BACKEND_MINIMO)}</b> o posterior.`
+          : `Esta pantalla necesita <b>${esc(BACKEND_MINIMO)}</b> o posterior: falta publicar
+             una versión nueva del Apps Script.`);
       } else {
         BACKEND.version = null; BACKEND.leido = true;
         paso(false, "La hoja contestó pero no dice su versión: corre un Apps Script anterior.");
