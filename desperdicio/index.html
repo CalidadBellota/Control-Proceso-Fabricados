@@ -96,6 +96,7 @@
   .rec-m button{border:1px solid var(--border);background:#fff;border-radius:7px;padding:5px 9px;
     font-size:.74rem;font-weight:700;cursor:pointer;color:var(--text-dim);font-family:inherit;}
   .rec-m button:hover{border-color:var(--red);color:var(--red);}
+  .rec-m button svg{width:12px;height:12px;display:block;}
   .rec-m.hecha .nom{color:var(--text);}
   .rec-resumen{font-size:.78rem;color:var(--text-dim);margin-top:4px;}
   /* Un proceso ya cargado: se puede volver a él, pero se avisa. */
@@ -108,6 +109,35 @@
   .obs-def::placeholder{color:#9aa5b1;}
   .obs-def:focus{outline:2px solid var(--red);}
   .def-fila .obs-def{margin-top:0;max-width:220px;}
+
+  /* ---- Bloque de procesos ya validados ---- */
+  .validados{margin:-6px 0 16px;}
+  .val-cab{display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;
+    background:#fff;border:1px solid var(--border);border-radius:var(--radius);
+    cursor:pointer;font-family:inherit;color:var(--text);text-align:left;}
+  .val-cab:hover{border-color:#c3c9d1;}
+  .val-cab .fl{color:var(--text-dim);font-size:.8rem;width:10px;}
+  .val-cab b{font-size:.82rem;}
+  .val-cab .cuenta{background:var(--text);color:#fff;border-radius:999px;
+    min-width:19px;height:19px;display:flex;align-items:center;justify-content:center;
+    font-size:.68rem;font-weight:800;padding:0 5px;}
+  .val-cab .resto{margin-left:auto;font-size:.74rem;color:var(--text-dim);}
+  .val-lista{display:flex;flex-wrap:wrap;gap:7px;padding:10px 2px 0;}
+  .val-chip{display:flex;align-items:center;gap:7px;padding:6px 11px 6px 8px;
+    border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer;
+    font-family:inherit;min-height:38px;}
+  .val-chip:hover{border-color:var(--text);}
+  .val-chip .ic{width:17px;height:17px;flex:0 0 17px;}
+  .val-chip .ic svg{width:100%;height:100%;display:block;}
+  .val-chip .nom{font-size:.78rem;font-weight:700;color:var(--text);}
+  .val-chip .et{font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.2px;}
+  .val-chip.est-hecha{border-color:#f3c4c0;background:#fdf0ef;}
+  .val-chip.est-hecha .ic,.val-chip.est-hecha .et{color:var(--bad);}
+  .val-chip.est-cero{border-color:#bfe8cf;background:var(--ok-bg);}
+  .val-chip.est-cero .ic,.val-chip.est-cero .et{color:#1f7a4d;}
+  .val-chip.est-notrab{background:#f4f5f7;}
+  .val-chip.est-notrab .ic,.val-chip.est-notrab .et{color:var(--text-dim);}
+  .val-chip.est-notrab .nom{color:var(--text-dim);}
 
   .pin-error{font-size:.8rem;color:var(--bad);background:var(--bad-bg);
     border-radius:8px;padding:8px 10px;margin-top:10px;font-weight:600;}
@@ -283,36 +313,26 @@
   .proc-card .pie .acc:active{background:rgba(0,0,0,.06);}
   .proc-card .pie .acc svg{width:21px;height:21px;stroke-width:1.7;}
   .proc-card .pie .acc:hover{color:var(--red);}
-  /* Marcado: el pie entero es el botón de deshacer. Con un aspa aparte el
-     texto no cabía y se cortaba, y además el objetivo quedaba diminuto para
-     un dedo con guante. */
-  .proc-card .pie.marcado{padding:0;}
-  .proc-card .pie .acc.des{gap:5px;padding:0 6px;height:44px;}
-  .proc-card .pie .acc.des span{font-size:.58rem;font-weight:800;letter-spacing:0;
-    text-transform:uppercase;white-space:nowrap;}
-  .proc-card .pie .acc.des svg{width:12px;height:12px;flex:0 0 12px;opacity:.55;}
-  .proc-card .pie .acc.des:hover svg{opacity:1;}
-
-  /* Elegido manda sobre cualquier estado: es dónde está la persona ahora. */
-  .proc-card.active{border-color:var(--red);background:#fdeceb;}
-  .proc-card.active .nom,.proc-card.active .ic{color:var(--red);}
-  .proc-card.active .n{background:var(--red);color:#fff;}
-  .proc-card.active .pie{background:#fde3e1;border-top-color:#f7c9c5;}
-
-  /* Concluido —cargado o revisado sin desperdicio— en verde; sin trabajar, gris. */
-  .proc-card.est-hecha,.proc-card.est-cero{border-color:#bfe8cf;background:var(--ok-bg);}
-  .proc-card.est-hecha .ic,.proc-card.est-cero .ic{color:var(--ok);}
-  .proc-card.est-hecha .marca,.proc-card.est-cero .marca{background:var(--ok);color:#fff;}
-  .proc-card.est-hecha .pie,.proc-card.est-cero .pie{background:#dcf2e6;border-top-color:#bfe8cf;}
-  .proc-card.est-hecha .pie .des,.proc-card.est-cero .pie .des{color:#1f7a4d;}
+  /* ---- Los cuatro estados ----
+     Pendiente en azul, con desperdicio en rojo, sin desperdicio en verde y
+     no trabajado en gris. Mismos cuatro en toda la aplicación. */
+  .proc-card.est-pend{border-color:#bcd9f5;background:#f2f8fe;}
+  .proc-card.est-pend .ic{color:#2f7cc4;}
+  .proc-card.est-pend .n{background:#dceaf8;color:#2f7cc4;}
+  .proc-card.est-hecha{border-color:#f3c4c0;background:#fdf0ef;}
+  .proc-card.est-hecha .ic{color:var(--bad);}
+  .proc-card.est-cero{border-color:#bfe8cf;background:var(--ok-bg);}
+  .proc-card.est-cero .ic{color:var(--ok);}
   .proc-card.est-notrab{background:#f4f5f7;border-color:var(--border);}
   .proc-card.est-notrab .nom,.proc-card.est-notrab .ic{color:#9aa5b1;}
-  .proc-card.est-notrab .marca{background:#c9cfd6;color:#fff;}
-  .proc-card.est-notrab .pie{background:#eceef1;}
-  .proc-card.est-notrab .pie .des{color:#6b7280;}
 
-  /* En estrecho no se encogen las tarjetas: se ponen menos por fila. Con
-     96px cada atajo bajaba a 43px de ancho, justo donde empiezan los fallos. */
+  /* Elegido NO puede ser rojo: el rojo ya es «con desperdicio» y los dos se
+     confundirían. Se marca con un aro oscuro y relieve, que no choca con
+     ninguno de los cuatro colores de estado. */
+  .proc-card.active{box-shadow:0 0 0 3px var(--text),0 4px 10px rgba(0,0,0,.12);
+    border-color:var(--text);}
+  .proc-card.active .nom{color:var(--text);}
+
   @media(max-width:620px){
     .procesos{grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;}
     .proc-card .pick{padding:11px 6px 9px;}
@@ -953,6 +973,10 @@
       <div><b id="paso2Tit">Proceso</b><span id="paso2Sub">Primero elige la línea de producto.</span></div>
     </div>
     <div class="procesos" id="procesos"></div>
+    <!-- Los procesos ya resueltos salen de la rejilla y se guardan aquí,
+         plegados: se puede volver a ellos, pero no estorban mientras quede
+         trabajo por hacer. -->
+    <div class="validados" id="validados" style="display:none;"></div>
   </div>
 
   <div class="panel paso bloqueado" id="paso3">
@@ -1309,6 +1333,20 @@
 
 <!-- Después de guardar en una máquina: o va otra referencia de la misma
      máquina, o la máquina se cierra y sale de los pendientes. -->
+<!-- Volver sobre un proceso ya validado: añadir más, o corregir la marca.
+     La app no puede adivinar cuál de las dos es, así que lo pregunta. -->
+<div class="modal-bg" id="valModal">
+  <div class="modal" style="max-width:460px;">
+    <h3 style="margin-top:0;" id="valTit"></h3>
+    <p id="valTxt"></p>
+    <div class="modal-actions" style="flex-direction:column;align-items:stretch;gap:8px;">
+      <button class="primary" id="valAgregar">Añadir más desperdicio a este proceso</button>
+      <button id="valCorregir">Me equivoqué — quitar la marca</button>
+      <button id="valCancelar">Dejarlo como está</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="masModal">
   <div class="modal" style="max-width:460px;">
     <h3 style="margin-top:0;">Guardado</h3>
@@ -1421,7 +1459,7 @@ const SIN_FOTO = {};
    permite saber desde el propio panel si un dispositivo se quedó con un index
    viejo en caché. Hay que subirlo en cada entrega: si se queda quieto, el
    panel dice «al día» aunque el archivo tenga una semana. */
-const APP_VERSION = "2026-11-10-tarjetas";
+const APP_VERSION = "2026-11-10-estados";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -1785,7 +1823,7 @@ function renderRecorrido(){
       const e = r.maq[m];
       const cls = e ? e : "pend";
       const et = e ? `<span class="et ${e}">${ET_REC[e]}</span>
-        <button data-m="${m}" title="Quitar la marca">✕</button>` : "";
+        <button data-m="${m}" title="Quitar la marca">${IC_DESHACER}</button>` : "";
       /* Hace falta en las dos rutas: una cosa es que estuviera limpio y otra
          que no trabajara, y sólo quien está ahí lo sabe. */
       const bts = e ? "" :
@@ -2059,6 +2097,16 @@ window.addEventListener("resize", ()=>{
   TEMPORIZADOR_COLS = setTimeout(ajustarColumnas, 120);
 });
 
+/* Los cuatro estados de un proceso, con su color y su etiqueta. Son los
+   mismos en toda la aplicación: si cada pantalla los nombrara a su manera,
+   la gente tendría que traducir mentalmente de una a otra. */
+const ESTADOS_PROC = {
+  pend:   {et:"Pendiente de registro", corto:"Pendiente",       marca:"·"},
+  hecha:  {et:"Con desperdicio",       corto:"Con desperdicio", marca:"✓"},
+  cero:   {et:"Sin desperdicio",       corto:"Sin desperdicio", marca:"0"},
+  notrab: {et:"No trabajado",          corto:"No trabajado",    marca:"—"}
+};
+
 function renderProcesos(){
   const box=document.getElementById("procesos");
   const procs=ESTRUCTURA[S.familia]||{};
@@ -2071,39 +2119,31 @@ function renderProcesos(){
      una por una, en su propio paso. */
   const conCierre = S.tipo === "recoleccion" && S.familia;
   const r = conCierre ? recActual() : null;
+  const todos = Object.keys(procs);
+  /* En recolección la rejilla muestra SÓLO lo que falta. Lo ya resuelto se va
+     a su propio bloque: así lo que queda a la vista es la lista de pendientes
+     y no hay que ir buscándolos entre los terminados. */
+  const lista = conCierre ? todos.filter(x=> !r.maq[x]) : todos;
 
-  const MARCA = {hecha:["✓","Ya lo cargaste"],
-                 cero:["0","Sin desperdicio"],
-                 notrab:["—","No trabajó"]};
-  box.innerHTML=Object.keys(procs).map(p=>{
+  box.innerHTML = lista.map(p=>{
     const est = r && r.maq[p];
-    const cls = ["proc-card", S.proceso===p?"active":"", est?"est-"+est:""]
+    const cls = ["proc-card", S.proceso===p?"active":"", "est-"+(est||"pend")]
       .filter(Boolean).join(" ");
-    const esq = est
-      ? `<span class="marca" title="${MARCA[est][1]}">${MARCA[est][0]}</span>`
-      : (conMaquinas ? `<span class="n">${puestosDe(S.familia,p).length}</span>` : "");
-    /* El pie de la tarjeta: o los dos atajos, o en qué quedó con su aspa para
-       deshacer. Un toque mal dado tiene que poder corregirse. */
-    let pie = "";
-    if(conCierre){
-      pie = est
-        ? `<div class="pie marcado">
-             <button type="button" class="acc des" data-proc="${esc(p)}" data-e=""
-               title="Quitar la marca de ${esc(p)}" aria-label="Quitar la marca de ${esc(p)}"
-               ><span>${MARCA[est][1]}</span>${IC_DESHACER}</button></div>`
-        : `<div class="pie"><button type="button" class="acc" data-proc="${esc(p)}" data-e="cero"
-               title="Sin desperdicio" aria-label="${esc(p)}: sin desperdicio">${IC_CERO}</button>
-             <button type="button" class="acc" data-proc="${esc(p)}" data-e="notrab"
-               title="No trabajó" aria-label="${esc(p)}: no trabajó">${IC_NOTRAB}</button></div>`;
-    }
+    const esq = conMaquinas ? `<span class="n">${puestosDe(S.familia,p).length}</span>` : "";
+    const pie = conCierre
+      ? `<div class="pie"><button type="button" class="acc" data-proc="${esc(p)}" data-e="cero"
+             title="Sin desperdicio" aria-label="${esc(p)}: sin desperdicio">${IC_CERO}</button>
+           <button type="button" class="acc" data-proc="${esc(p)}" data-e="notrab"
+             title="No trabajado" aria-label="${esc(p)}: no trabajado">${IC_NOTRAB}</button></div>`
+      : "";
     return `<div class="${cls}">
-      <button type="button" class="pick" data-proc="${esc(p)}"${
-        est ? ` title="${MARCA[est][1]}"` : ""}>
+      <button type="button" class="pick" data-proc="${esc(p)}">
         <span class="ic">${iconoProceso(p)}</span>
         <span class="nom">${esc(p)}</span>${esq}</button>${pie}</div>`;
   }).join("");
 
   ajustarColumnas();
+  renderValidados(todos, r, conCierre);
 
   box.querySelectorAll("button.pick").forEach(b=>
     b.addEventListener("click",()=>seleccionarProceso(b.dataset.proc)));
@@ -2112,10 +2152,63 @@ function renderProcesos(){
   box.querySelectorAll("button.acc").forEach(b=>
     b.addEventListener("click",ev=>{
       ev.stopPropagation();
-      if(b.dataset.e) cerrarItem(b.dataset.proc, b.dataset.e);
-      else reabrirItem(b.dataset.proc);
+      cerrarItem(b.dataset.proc, b.dataset.e);
     }));
 }
+
+/* Los procesos ya resueltos. No se tiran: hay que poder volver si se añadió
+   algo tarde o si alguien marcó lo que no era. Pero tampoco estorban arriba,
+   así que viven aparte y plegados. */
+function renderValidados(todos, r, conCierre){
+  const caja = document.getElementById("validados");
+  if(!caja) return;
+  if(!conCierre){ caja.style.display = "none"; return; }
+  const hechos = todos.filter(x=> r.maq[x]);
+  if(!hechos.length){ caja.style.display = "none"; return; }
+  caja.style.display = "block";
+
+  const pendientes = todos.length - hechos.length;
+  caja.innerHTML = `
+    <button type="button" class="val-cab" id="valCab" aria-expanded="${VALIDADOS_ABIERTO}">
+      <span class="fl">${VALIDADOS_ABIERTO ? "▾" : "▸"}</span>
+      <b>Ya validados</b><span class="cuenta">${hechos.length}</span>
+      <span class="resto">${pendientes ? pendientes+" sin registrar" : "no queda ninguno pendiente"}</span>
+    </button>
+    <div class="val-lista" ${VALIDADOS_ABIERTO ? "" : 'style="display:none;"'}>
+      ${hechos.map(p=>{
+        const e = r.maq[p];
+        return `<button type="button" class="val-chip est-${e}" data-proc="${esc(p)}"
+          title="Volver a revisar ${esc(p)}">
+          <span class="ic">${iconoProceso(p)}</span>
+          <span class="nom">${esc(p)}</span>
+          <span class="et">${ESTADOS_PROC[e].corto}</span></button>`;
+      }).join("")}
+    </div>`;
+
+  document.getElementById("valCab").addEventListener("click", ()=>{
+    VALIDADOS_ABIERTO = !VALIDADOS_ABIERTO;
+    renderValidados(todos, r, conCierre);
+  });
+  caja.querySelectorAll(".val-chip").forEach(b=>
+    b.addEventListener("click", ()=> preguntarValidado(b.dataset.proc, r.maq[b.dataset.proc])));
+}
+let VALIDADOS_ABIERTO = false;
+
+/* Al tocar uno ya validado no se reabre sin más: puede ser que falte añadir
+   desperdicio, o puede ser que la marca esté mal. Son cosas distintas y la
+   app no puede adivinar cuál, así que pregunta. */
+let VAL_PROC = "";
+function preguntarValidado(proc, estado){
+  VAL_PROC = proc;
+  document.getElementById("valTit").textContent = `${proc} ya está validado`;
+  document.getElementById("valTxt").innerHTML =
+    `Lo marcaste como <b>${ESTADOS_PROC[estado].et.toLowerCase()}</b>.
+     ¿Qué quieres hacer?`;
+  document.getElementById("valAgregar").style.display =
+    estado === "hecha" ? "" : "none";
+  document.getElementById("valModal").classList.add("show");
+}
+function cerrarValidado(){ document.getElementById("valModal").classList.remove("show"); }
 
 const PUESTO_GENERICO = "Sin máquina asignada";
 /* Puestos de un proceso. Los procesos que todavía no tienen máquina definida
@@ -2453,6 +2546,24 @@ document.querySelectorAll("#tipos .tipo-card").forEach(c=>
 document.getElementById("referencia").addEventListener("change", e=>{
   S.referencia = e.target.value;
   pintarRuta(); actualizarBarra();
+});
+
+document.getElementById("valCancelar").addEventListener("click", cerrarValidado);
+document.getElementById("valCorregir").addEventListener("click", ()=>{
+  cerrarValidado();
+  if(VAL_PROC) reabrirItem(VAL_PROC);
+});
+document.getElementById("valAgregar").addEventListener("click", ()=>{
+  cerrarValidado();
+  if(!VAL_PROC) return;
+  /* Añadir más NO quita la marca: el proceso sigue teniendo desperdicio, sólo
+     que todavía se le va a sumar otra referencia. Se abre para cargar y se
+     vuelve a cerrar al terminar, como cualquier otro. */
+  const r = recActual();
+  delete r.maq[VAL_PROC];
+  guardarRecorrido();
+  seleccionarProceso(VAL_PROC);
+  toast(`${VAL_PROC}: añade la referencia y las cantidades`);
 });
 
 document.getElementById("openUsr").addEventListener("click", abrirUsuarios);
