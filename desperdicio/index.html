@@ -63,6 +63,87 @@
 
   .puesto-hint{font-size:.76rem;color:var(--text-dim);margin-top:10px;}
 
+  /* ======================= TABLERO DE PLANTA =======================
+     Pensado para mirarse de lejos: tipografía grande, pocos colores y nada
+     que invite a tocar. Las medidas van en vh/vw para que llene cualquier
+     televisor sin recortarse ni dejar franjas. */
+  body.modo-tablero > header,
+  body.modo-tablero > nav,
+  body.modo-tablero > main,
+  body.modo-tablero > section,
+  body.modo-tablero > .barra-fija,
+  body.modo-tablero > .modal-bg{display:none !important;}
+  body.modo-tablero{overflow:hidden;background:#eef0f3;}
+  #tablero{position:fixed;inset:0;display:flex;flex-direction:column;
+    gap:1.1vh;padding:1.6vh 1.6vw;background:#eef0f3;}
+
+  .tb-top{display:flex;align-items:flex-end;justify-content:space-between;}
+  .tb-tit b{display:block;font-size:3.1vh;line-height:1.1;}
+  .tb-tit span{font-size:1.7vh;color:var(--text-dim);}
+  .tb-reloj{text-align:right;}
+  .tb-reloj b{display:block;font-size:3.4vh;line-height:1;}
+  .tb-reloj span{font-size:1.5vh;color:var(--text-dim);}
+  /* Un dato viejo tiene que cantar: si el tablero se queda colgado, nadie
+     debe seguir tomando decisiones con el número de hace una hora. */
+  .tb-reloj span.viejo{color:#fff;background:var(--bad);padding:2px 8px;
+    border-radius:999px;font-weight:700;}
+
+  .tb-btn{display:block;margin-top:0.7vh;margin-left:auto;padding:0.7vh 1vw;
+    font-family:inherit;font-size:1.4vh;font-weight:700;color:var(--text-dim);
+    background:#fff;border:1px solid var(--border);border-radius:0.8vh;cursor:pointer;}
+  .tb-btn:hover:not(:disabled){border-color:var(--red);color:var(--red);}
+  .tb-btn:disabled{opacity:.55;cursor:default;}
+
+  .tb-lineas{display:grid;grid-template-columns:repeat(4,1fr);gap:1.1vw;}
+  .tb-l{background:#fff;border-radius:1.2vh;padding:1.6vh 1.4vw;
+    border-left:0.9vh solid var(--border);}
+  .tb-l .nom{font-size:2vh;font-weight:800;color:var(--text-dim);
+    text-transform:uppercase;letter-spacing:.05em;}
+  .tb-l .pct{font-size:6.4vh;font-weight:800;line-height:1.05;}
+  .tb-l .meta{font-size:1.5vh;color:var(--text-dim);}
+  .tb-l .pie{font-size:1.7vh;margin-top:0.6vh;}
+  .tb-l .aviso{font-size:1.3vh;color:var(--warn-text);margin-top:0.5vh;}
+  .tb-l.ok{border-left-color:var(--ok);}    .tb-l.ok .pct{color:var(--ok);}
+  .tb-l.warn{border-left-color:var(--warn);}.tb-l.warn .pct{color:var(--warn-text);}
+  .tb-l.bad{border-left-color:var(--bad);}  .tb-l.bad .pct{color:var(--bad);}
+  .tb-l.sin{border-left-color:#c2c8d0;}     .tb-l.sin .pct{color:var(--text-dim);}
+
+  .tb-abajo{flex:1;display:grid;grid-template-columns:1.45fr 1fr;gap:1.1vw;min-height:0;}
+  .tb-col{display:grid;grid-template-rows:1fr 1fr;gap:1.1vh;min-height:0;}
+  .tb-caja{background:#fff;border-radius:1.2vh;padding:1.6vh 1.4vw;
+    display:flex;flex-direction:column;min-height:0;}
+  .tb-cab{font-size:1.4vh;font-weight:800;letter-spacing:.09em;color:var(--red);
+    margin-bottom:1.1vh;}
+  .tb-bar{display:grid;grid-template-columns:1fr 2.2fr auto;gap:1vw;
+    align-items:center;padding:0.75vh 0;}
+  .tb-bar .d{font-size:1.9vh;font-weight:700;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;}
+  .tb-bar .barra{background:#eef0f3;border-radius:999px;height:1.9vh;overflow:hidden;}
+  .tb-bar .barra i{display:block;height:100%;background:var(--red);border-radius:999px;}
+  .tb-bar .n{font-size:2.1vh;font-weight:800;text-align:right;min-width:4vw;}
+  .tb-pie{margin-top:auto;padding-top:1vh;font-size:1.7vh;color:var(--text-dim);}
+  .tb-vacio,.tb-ok{font-size:2vh;color:var(--ok);font-weight:700;
+    display:flex;align-items:center;justify-content:center;flex:1;text-align:center;}
+  .tb-vacio{color:var(--text-dim);font-weight:400;}
+
+  .tb-falta-n{font-size:5.4vh;font-weight:800;color:var(--warn-text);line-height:1;}
+  .tb-falta-l{font-size:1.5vh;color:var(--text-dim);margin-bottom:1vh;}
+  .tb-falta{font-size:1.6vh;padding:0.35vh 0;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;}
+  .tb-falta b{margin-right:0.5vw;}
+  .tb-falta span{color:var(--text-dim);}
+
+  .tb-cmp{display:flex;flex-direction:column;gap:1vh;}
+  .tb-cmp > div{display:grid;grid-template-columns:auto auto 1fr;
+    grid-template-areas:"et val fle" "sub sub sub";align-items:baseline;gap:0 0.8vw;}
+  .tb-cmp span{grid-area:et;font-size:1.5vh;color:var(--text-dim);}
+  .tb-cmp b{grid-area:val;font-size:3.4vh;font-weight:800;}
+  .tb-cmp i{grid-area:fle;font-style:normal;font-size:1.9vh;font-weight:800;}
+  .tb-cmp small{grid-area:sub;font-size:1.3vh;color:var(--text-dim);}
+  .tb-cmp i.ok{color:var(--ok);} .tb-cmp i.bad{color:var(--bad);}
+  .tb-cmp i.neutro{color:var(--text-dim);}
+  .tb-fuente{font-size:1.2vh;color:#9aa5b1;text-align:right;}
+
   /* ---- Selector de jornada ---- */
   .jor{display:grid;grid-template-columns:200px 160px max-content;gap:12px;align-items:end;}
   @media(max-width:700px){.jor{grid-template-columns:1fr 1fr;}.j-hoy{grid-column:1/-1;}}
@@ -1542,7 +1623,7 @@ const SIN_FOTO = {};
    permite saber desde el propio panel si un dispositivo se quedó con un index
    viejo en caché. Hay que subirlo en cada entrega: si se queda quieto, el
    panel dice «al día» aunque el archivo tenga una semana. */
-const APP_VERSION = "2026-11-11-borrado-seguro";
+const APP_VERSION = "2026-11-11-ids";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -2854,7 +2935,7 @@ function filasDe(codigos, extra){
   return codigos.map((codigo,i)=>{
     const d=catalogo.find(x=>x.code===codigo);
     return Object.assign({}, base, {
-      id:"CD-"+Date.now()+"-"+i+"-"+Math.floor(Math.random()*1000),
+      id:nuevoId(),
       defectoCodigo:codigo, defectoLabel:d?d.name:"",
       origenDefecto: d?origenDefecto(d):"",
       defectoAjeno: (d && esAjeno(d,S.proceso,S.familia)) ? "Sí" : "No",
@@ -2862,6 +2943,19 @@ function filasDe(codigos, extra){
       observacion: S.observaciones[codigo] || ""
     }, extra||{});
   });
+}
+
+/* El identificador llevaba la hora en milisegundos y 3 dígitos al azar. Dos
+   filas creadas en el mismo milisegundo —cerrar dos procesos seguidos lo
+   consigue— chocaban una de cada mil veces. Y un choque no da error: la hoja
+   ve el id repetido, lo toma por un reenvío y descarta la fila EN SILENCIO.
+   Con un contador propio que nunca se repite dentro de la sesión, más la
+   hora y el azar, eso deja de poder pasar. */
+let SEC_ID = 0;
+function nuevoId(){
+  SEC_ID++;
+  return "CD-" + Date.now() + "-" + SEC_ID.toString(36) +
+         "-" + Math.random().toString(36).slice(2, 8);
 }
 
 function anotar(nuevos){
@@ -2883,7 +2977,7 @@ function guardarCierre(item, estado){
   const turno=jornadaTurno();
   const auditoria = S.tipo === "auditoria";
   anotar([{
-    id:"CD-"+Date.now()+"-c-"+Math.floor(Math.random()*1000),
+    id:nuevoId(),
     fecha:jornadaFecha(), capturadoEl:hoyISO(),
     hora:`${pad(now.getHours())}:${pad(now.getMinutes())}`,
     familia:S.familia,
@@ -5569,23 +5663,93 @@ function anotarLectura(o){
   if(document.getElementById("syncModal").classList.contains("show")) renderDiagSync();
 }
 
-async function cargarRemoto(desdeISO, motivo){
+/* ======================================================================
+   LECTURA INCREMENTAL
+   Pedir el histórico entero en cada sondeo no se sostiene: hoy son unos
+   cientos de filas, pero la ventana son 60 días y esa cifra sólo crece. Con
+   el cursor se piden sólo las filas que la hoja guardó después de la última
+   vez, que normalmente son cero o unas pocas.
+   Lo incremental tiene un punto ciego: no ve lo que otro equipo BORRE, porque
+   una fila que desaparece no deja marca. Por eso cada media hora se hace una
+   lectura completa que reconcilia. Es el equilibrio entre no bajar el
+   histórico cada tres minutos y no quedarse con filas que ya no existen.
+   ====================================================================== */
+const RECONCILIAR_CADA = 1800000;         // 30 min
+let CURSOR = localStorage.getItem("cd_cursor") || "";
+let RECONCILIADO_EL = 0;
+function guardarCursor(c){
+  if(!c) return;
+  CURSOR = c;
+  try{ localStorage.setItem("cd_cursor", c); }catch(e){}
+}
+function tocaReconciliar(){
+  return !CURSOR || (Date.now() - RECONCILIADO_EL) >= RECONCILIAR_CADA;
+}
+
+async function cargarRemoto(desdeISO, motivo, forzarCompleta){
   if(!S.syncUrl) return;
   const t0 = Date.now();
+  const corte = desdeISO || fechaDesdeCD(60);
+  /* Una lectura con ventana propia —el tablero pidiendo sólo hoy— no puede
+     usar el cursor: traería lo nuevo de TODAS las fechas y se mezclaría con
+     una ventana que no es la suya. */
+  const completa = forzarCompleta || !!desdeISO || tocaReconciliar();
   try{
-    const corte = desdeISO || fechaDesdeCD(60);
-    const data = await pedirJSON(S.syncUrl + "?desde=" + corte, "los registros");
+    const url = completa
+      ? `${S.syncUrl}?desde=${corte}&conCursor=1`
+      : `${S.syncUrl}?desdeEscrito=${encodeURIComponent(CURSOR)}`;
+    const resp = await pedirJSON(url, "los registros");
+    /* El backend viejo devuelve una lista pelada; el nuevo, un objeto con
+       cursor. Se aceptan los dos para no exigir publicar los dos a la vez. */
+    const esObjeto = resp && !Array.isArray(resp) && Array.isArray(resp.registros);
+    const data = esObjeto ? resp.registros : resp;
+    const incremental = esObjeto ? !!resp.incremental : false;
+    if(esObjeto && resp.incremental === false && !completa){
+      /* La hoja no tiene la columna todavía: se repite completa y se deja de
+         intentar el atajo hasta que se publique el Apps Script nuevo. */
+      anotarLectura({hora:horaAhoraCD(), filas:0, ms:Date.now()-t0,
+        motivo:"sin columna de cursor, se pide completa", desde:corte, error:null});
+      return cargarRemoto(desdeISO, motivo, true);
+    }
     anotarLectura({hora:horaAhoraCD(), filas:Array.isArray(data)?data.length:null,
-      ms:Date.now()-t0, motivo:motivo||"sondeo automático", desde:corte, error:null});
+      ms:Date.now()-t0, motivo:(motivo||"sondeo automático")+(incremental?" · sólo lo nuevo":""),
+      desde: incremental ? "lo nuevo" : corte, error:null});
+    if(esObjeto) guardarCursor(resp.cursor);
+    if(completa) RECONCILIADO_EL = Date.now();
     if(Array.isArray(data)){
+      /* En una lectura incremental lo que llega se SUMA a lo que hay; en una
+         completa, lo que no venga de la ventana pedida se conserva igual,
+         porque puede ser más antiguo que el corte. */
       if(!CARGADO_DESDE || corte < CARGADO_DESDE) CARGADO_DESDE = corte;
       const m=new Map();
       /* Lo borrado no vuelve a entrar, venga de donde venga. */
       S.registros.forEach(r=>{ if(!esBorrado(r.id)) m.set(r.id,r); });
       data.forEach(r=>{ if(!esBorrado(r.id)) m.set(r.id,r); });
+
+      if(completa){
+        /* Reconciliación: dentro de la ventana que se acaba de pedir, la hoja
+           es la verdad. Lo que el equipo tenga ahí y la hoja no haya devuelto
+           es porque alguien lo borró desde otro sitio, y hay que quitarlo.
+           Sin este paso, lo incremental nunca se enteraría: una fila que
+           desaparece no deja rastro que pedir.
+           Se respetan dos excepciones: lo que todavía no se ha subido, que no
+           puede estar en la hoja porque aún no llegó, y lo que cae fuera de la
+           ventana, que simplemente no se preguntó. */
+        const llegaron = new Set(data.map(r=> String(r.id)));
+        let quitadas = 0;
+        Array.from(m.keys()).forEach(id=>{
+          const r = m.get(id);
+          if(llegaron.has(String(id))) return;
+          if(r.pendienteSync) return;
+          if(String(r.fecha||"") < corte) return;
+          m.delete(id); quitadas++;
+        });
+        if(quitadas) console.info(`reconciliación: ${quitadas} fila(s) borradas desde otro equipo`);
+      }
       S.registros=Array.from(m.values()).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
       localStorage.setItem("cd_registros",JSON.stringify(S.registros));
       if(document.getElementById("viewDashboard").style.display!=="none") renderDashboardTurno();
+      if(typeof ajustarRitmo === "function") ajustarRitmo(data);
       reintentarPendientes(); reintentarBorrados(); actualizarEstadoSync();
     }
   }catch(e){
@@ -5691,8 +5855,14 @@ function renderDiagSync(){
         <span>${b.error ? "falló: "+esc(b.error) : (b.filas==null?"—":b.filas+" reg.")}</span>
         <span${/AUTOM|identificar/i.test(b.motivo)?' style="color:var(--bad);font-weight:700;"':''}>${esc(b.motivo)}</span>
         <span>${b.ms?(b.ms/1000).toFixed(1)+" s":""}</span></div>`).join("")}
-      <div class="diag-nota">Si alguna dice «sin identificar» o «DISPARO AUTOMÁTICO»,
-        hay algo leyendo por su cuenta.</div>` : ""}
+      <div class="diag-nota">Pide <b>sólo lo nuevo</b> en cada sondeo y hace una
+        lectura completa cada ${Math.round(RECONCILIAR_CADA/60000)} minutos para
+        enterarse de lo que se borre desde otro equipo${
+        CURSOR ? "" : " (todavía sin cursor: la primera lectura es completa)"}.
+        Lee cada ${Math.round(SONDEO.actual/60000)} minuto(s)${
+        SONDEO.quietas>=3 ? " (ritmo lento: no hay novedades)" : ""
+      } mientras la pestaña está a la vista. Si alguna dice «sin identificar» o
+        «DISPARO AUTOMÁTICO», hay algo leyendo por su cuenta.</div>` : ""}
 
     <div class="diag-tit" style="margin-top:16px;">QUÉ VERSIÓN ESTÁS USANDO</div>
     <div class="diag-fila"><span>Código de esta app</span>
@@ -5895,7 +6065,292 @@ function migrarProcesosUnificados(){
   }
 }
 
+/* ======================================================================
+   TABLERO DE PLANTA
+   Se abre con ?tablero=1 y no es una pestaña más de la app: es una pantalla
+   de sólo lectura pensada para un televisor que nadie va a tocar. Por eso
+   no lleva botones, la letra es grande y todo cabe de una vez, sin rotar
+   entre vistas: quien pasa y mira de lejos tiene que ver SU línea sin
+   esperar a que el tablero cambie de pantalla.
+   Las fórmulas son las mismas del Control —ratio por máquina, horas
+   transcurridas, meta por línea—: un tablero que calcule a su manera acaba
+   contradiciendo a la pantalla desde la que se gestiona, y entonces nadie
+   cree a ninguna de las dos.
+   ====================================================================== */
+const ES_TABLERO = /[?&]tablero=1/.test(location.search);
+
+/* Qué tipo de registro muestra. La recolección es el conteo real de lo
+   recogido; la auditoría es una muestra por máquina y sumarla sería contar
+   dos veces las mismas piezas. Se puede forzar con ?tipo=auditoria. */
+const TAB_TIPO = /[?&]tipo=auditoria/.test(location.search) ? "auditoria" : "recoleccion";
+
+const TAB = {ultima:0, ampliaEl:0, cargando:false};
+
+function tabRegs(){
+  return S.registros.filter(r=> tipoDe(r) === TAB_TIPO && !r.estadoMaquina);
+}
+function tabCierres(){
+  return S.registros.filter(r=> tipoDe(r) === TAB_TIPO && r.estadoMaquina);
+}
+
+/* Producción teórica de toda una línea en lo que va del turno. Es la suma de
+   lo que daría cada máquina activa con ratio cargado. Las que no tienen ratio
+   quedan fuera del cálculo y se cuentan aparte: si no, el porcentaje saldría
+   bajo por falta de datos y parecería que se desperdicia menos. */
+function teoricoLinea(fam, turno, fecha){
+  const horas = horasTranscurridas(turno, fecha);
+  let teorico = 0, conRatio = 0, sinRatio = 0;
+  Object.values(ESTRUCTURA[fam] || {}).forEach(lista=> lista.forEach(maq=>{
+    const cfg = getCfg(fam, maq);
+    if(!cfg.activa) return;
+    if(!cfg.ratio){ sinRatio++; return; }
+    const h = cfg.horas != null ? cfg.horas : horas;
+    teorico += cfg.ratio * h / HORAS_TURNO;
+    conRatio++;
+  }));
+  return {teorico, conRatio, sinRatio, horas};
+}
+
+function datosLinea(fam, turno, fecha){
+  const llave = llaveTurno(turno, fecha);
+  const regs = tabRegs().filter(r=> r.turnoKey === llave && r.familia === fam);
+  const piezas = regs.reduce((n,r)=> n + (r.cantidad||0), 0);
+  const t = teoricoLinea(fam, turno, fecha);
+  const meta = METAS[fam] ?? 1;
+  const pct = t.teorico > 0 ? piezas / t.teorico * 100 : null;
+  return {fam, piezas, meta, pct, cat: pct===null ? "sin" : estadoPorMeta(pct, meta),
+          teorico:t.teorico, sinRatio:t.sinRatio, horas:t.horas, registros:regs.length};
+}
+
+/* Procesos de los que no se sabe nada todavía: ni cantidades ni respuesta de
+   «sin desperdicio» o «no ha trabajado». Es lo que falta por cargar. */
+function sinReportar(fam, turno, fecha){
+  const llave = llaveTurno(turno, fecha);
+  const vistos = {};
+  S.registros.forEach(r=>{
+    if(r.turnoKey !== llave || tipoDe(r) !== TAB_TIPO || r.familia !== fam) return;
+    if(r.proceso) vistos[r.proceso] = true;
+  });
+  return Object.keys(ESTRUCTURA[fam] || {}).filter(p=> !vistos[p]);
+}
+
+function paretoDefectos(turno, fecha, n){
+  const llave = llaveTurno(turno, fecha);
+  const por = {};
+  tabRegs().forEach(r=>{
+    if(r.turnoKey !== llave) return;
+    const k = r.defectoLabel || r.defectoCodigo || "Sin clasificar";
+    por[k] = (por[k] || 0) + (r.cantidad||0);
+  });
+  const total = Object.values(por).reduce((a,b)=>a+b, 0);
+  return {total, filas: Object.keys(por).sort((a,b)=> por[b]-por[a]).slice(0, n||6)
+    .map(k=>({defecto:k, piezas:por[k], parte: total ? por[k]/total : 0}))};
+}
+
+/* Comparación con el mismo turno del día anterior y con el acumulado del mes
+   contra el mes pasado. Sin referencia, un número suelto no dice si vamos
+   bien o mal. */
+function piezasDe(desde, hasta, fam){
+  return tabRegs().filter(r=> r.fecha >= desde && r.fecha <= hasta
+    && (!fam || r.familia === fam)).reduce((n,r)=> n + (r.cantidad||0), 0);
+}
+function comparacion(turno, fecha){
+  const ayer = isoMasDias(fecha, -1);
+  const llaveHoy = llaveTurno(turno, fecha), llaveAyer = llaveTurno(turno, ayer);
+  const suma = ll => tabRegs().filter(r=> r.turnoKey === ll)
+    .reduce((n,r)=> n + (r.cantidad||0), 0);
+  const mes = fecha.slice(0,7);
+  const finMes = fecha;                       // el mes en curso va hasta hoy
+  const iniMes = mes + "-01";
+  const d = parseISOLocal(iniMes); d.setMonth(d.getMonth()-1);
+  const mesAnt = `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+  /* Se compara contra el MISMO número de días del mes pasado, no contra el
+     mes entero: a día 5, el mes pasado completo siempre saldría peor y la
+     comparación no diría nada. */
+  const diaDelMes = Number(fecha.slice(8,10));
+  const finAnt = `${mesAnt}-${pad(diaDelMes)}`;
+  return {
+    turnoHoy: suma(llaveHoy), turnoAyer: suma(llaveAyer),
+    mes: piezasDe(iniMes, finMes), mesAnterior: piezasDe(mesAnt+"-01", finAnt),
+    diaDelMes, mesAnt
+  };
+}
+function isoMasDias(f, n){
+  const d = parseISOLocal(f); d.setDate(d.getDate()+n);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+
+/* ---------- Pintado del tablero ---------- */
+function fNum(n){ return Math.round(n).toLocaleString("es-CO"); }
+function fPct(p){ return p===null ? "—" : p.toLocaleString("es-CO",
+  {minimumFractionDigits:2, maximumFractionDigits:2}) + "%"; }
+
+function flecha(hoy, antes){
+  if(!antes) return {t:"—", c:"neutro", d:"sin referencia"};
+  const v = (hoy - antes) / antes * 100;
+  /* En desperdicio, menos es mejor: la flecha hacia abajo va en verde. */
+  if(Math.abs(v) < 1) return {t:"=", c:"neutro", d:"igual"};
+  return v < 0
+    ? {t:"▼ " + Math.abs(v).toFixed(0) + "%", c:"ok",  d:"menos que antes"}
+    : {t:"▲ " + v.toFixed(0) + "%",          c:"bad", d:"más que antes"};
+}
+
+function renderTablero(){
+  const cont = document.getElementById("tablero");
+  if(!cont) return;
+  const ahora = new Date();
+  const turno = turnoActual();
+  const fecha = turno === "3" ? fechaTurnoActual() : hoyISO();
+  const lineas = Object.keys(ESTRUCTURA).map(f=> datosLinea(f, turno, fecha));
+  const par = paretoDefectos(turno, fecha, 8);
+  const cmp = comparacion(turno, fecha);
+  const edad = TAB.ultima ? Math.round((Date.now()-TAB.ultima)/60000) : null;
+
+  const faltan = Object.keys(ESTRUCTURA).map(f=>({fam:f, procs:sinReportar(f, turno, fecha)}))
+    .filter(x=> x.procs.length);
+  const totalFaltan = faltan.reduce((n,x)=> n + x.procs.length, 0);
+
+  const fT = flecha(cmp.turnoHoy, cmp.turnoAyer);
+  const fM = flecha(cmp.mes, cmp.mesAnterior);
+
+  cont.innerHTML = `
+    <div class="tb-top">
+      <div class="tb-tit"><b>Desperdicio en planta</b>
+        <span>Turno ${turno} · ${fFechaLarga(fecha)} · ${lineas[0] ? lineas[0].horas.toFixed(1) : "0"} h de ${HORAS_TURNO}</span></div>
+      <div class="tb-reloj">
+        <b>${pad(ahora.getHours())}:${pad(ahora.getMinutes())}</b>
+        <span class="${edad===null?"":(edad>12?"viejo":"")}">${
+          edad===null ? "sin leer todavía"
+            : edad<1 ? "actualizado hace menos de 1 min"
+            : "actualizado hace " + edad + " min"}</span>
+        <button type="button" id="tbRefrescar" class="tb-btn"${
+          TAB.cargando ? " disabled" : ""}>${
+          TAB.cargando ? "Leyendo…" : "Actualizar ahora"}</button></div>
+    </div>
+
+    <div class="tb-lineas">
+      ${lineas.map(l=>`
+        <div class="tb-l ${l.cat}">
+          <div class="nom">${l.fam}</div>
+          <div class="pct">${fPct(l.pct)}</div>
+          <div class="meta">meta ${String(l.meta).replace(".", ",")}%</div>
+          <div class="pie"><b>${fNum(l.piezas)}</b> pieza(s)${
+            l.teorico ? " de " + fNum(l.teorico) + " producidas" : ""}</div>
+          ${l.sinRatio ? `<div class="aviso">${l.sinRatio} máquina(s) sin ratio: el % sale bajo</div>` : ""}
+        </div>`).join("")}
+    </div>
+
+    <div class="tb-abajo">
+      <div class="tb-caja">
+        <div class="tb-cab">EN QUÉ SE ESTÁ YENDO · TURNO ${turno}</div>
+        ${par.filas.length ? par.filas.map(f=>`
+          <div class="tb-bar">
+            <span class="d">${esc(f.defecto)}</span>
+            <span class="barra"><i style="width:${Math.max(2, f.parte*100).toFixed(0)}%"></i></span>
+            <span class="n">${fNum(f.piezas)}</span>
+          </div>`).join("")
+          : `<div class="tb-vacio">Sin desperdicio registrado en este turno.</div>`}
+        ${par.total ? `<div class="tb-pie">Total del turno: <b>${fNum(par.total)}</b> pieza(s)</div>` : ""}
+      </div>
+
+      <div class="tb-col">
+        <div class="tb-caja chica">
+          <div class="tb-cab">SIN REPORTAR</div>
+          ${totalFaltan
+            ? `<div class="tb-falta-n">${totalFaltan}</div>
+               <div class="tb-falta-l">proceso(s) sin cargar en el turno</div>
+               ${faltan.map(x=>`<div class="tb-falta"><b>${x.fam}</b>
+                 <span>${x.procs.slice(0,4).join(", ")}${
+                   x.procs.length>4 ? " y "+(x.procs.length-4)+" más" : ""}</span></div>`).join("")}`
+            : `<div class="tb-ok">✓ Todas las líneas reportaron</div>`}
+        </div>
+
+        <div class="tb-caja chica">
+          <div class="tb-cab">CONTRA EL PERIODO ANTERIOR</div>
+          <div class="tb-cmp">
+            <div><span>Este turno</span><b>${fNum(cmp.turnoHoy)}</b>
+              <i class="${fT.c}">${fT.t}</i>
+              <small>ayer ${fNum(cmp.turnoAyer)}</small></div>
+            <div><span>Mes a día ${cmp.diaDelMes}</span><b>${fNum(cmp.mes)}</b>
+              <i class="${fM.c}">${fM.t}</i>
+              <small>mes pasado ${fNum(cmp.mesAnterior)}</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tb-fuente">Fuente: ${TIPOS[TAB_TIPO].et.toLowerCase()} · ${APP_VERSION}</div>`;
+}
+
+/* ---------- Refresco ----------
+   Dos lecturas distintas y a ritmos distintos. La del día es la que mantiene
+   vivo el tablero y es pequeña. La amplia sólo hace falta para la comparación
+   con el mes pasado, y esa no cambia de un minuto a otro: pedirla cada vez
+   bajaría dos meses de histórico cada cinco minutos sin motivo. */
+const TAB_RITMO = 300000;        // 5 min: los datos cambian 3 o 4 veces al día
+const TAB_AMPLIA = 3600000;      // 1 h
+
+async function refrescarTablero(motivo){
+  if(!S.syncUrl){ renderTablero(); return; }
+  const hoy = hoyISO();
+  const toca = Date.now() - TAB.ampliaEl >= TAB_AMPLIA;
+  const d = parseISOLocal(hoy); d.setDate(1); d.setMonth(d.getMonth()-1);
+  const desde = toca ? `${d.getFullYear()}-${pad(d.getMonth()+1)}-01`
+                     : isoMasDias(hoy, -1);     // ayer y hoy: el turno 3 cruza medianoche
+  await cargarRemoto(desde, motivo || "tablero");
+  if(toca) TAB.ampliaEl = Date.now();
+  TAB.ultima = Date.now();
+  renderTablero();
+}
+
+/* El botón existe para cuando alguien acaba de cargar y quiere verlo ya, sin
+   esperar los cinco minutos. Lleva freno de 20 segundos a propósito: en una
+   pantalla de planta siempre hay quien lo pulsa varias veces seguidas al no
+   ver cambiar nada, y cada pulsación es una ejecución de Apps Script que sale
+   de la misma cuota diaria que usan las tablets para registrar. */
+const TAB_FRENO = 20000;
+async function refrescoManual(){
+  if(TAB.cargando) return;
+  const desde = Date.now() - TAB.ultima;
+  if(TAB.ultima && desde < TAB_FRENO){
+    const faltan = Math.ceil((TAB_FRENO - desde)/1000);
+    const b = document.getElementById("tbRefrescar");
+    if(b){ b.textContent = `Espera ${faltan} s`; setTimeout(renderTablero, faltan*1000); }
+    return;
+  }
+  TAB.cargando = true; renderTablero();
+  try{ await refrescarTablero("botón «actualizar ahora»"); }
+  finally{ TAB.cargando = false; renderTablero(); }
+}
+
+function arrancarTablero(){
+  document.body.classList.add("modo-tablero");
+  const d = document.createElement("div");
+  d.id = "tablero";
+  document.body.appendChild(d);
+  renderTablero();
+  /* Delegado en el contenedor: el botón se vuelve a crear en cada repintado
+     y engancharlo directamente lo dejaría muerto al medio minuto. */
+  d.addEventListener("click", ev=>{
+    if(ev.target.closest && ev.target.closest("#tbRefrescar")) refrescoManual();
+  });
+  if(S.syncUrl){
+    comprobarBackend();
+    cargarRatios().then(()=> refrescarTablero("apertura del tablero"));
+  }
+  setInterval(()=> refrescarTablero("refresco automático"), TAB_RITMO);
+  /* El reloj y la antigüedad del dato se repintan solos cada medio minuto;
+     eso no cuesta ninguna lectura y evita que alguien mire una hora parada
+     y crea que el tablero está colgado. */
+  setInterval(renderTablero, 30000);
+}
+
 /* ---------- Init ---------- */
+/* El tablero no es una pestaña de la app: sustituye la pantalla entera. Se
+   decide aquí, antes de montar nada del registro, para que un televisor no
+   cargue temporizadores ni pantallas que nadie va a usar. */
+if(ES_TABLERO){ arrancarTablero(); }
+else {
 /* Por si quedó algo borrado en la memoria del equipo de una sesión anterior
    que se cerró a mitad del envío. */
 (function(){
@@ -5926,17 +6381,56 @@ montarSelectorMes();
 document.getElementById("cxMes").value=hoyISO().slice(0,7);
 document.getElementById("kTurno").value=turnoActual();
 actualizarEstadoSync();
+/* ======================================================================
+   RITMO DEL SONDEO
+   Cada lectura es una ejecución de Apps Script y Google cuenta el tiempo
+   total de ejecución por día: 90 minutos en una cuenta normal de Gmail, 6
+   horas en una de Workspace. A 45 segundos, cada tablet encendida gastaba
+   unos 4 minutos de cuota por cada hora de uso; con tres equipos en un turno
+   de 8 horas se pasaba del límite de una cuenta normal antes de terminar el
+   día, y al agotarse la cuota la hoja deja de responder a todos a la vez.
+   Tres medidas: se espacia el sondeo, se frena cuando no hay novedades, y no
+   se permiten dos lecturas seguidas muy juntas —volver a la pestaña disparaba
+   una lectura extra aunque acabara de haber otra.
+   Lo inmediato sigue a mano: el botón «Leer la hoja ahora».
+   ====================================================================== */
+const SONDEO = {min:180000, max:600000, actual:180000, ultimo:0, quietas:0, huella:""};
+function puedeSondear(){ return Date.now() - SONDEO.ultimo >= 60000; }
+function sondear(motivo){
+  if(document.hidden || !puedeSondear()) return;
+  SONDEO.ultimo = Date.now();
+  cargarRemoto(null, motivo);
+}
+/* Si varias lecturas seguidas traen exactamente lo mismo, se alarga el
+   intervalo. En cuanto algo cambia, se vuelve al ritmo normal. */
+function ajustarRitmo(data){
+  const huella = Array.isArray(data) ? data.length + "|" + (data[0] && data[0].id || "") : "";
+  if(huella && huella === SONDEO.huella){
+    SONDEO.quietas++;
+    if(SONDEO.quietas >= 3) SONDEO.actual = SONDEO.max;
+  } else {
+    SONDEO.quietas = 0; SONDEO.actual = SONDEO.min;
+  }
+  SONDEO.huella = huella;
+}
+
 if(S.syncUrl){comprobarBackend();reintentarBorrados();cargarRemoto(null,"apertura de la app (turno actual)");cargarEmpacadas();cargarRatios();reintentarPendientes();cargarUsuarios();
-  // ritmo bajo: cada pestaña abierta consume cuota diaria de Apps Script y
-  // leer cada pocos segundos desde varios equipos la agota en media jornada
-  setInterval(()=>{ if(!document.hidden) cargarRemoto(); }, 45000);
-  setInterval(()=>{ if(!document.hidden) sincronizarCargue(false); }, 60000);
+  SONDEO.ultimo = Date.now();
+  /* Un solo temporizador que se reprograma solo, en vez de un intervalo fijo:
+     así el ritmo puede cambiar sin dejar temporizadores viejos corriendo. */
+  (function ciclo(){
+    setTimeout(()=>{ sondear("sondeo automático"); ciclo(); }, SONDEO.actual);
+  })();
+  /* El cargue son unidades empacadas por línea: cambia pocas veces al día, no
+     tenía sentido preguntarlo cada minuto. */
+  setInterval(()=>{ if(!document.hidden) sincronizarCargue(false); }, 300000);
   reintentarEmpacadas();
-  setInterval(reintentarEmpacadas, 60000);
+  setInterval(reintentarEmpacadas, 120000);
   document.addEventListener("visibilitychange", ()=>{
-    if(!document.hidden){ cargarRemoto(); sincronizarCargue(false); }
+    if(!document.hidden) sondear("volver a la pestaña");
   });}
 else marcarRatiosSync(false);
+}   // fin del modo registro
 </script>
 
 </body>
