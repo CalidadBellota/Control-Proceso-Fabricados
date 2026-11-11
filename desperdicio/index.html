@@ -156,6 +156,15 @@
   .j-aviso.abierta{background:#f2f8fe;color:#1d5c93;border:1px solid #bcd9f5;}
   .j-aviso.cargada{background:var(--warn-bg);color:var(--warn-text);border:1px solid #f3e3ae;}
   .j-aviso.cerrada{background:var(--bad-bg);color:#a01523;border:1px solid #f3c4c0;}
+  .j-aviso.completa{background:var(--ok-bg);color:#1f7a4d;border:1px solid #bfe8cf;}
+  /* Una pastilla por línea: lo que falta se lee de un vistazo, sin contar. */
+  .j-lineas{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px;}
+  .j-linea{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;
+    border-radius:999px;background:rgba(255,255,255,.8);
+    border:1px solid rgba(0,0,0,.1);font-size:.76rem;color:var(--text);}
+  .j-linea b{font-weight:800;}
+  .j-linea.ok{background:var(--ok-bg);border-color:#bfe8cf;color:#1f7a4d;}
+  .j-linea.cero{opacity:.62;}
   .j-aviso button{margin-top:10px;padding:8px 13px;border-radius:7px;border:1px solid currentColor;
     background:#fff;color:inherit;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;}
   /* Con la jornada cerrada no se puede tocar nada: se ve, pero no se edita. */
@@ -1634,7 +1643,7 @@ const SIN_FOTO = {};
    permite saber desde el propio panel si un dispositivo se quedó con un index
    viejo en caché. Hay que subirlo en cada entrega: si se queda quieto, el
    panel dice «al día» aunque el archivo tenga una semana. */
-const APP_VERSION = "2026-11-11-panel";
+const APP_VERSION = "2026-11-11-avance";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -1869,6 +1878,60 @@ function jornadaCerrada(){
   return !rs.some(r=> String(r.capturadoEl || r.fecha).slice(0,10) === hoyISO());
 }
 
+/* ======================================================================
+   CUÁNTO FALTA DE LA JORNADA, LÍNEA POR LÍNEA
+
+   Quien carga no se pregunta «cuántos registros llevo», se pregunta «qué me
+   falta todavía». El conteo de filas no responde eso: catorce filas pueden
+   ser una línea entera o un solo proceso con catorce defectos.
+
+   La unidad es el PROCESO de la línea, en recolección y en auditoría. En
+   auditoría se recorren máquinas, pero un proceso cuenta como visitado en
+   cuanto una de sus máquinas quedó reportada: medir la línea en máquinas
+   daría un «3 de 47» que nunca llega a completarse y no dice nada.
+   ====================================================================== */
+function avanceJornada(){
+  const k = jornadaLlave();
+  const hechos = {};
+  FAMILIAS.forEach(f=> hechos[f] = new Set());
+  S.registros.forEach(r=>{
+    if(r.turnoKey !== k || tipoDe(r) !== S.tipo) return;
+    if(!hechos[r.familia] || !r.proceso) return;
+    hechos[r.familia].add(r.proceso);
+  });
+  return FAMILIAS.map(f=>{
+    const total = procesosDe(f).length;
+    /* Un proceso que ya no está en la estructura (lo quitamos después de
+       haberlo cargado) no puede inflar el avance por encima del total. */
+    const n = Math.min(hechos[f].size, total);
+    return {familia:f, hechos:n, total, falta:total - n,
+            completa: total > 0 && n >= total};
+  });
+}
+
+/* Las pastillas y la frase de cabecera. Devuelve también si está todo, que
+   es lo que decide el color del aviso. */
+function resumenJornada(){
+  const av = avanceJornada();
+  const listas = av.filter(a=> a.completa);
+  const faltan = av.filter(a=> !a.completa);
+  const chips = av.map(a=>
+    `<span class="j-linea ${a.completa ? "ok" : (a.hechos ? "" : "cero")}">${a.familia}
+      <b>${a.completa ? "completa" : a.hechos + " de " + a.total}</b></span>`).join("");
+  let cab;
+  if(!faltan.length){
+    cab = `<b>Jornada completa.</b> Las ${av.length} líneas tienen todos sus procesos reportados.`;
+  } else if(listas.length){
+    const nom = listas.map(a=> a.familia);
+    const ult = nom.length > 1 ? nom.slice(0,-1).join(", ") + " y " + nom[nom.length-1] : nom[0];
+    cab = `<b>Esta jornada ya completó ${ult}.</b> `
+        + `Falta ${faltan.map(a=> `${a.familia} (${a.falta})`).join(", ")}.`;
+  } else {
+    cab = `Falta ${faltan.map(a=> `${a.familia} (${a.falta})`).join(", ")}.`;
+  }
+  return {todo: !faltan.length, cab, chips:`<div class="j-lineas">${chips}</div>`};
+}
+
 function renderJornada(){
   const fi = document.getElementById("jFecha");
   const ti = document.getElementById("jTurno");
@@ -1894,6 +1957,7 @@ function renderJornada(){
     caja.innerHTML = `<div class="j-aviso cerrada">
       <b>Esta jornada ya está cargada.</b> Tiene ${rs.length} registro(s), digitados
       el ${fFechaLarga(dia)}. Para no pisar lo que ya se reportó, está bloqueada.
+      ${resumenJornada().chips}
       <br><button type="button" id="jAbrir">Desbloquear para corregir</button></div>`;
     document.getElementById("jAbrir").addEventListener("click", ()=>{
       if(!confirm(`Vas a modificar una jornada ya cargada (${fFechaLarga(jornadaFecha())}, turno ${jornadaTurno()}).\n\n`
@@ -1904,14 +1968,16 @@ function renderJornada(){
     });
   }
   else if(rs.length){
-    caja.innerHTML = `<div class="j-aviso ${desbloq ? "cerrada" : "cargada"}">
-      ${desbloq ? "<b>Jornada desbloqueada para corregir.</b> " : ""}
-      Esta jornada ya tiene <b>${rs.length} registro(s)</b> cargados.
-      Los procesos que ya registraste están en «Ya validados».</div>`;
+    const a = resumenJornada();
+    caja.innerHTML = `<div class="j-aviso ${a.todo ? "completa" : (desbloq ? "cerrada" : "cargada")}">
+      ${desbloq ? "<b>Jornada desbloqueada para corregir.</b> " : ""}${a.cab}
+      <br><span style="opacity:.8;">${rs.length} registro(s) cargados · lo ya
+      reportado está en «Ya validados».</span>${a.chips}</div>`;
   }
   else {
+    const a = resumenJornada();
     caja.innerHTML = `<div class="j-aviso abierta">
-      Sin registros todavía en esta jornada.</div>`;
+      Sin registros todavía en esta jornada.${a.chips}</div>`;
   }
 
   /* El bloqueo tapa todo lo que viene después del selector: se puede mirar,
