@@ -187,7 +187,30 @@
   .j-linea.ok{background:var(--ok-bg);border-color:#bfe8cf;color:#1f7a4d;}
   .j-linea.cero{opacity:.62;}
   .j-aviso button{margin-top:10px;padding:8px 13px;border-radius:7px;border:1px solid currentColor;
-    background:#fff;color:inherit;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;}
+    background:#fff;color:inherit;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;
+    min-height:38px;}
+  /* Aviso con acciones: el texto a la izquierda y los dos cuadros al extremo
+     derecho, que es donde la vista los busca al terminar de leer. */
+  .j-aviso.con-acciones{display:flex;align-items:flex-start;gap:14px;}
+  .j-aviso .j-cuerpo{flex:1;min-width:0;}
+  .j-acciones{display:flex;gap:8px;flex:0 0 auto;}
+  .j-aviso .j-acciones button{margin-top:0;width:62px;height:56px;padding:0 4px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    border-radius:10px;border:1px solid currentColor;background:#fff;}
+  .j-aviso .j-acciones button svg{width:19px;height:19px;stroke-width:2;}
+  .j-aviso .j-acciones button span{font-size:.58rem;font-weight:800;
+    text-transform:uppercase;letter-spacing:.2px;line-height:1;}
+  .j-aviso .j-acciones button:active{transform:translateY(1px);}
+  /* El borrado se distingue a la vista: no se puede parecer a «Modificar»,
+     porque uno se deshace y el otro no. */
+  .j-aviso button.peligro{border-color:var(--bad);color:#fff;background:var(--bad);}
+  .j-aviso button.peligro:hover{filter:brightness(.92);}
+  /* En pantalla angosta el texto manda y los cuadros pasan debajo, pero sin
+     encogerse: siguen siendo blancos de 52px, que es lo que se toca con el dedo. */
+  @media (max-width:620px){
+    .j-aviso.con-acciones{flex-direction:column;}
+    .j-acciones{align-self:flex-start;}
+  }
   /* Con la jornada cerrada no se puede tocar nada: se ve, pero no se edita. */
   .bloqueado-jor{opacity:.45;pointer-events:none;}
 
@@ -1505,6 +1528,32 @@
 
 <!-- Identificación para auditar. La recolección no pasa por aquí: el patinador
      registra sin entrar, que es lo que se decidió para no frenarlo en planta. -->
+<!-- Corregir una jornada ya reportada: antes de abrirla hay que decir quién la
+     corrige, porque a partir de ahí todo lo que se escriba va con su nombre. -->
+<div class="modal-bg" id="modModal">
+  <div class="modal">
+    <h3 style="margin-top:0;">Modificar una jornada ya cargada</h3>
+    <p id="modTxt"></p>
+    <div style="margin-bottom:12px;">
+      <label for="modQuien">Quién la va a modificar</label>
+      <select id="modQuien"></select>
+    </div>
+    <div id="modOtroBox" style="margin-bottom:12px;display:none;">
+      <label for="modOtro">Escribe tu nombre</label>
+      <input type="text" id="modOtro" placeholder="Nombre y apellido" autocomplete="off">
+    </div>
+    <div style="margin-bottom:4px;">
+      <label for="modMotivo">Motivo (opcional)</label>
+      <input type="text" id="modMotivo" placeholder="Por qué hay que corregirla" autocomplete="off">
+    </div>
+    <div id="modError" class="pin-error" style="display:none;"></div>
+    <div class="modal-actions">
+      <button id="modCancelar">Cancelar</button>
+      <button class="primary" id="modEntrar">Abrir para corregir</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="pinModal">
   <div class="modal" style="max-width:420px;">
     <h3 style="margin-top:0;">Auditoría de puesto</h3>
@@ -1654,7 +1703,13 @@ const SIN_FOTO = {};
    permite saber desde el propio panel si un dispositivo se quedó con un index
    viejo en caché. Hay que subirlo en cada entrega: si se queda quieto, el
    panel dice «al día» aunque el archivo tenga una semana. */
-const APP_VERSION = "2026-11-11-pestanas";
+/* El navegador, al recargar, devuelve la página donde estaba. En una tablet
+   de planta eso es un estorbo: se recarga para empezar de nuevo, y aparecer a
+   mitad del formulario con la cabecera cortada hace pensar que algo falló.
+   Aquí siempre se empieza arriba. */
+if("scrollRestoration" in history) history.scrollRestoration = "manual";
+
+const APP_VERSION = "2026-11-12-jornada";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -1965,18 +2020,21 @@ function renderJornada(){
   }
   else if(cerrada){
     const dia = String(rs[0].capturadoEl || rs[0].fecha).slice(0,10);
-    caja.innerHTML = `<div class="j-aviso cerrada">
-      <b>Esta jornada ya está cargada.</b> Tiene ${rs.length} registro(s), digitados
-      el ${fFechaLarga(dia)}. Para no pisar lo que ya se reportó, está bloqueada.
-      ${resumenJornada().chips}
-      <br><button type="button" id="jAbrir">Desbloquear para corregir</button></div>`;
-    document.getElementById("jAbrir").addEventListener("click", ()=>{
-      if(!confirm(`Vas a modificar una jornada ya cargada (${fFechaLarga(jornadaFecha())}, turno ${jornadaTurno()}).\n\n`
-        + `Lo que añadas se suma a lo que ya hay, no lo reemplaza. ¿Continuar?`)) return;
-      DESBLOQUEADAS[claveJornada()] = true;
-      refrescarJornada();
-      toast("Jornada desbloqueada");
-    });
+    caja.innerHTML = `<div class="j-aviso cerrada con-acciones">
+      <div class="j-cuerpo">
+        <b>Esta jornada ya está cargada.</b> Tiene ${rs.length} registro(s), digitados
+        el ${fFechaLarga(dia)}. Para no pisar lo que ya se reportó, está bloqueada.
+        ${resumenJornada().chips}
+      </div>
+      <div class="j-acciones">
+        <button type="button" id="jAbrir" title="Modificar esta jornada"
+          aria-label="Modificar esta jornada">${IC_LAPIZ}<span>Modificar</span></button>
+        <button type="button" id="jVaciar" class="peligro"
+          title="Borrar todos los registros de esta jornada"
+          aria-label="Borrar todos los registros de esta jornada">${IC_EQUIS}<span>Borrar</span></button>
+      </div></div>`;
+    document.getElementById("jAbrir").addEventListener("click", abrirModificar);
+    document.getElementById("jVaciar").addEventListener("click", pedirBorrarJornada);
   }
   else if(rs.length){
     const a = resumenJornada();
@@ -2088,7 +2146,7 @@ function irAVista(id){
     (v.view === "viewRegistro" && S.familia) ? "flex" : "none";
 }
 
-function aplicarTipo(t){
+function aplicarTipo(t, arranque){
   S.tipo = t;
   /* Pasar a recolección ya NO cierra la sesión: con auditoría en su propia
      pestaña, ir y volver es normal y pedir el PIN cada vez sería un castigo.
@@ -2101,7 +2159,11 @@ function aplicarTipo(t){
     : `Recorrido máquina por máquina${S.usuario ? " · " + S.usuario.nombre : ""}.`;
   renderJornada(); renderTipos(); renderProcesos(); renderReferencias(); pintarRuta();
   renderRecorrido(); renderDefectos(); actualizarBarra();
-  irAPaso(S.familia ? "paso2" : "paso1");
+  /* Acercar el paso siguiente tiene sentido cuando alguien acaba de elegir
+     algo. Al arrancar la app nadie eligió nada: recolección es el punto de
+     partida, y desplazar la pantalla sola deja la cabecera cortada y parece
+     que la página se movió sin motivo. */
+  if(!arranque) irAPaso(S.familia ? "paso2" : "paso1");
 }
 
 /* ======================================================================
@@ -2131,11 +2193,149 @@ function revisarSesion(){
   }
   return !!S.usuario;
 }
+/* ======================================================================
+   QUIÉN FIRMA UNA FILA
+
+   Normalmente la recolección no lleva firma: la carga cualquiera y no hay a
+   quién atribuirla. Pero corregir una jornada que ya se reportó sí es un acto
+   con dueño —alguien decidió que lo cargado estaba mal—, así que mientras esa
+   jornada esté desbloqueada, todo lo que se escriba queda a nombre de quien
+   la abrió. Es lo único que después permite explicar por qué un día cambió
+   de número.
+   ====================================================================== */
+let MODIFICADOR = null;          // {nombre, motivo} mientras haya jornada abierta
+function firmaDeLaFila(auditoria){
+  if(auditoria && S.usuario) return S.usuario.nombre || S.usuario.usuario;
+  if(MODIFICADOR && DESBLOQUEADAS[claveJornada()])
+    return MODIFICADOR.nombre + " (corrección)";
+  return "";
+}
+
 function cerrarSesionAuditoria(){
   S.usuario = null; SESION_TURNO = "";
   aplicarTipo("recoleccion");
   irAVista("registro");
   toast("Saliste de la auditoría");
+}
+
+/* ======================================================================
+   CORREGIR O VACIAR UNA JORNADA YA REPORTADA
+
+   Son dos cosas de peso muy distinto y por eso van en botones distintos:
+   «Modificar» suma a lo que hay y se puede deshacer borrando lo añadido;
+   «Borrar esta jornada» se lleva las filas de la hoja y no se deshace.
+   De ahí que una pida sólo el nombre y la otra el PIN de un jefe.
+   ====================================================================== */
+function abrirModificar(){
+  const sel = document.getElementById("modQuien");
+  const act = usuariosActivos();
+  /* La recolección la carga cualquiera, y el patinador puede no estar dado de
+     alta: por eso aquí se puede escribir el nombre, al revés que en auditoría.
+     Lo que se persigue no es autorizar —eso no hace falta para corregir—, es
+     que la fila corregida tenga dueño. */
+  sel.innerHTML = act.map(u=>`<option value="${esc(u.nombre||u.usuario)}">${esc(u.nombre||u.usuario)}</option>`)
+    .join("") + `<option value="__otro">Otra persona…</option>`;
+  sel.value = act.length ? (act[0].nombre || act[0].usuario) : "__otro";
+  document.getElementById("modTxt").innerHTML =
+    `<b>${fFechaLarga(jornadaFecha())}, turno ${jornadaTurno()}.</b>
+     Lo que añadas se <b>suma</b> a lo que ya hay, no lo reemplaza, y quedará
+     a tu nombre en la hoja.`;
+  document.getElementById("modOtro").value = "";
+  document.getElementById("modMotivo").value = "";
+  document.getElementById("modError").style.display = "none";
+  modVerOtro();
+  document.getElementById("modModal").classList.add("show");
+}
+function modVerOtro(){
+  const otro = document.getElementById("modQuien").value === "__otro";
+  document.getElementById("modOtroBox").style.display = otro ? "" : "none";
+  if(otro) setTimeout(()=>document.getElementById("modOtro").focus(), 60);
+}
+function cerrarModificar(){ document.getElementById("modModal").classList.remove("show"); }
+function confirmarModificar(){
+  const sel = document.getElementById("modQuien").value;
+  const nombre = (sel === "__otro"
+    ? document.getElementById("modOtro").value : sel).trim();
+  if(!nombre){
+    const e = document.getElementById("modError");
+    e.style.display = "block"; e.textContent = "Escribe quién va a modificar.";
+    return;
+  }
+  MODIFICADOR = {nombre, motivo: document.getElementById("modMotivo").value.trim()};
+  DESBLOQUEADAS[claveJornada()] = true;
+  cerrarModificar();
+  refrescarJornada();
+  toast("Jornada abierta — lo que cargues va a nombre de " + nombre);
+}
+
+/* Vaciar la jornada: sólo jefe o coordinador, y pasa por el PIN. */
+function pedirBorrarJornada(){
+  /* Si ya sabemos que la hoja corre un Code anterior, mejor decirlo aquí que
+     dejarle llenar el motivo para que el backend lo rechace al final. */
+  if(BACKEND.visto && String(BACKEND.visto) < "2026-11-12-jornada"){
+    alert("La hoja corre un Apps Script anterior (" + BACKEND.visto + ") y no "
+        + "sabe vaciar una jornada.\n\nPublica el Code.gs nuevo como "
+        + "«Nueva versión» y vuelve a intentarlo. No se borró nada.");
+    return;
+  }
+  if(!usuariosActivos().length){
+    alert("No hay usuarios cargados en la hoja. Vaciar una jornada tiene que "
+        + "autorizarlo un jefe o coordinador, y no hay a quién pedírselo todavía.");
+    return;
+  }
+  abrirPin("borrarjornada");
+}
+
+async function borrarJornadaActual(){
+  const fecha = jornadaFecha(), turno = jornadaTurno(), tipo = S.tipo;
+  const rs = registrosDeJornada();
+  const piezas = rs.reduce((n,r)=> n + (r.cantidad||0), 0);
+  const quien = S.usuario ? (S.usuario.nombre || S.usuario.usuario) : "";
+  const etq = tipo === "auditoria" ? "auditoría" : "recolección";
+  const otro = tipo === "auditoria" ? "recolección" : "auditoría";
+  if(!confirm(
+      `Se van a BORRAR de la hoja todas las filas de ${etq} de:\n\n`
+    + `${fFechaLarga(fecha)}, turno ${turno}\n`
+    + `${rs.length} registro(s) · ${piezas} pieza(s)\n\n`
+    + `Las filas de ${otro} de esa misma jornada NO se tocan.\n`
+    + `Desaparecen de la hoja y no se puede deshacer.\n`
+    + `Queda anotado a nombre de ${quien} en la hoja «Borrados».\n\n¿Continuar?`)) return;
+
+  const motivo = prompt("¿Por qué se vacía esta jornada? (queda en la hoja «Borrados»)", "") || "";
+
+  if(!S.syncUrl){ alert("Sin conexión a la hoja no se puede vaciar una jornada."); return; }
+  toast("Vaciando la jornada…");
+  let d = null;
+  try{
+    const res = await fetch(S.syncUrl, {method:"POST", redirect:"follow",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify({action:"borrarJornada", fecha, turno, tipo,
+        autorizo: S.usuario ? S.usuario.usuario : "", nombre: quien, motivo})});
+    d = await res.json();
+  }catch(e){ d = null; }
+
+  if(!d || !d.ok){
+    const err = d && d.error ? String(d.error) : "no contestó";
+    alert(err.indexOf("no reconocida") !== -1
+      ? "La hoja corre un Apps Script anterior y no entiende esta orden.\n\n"
+        + "No se borró nada. Publica el Code.gs nuevo como «Nueva versión»."
+      : "No se pudo vaciar la jornada: " + err + "\n\nNo se borró nada en la hoja.");
+    return;
+  }
+
+  /* Las lápidas van sobre lo que la HOJA dice haber borrado, no sobre lo que
+     tenía este equipo: si alguien cargó algo desde otra tablet y aquí no había
+     llegado, igual queda enterrado y no reaparece en la próxima lectura. */
+  const ids = (d.ids || []).concat(rs.map(r=> r.id));
+  ids.forEach(id=> marcarBorrado(id, true));
+  guardarBorrados();
+  S.registros = S.registros.filter(r=> ids.indexOf(r.id) === -1);
+  localStorage.setItem("cd_registros", JSON.stringify(S.registros));
+  delete DESBLOQUEADAS[claveJornada()];
+  MODIFICADOR = null;
+  refrescarJornada();
+  alert(`Jornada vaciada: ${d.borradas} fila(s) de ${etq} borradas de la hoja.\n`
+      + `Quedó anotado en la hoja «Borrados».`);
 }
 
 /* ---------- Identificación (sólo auditoría) ---------- */
@@ -2145,13 +2345,20 @@ function abrirPin(t){
   const sel = document.getElementById("pinUsuario");
   /* Para administrar sólo se ofrecen jefes y coordinadores: no tiene sentido
      dejar elegir a alguien que luego va a ser rechazado. */
-  const act = usuariosActivos().filter(u=> t !== "admin" ||
+  /* Tres usos del mismo PIN: auditar, administrar usuarios y vaciar una
+     jornada. Los dos últimos exigen rol, así que ni se ofrece a quien no lo
+     tiene —dejarlo elegir para rechazarlo después sería sólo una burla. */
+  const pideRol = (t === "admin" || t === "borrarjornada");
+  const act = usuariosActivos().filter(u=> !pideRol ||
     ROL_ADMIN.indexOf(String(u.rol||"").toLowerCase()) !== -1);
-  document.querySelector("#pinModal h3").textContent =
-    t === "admin" ? "Administrar usuarios" : "Auditoría de puesto";
-  document.querySelector("#pinModal p").textContent = t === "admin"
-    ? "Sólo un jefe o coordinador puede dar de alta usuarios."
-    : "La auditoría queda firmada con tu nombre. Entra con tu PIN.";
+  const TIT = {admin:"Administrar usuarios",
+               borrarjornada:"Borrar una jornada entera",
+               auditoria:"Auditoría de puesto"};
+  const SUB = {admin:"Sólo un jefe o coordinador puede dar de alta usuarios.",
+               borrarjornada:"Borra de la hoja y no se puede deshacer. Sólo un jefe o coordinador lo autoriza.",
+               auditoria:"La auditoría queda firmada con tu nombre. Entra con tu PIN."};
+  document.querySelector("#pinModal h3").textContent = TIT[t] || TIT.auditoria;
+  document.querySelector("#pinModal p").textContent = SUB[t] || SUB.auditoria;
   sel.innerHTML = `<option value="">Selecciona tu nombre</option>` +
     act.map(u=>`<option value="${u.usuario}">${u.nombre||u.usuario}</option>`).join("");
   /* Si la hoja todavía no tiene usuarios cargados no se puede dejar a calidad
@@ -2167,6 +2374,9 @@ function abrirPin(t){
     err.style.display = "block";
     err.innerHTML = t === "admin"
       ? `No hay usuarios en la hoja todavía. Entra para crear el primero.`
+      : t === "borrarjornada"
+      ? `<b>No se puede vaciar la jornada.</b> No hay ningún jefe ni coordinador
+         dado de alta que pueda autorizarlo.`
       : `<b>No se puede auditar todavía.</b> No hay usuarios cargados en la hoja.
          Pide a un jefe o coordinador que te dé de alta en <b>Administrar</b>.`;
     document.getElementById("pinEntrar").style.display = t === "admin" ? "" : "none";
@@ -2216,6 +2426,28 @@ function validarPin(){
     cerrarPin();
     renderUsuarios();
     document.getElementById("usrModal").classList.add("show");
+    return;
+  }
+  /* Vaciar la jornada no abre sesión de auditoría: se comprueba el rol, se
+     ejecuta y se olvida el usuario. Si no, autorizar un borrado dejaría al
+     jefe firmando por accidente las auditorías del resto del turno. */
+  if(TIPO_PENDIENTE === "borrarjornada"){
+    if(ROL_ADMIN.indexOf(String((S.usuario||{}).rol||"").toLowerCase()) === -1){
+      const e2 = document.getElementById("pinError");
+      e2.style.display = "block";
+      e2.textContent = "Ese usuario no es jefe ni coordinador.";
+      S.usuario = null; SESION_TURNO = "";
+      return;
+    }
+    const autoriza = S.usuario;
+    cerrarPin();
+    const previo = SESION_TURNO;
+    borrarJornadaActual().finally(()=>{
+      /* Si ya había una sesión de auditoría abierta antes, se respeta. */
+      if(previo !== turnoReal()){ S.usuario = null; SESION_TURNO = ""; }
+      else S.usuario = autoriza;
+      renderTipos();
+    });
     return;
   }
   cerrarPin();
@@ -2514,6 +2746,9 @@ ICONOS_PROC["Control"] = SVG_(`<circle cx="10.5" cy="10.5" r="6"/><path d="M15 1
 const IC_CERO     = SVG_(`<circle cx="12" cy="12" r="8.5"/><path d="M6.2 17.8L17.8 6.2"/>`);
 const IC_NOTRAB   = SVG_(`<circle cx="12" cy="12" r="8.5"/><path d="M8 12h8"/>`);
 const IC_DESHACER = SVG_(`<path d="M8 8l8 8M16 8l-8 8"/>`);
+/* Los dos cuadros del aviso de jornada cargada. */
+const IC_LAPIZ = SVG_(`<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M14.5 6.5l3 3"/>`);
+const IC_EQUIS = SVG_(`<path d="M7 7l10 10M17 7L7 17"/>`);
 
 /* ---------- Familias ---------- */
 function renderFamilias(){
@@ -3123,7 +3358,7 @@ function filasDe(codigos, extra){
     tipo: S.tipo,
     referencia: S.referencia,
     pasada: String(pasadaDe(itemActual())),
-    usuario: auditoria && S.usuario ? (S.usuario.nombre || S.usuario.usuario) : "",
+    usuario: firmaDeLaFila(auditoria),
     turno, turnoKey,
     pendienteSync:!!S.syncUrl
   };
@@ -3184,7 +3419,7 @@ function guardarCierre(item, estado){
     puesto: auditoria ? item : "",
     tipo: S.tipo, referencia:"",
     pasada:String(pasadaDe(item)),
-    usuario: auditoria && S.usuario ? (S.usuario.nombre||S.usuario.usuario) : "",
+    usuario: firmaDeLaFila(auditoria),
     defectoCodigo:"", defectoLabel:"", origenDefecto:"", defectoAjeno:"No",
     cantidad:0,
     estadoMaquina: estado === "notrab" ? NO_TRABAJO : "Sin desperdicio",
@@ -3278,6 +3513,9 @@ document.getElementById("uCerrar").addEventListener("click", ()=>
 document.getElementById("uGuardar").addEventListener("click", e=> guardarUsuario(e.target));
 
 document.getElementById("pinCancelar").addEventListener("click", cerrarPin);
+document.getElementById("modCancelar").addEventListener("click", cerrarModificar);
+document.getElementById("modEntrar").addEventListener("click", confirmarModificar);
+document.getElementById("modQuien").addEventListener("change", modVerOtro);
 document.getElementById("pinEntrar").addEventListener("click", validarPin);
 document.getElementById("pinClave").addEventListener("keydown", e=>{
   if(e.key === "Enter") validarPin();
@@ -6581,7 +6819,7 @@ else {
 migrarProcesosUnificados();
 /* Al entrar, recolección del turno sin preguntar nada: es lo que hace
    cualquiera y no necesita identificarse. La auditoría vive en su pestaña. */
-aplicarTipo("recoleccion");
+aplicarTipo("recoleccion", true);   // true = sin desplazar la pantalla
 irAVista("registro");
 renderFamilias();
 renderJornada();
