@@ -156,6 +156,26 @@
   .val-chip.est-notrab .ic,.val-chip.est-notrab .et{color:var(--text-dim);}
   .val-chip.est-notrab .nom{color:var(--text-dim);}
 
+  /* ---- Lo cargado en un proceso, dentro del aviso ---- */
+  #valFilas{margin:4px 0 16px;}
+  .vf-cab{font-size:.66rem;font-weight:800;letter-spacing:.5px;color:var(--text-dim);
+    padding-bottom:5px;border-bottom:1px solid var(--border);}
+  .vf{display:grid;grid-template-columns:1fr auto 54px 34px;gap:8px;align-items:center;
+    padding:8px 0;border-bottom:1px solid #f1f2f4;font-size:.82rem;}
+  .vf .d{font-weight:700;}
+  .vf .r{font-size:.72rem;color:var(--text-dim);}
+  .vf .c{text-align:right;font-weight:800;}
+  .vf-x{display:flex;align-items:center;justify-content:center;width:30px;height:30px;
+    border:1px solid var(--border);border-radius:7px;background:#fff;cursor:pointer;
+    color:#aab2bd;padding:0;}
+  .vf-x svg{width:12px;height:12px;display:block;}
+  .vf-x:hover{border-color:var(--bad);color:var(--bad);background:var(--bad-bg);}
+
+  /* Botón con una segunda línea que matiza lo que hace. */
+  .modal-actions .con-nota{display:flex;flex-direction:column;align-items:center;gap:2px;
+    line-height:1.3;padding-top:9px;padding-bottom:9px;}
+  .modal-actions .con-nota small{font-size:.7rem;font-weight:500;color:var(--text-dim);}
+
   .pin-error{font-size:.8rem;color:var(--bad);background:var(--bad-bg);
     border-radius:8px;padding:8px 10px;margin-top:10px;font-weight:600;}
 
@@ -1401,9 +1421,10 @@
   <div class="modal" style="max-width:460px;">
     <h3 style="margin-top:0;" id="valTit"></h3>
     <p id="valTxt"></p>
+    <div id="valFilas"></div>
     <div class="modal-actions" style="flex-direction:column;align-items:stretch;gap:8px;">
       <button class="primary" id="valAgregar">Añadir más desperdicio a este proceso</button>
-      <button id="valCorregir">Me equivoqué — quitar la marca</button>
+      <button id="valCorregir" class="con-nota">Volver a dejarlo pendiente</button>
       <button id="valCancelar">Dejarlo como está</button>
     </div>
   </div>
@@ -1521,7 +1542,7 @@ const SIN_FOTO = {};
    permite saber desde el propio panel si un dispositivo se quedó con un index
    viejo en caché. Hay que subirlo en cada entrega: si se queda quieto, el
    panel dice «al día» aunque el archivo tenga una semana. */
-const APP_VERSION = "2026-11-10-jornada";
+const APP_VERSION = "2026-11-11-borrado-seguro";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -1534,7 +1555,11 @@ const APP_VERSION = "2026-11-10-jornada";
    la app la tomaría por digitada el mismo día de la jornada, de modo que una
    jornada de ayer quedaría bloqueada en cuanto se guardara la primera fila
    —justo a mitad de la carga de la mañana. */
-const BACKEND_MINIMO = "2026-11-10-jornada";
+/* Sube a 2026-11-10-borrar: sin esa versión la hoja no entiende la orden de
+   borrar. La fila se quitaría del equipo pero seguiría en la hoja, y la
+   siguiente lectura la traería de vuelta — alguien daría por borrado algo
+   que sigue contando en los totales. */
+const BACKEND_MINIMO = "2026-11-10-borrar";
 function hojaSuficiente(v){ return !!v && String(v) >= BACKEND_MINIMO; }
 
 /* Catálogo de referencias, el mismo de Control de Proceso. Las líneas de allá
@@ -1606,14 +1631,50 @@ const S = {
   tipo:"",         // "recoleccion" | "auditoria"
   referencia:"",
   usuario:null,    // {usuario, nombre} — sólo en auditoría
-  /* Estado del recorrido por turno: qué máquinas ya se cerraron y en qué
-     pasada va el proceso. Vive en el dispositivo porque es el hilo de una
-     sola persona recorriendo la planta, no un dato compartido. */
-  recorrido: JSON.parse(localStorage.getItem("cd_recorrido")||"{}"),
   usuarios: JSON.parse(localStorage.getItem("cd_usuarios")||"[]")
 };
-function guardarRecorrido(){
-  localStorage.setItem("cd_recorrido", JSON.stringify(S.recorrido));
+/* El recorrido ya no se guarda: se deduce. Se deja la función porque alguna
+   llamada suelta podría quedar, y que no haga nada es inofensivo. */
+function guardarRecorrido(){}
+
+/* ======================================================================
+   BORRADOS PENDIENTES DE CONFIRMAR
+   Borrar tiene dos pasos —quitarlo del equipo y quitarlo de la hoja— y el
+   segundo puede fallar. Sin memoria de lo borrado, la siguiente lectura
+   traía la fila de vuelta y reaparecía como si nada: alguien la daría por
+   eliminada y seguiría contando en los totales.
+   También cubre una carrera real: si se registra y se borra enseguida, la
+   orden de borrar puede llegar a la hoja ANTES que la de crear, y la fila
+   quedaría escrita después de haberla borrado.
+   Por eso cada id borrado se apunta aquí, se filtra de todo lo que baja y
+   se reintenta hasta que la hoja confirme.
+   ====================================================================== */
+let BORRADOS = (function(){
+  try{ return JSON.parse(localStorage.getItem("cd_borrados")||"{}"); }catch(e){ return {}; }
+})();
+function guardarBorrados(){
+  /* Se podan a los 90 días: la app sólo lee los últimos 60, así que pasado
+     ese plazo una fila ya no puede reaparecer y la lápida sobra. */
+  const limite = Date.now() - 90*86400000;
+  Object.keys(BORRADOS).forEach(id=>{ if((BORRADOS[id].t||0) < limite) delete BORRADOS[id]; });
+  try{ localStorage.setItem("cd_borrados", JSON.stringify(BORRADOS)); }catch(e){}
+}
+function marcarBorrado(id, confirmado){ BORRADOS[id] = {t:Date.now(), ok:!!confirmado}; }
+function esBorrado(id){ return Object.prototype.hasOwnProperty.call(BORRADOS, id); }
+function borradosSinConfirmar(){ return Object.keys(BORRADOS).filter(id=> !BORRADOS[id].ok); }
+
+/* Reintenta los borrados que no llegaron a la hoja. */
+async function reintentarBorrados(){
+  if(!S.syncUrl) return;
+  const ids = borradosSinConfirmar();
+  if(!ids.length) return;
+  try{
+    const res = await fetch(S.syncUrl, {method:"POST", redirect:"follow",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify({action:"borrar", ids:ids})});
+    const d = await res.json();
+    if(d && d.ok){ ids.forEach(id=> BORRADOS[id].ok = true); guardarBorrados(); }
+  }catch(e){ /* se vuelve a intentar en la próxima lectura */ }
 }
 
 /* Todo lo que venga de la hoja o de lo que escriba la gente pasa por aquí
@@ -1903,12 +1964,51 @@ function inventarioRec(){
 }
 /* Y cuál de esos es el que se tiene seleccionado. */
 function itemActual(){ return S.tipo === "auditoria" ? S.puesto : S.proceso; }
+/* El estado de cada proceso o máquina NO se guarda: se deduce de los propios
+   registros de la jornada.
+   Antes vivía en `localStorage` como un apunte aparte, y ese apunte se
+   desincronizaba sin avisar: al recargar la página, al abrir la app en otra
+   tablet o cuando los registros bajaban de la hoja, los datos llegaban pero
+   las marcas no. Entonces la pantalla decía «6 registros cargados» y a la vez
+   mostraba todos los procesos pendientes, que es justo lo contrario de lo que
+   había pasado. Deducirlo no puede desincronizarse: si hay filas, hay estado.
+      con desperdicio -> tiene filas con cantidad
+      sin desperdicio -> tiene una fila de cierre «Sin desperdicio»
+      no ha trabajado -> tiene una fila de cierre «No ha trabajado»
+   `cerradas` cuenta los cierres de cada uno, que es de donde sale la pasada. */
 function recActual(){
-  const k = claveRec();
-  if(!S.recorrido[k]) S.recorrido[k] = {maq:{}, cerradas:{}};
-  const r = S.recorrido[k];
-  if(!r.cerradas) r.cerradas = {};            // recorridos guardados antes del cambio
-  return r;
+  const k = jornadaLlave();
+  const auditoria = S.tipo === "auditoria";
+  const maq = {}, cerradas = {};
+  S.registros.forEach(r=>{
+    if(r.turnoKey !== k || tipoDe(r) !== S.tipo) return;
+    if(r.familia !== S.familia) return;
+    /* En auditoría lo que se recorre son las máquinas de UN proceso; en
+       recolección, los procesos de la línea. */
+    if(auditoria && r.proceso !== S.proceso) return;
+    const item = auditoria ? r.puesto : r.proceso;
+    if(!item) return;
+    if(r.estadoMaquina){
+      cerradas[item] = (cerradas[item] || 0) + 1;
+      /* «No ha trabajado» pesa más que «sin desperdicio»: si por lo que sea
+         constan los dos, el que deja fuera del reparto es el que manda. */
+      if(esNoTrabajo(r.estadoMaquina)) maq[item] = "notrab";
+      else if(maq[item] !== "notrab") maq[item] = "cero";
+    } else {
+      maq[item] = "hecha";   // tener cantidades gana sobre cualquier cierre
+    }
+  });
+  return {maq, cerradas};
+}
+/* Las filas de cierre de un proceso o máquina, que son las que hay que borrar
+   para quitarle la marca. */
+function cierresDeItem(item){
+  const k = jornadaLlave();
+  const auditoria = S.tipo === "auditoria";
+  return S.registros.filter(r=> r.turnoKey === k && tipoDe(r) === S.tipo
+    && r.familia === S.familia && !!r.estadoMaquina
+    && (auditoria ? (r.proceso === S.proceso && r.puesto === item)
+                  : r.proceso === item));
 }
 const ET_REC = {hecha:"con desperdicio", cero:"sin desperdicio", notrab:"no ha trabajado"};
 
@@ -1931,9 +2031,6 @@ function refrescarPuestos(){
    recolección. Es el mismo gesto —«aquí ya terminé»— y conviene que sea el
    mismo código, para que las dos pantallas no se vayan separando con el uso. */
 function cerrarItem(item, estado){
-  const r = recActual();
-  r.maq[item] = estado;
-  guardarRecorrido();
   /* Los dos tipos dejan constancia. Dar por hecho que «si no se registra es
      que no hubo desperdicio» tiene un problema: el silencio significa tres
      cosas a la vez —no hubo, no trabajó, o se olvidó— y desde la hoja no hay
@@ -1941,10 +2038,6 @@ function cerrarItem(item, estado){
      proceso que estuvo limpio del que ni siquiera corrió, que es lo que
      decide si entra o no al denominador. */
   if(estado === "cero" || estado === "notrab") guardarCierre(item, estado);
-  /* Se cuenta DESPUÉS de guardar, para que la fila del cierre lleve la pasada
-     en la que ocurrió y no la siguiente. */
-  r.cerradas[item] = (r.cerradas[item] || 0) + 1;
-  guardarRecorrido();
   if(S.tipo === "auditoria"){
     if(S.puesto === item) S.puesto = "";
     refrescarPuestos();
@@ -1971,13 +2064,16 @@ function pasadaDe(item){
 
 /* Deshacer una marca puesta por error. Sin esto, un toque mal dado dejaba el
    proceso cerrado para el resto del turno. */
-function reabrirItem(item){
-  const r = recActual();
-  delete r.maq[item];
-  guardarRecorrido();
-  if(S.tipo === "auditoria") refrescarPuestos();
-  renderProcesos(); renderRecorrido(); pintarRuta();
-  toast(`${item}: marca quitada`);
+async function reabrirItem(item){
+  const cierres = cierresDeItem(item);
+  if(!cierres.length){
+    /* Con cantidades cargadas no hay «marca» que quitar: el estado sale de
+       esas filas. Quitarlo de mentira dejaría un proceso que parece pendiente
+       y sigue sumando desperdicio en los totales. */
+    toast(`${item} tiene desperdicio cargado: bórralo línea por línea`);
+    return;
+  }
+  await borrarFilas(cierres.map(x=>x.id), item, true);
 }
 
 function renderRecorrido(){
@@ -2402,15 +2498,111 @@ let VALIDADOS_ABIERTO = false;
 let VAL_PROC = "";
 function preguntarValidado(proc, estado){
   VAL_PROC = proc;
+  /* Hay que decir CUÁNTO hay cargado antes de ofrecer nada. Sin ese número,
+     «quitar la marca» se lee como «deshacer el registro», y quien lo creyera
+     volvería a escribir las cantidades: el desperdicio quedaría duplicado en
+     la hoja sin que nadie lo notara. */
+  const k = jornadaLlave();
+  const filas = S.registros.filter(r=> r.turnoKey === k && tipoDe(r) === S.tipo
+    && r.proceso === proc && !r.estadoMaquina);
+  const piezas = filas.reduce((n,x)=> n + (x.cantidad||0), 0);
   document.getElementById("valTit").textContent = `${proc} ya está validado`;
   document.getElementById("valTxt").innerHTML =
-    `Lo marcaste como <b>${ESTADOS_PROC[estado].et.toLowerCase()}</b>.
-     ¿Qué quieres hacer?`;
+    `Lo marcaste como <b>${ESTADOS_PROC[estado].et.toLowerCase()}</b>.` +
+    (filas.length
+      ? ` Tiene <b>${filas.length} defecto(s)</b> cargados,
+          <b>${piezas.toLocaleString("es-CO")} pieza(s)</b> en total.`
+      : "") +
+    `<br><br>¿Qué quieres hacer?`;
   document.getElementById("valAgregar").style.display =
     estado === "hecha" ? "" : "none";
+  /* El texto del botón cambia según haya o no cantidades de por medio: con
+     cantidades hay que avisar de que NO se borran. */
+  document.getElementById("valCorregir").innerHTML = filas.length
+    ? `Volver a dejarlo pendiente<small>No borra las ${piezas.toLocaleString("es-CO")} piezas ya cargadas</small>`
+    : `Volver a dejarlo pendiente<small>Quita la marca, nada más</small>`;
+  renderFilasValidado(proc);
   document.getElementById("valModal").classList.add("show");
 }
 function cerrarValidado(){ document.getElementById("valModal").classList.remove("show"); }
+
+/* Las filas que tiene cargadas el proceso de la jornada en curso. */
+function filasDelProceso(proc){
+  const k = jornadaLlave();
+  return S.registros.filter(r=> r.turnoKey === k && tipoDe(r) === S.tipo
+    && r.proceso === proc && !r.estadoMaquina);
+}
+
+function renderFilasValidado(proc){
+  const caja = document.getElementById("valFilas");
+  if(!caja) return;
+  const filas = filasDelProceso(proc);
+  if(!filas.length){ caja.innerHTML = ""; return; }
+  caja.innerHTML = `<div class="vf-cab">LO QUE HAY CARGADO</div>` +
+    filas.map(f=>`<div class="vf">
+      <span class="d">${esc(f.defectoLabel || f.defectoCodigo || "—")}</span>
+      <span class="r">${esc(f.referencia || "sin referencia")}</span>
+      <span class="c">${(f.cantidad||0).toLocaleString("es-CO")}</span>
+      <button type="button" class="vf-x" data-id="${esc(f.id)}"
+        title="Borrar esta línea">${IC_DESHACER}</button></div>`).join("");
+  caja.querySelectorAll("button[data-id]").forEach(b=>
+    b.addEventListener("click", ()=> borrarFilas([b.dataset.id], proc)));
+}
+
+/* Borrado de verdad: desaparece del equipo, de la cola de envío y de la hoja.
+   No queda rastro, que es justo lo que se pidió — por eso la confirmación
+   dice exactamente qué se va y el número no se puede recuperar después. */
+async function borrarFilas(ids, proc, silencioso){
+  const filas = S.registros.filter(r=> ids.indexOf(r.id) !== -1);
+  if(!filas.length) return;
+  const piezas = filas.reduce((n,x)=> n + (x.cantidad||0), 0);
+  const detalle = filas.every(f=> f.estadoMaquina)
+    ? `la marca «${String(filas[0].estadoMaquina).toLowerCase()}» de ${proc}`
+    : filas.length === 1
+      ? `${filas[0].defectoLabel || filas[0].defectoCodigo}: ${piezas} pieza(s)`
+      : `${filas.length} línea(s), ${piezas} pieza(s) en total`;
+  if(!confirm(`Se va a BORRAR de la hoja:\n\n${detalle}\n\n`
+    + `Desaparece del todo y no se puede deshacer. ¿Continuar?`)) return;
+
+  /* Primero el equipo: si falla el envío, al menos no se sigue mostrando algo
+     que la persona ya dio por borrado. La cola de pendientes también, o se
+     volvería a subir lo que se acaba de quitar. */
+  /* La lápida se pone ANTES de enviar: si el envío falla, o si la página se
+     cierra a mitad, la fila sigue sin poder reaparecer y el reintento queda
+     anotado. Al revés —enviar primero— una caída dejaría la fila borrada en
+     la hoja y viva en el equipo, o al contrario. */
+  ids.forEach(id=> marcarBorrado(id, false));
+  guardarBorrados();
+  S.registros = S.registros.filter(r=> ids.indexOf(r.id) === -1);
+  localStorage.setItem("cd_registros", JSON.stringify(S.registros));
+
+  let ok = true;
+  if(S.syncUrl){
+    try{
+      const res = await fetch(S.syncUrl, {method:"POST", redirect:"follow",
+        headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body: JSON.stringify({action:"borrar", ids:ids})});
+      const d = await res.json();
+      ok = !!(d && d.ok);
+    }catch(e){ ok = false; }
+    if(ok){ ids.forEach(id=> BORRADOS[id].ok = true); guardarBorrados(); }
+  } else {
+    /* Sin conexión no hay nada que confirmar todavía: queda en la lista y se
+       envía cuando vuelva. */
+  }
+
+  /* No hay marca que actualizar: el estado se deduce de las filas, así que al
+     quitarlas el proceso vuelve solo a pendiente. */
+  if(S.tipo === "auditoria") refrescarPuestos();
+  renderJornada(); renderProcesos(); renderRecorrido(); pintarRuta(); actualizarBarra();
+  const quedan = filasDelProceso(proc).length;
+  if(!silencioso && quedan){
+    renderFilasValidado(proc);
+    preguntarValidado(proc, recActual().maq[proc] || "hecha");
+  } else { cerrarValidado(); }
+  toast(ok ? "Borrado de la hoja"
+           : "Borrado aquí · pendiente de quitarlo de la hoja, se reintenta solo");
+}
 
 const PUESTO_GENERICO = "Sin máquina asignada";
 /* Puestos de un proceso. Los procesos que todavía no tienen máquina definida
@@ -5388,12 +5580,13 @@ async function cargarRemoto(desdeISO, motivo){
     if(Array.isArray(data)){
       if(!CARGADO_DESDE || corte < CARGADO_DESDE) CARGADO_DESDE = corte;
       const m=new Map();
-      S.registros.forEach(r=>m.set(r.id,r));
-      data.forEach(r=>m.set(r.id,r));
+      /* Lo borrado no vuelve a entrar, venga de donde venga. */
+      S.registros.forEach(r=>{ if(!esBorrado(r.id)) m.set(r.id,r); });
+      data.forEach(r=>{ if(!esBorrado(r.id)) m.set(r.id,r); });
       S.registros=Array.from(m.values()).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
       localStorage.setItem("cd_registros",JSON.stringify(S.registros));
       if(document.getElementById("viewDashboard").style.display!=="none") renderDashboardTurno();
-      reintentarPendientes(); actualizarEstadoSync();
+      reintentarPendientes(); reintentarBorrados(); actualizarEstadoSync();
     }
   }catch(e){
     anotarLectura({hora:horaAhoraCD(), filas:null, ms:Date.now()-t0,
@@ -5466,6 +5659,8 @@ function renderDiagSync(){
     <div class="diag-fila"><span>Pendientes de enviar</span>
       <b style="color:${pend.length?rojo:verde};">${pend.length}</b></div>
     <div class="diag-fila"><span>Datos de cargue en este equipo</span><b>${cargue}</b></div>
+    <div class="diag-fila"><span>Borrados sin confirmar en la hoja</span>
+      <b style="color:${borradosSinConfirmar().length?rojo:verde};">${borradosSinConfirmar().length}</b></div>
     <div class="diag-fila"><span>Cargue sin subir</span>
       <b style="color:${carguePend?rojo:verde};">${carguePend}</b></div>
     ${(pend.length+carguePend)
@@ -5701,6 +5896,15 @@ function migrarProcesosUnificados(){
 }
 
 /* ---------- Init ---------- */
+/* Por si quedó algo borrado en la memoria del equipo de una sesión anterior
+   que se cerró a mitad del envío. */
+(function(){
+  const antes = S.registros.length;
+  S.registros = S.registros.filter(r=> !esBorrado(r.id));
+  if(S.registros.length !== antes)
+    localStorage.setItem("cd_registros", JSON.stringify(S.registros));
+  guardarBorrados();
+})();
 migrarProcesosUnificados();
 renderFamilias();
 renderJornada();
@@ -5722,7 +5926,7 @@ montarSelectorMes();
 document.getElementById("cxMes").value=hoyISO().slice(0,7);
 document.getElementById("kTurno").value=turnoActual();
 actualizarEstadoSync();
-if(S.syncUrl){comprobarBackend();cargarRemoto(null,"apertura de la app (turno actual)");cargarEmpacadas();cargarRatios();reintentarPendientes();cargarUsuarios();
+if(S.syncUrl){comprobarBackend();reintentarBorrados();cargarRemoto(null,"apertura de la app (turno actual)");cargarEmpacadas();cargarRatios();reintentarPendientes();cargarUsuarios();
   // ritmo bajo: cada pestaña abierta consume cuota diaria de Apps Script y
   // leer cada pocos segundos desde varios equipos la agota en media jornada
   setInterval(()=>{ if(!document.hidden) cargarRemoto(); }, 45000);
