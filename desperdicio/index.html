@@ -34,6 +34,27 @@
   nav.tabs{display:flex;gap:6px;background:rgba(255,255,255,.15);border-radius:8px;padding:3px;}
   nav.tabs button{border:none;background:transparent;color:#fff;padding:7px 14px;border-radius:6px;font-size:.85rem;font-weight:600;cursor:pointer;opacity:.85;}
   nav.tabs button.active{background:#fff;color:var(--red);opacity:1;}
+  /* Con seis pestañas la barra ya no cabe siempre: se deja rodar en
+     horizontal antes que apretar el texto hasta volverlo ilegible. */
+  nav.tabs{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;}
+  nav.tabs::-webkit-scrollbar{display:none;}
+  nav.tabs button{white-space:nowrap;flex:0 0 auto;}
+  @media (max-width:900px){ nav.tabs button{padding:7px 10px;font-size:.8rem;} }
+
+  /* Cabecera de modo: sustituye al antiguo selector de tipo de registro. */
+  .modo-cab{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .modo-cab .ic{font-size:1.5rem;line-height:1;}
+  .modo-cab .tx b{display:block;font-size:1rem;}
+  .modo-cab .tx span{font-size:.8rem;color:var(--text-dim);}
+  .modo-cab .firma{margin-left:auto;display:flex;align-items:center;gap:9px;
+    padding:6px 8px 6px 12px;border:1px solid var(--border);border-radius:999px;
+    background:#fff;font-size:.79rem;}
+  .modo-cab .firma b{font-weight:800;}
+  .modo-cab .firma button{border:1px solid var(--border);background:#fff;
+    border-radius:999px;padding:5px 11px;font-family:inherit;font-size:.74rem;
+    font-weight:700;color:var(--text-dim);cursor:pointer;min-height:28px;}
+  .modo-cab .firma button:hover{border-color:var(--red);color:var(--red);}
 
   main{max-width:1250px;margin:0 auto;padding:20px 20px 110px 20px;}
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:18px;}
@@ -1068,9 +1089,11 @@
     <div class="header-right">
       <nav class="tabs">
         <button id="tabRegistro" class="active">Registro</button>
+        <button id="tabAuditoria">Auditoría</button>
         <button id="tabControl">Control</button>
         <button id="tabDashboard">Dashboard</button>
         <button id="tabCierre">Data</button>
+        <button id="tabAdmin">Administrar</button>
       </nav>
       <span style="display:flex;align-items:center;gap:6px;">
         <span id="syncDot" style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5);display:inline-block;"></span>
@@ -1123,24 +1146,12 @@
        decide ANTES que nada: de él dependen la máquina (sólo auditoría), el
        PIN (sólo auditoría) y cómo se totaliza después.
        ===================================================================== -->
+  <!-- Ya no se elige el tipo: Registro es siempre recolección y la auditoría
+       tiene su propia pestaña. Este panel sólo dice en qué modo se está y,
+       si es auditoría, quién la firma. -->
   <div class="panel paso" id="paso0">
-    <div class="paso-cab"><span class="num">0</span>
-      <div><b>Tipo de registro</b><span>Quién registra y cómo. De esto depende todo lo demás.</span></div>
-    </div>
-    <div class="tipos" id="tipos">
-      <button type="button" class="tipo-card" data-tipo="recoleccion">
-        <span class="ic">📦</span>
-        <b>Recolección de turno</b>
-        <span class="d">El patinador cuenta lo recogido al final del turno, por proceso y referencia.
-          <u>No pide máquina</u>, porque no hay forma de saber de cuál salió.</span>
-      </button>
-      <button type="button" class="tipo-card" data-tipo="auditoria">
-        <span class="ic">🔍</span>
-        <b>Auditoría de puesto</b>
-        <span class="d">Calidad recorre máquina por máquina durante el turno.
-          Pide <u>máquina</u> y <u>PIN</u>, y queda firmada.</span>
-      </button>
-    </div>
+    <div class="modo-cab" id="modoCab"></div>
+    <div class="tipos" id="tipos" style="display:none;"></div>
     <div class="aviso-tipo" id="avisoTipo" style="display:none;"></div>
   </div>
 
@@ -1643,7 +1654,7 @@ const SIN_FOTO = {};
    permite saber desde el propio panel si un dispositivo se quedó con un index
    viejo en caché. Hay que subirlo en cada entrega: si se queda quieto, el
    panel dice «al día» aunque el archivo tenga una semana. */
-const APP_VERSION = "2026-11-11-avance";
+const APP_VERSION = "2026-11-11-pestanas";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -1998,30 +2009,90 @@ function refrescarJornada(){
   renderRecorrido(); pintarRuta(); renderDefectos(); actualizarBarra();
 }
 
+/* El tipo ya no se elige: lo fija la pestaña. Este panel sólo informa en qué
+   modo está la pantalla y, en auditoría, con el nombre de quién va firmada. */
 function renderTipos(){
-  document.querySelectorAll("#tipos .tipo-card").forEach(c=>
-    c.classList.toggle("active", c.dataset.tipo === S.tipo));
-  const av = document.getElementById("avisoTipo");
-  if(!S.tipo){ av.style.display="none"; return; }
-  av.style.display="block";
-  av.innerHTML = S.tipo === "recoleccion"
-    ? `<b>Recolección.</b> Cuenta lo que recogiste al cerrar el turno, por proceso y
-       referencia. No se pide máquina. Si un proceso no aparece registrado, se entiende
-       que no hubo desperdicio en él.`
-    : `<b>Auditoría.</b> Vas máquina por máquina. Estas piezas son <b>las mismas</b> que
-       el patinador contará al final del turno, así que la app nunca las suma con la
-       recolección: sirven para saber <b>de qué máquina salió</b> el desperdicio.`;
+  const cab = document.getElementById("modoCab");
+  const av  = document.getElementById("avisoTipo");
+  if(!cab) return;
+  const auditoria = S.tipo === "auditoria";
+  /* En recolección este panel no diría nada que no diga ya la cabecera de la
+     pantalla, así que desaparece. En auditoría sí tiene trabajo: lleva la
+     firma, la salida, y la advertencia de que estas piezas no se suman. */
+  document.getElementById("paso0").style.display = auditoria ? "" : "none";
+  cab.innerHTML =
+    `<span class="ic">${auditoria ? "🔍" : "📦"}</span>
+     <div class="tx"><b>${auditoria ? "Auditoría de puesto" : "Recolección del turno"}</b>
+       <span>${auditoria
+         ? "Recorrido máquina por máquina. Queda firmado con tu nombre."
+         : "Lo recogido al cerrar el turno, por proceso y referencia. No pide máquina."}</span></div>` +
+    (auditoria && S.usuario
+      ? `<span class="firma">Firma <b>${S.usuario.nombre||S.usuario.usuario}</b>
+           <button type="button" id="modoSalir">Salir</button></span>`
+      : "");
+  const salir = document.getElementById("modoSalir");
+  if(salir) salir.addEventListener("click", cerrarSesionAuditoria);
+
+  av.style.display = auditoria ? "block" : "none";
+  if(auditoria){
+    av.innerHTML = `Estas piezas son <b>las mismas</b> que el patinador contará al
+      final del turno, así que la app nunca las suma con la recolección: sirven para
+      saber <b>de qué máquina salió</b> el desperdicio.`;
+  }
 }
 
 function seleccionarTipo(t){
   if(S.tipo === t) return;
-  if(TIPOS[t].pidePin && !S.usuario){ abrirPin(t); return; }
+  if(TIPOS[t].pidePin && !sesionVigente()){ abrirPin(t); return; }
   aplicarTipo(t);
+}
+
+/* ======================================================================
+   NAVEGACIÓN
+
+   Antes cada pestaña apagaba a mano la lista de las demás. Con cuatro ya
+   costaba; al añadir Auditoría y Administrar, seis listas escritas a mano en
+   sitios distintos se desincronizan seguro: basta olvidar una para que dos
+   pestañas queden encendidas o dos pantallas visibles a la vez. Ahora hay un
+   solo sitio que sabe qué pestaña va con qué pantalla.
+
+   Registro y Auditoría comparten pantalla (#viewRegistro) y se distinguen por
+   S.tipo: lo que cambia es el modo, no el formulario.
+   ====================================================================== */
+const VISTAS = {
+  registro:  {tab:"tabRegistro",  view:"viewRegistro"},
+  auditoria: {tab:"tabAuditoria", view:"viewRegistro"},
+  control:   {tab:"tabControl",   view:"viewControl"},
+  dashboard: {tab:"tabDashboard", view:"viewDashboard"},
+  cierre:    {tab:"tabCierre",    view:"viewCierre"},
+  maquina:   {tab:"tabControl",   view:"viewMaquina"}
+};
+const TABS_TODAS = ["tabRegistro","tabAuditoria","tabControl","tabDashboard","tabCierre","tabAdmin"];
+const VISTAS_TODAS = ["viewRegistro","viewControl","viewDashboard","viewCierre","viewMaquina"];
+let VISTA_ACTUAL = "registro";
+function irAVista(id){
+  const v = VISTAS[id];
+  if(!v) return;
+  VISTA_ACTUAL = id;
+  TABS_TODAS.forEach(t=>{
+    const e = document.getElementById(t);
+    if(e) e.classList.toggle("active", t === v.tab);
+  });
+  VISTAS_TODAS.forEach(x=>{
+    const e = document.getElementById(x);
+    if(e) e.style.display = (x === v.view) ? "block" : "none";
+  });
+  /* La barra de totales sólo tiene sentido mientras se registra. */
+  const barra = document.getElementById("barraFija");
+  if(barra) barra.style.display =
+    (v.view === "viewRegistro" && S.familia) ? "flex" : "none";
 }
 
 function aplicarTipo(t){
   S.tipo = t;
-  if(t === "recoleccion") S.usuario = null;
+  /* Pasar a recolección ya NO cierra la sesión: con auditoría en su propia
+     pestaña, ir y volver es normal y pedir el PIN cada vez sería un castigo.
+     La sesión la cierra el cambio de turno real, abajo. */
   S.puesto = ""; S.cantidades = {}; S.observaciones = {}; S.referencia = "";
   document.getElementById("cabTitulo").textContent =
     t === "recoleccion" ? "Recolección de turno" : "Auditoría de puesto";
@@ -2031,6 +2102,40 @@ function aplicarTipo(t){
   renderJornada(); renderTipos(); renderProcesos(); renderReferencias(); pintarRuta();
   renderRecorrido(); renderDefectos(); actualizarBarra();
   irAPaso(S.familia ? "paso2" : "paso1");
+}
+
+/* ======================================================================
+   LA SESIÓN DE AUDITORÍA DURA UN TURNO
+
+   Se ata al turno REAL del reloj, no a la jornada que se esté cargando: el
+   selector de jornada sirve para digitar lo de ayer, y atarle la sesión
+   echaría al auditor cada vez que cambia de fecha. Tampoco es un tiempo de
+   inactividad: quien entró a las 6 sigue firmando hasta que termine su turno,
+   esté o no tocando la tablet.
+   ====================================================================== */
+let SESION_TURNO = "";
+function turnoReal(){ return llaveTurno(turnoActual(), fechaTurnoActual()); }
+function abrirSesion(u){ S.usuario = u; SESION_TURNO = turnoReal(); }
+function sesionVigente(){ return !!S.usuario && SESION_TURNO === turnoReal(); }
+/* Hay que llamarlo antes de confiar en S.usuario: si el turno cambió mientras
+   la tablet estaba abierta, la firma anterior ya no vale. */
+function revisarSesion(){
+  if(S.usuario && SESION_TURNO !== turnoReal()){
+    S.usuario = null; SESION_TURNO = "";
+    if(S.tipo === "auditoria"){
+      aplicarTipo("recoleccion");
+      irAVista("registro");
+      toast("Cambió el turno: la auditoría se cerró");
+    }
+    return false;
+  }
+  return !!S.usuario;
+}
+function cerrarSesionAuditoria(){
+  S.usuario = null; SESION_TURNO = "";
+  aplicarTipo("recoleccion");
+  irAVista("registro");
+  toast("Saliste de la auditoría");
 }
 
 /* ---------- Identificación (sólo auditoría) ---------- */
@@ -2055,11 +2160,20 @@ function abrirPin(t){
   document.getElementById("pinClave").style.display  = act.length ? "" : "none";
   const err = document.getElementById("pinError");
   if(!act.length){
+    /* Sin usuarios no se audita. Antes se dejaba entrar escribiendo el nombre,
+       pero esa firma no la respalda nadie: una auditoría firmada por un texto
+       libre vale lo mismo que una sin firmar. Para administrar sí se deja
+       pasar, porque si no no habría forma de dar de alta al primero. */
     err.style.display = "block";
-    err.innerHTML = `No hay usuarios cargados en la hoja todavía.
-      Escribe tu nombre para firmar la auditoría.
-      <input type="text" id="pinNombre" placeholder="Tu nombre" style="margin-top:8px;">`;
-  } else { err.style.display = "none"; }
+    err.innerHTML = t === "admin"
+      ? `No hay usuarios en la hoja todavía. Entra para crear el primero.`
+      : `<b>No se puede auditar todavía.</b> No hay usuarios cargados en la hoja.
+         Pide a un jefe o coordinador que te dé de alta en <b>Administrar</b>.`;
+    document.getElementById("pinEntrar").style.display = t === "admin" ? "" : "none";
+  } else {
+    err.style.display = "none";
+    document.getElementById("pinEntrar").style.display = "";
+  }
   document.getElementById("pinModal").classList.add("show");
   setTimeout(()=>{ const c=document.getElementById(act.length?"pinClave":"pinNombre"); if(c) c.focus(); }, 60);
 }
@@ -2071,9 +2185,13 @@ function validarPin(){
   const act = S.usuarios.filter(u=> String(u.activo||"Sí").toLowerCase().indexOf("s")===0);
   const err = document.getElementById("pinError");
   if(!act.length){
-    const n = (document.getElementById("pinNombre")||{}).value || "";
-    if(!n.trim()){ toast("Escribe tu nombre"); return; }
-    S.usuario = {usuario:"", nombre:n.trim()};
+    /* Sin usuarios sólo se puede entrar a administrar, para crear el primero. */
+    if(TIPO_PENDIENTE !== "admin"){
+      err.style.display = "block";
+      err.innerHTML = `<b>No se puede auditar todavía.</b> No hay usuarios cargados.`;
+      return;
+    }
+    abrirSesion({usuario:"", nombre:"Primer alta", rol:"jefe"});
   } else {
     const u = document.getElementById("pinUsuario").value;
     const pin = document.getElementById("pinClave").value;
@@ -2082,7 +2200,7 @@ function validarPin(){
     if(String(hit.pin||"") !== String(pin)){
       err.style.display="block"; err.textContent="El PIN no coincide."; return;
     }
-    S.usuario = {usuario:hit.usuario, nombre:hit.nombre||hit.usuario, rol:hit.rol||""};
+    abrirSesion({usuario:hit.usuario, nombre:hit.nombre||hit.usuario, rol:hit.rol||""});
   }
   /* El mismo PIN sirve para dos cosas distintas, así que aquí se bifurca:
      entrar a auditar, o entrar a administrar usuarios —y para esto último
@@ -2092,7 +2210,7 @@ function validarPin(){
       const err = document.getElementById("pinError");
       err.style.display = "block";
       err.textContent = "Ese usuario no es jefe ni coordinador.";
-      S.usuario = null;
+      S.usuario = null; SESION_TURNO = "";
       return;
     }
     cerrarPin();
@@ -2102,6 +2220,7 @@ function validarPin(){
   }
   cerrarPin();
   aplicarTipo(TIPO_PENDIENTE || "auditoria");
+  irAVista("auditoria");
 }
 
 /* ---------- Recorrido ----------
@@ -2443,8 +2562,9 @@ function pintarRuta(){
      así que mostrar un paso que nunca se va a llenar la dejaría «incompleta»
      para siempre. */
   const auditoria = S.tipo === "auditoria";
+  /* El paso «Tipo» desapareció: ya no se elige nada, lo fija la pestaña, y un
+     paso que siempre está resuelto sólo gasta ancho. */
   const pasos = [
-    {t:"Tipo",     v:S.tipo ? TIPOS[S.tipo].corto : "", vacio:"Recolección o auditoría"},
     {t:"Producto", v:S.familia, vacio:"Selecciona la línea de producto"},
     {t:"Proceso",  v:S.proceso, vacio:"Selecciona el proceso"}
   ];
@@ -3127,8 +3247,7 @@ document.getElementById("jHoy").addEventListener("click", ()=>{
   toast(`Jornada de hoy, turno ${jornadaTurno()}`);
 });
 
-document.querySelectorAll("#tipos .tipo-card").forEach(c=>
-  c.addEventListener("click", ()=> seleccionarTipo(c.dataset.tipo)));
+/* Las tarjetas de elección de tipo ya no existen: el tipo lo fija la pestaña. */
 
 document.getElementById("referencia").addEventListener("change", e=>{
   S.referencia = e.target.value;
@@ -4026,11 +4145,7 @@ document.getElementById("cxMes").addEventListener("change", async ()=>{
 document.getElementById("cxFamilia").addEventListener("change", renderCierre);
 
 document.getElementById("tabCierre").addEventListener("click", ()=>{
-  ["tabRegistro","tabControl","tabDashboard"].forEach(t=>document.getElementById(t).classList.remove("active"));
-  document.getElementById("tabCierre").classList.add("active");
-  ["viewRegistro","viewControl","viewDashboard","viewMaquina"].forEach(v=>document.getElementById(v).style.display="none");
-  document.getElementById("viewCierre").style.display="block";
-  document.getElementById("barraFija").style.display="none";
+  irAVista("cierre");
   if(S.syncUrl){ cargarRemoto(); sincronizarCargue(true); }
   renderCierre();
 });
@@ -4874,15 +4989,7 @@ document.getElementById("rGuardar").addEventListener("click", ()=>{
 });
 
 document.getElementById("tabControl").addEventListener("click",()=>{
-  document.getElementById("viewMaquina").style.display="none";
-  document.getElementById("viewCierre").style.display="none";
-  ["tabCierre"].forEach(x=>document.getElementById(x).classList.remove("active"));
-  ["tabRegistro","tabDashboard"].forEach(t=>document.getElementById(t).classList.remove("active"));
-  document.getElementById("tabControl").classList.add("active");
-  document.getElementById("viewControl").style.display="block";
-  document.getElementById("viewRegistro").style.display="none";
-  document.getElementById("viewDashboard").style.display="none";
-  document.getElementById("barraFija").style.display="none";
+  irAVista("control");
   if(S.syncUrl) cargarRemoto();
   aplicarVistaControl();
 });
@@ -5076,10 +5183,7 @@ function setProdReal(fam, maq, fecha, v){ guardarEmpacadas(fam, prodRealKey(maq,
 
 function abrirMaquina(fam, maq, proc){
   MQ = {fam, maq, proc, periodo:MQ.periodo||"dia"};
-  ["tabRegistro","tabControl","tabDashboard"].forEach(t=>document.getElementById(t).classList.remove("active"));
-  ["viewRegistro","viewControl","viewDashboard"].forEach(v=>document.getElementById(v).style.display="none");
-  document.getElementById("viewMaquina").style.display="block";
-  document.getElementById("barraFija").style.display="none";
+  irAVista("maquina");
   renderMaquina();
 }
 document.getElementById("mVolver").addEventListener("click", ()=>{
@@ -5624,28 +5728,32 @@ function aplicarVistaControl(){
 ["kVerFlujo","kVerFlujo2"].forEach(id=>document.getElementById(id).addEventListener("click", ()=>{ VISTA_CTRL="flujo"; aplicarVistaControl(); }));
 
 /* ---------- Pestañas ---------- */
+/* Registro es siempre recolección: cualquiera puede cargarla, sin PIN. La
+   sesión de auditoría NO se cierra al venir aquí, para poder ir y volver. */
 document.getElementById("tabRegistro").addEventListener("click",()=>{
-  document.getElementById("viewMaquina").style.display="none";
-  document.getElementById("viewCierre").style.display="none";
-  ["tabCierre"].forEach(x=>document.getElementById(x).classList.remove("active"));
-  document.getElementById("tabRegistro").classList.add("active");
-  ["tabDashboard","tabControl"].forEach(t=>document.getElementById(t).classList.remove("active"));
-  document.getElementById("viewControl").style.display="none";
-  document.getElementById("viewRegistro").style.display="block";
-  document.getElementById("viewDashboard").style.display="none";
-  document.getElementById("barraFija").style.display=S.familia?"flex":"none";
+  if(S.tipo !== "recoleccion") aplicarTipo("recoleccion");
+  irAVista("registro");
   if(S.syncUrl) cargarRemoto();
 });
+
+/* Auditoría: pantalla aparte detrás del PIN. Mientras no haya entrado nadie,
+   no se puede registrar como auditoría —que es justo lo que se pidió. */
+document.getElementById("tabAuditoria").addEventListener("click", async ()=>{
+  revisarSesion();
+  if(sesionVigente()){
+    if(S.tipo !== "auditoria") aplicarTipo("auditoria");
+    irAVista("auditoria");
+    if(S.syncUrl) cargarRemoto();
+    return;
+  }
+  if(S.syncUrl) await cargarUsuarios();
+  abrirPin("auditoria");
+});
+
+/* Administrar: la ve todo el mundo, pero sólo entra un jefe o coordinador. */
+document.getElementById("tabAdmin").addEventListener("click", ()=> abrirUsuarios());
 document.getElementById("tabDashboard").addEventListener("click",()=>{
-  document.getElementById("viewMaquina").style.display="none";
-  document.getElementById("viewCierre").style.display="none";
-  ["tabCierre"].forEach(x=>document.getElementById(x).classList.remove("active"));
-  document.getElementById("tabDashboard").classList.add("active");
-  ["tabRegistro","tabControl"].forEach(t=>document.getElementById(t).classList.remove("active"));
-  document.getElementById("viewControl").style.display="none";
-  document.getElementById("viewDashboard").style.display="block";
-  document.getElementById("viewRegistro").style.display="none";
-  document.getElementById("barraFija").style.display="none";
+  irAVista("dashboard");
   if(S.syncUrl){ cargarRemoto(); sincronizarCargue(true); }
 });
 
@@ -6471,9 +6579,16 @@ else {
   guardarBorrados();
 })();
 migrarProcesosUnificados();
+/* Al entrar, recolección del turno sin preguntar nada: es lo que hace
+   cualquiera y no necesita identificarse. La auditoría vive en su pestaña. */
+aplicarTipo("recoleccion");
+irAVista("registro");
 renderFamilias();
 renderJornada();
 renderTipos();
+/* El turno puede cambiar con la tablet abierta toda la jornada. */
+setInterval(revisarSesion, 60000);
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) revisarSesion(); });
 renderReferencias();
 pintarRuta();
 renderDefectos();
