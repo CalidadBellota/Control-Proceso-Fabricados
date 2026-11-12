@@ -1905,6 +1905,51 @@ function turnoDeHora(h, fechaISO){
   return "2";                         // hueco tras el turno 2: se queda en el 2
 }
 
+/* ==========================================================================
+   A QUÉ TURNO PERTENECE DE VERDAD UN REGISTRO
+
+   `turnoDeHora` mira sólo el reloj, y eso basta para guardar la fila. Para
+   medir cumplimiento no basta: el inspector del turno 2 que empieza su ronda
+   a las 13:45 deja una fila marcada como turno 1, y la app le abría un turno
+   entero que nunca trabajó. Un solo registro así le exigía 42 procesos de más.
+
+   Aquí se corrige SÓLO al leer, nunca al guardar: la hoja conserva la hora
+   real. Y se corrige únicamente cuando la persona está asignada en el
+   calendario al turno vecino y la hora cae dentro del margen; si no, manda
+   el reloj, como antes.
+   ========================================================================== */
+const MARGEN_TURNO = 30;   // minutos antes de entrar o después de salir
+
+function limitesDeTurno(hh, t){
+  if(!hh) return null;
+  if(t === "1") return hh.t1;
+  if(t === "2") return hh.t2;
+  /* El turno 3 cruza la medianoche; la madrugada ya la resuelve turnoDeHora,
+     así que aquí sólo interesa su tramo de la noche del mismo día. */
+  if(t === "3" && hh.t3 != null) return [hh.t3, 24*60];
+  return null;
+}
+
+function turnoEfectivoPara(nombre, fechaISO, hora, turnoReloj){
+  const quien = String(nombre||"").trim();
+  if(!quien || !hora) return turnoReloj;
+  const hh = HORARIOS[diaDe(fechaISO)];
+  if(!hh) return turnoReloj;
+  const min = minutosDe(hora);
+  for(let i = 0; i < TURNOS.length; i++){
+    const t = TURNOS[i];
+    if(String(t) === String(turnoReloj)) continue;
+    const a = asignadoEn(fechaISO, t);
+    if(!a) continue;
+    const suyo = a.nombre || nombreDeUsuario(a.usuario);
+    if(String(suyo).trim() !== quien) continue;
+    const lim = limitesDeTurno(hh, t);
+    if(!lim) continue;
+    if(min >= lim[0] - MARGEN_TURNO && min < lim[1] + MARGEN_TURNO) return String(t);
+  }
+  return turnoReloj;
+}
+
 /* Texto del horario que rige hoy, para mostrarlo sin inventar. */
 function horarioDelDia(turno, fechaISO){
   const d = diaDe(fechaISO), hh = HORARIOS[d];
@@ -2671,10 +2716,17 @@ function renderEncabezado(f){
       </div></div>`);
   }
 
+  const enc = (f.encabezado||[]).slice();
+
+  /* Aquí NO se añaden el acero ni el espesor cuando faltan, aunque sean
+     térmicos: eso se edita en el formato y el formato manda. Si la aplicación
+     los metiera por su cuenta, quitar uno a propósito sería imposible —volvería
+     a aparecer solo— y no habría forma de entender por qué. Lo que sí hace es
+     avisar en Administrar cuando un formato térmico se quedó sin ellos. */
+
   /* En Cuchillas y Machetes el proveedor del acero se pide siempre, aunque el
      formato no lo traiga en su encabezado: así no hay que editar uno por uno
      los 29 formatos de esas dos líneas para que aparezca. */
-  const enc = (f.encabezado||[]).slice();
   if(pideProveedorAcero(f.linea) && enc.indexOf("proveedor") === -1){
     const tras = enc.indexOf("tipoAcero");
     if(tras !== -1) enc.splice(tras + 1, 0, "proveedor"); else enc.push("proveedor");
@@ -5133,10 +5185,14 @@ function inspectoresDe(per, linea){
   turnosConocidos().forEach(t=>{
     if(!dentro(t.fecha, t.turno)) return;
     aperturas++;
-    const o = quien(t.nombre || t.usuario);
-    const k = claveT(t.fecha, t.turno);
+    const nom = t.nombre || t.usuario;
+    const o = quien(nom);
+    /* Abrir la app quince minutos antes de entrar no es un turno aparte. */
+    const tEf = turnoEfectivoPara(nom, String(t.fecha).slice(0,10),
+      t.horaInicio || t.hora, String(t.turno||""));
+    const k = claveT(t.fecha, tEf);
     o.turnos[k] = o.turnos[k] || {fecha:String(t.fecha).slice(0,10),
-      turno:String(t.turno||""), hechos:{}, lineas:{}, abierto:true,
+      turno:tEf, hechos:{}, lineas:{}, abierto:true,
       /* Cada apertura guardó cuántos procesos se exigían ESE día: si mañana se
          añade un formato, el mes ya cerrado no se mueve. Con filtro de línea
          ese número no sirve, porque es de toda la planta. */
@@ -5146,9 +5202,11 @@ function inspectoresDe(per, linea){
   /* 3) Y por último los registros, que dicen qué se cubrió en cada turno. */
   regsDelPeriodo(per, linea).forEach(r=>{
     const o = quien(r.inspector);
-    const k = claveT(fechaTurnoDe(r), r.turno);
+    const fT = fechaTurnoDe(r);
+    const tEf = turnoEfectivoPara(r.inspector, fT, r.hora, String(r.turno||""));
+    const k = claveT(fT, tEf);
     const t = o.turnos[k] = o.turnos[k] ||
-      {fecha:fechaTurnoDe(r), turno:String(r.turno||""), hechos:{}, lineas:{},
+      {fecha:fT, turno:tEf, hechos:{}, lineas:{},
        abierto:false, esperados: porTurnoExig};
     const L = String(r.linea||"").trim();
     t.lineas[L] = true; o.lineas[L] = true;
@@ -5162,16 +5220,29 @@ function inspectoresDe(per, linea){
 
   return Object.keys(acum).map(n=>{
     const o = acum[n];
-    let hechos = 0, esperado = 0, vacios = 0, fueraDePlan = 0;
+    let hechos = 0, esperado = 0, vacios = 0, fueraDePlan = 0, extra = 0;
     const porTurno = {};
     Object.keys(o.turnos).forEach(k=>{
       const t = o.turnos[k];
       (porTurno[t.turno] = porTurno[t.turno] || {dias:0, lineas:{}}).dias++;
       Object.keys(t.lineas).forEach(L=>{ porTurno[t.turno].lineas[L] = true; });
       const h = Object.keys(t.hechos).length;
-      hechos += h; esperado += t.esperados;
-      if(!h) vacios++;                       // turno exigido sin una sola ronda
-      if(!t.asignado) fueraDePlan++;         // cubrió un turno que no era suyo
+      /* Sólo el calendario exige. Un turno que la persona cubrió sin estar
+         asignada suma lo que hizo y no pide nada: antes le abría 42 procesos
+         de deuda, de modo que ayudar a un compañero —o registrar quince
+         minutos antes de su hora— le hundía el cumplimiento. Medir así
+         castigaba justo lo que conviene que pase. */
+      if(t.asignado){
+        hechos += h;
+        esperado += t.esperados;
+        if(!h) vacios++;                     // turno exigido sin una sola ronda
+      } else {
+        /* Lo cubierto fuera de plan va aparte: sumarlo al numerador daba
+           «39 de 34», que se lee como un error de la app. Se muestra como lo
+           que es, un extra. */
+        extra += h;
+        fueraDePlan++;
+      }
     });
     const turnos = Object.keys(o.turnos).length;
     return {nombre:o.nombre, rol: rolDeNombre(o.nombre), turnos:turnos, porTurno:porTurno,
@@ -5180,7 +5251,7 @@ function inspectoresDe(per, linea){
             detalle:o.turnos,
             lineas:Object.keys(o.lineas).sort(), esperado:esperado, hechos:hechos,
             vacios:vacios, aperturas:aperturas, asignados:asignados,
-            fueraDePlan:fueraDePlan, porTurnoExig: porTurnoExig,
+            fueraDePlan:fueraDePlan, extra:extra, porTurnoExig: porTurnoExig,
             pct: esperado ? Math.min(100, hechos/esperado*100) : null,
             medidas:o.medidas, fuera:o.fuera, crit:o.crit,
             registros:o.registros, noTrabajo:o.noTrabajo};
@@ -6241,8 +6312,15 @@ function renderKpi(){
             <div class="insp-g">
               <span class="g-tit">Procesos de la ronda</span>
               <div class="ronda-cifra">${ent(i.hechos)} <span>de ${ent(i.esperado)}</span></div>
-              <span class="g-pie">${i.turnos ? ent(Math.round(i.esperado/i.turnos)) : 0
-                } por turno × ${i.turnos} turno${i.turnos===1?"":"s"}</span>
+              <span class="g-pie">${(() => {
+                /* El divisor son los turnos que EXIGEN, que ya no son todos
+                   los que la persona tocó: los cubiertos fuera de plan no
+                   piden ronda, así que meterlos aquí daría un «por turno»
+                   que no cuadra con la cifra de arriba. */
+                const exig = i.turnos - (i.fueraDePlan || 0);
+                return `${exig ? ent(Math.round(i.esperado/exig)) : 0} por turno × ${exig
+                  } turno${exig===1?"":"s"} del calendario`;
+              })()}${i.extra ? ` · +${ent(i.extra)} cubriendo fuera de plan` : ""}</span>
             </div>
 
             <div class="insp-g cump">
@@ -6265,9 +6343,9 @@ function renderKpi(){
             <span>La ronda son <b>${ent(insp[0].turnos
               ? Math.round(insp[0].esperado/insp[0].turnos) : insp[0].porTurnoExig)
               } procesos por turno</b>, igual para todos${linea ? " en "+esc(linea) : ""}.
-            Los turnos salen del <b>calendario</b>: uno asignado exige la ronda completa aunque
-            la persona no haya abierto siquiera la aplicación. Los que cubrió sin estar
-            asignado también cuentan.${insp[0].asignados ? "" :
+            Lo que se exige sale del <b>calendario</b>: un turno asignado pide la ronda completa
+            aunque la persona no haya abierto siquiera la aplicación. Un turno que cubrió
+            <b>sin estar asignada</b> suma lo que hizo y no le exige nada.${insp[0].asignados ? "" :
             ` <b>Ojo:</b> no hay turnos asignados en el calendario para este periodo, así que se
               deducen de las aperturas de sesión y de los registros; quien no entró a la
               aplicación no aparece. Se carga en Administrar → Calendario de turnos.`}${
@@ -7560,9 +7638,24 @@ function renderFormatosAdmin(){
       : (LINEAS_BASE.indexOf(base) !== -1
           ? `<span class="hereda">hereda de ${esc(base)}</span>`
           : `<span class="hereda mal" title="El proceso tiene que empezar por el nombre de la línea, como «Palas · Revenido». Sin eso no se sabe qué acero, espesor ni referencias ofrecer.">no se pudo deducir la línea</span>`);
+    /* Un térmico sin acero no se puede juzgar: la dureza depende del acero y
+       del tratamiento. Y una dureza sin espesor no puede casar una cota que
+       dependa del espesor. No se añaden solos —el formato manda— pero se
+       avisa, que es lo que faltaba para que un descuido no pase callado. */
+    const encF = f.encabezado || [];
+    const lb = propia ? String(f.linea||"").trim() : base;
+    const avisos = [];
+    if(esTermico(f) && acerosDe(lb).length && encF.indexOf("tipoAcero") === -1)
+      avisos.push(["sin tipo de acero",
+        "Es un proceso térmico y su línea tiene aceros, pero el formato no pide el acero. La dureza depende del acero y del tratamiento: sin este campo no se puede juzgar ni casar su cota."]);
+    if(esDureza(f) && espesoresDe(lb).length && encF.indexOf("espesorAcero") === -1)
+      avisos.push(["sin espesor",
+        "Su línea base maneja espesores y el formato no pide el espesor. Una cota cargada por espesor no podrá casar nunca."]);
+    const falta = avisos.map(([t,h])=>
+      `<span class="hereda mal" title="${esc(h)}">${esc(t)}</span>`).join("");
     return `<div class="item${act?"":" inactivo"}">
       <div class="info"><b>${esc(f.linea)} · ${esc(f.proceso)}</b>${
-        act?"":` <span class="marca-off">desactivado</span>`}${hereda}
+        act?"":` <span class="marca-off">desactivado</span>`}${hereda}${falta}
         <span class="meta">${(f.variables||[]).length} variables · ${nums.length} numéricas${
           nums.length?` (${conRango} con rango)`:""}${crit?` · ${crit} crítica(s)`:""} · ${esc(f.codigoDoc||"sin código")}${
           f.condicional?" · según referencia":""}${
@@ -7945,7 +8038,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-11-04-hereda";
+const APP_VERSION = "2026-11-12-turnos";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
