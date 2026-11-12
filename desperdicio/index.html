@@ -193,6 +193,33 @@
      derecho, que es donde la vista los busca al terminar de leer. */
   .j-aviso.con-acciones{display:flex;align-items:flex-start;gap:14px;}
   .j-aviso .j-cuerpo{flex:1;min-width:0;}
+  /* Buscador de referencia: campo normal con la lista colgando debajo. */
+  .ref-busca{position:relative;}
+  .ref-busca input{width:100%;padding-right:38px;}
+  .ref-busca #refLimpiar{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+    width:30px;height:30px;border:0;background:transparent;color:var(--text-dim);
+    font-size:1.25rem;line-height:1;cursor:pointer;border-radius:50%;display:none;}
+  .ref-busca #refLimpiar:hover{background:rgba(0,0,0,.06);color:var(--text);}
+  .ref-busca.con-texto #refLimpiar{display:block;}
+  /* El campo vive dentro de la barra fija de abajo, así que la lista se
+     despliega HACIA ARRIBA: hacia abajo no hay pantalla, se salía fuera. */
+  .ref-lista{position:absolute;z-index:30;left:0;right:0;bottom:calc(100% + 6px);
+    background:#fff;border:1px solid var(--border);border-radius:10px;
+    box-shadow:0 -10px 26px rgba(0,0,0,.16);max-height:min(320px,46vh);
+    overflow-y:auto;-webkit-overflow-scrolling:touch;display:none;}
+  .ref-lista.abierta{display:block;}
+  /* Por id, no por clase: la barra fija ya tiene reglas para sus botones y
+     con la misma especificidad ganaba ella, que los pinta de rojo. */
+  #refLista button{display:block;width:100%;text-align:left;border:0;
+    background:#fff;padding:10px 12px;font-family:inherit;font-size:.84rem;
+    font-weight:400;cursor:pointer;border-bottom:1px solid var(--border);
+    min-height:42px;color:var(--text);border-radius:0;box-shadow:none;letter-spacing:0;}
+  #refLista button:last-child{border-bottom:0;}
+  #refLista button:hover,#refLista button.marcada{background:#f2f4f7;}
+  #refLista button b{font-weight:800;color:var(--text);}
+  #refLista button .d{color:var(--text-dim);font-size:.78rem;font-weight:400;}
+  .ref-lista .vacio{padding:12px;color:var(--text-dim);font-size:.82rem;}
+  .ref-lista mark{background:#ffe9a8;color:inherit;border-radius:3px;padding:0 1px;}
   .j-acciones{display:flex;gap:8px;flex:0 0 auto;}
   .j-aviso .j-acciones button{margin-top:0;width:62px;height:56px;padding:0 4px;
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
@@ -1200,15 +1227,16 @@
     <div class="paso-cab"><span class="num">3</span>
       <div><b>Puesto / máquina</b><span id="paso3Sub">Primero elige el proceso.</span></div>
     </div>
-    <div class="sel-grande">
-      <span class="ic">⚙</span>
-      <select id="puesto"><option value="">Selecciona un puesto</option></select>
-    </div>
+    <!-- El <select> sigue existiendo, oculto: guarda la máquina elegida y es
+         de donde leen las demás partes. Encima van las mismas tarjetas que en
+         recolección. -->
+    <select id="puesto" hidden><option value="">Selecciona un puesto</option></select>
     <!-- Recorrido del proceso: a medida que cada máquina se cierra desaparece
          de los pendientes. Una máquina sin desperdicio NO es lo mismo que una
          que no trabajó: la primera entra al denominador con cero, la segunda
          queda fuera. Si se mezclaran, el reparto por participación saldría mal. -->
-    <div class="recorrido" id="recorrido" style="display:none;"></div>
+    <div class="procesos" id="recorrido" style="display:none;"></div>
+    <div class="validados" id="validadosMaq" style="display:none;"></div>
     <div class="puesto-hint" id="puestoHint">
       Al terminar esta máquina, la app te pregunta si hay más desperdicio con otra referencia.
     </div>
@@ -1518,8 +1546,21 @@
        de verdad hay que decir en cada carga, y sin ella el desperdicio no se
        puede repartir luego entre productos. La observación sigue existiendo,
        pero arriba, junto al catálogo, que es donde estorba menos. -->
+  <!-- La referencia se escribe y se filtra. Con los catálogos de cada línea,
+       desplegar y bajar buscando a ojo era lo más lento del formulario, y el
+       código casi siempre se sabe de memoria. El <select> sigue existiendo
+       debajo, oculto: es el que guarda el valor, así que todo lo que ya leía
+       de ahí sigue funcionando igual. -->
   <div class="obs">
-    <select id="referencia"><option value="">Referencia *</option></select>
+    <div class="ref-busca" id="refBox">
+      <input type="text" id="refTxt" autocomplete="off" autocapitalize="off"
+        spellcheck="false" placeholder="Referencia * — escribe el código"
+        role="combobox" aria-expanded="false" aria-controls="refLista">
+      <button type="button" id="refLimpiar" tabindex="-1"
+        aria-label="Borrar la referencia">&times;</button>
+      <div class="ref-lista" id="refLista" role="listbox"></div>
+    </div>
+    <select id="referencia" hidden><option value="">Referencia *</option></select>
   </div>
   <button id="btnRegistrar" disabled>Registrar desperdicio</button>
 </div>
@@ -1709,7 +1750,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-12-jornada";
+const APP_VERSION = "2026-11-12-auditoria";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -1935,13 +1976,51 @@ function registrosDeJornada(){
   const k = jornadaLlave();
   return S.registros.filter(r=> r.turnoKey === k && tipoDe(r) === S.tipo);
 }
+/* ======================================================================
+   QUÉ JORNADA SE PUEDE TOCAR
+
+   Dos riesgos distintos, y por eso dos reglas:
+
+   1. Pisar lo que ya se reportó. Una jornada con registros se cierra en
+      cuanto pasa el día en que se digitó. Mientras se está digitando sigue
+      abierta: los tres turnos del día anterior se cargan de a poco a lo
+      largo de la mañana, y cerrarla en cuanto entra la primera fila dejaría
+      a medias la carga.
+
+   2. Escribir en el día equivocado. Antes, un día viejo SIN registros estaba
+      abierto de par en par: teclear 02/11 en vez de 11/02 no avisaba nada y
+      el desperdicio aterrizaba nueve días atrás. Ahora un día fuera del
+      plazo normal de carga está cerrado aunque esté vacío.
+
+   El plazo sale de cómo se trabaja: el desperdicio se carga al día siguiente,
+   salvo el de viernes y sábado, que se carga el lunes. Así que el lunes se
+   dejan abiertos viernes, sábado y domingo; el resto de los días, sólo ayer.
+   Cuando un festivo corre la carga al martes, ese día hay que abrirlo con
+   «Modificar»: es una excepción de una o dos veces al mes y queda firmada,
+   que para un día que se carga tarde es justo lo que conviene.
+   ====================================================================== */
+function hoyEsLunes(){ return new Date().getDay() === 1; }
+function diasAtrasPermitidos(){
+  /* getDay(): 0 domingo, 1 lunes. El lunes alcanza hasta el viernes. */
+  return new Date().getDay() === 1 ? 3 : 1;
+}
+function fechaMasAntiguaAbierta(){
+  const d = new Date();
+  d.setDate(d.getDate() - diasAtrasPermitidos());
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
 function jornadaCerrada(){
   if(!S.tipo) return false;
   if(DESBLOQUEADAS[claveJornada()]) return false;
-  const rs = registrosDeJornada();
-  if(!rs.length) return false;
   if(jornadaEsHoy()) return false;
-  return !rs.some(r=> String(r.capturadoEl || r.fecha).slice(0,10) === hoyISO());
+
+  const rs = registrosDeJornada();
+  if(rs.length){
+    /* Regla 1: con registros, abierta sólo mientras se esté digitando hoy. */
+    return !rs.some(r=> String(r.capturadoEl || r.fecha).slice(0,10) === hoyISO());
+  }
+  /* Regla 2: vacía, abierta sólo si cae dentro del plazo de carga. */
+  return jornadaFecha() < fechaMasAntiguaAbierta();
 }
 
 /* ======================================================================
@@ -2019,29 +2098,48 @@ function renderJornada(){
       o auditoría para ver qué hay cargado en esta jornada.</div>`;
   }
   else if(cerrada){
-    const dia = String(rs[0].capturadoEl || rs[0].fecha).slice(0,10);
+    /* Dos motivos distintos para estar bloqueada, y conviene decir cuál: una
+       ya se reportó, la otra está fuera de plazo y probablemente es un error
+       de tecleo en la fecha. */
+    const texto = rs.length
+      ? `<b>Esta jornada ya está cargada.</b> Tiene ${rs.length} registro(s), digitados
+         el ${fFechaLarga(String(rs[0].capturadoEl || rs[0].fecha).slice(0,10))}.
+         Para no pisar lo que ya se reportó, está bloqueada.
+         ${resumenJornada().chips}`
+      : `<b>Esta jornada está fuera de plazo.</b> No tiene nada cargado y ya pasó
+         el día de cargarla${hoyEsLunes() ? "" : " (el desperdicio se carga al día siguiente)"}.
+         Si de verdad vas a digitarla ahora, ábrela con <b>Modificar</b>.`;
     caja.innerHTML = `<div class="j-aviso cerrada con-acciones">
-      <div class="j-cuerpo">
-        <b>Esta jornada ya está cargada.</b> Tiene ${rs.length} registro(s), digitados
-        el ${fFechaLarga(dia)}. Para no pisar lo que ya se reportó, está bloqueada.
-        ${resumenJornada().chips}
-      </div>
+      <div class="j-cuerpo">${texto}</div>
       <div class="j-acciones">
         <button type="button" id="jAbrir" title="Modificar esta jornada"
           aria-label="Modificar esta jornada">${IC_LAPIZ}<span>Modificar</span></button>
+        ${rs.length ? `<button type="button" id="jVaciar" class="peligro"
+          title="Borrar todos los registros de esta jornada"
+          aria-label="Borrar todos los registros de esta jornada">${IC_EQUIS}<span>Borrar</span></button>` : ""}
+      </div></div>`;
+    document.getElementById("jAbrir").addEventListener("click", abrirModificar);
+    const bv = document.getElementById("jVaciar");
+    if(bv) bv.addEventListener("click", pedirBorrarJornada);
+  }
+  else if(rs.length){
+    const a = resumenJornada();
+    /* Una jornada con registros pero sin bloquear es la que se está digitando
+       hoy. Modificar no hace falta —ya se puede escribir—, pero vaciarla sí:
+       es justo el momento en que uno descubre que la cargó al turno o al día
+       equivocado, y antes había que esperar a mañana para poder borrarla. */
+    caja.innerHTML = `<div class="j-aviso con-acciones ${a.todo ? "completa" : (desbloq ? "cerrada" : "cargada")}">
+      <div class="j-cuerpo">
+        ${desbloq ? "<b>Jornada desbloqueada para corregir.</b> " : ""}${a.cab}
+        <br><span style="opacity:.8;">${rs.length} registro(s) cargados · lo ya
+        reportado está en «Ya validados».</span>${a.chips}
+      </div>
+      <div class="j-acciones">
         <button type="button" id="jVaciar" class="peligro"
           title="Borrar todos los registros de esta jornada"
           aria-label="Borrar todos los registros de esta jornada">${IC_EQUIS}<span>Borrar</span></button>
       </div></div>`;
-    document.getElementById("jAbrir").addEventListener("click", abrirModificar);
     document.getElementById("jVaciar").addEventListener("click", pedirBorrarJornada);
-  }
-  else if(rs.length){
-    const a = resumenJornada();
-    caja.innerHTML = `<div class="j-aviso ${a.todo ? "completa" : (desbloq ? "cerrada" : "cargada")}">
-      ${desbloq ? "<b>Jornada desbloqueada para corregir.</b> " : ""}${a.cab}
-      <br><span style="opacity:.8;">${rs.length} registro(s) cargados · lo ya
-      reportado está en «Ya validados».</span>${a.chips}</div>`;
   }
   else {
     const a = resumenJornada();
@@ -2451,8 +2549,12 @@ function validarPin(){
     return;
   }
   cerrarPin();
-  aplicarTipo(TIPO_PENDIENTE || "auditoria");
+  /* Entrar a auditoría es cambiar de modo, no elegir algo dentro del
+     formulario: desplazar la hoja aquí deja la cabecera cortada y parece que
+     la pantalla se movió sola. */
+  aplicarTipo(TIPO_PENDIENTE || "auditoria", true);
   irAVista("auditoria");
+  window.scrollTo({top:0, behavior:"auto"});
 }
 
 /* ---------- Recorrido ----------
@@ -2585,50 +2687,56 @@ async function reabrirItem(item){
   await borrarFilas(cierres.map(x=>x.id), item, true);
 }
 
+/* ======================================================================
+   LAS MÁQUINAS DE LA AUDITORÍA
+
+   Antes eran una lista de renglones aparte, con otros botones y otro aspecto
+   que las tarjetas de recolección. Eran la misma decisión —este puesto tuvo
+   desperdicio, no tuvo, o no trabajó— tomada en dos pantallas distintas, y
+   quien pasa de una a otra tenía que volver a aprender dónde se toca.
+
+   Ahora comparten la rejilla con los procesos de recolección: mismo tamaño,
+   mismos dos atajos, y lo resuelto se va al bloque de «Ya validados» en vez
+   de quedarse estorbando entre lo pendiente.
+   ====================================================================== */
 function renderRecorrido(){
-  const auditoria = S.tipo === "auditoria";
-  /* Cada ruta pinta su recorrido donde le corresponde: la auditoría dentro del
-     paso de máquina, la recolección dentro del paso de proceso. */
-  /* En recolección el recorrido vive en las propias tarjetas de proceso:
-     repetirlo aquí abajo ocupaba media pantalla diciendo lo mismo. */
   const box = document.getElementById("recorrido");
+  const val = document.getElementById("validadosMaq");
   if(!box) return;
-  if(!auditoria){ box.style.display = "none"; return; }
-  const listo = S.tipo && S.familia && S.proceso;
-  if(!listo){ box.style.display = "none"; return; }
-
+  const listo = S.tipo === "auditoria" && S.familia && S.proceso;
+  const items = listo ? inventarioRec() : [];
+  if(!items.length){
+    box.style.display = "none";
+    if(val) val.style.display = "none";
+    return;
+  }
   const r = recActual();
-  const items = inventarioRec();
-  if(!items.length){ box.style.display = "none"; return; }
-  const pend = items.filter(m=> !r.maq[m]);
-  const que = auditoria ? "MÁQUINA" : "PROCESO";
-  box.style.display = "flex";
-  box.innerHTML =
-    `<div class="rec-cab">${pend.length} ${que}(S) DE ${items.length} POR CARGAR</div>` +
-    items.map(m=>{
-      const e = r.maq[m];
-      const cls = e ? e : "pend";
-      const et = e ? `<span class="et ${e}">${ET_REC[e]}</span>
-        <button data-m="${m}" title="Quitar la marca">${IC_DESHACER}</button>` : "";
-      /* Hace falta en las dos rutas: una cosa es que estuviera limpio y otra
-         que no trabajara, y sólo quien está ahí lo sabe. */
-      const bts = e ? "" :
-        `<button data-m="${m}" data-e="cero">Sin desperdicio</button>
-         <button data-m="${m}" data-e="notrab">No ha trabajado</button>`;
-      return `<div class="rec-m ${cls}"><span class="nom">${m}</span>${et}${bts}</div>`;
-    }).join("") +
-    (pend.length
-      ? `<div class="rec-resumen">Marca también los que no dieron desperdicio o no
-          trabajaron: un ${auditoria?"puesto":"proceso"} sin respuesta no se distingue
-          de uno que se quedó sin registrar.</div>`
-      : `<div class="rec-resumen">Recorrido completo.</div>`);
-
-  box.querySelectorAll("button[data-m]").forEach(b=>
-    b.addEventListener("click", ()=> b.dataset.e
-      ? cerrarItem(b.dataset.m, b.dataset.e) : reabrirItem(b.dataset.m)));
+  box.style.display = "";
+  rejillaItems(box, {
+    items, estado:r, sel:S.puesto, icono:()=> IC_MAQUINA,
+    onPick: m=> seleccionarPuesto(m)
+  });
+  renderValidados(items, r, true, val, ()=> IC_MAQUINA);
 }
 
 /* ---------- Referencia ---------- */
+/* ======================================================================
+   BUSCADOR DE REFERENCIA
+
+   El <select> oculto sigue siendo el que manda: guarda el valor y lanza el
+   mismo evento "change" de siempre, así que nada de lo que ya leía de ahí
+   tuvo que cambiar. Encima va un campo de texto que filtra.
+
+   Se busca por código Y por descripción, sin tildes ni mayúsculas, y el
+   trozo que coincide va resaltado: con códigos que se diferencian en un
+   dígito, ver DÓNDE calzó es lo que evita elegir el de al lado.
+   ====================================================================== */
+function sinTildes(t){
+  return String(t||"").toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+let REF_MARCADA = -1;
+
 function renderReferencias(){
   const sel = document.getElementById("referencia");
   if(!sel) return;
@@ -2637,6 +2745,98 @@ function renderReferencias(){
     lista.map(x=>`<option value="${x.n}">${x.n} · ${x.d}</option>`).join("");
   sel.value = S.referencia || "";
   sel.disabled = !S.familia;
+
+  const txt = document.getElementById("refTxt");
+  if(!txt) return;
+  txt.disabled = !S.familia;
+  txt.placeholder = S.familia
+    ? "Referencia * — escribe el código" : "Elige primero la línea";
+  /* Al cambiar de línea el catálogo es otro: lo escrito antes ya no sirve. */
+  const act = lista.find(x=> x.n === S.referencia);
+  txt.value = act ? `${act.n} · ${act.d}` : "";
+  document.getElementById("refBox").classList.toggle("con-texto", !!txt.value);
+  cerrarListaRef();
+}
+
+function filtrarReferencias(q){
+  const lista = referenciasDe(S.familia);
+  const t = sinTildes(q).trim();
+  if(!t) return lista.slice(0, 50);
+  /* Lo que empieza por lo escrito va primero: tecleando "42" interesa antes
+     la 4210 que una descripción que mencione 42 por el medio. */
+  const empieza = [], contiene = [];
+  lista.forEach(x=>{
+    const cod = sinTildes(x.n), des = sinTildes(x.d);
+    if(cod.indexOf(t) === 0) empieza.push(x);
+    else if(cod.indexOf(t) !== -1 || des.indexOf(t) !== -1) contiene.push(x);
+  });
+  return empieza.concat(contiene).slice(0, 50);
+}
+
+function resaltar(texto, q){
+  const t = sinTildes(q).trim();
+  if(!t) return esc(texto);
+  const i = sinTildes(texto).indexOf(t);
+  if(i === -1) return esc(texto);
+  return esc(texto.slice(0, i)) + "<mark>" + esc(texto.slice(i, i + t.length))
+       + "</mark>" + esc(texto.slice(i + t.length));
+}
+
+function abrirListaRef(q){
+  const caja = document.getElementById("refLista");
+  const txt  = document.getElementById("refTxt");
+  if(!caja || !S.familia) return;
+  const hits = filtrarReferencias(q);
+  REF_MARCADA = -1;
+  caja.innerHTML = hits.length
+    ? hits.map((x,i)=>`<button type="button" role="option" data-n="${esc(x.n)}"
+        data-i="${i}"><b>${resaltar(x.n, q)}</b> <span class="d">${resaltar(x.d, q)}</span></button>`).join("")
+    : `<div class="vacio">Ninguna referencia de ${esc(S.familia)} coincide con
+       «${esc(q)}».</div>`;
+  caja.classList.add("abierta");
+  txt.setAttribute("aria-expanded", "true");
+  caja.querySelectorAll("button[data-n]").forEach(b=>
+    /* mousedown y no click: el blur del campo cierra la lista antes de que
+       un click llegue a dispararse. */
+    b.addEventListener("mousedown", ev=>{ ev.preventDefault(); elegirRef(b.dataset.n); }));
+}
+
+function cerrarListaRef(){
+  const caja = document.getElementById("refLista");
+  if(!caja) return;
+  caja.classList.remove("abierta");
+  REF_MARCADA = -1;
+  const txt = document.getElementById("refTxt");
+  if(txt) txt.setAttribute("aria-expanded", "false");
+}
+
+function elegirRef(n){
+  const sel = document.getElementById("referencia");
+  sel.value = n;
+  sel.dispatchEvent(new Event("change"));   // el resto de la app se entera igual
+  const x = referenciasDe(S.familia).find(r=> r.n === n);
+  const txt = document.getElementById("refTxt");
+  txt.value = x ? `${x.n} · ${x.d}` : n;
+  document.getElementById("refBox").classList.add("con-texto");
+  cerrarListaRef();
+}
+
+function limpiarRef(){
+  const sel = document.getElementById("referencia");
+  sel.value = "";
+  sel.dispatchEvent(new Event("change"));
+  const txt = document.getElementById("refTxt");
+  txt.value = ""; txt.focus();
+  document.getElementById("refBox").classList.remove("con-texto");
+  abrirListaRef("");
+}
+
+function moverMarcaRef(paso){
+  const bts = [...document.querySelectorAll("#refLista button[data-n]")];
+  if(!bts.length) return;
+  REF_MARCADA = (REF_MARCADA + paso + bts.length) % bts.length;
+  bts.forEach((b,i)=> b.classList.toggle("marcada", i === REF_MARCADA));
+  bts[REF_MARCADA].scrollIntoView({block:"nearest"});
 }
 
 /* ======================================================================
@@ -2746,6 +2946,11 @@ ICONOS_PROC["Control"] = SVG_(`<circle cx="10.5" cy="10.5" r="6"/><path d="M15 1
 const IC_CERO     = SVG_(`<circle cx="12" cy="12" r="8.5"/><path d="M6.2 17.8L17.8 6.2"/>`);
 const IC_NOTRAB   = SVG_(`<circle cx="12" cy="12" r="8.5"/><path d="M8 12h8"/>`);
 const IC_DESHACER = SVG_(`<path d="M8 8l8 8M16 8l-8 8"/>`);
+/* Las máquinas no tienen un icono propio por nombre —son decenas y cambian—,
+   así que todas llevan el mismo: lo que identifica a la máquina es su nombre,
+   y el dibujo sólo da el peso visual de la tarjeta. */
+const IC_MAQUINA = SVG_(`<rect x="3.5" y="9" width="17" height="10" rx="1.6"/>
+  <path d="M7 9V6.5h4V9M14 19v2M10 19v2"/><circle cx="12" cy="14" r="2.2"/>`);
 /* Los dos cuadros del aviso de jornada cargada. */
 const IC_LAPIZ = SVG_(`<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M14.5 6.5l3 3"/>`);
 const IC_EQUIS = SVG_(`<path d="M7 7l10 10M17 7L7 17"/>`);
@@ -2862,8 +3067,8 @@ function irAPaso(id){
    tiene un número distinto —15, 14, 8 y 7— y el 7 sólo le cuadra a Cuchillas.
    Así que se calcula: cuántas caben por ancho, cuántas filas hacen falta, y
    se reparte el total entre esas filas. 14 salen 7 y 7; 15 salen 8 y 7. */
-function ajustarColumnas(){
-  const box = document.getElementById("procesos");
+function ajustarColumnas(box){
+  box = box || document.getElementById("procesos");
   if(!box) return;
   const n = box.children.length;
   if(!n){ box.style.removeProperty("grid-template-columns"); return; }
@@ -2874,7 +3079,10 @@ function ajustarColumnas(){
      basta con 108. Tenerlo fijo en 108 era lo que descuadraba la rejilla al
      ir cerrando procesos: con menos tarjetas caben más por fila, se estrechan
      y el texto deja de caber. */
-  const MINIMO = (S.tipo === "recoleccion") ? 150 : 108;
+  /* Lo que manda es si la tarjeta lleva atajos escritos, no el tipo de
+     registro: las máquinas de auditoría ahora también los llevan. */
+  const conAtajos = !!box.querySelector(".pie .acc");
+  const MINIMO = conAtajos ? 150 : 108;
   const MAXIMO = 172;
   const ancho = box.clientWidth;
   if(!ancho) return;                  // todavía no está en pantalla
@@ -2917,93 +3125,116 @@ const ESTADOS_PROC = {
   notrab: {et:"No ha trabajado",       corto:"No ha trabajado", marca:"—"}
 };
 
+/* ======================================================================
+   LA REJILLA DE TARJETAS
+
+   Una sola, para los procesos de recolección y para las máquinas de
+   auditoría: son la misma decisión tomada sobre cosas distintas, y tenerlas
+   en dos componentes era lo que las había dejado desiguales.
+   ====================================================================== */
+function rejillaItems(box, o){
+  const r = o.estado;
+  /* Sólo se muestra lo que falta. Lo resuelto se va a «Ya validados»: así lo
+     que queda a la vista es la lista de pendientes y no hay que ir buscando
+     entre los terminados. */
+  const lista = o.conCierre === false ? o.items : o.items.filter(x=> !r.maq[x]);
+  box.innerHTML = lista.map(x=>{
+    const est = r.maq[x];
+    const cls = ["proc-card", o.sel === x ? "active" : "", "est-" + (est || "pend")]
+      .filter(Boolean).join(" ");
+    const esq = o.insignia ? `<span class="n">${o.insignia(x)}</span>` : "";
+    const pie = o.conCierre === false ? "" :
+      `<div class="pie">
+         <button type="button" class="acc cero" data-it="${esc(x)}" data-e="cero"
+           aria-label="${esc(x)}: sin desperdicio">${IC_CERO}<span>Sin desperdicio</span></button>
+         <button type="button" class="acc notrab" data-it="${esc(x)}" data-e="notrab"
+           aria-label="${esc(x)}: no ha trabajado">${IC_NOTRAB}<span>No ha trabajado</span></button></div>`;
+    return `<div class="${cls}">
+      <button type="button" class="pick" data-it="${esc(x)}">
+        <span class="ic">${o.icono(x)}</span>
+        <span class="nom">${esc(x)}</span>${esq}</button>${pie}</div>`;
+  }).join("");
+
+  ajustarColumnas(box);
+
+  box.querySelectorAll("button.pick").forEach(b=>
+    b.addEventListener("click", ()=> o.onPick(b.dataset.it)));
+  /* Los atajos no deben arrastrar la selección: se marca y se sigue donde
+     se estaba. */
+  box.querySelectorAll("button.acc").forEach(b=>
+    b.addEventListener("click", ev=>{
+      ev.stopPropagation();
+      cerrarItem(b.dataset.it, b.dataset.e);
+    }));
+}
+
 function renderProcesos(){
-  const box=document.getElementById("procesos");
-  const procs=ESTRUCTURA[S.familia]||{};
+  const box = document.getElementById("procesos");
+  const procs = ESTRUCTURA[S.familia] || {};
   /* El número de máquinas sólo importa en la auditoría, que es quien las
-     recorre. En la recolección no hay máquina, así que el contador sobra y
-     sugiere algo que esa pantalla ni pregunta. */
+     recorre. En la recolección no hay máquina, así que el contador sobra. */
   const conMaquinas = S.tipo === "auditoria";
   /* Y al revés: los dos atajos de cierre son de la recolección, porque ahí lo
      que se cierra es el proceso entero. En auditoría se cierran las máquinas,
      una por una, en su propio paso. */
-  const conCierre = S.tipo === "recoleccion" && S.familia;
-  const r = conCierre ? recActual() : null;
+  const conCierre = S.tipo === "recoleccion" && !!S.familia;
+  const r = recActual();
   const todos = Object.keys(procs);
-  /* En recolección la rejilla muestra SÓLO lo que falta. Lo ya resuelto se va
-     a su propio bloque: así lo que queda a la vista es la lista de pendientes
-     y no hay que ir buscándolos entre los terminados. */
-  const lista = conCierre ? todos.filter(x=> !r.maq[x]) : todos;
 
-  box.innerHTML = lista.map(p=>{
-    const est = r && r.maq[p];
-    const cls = ["proc-card", S.proceso===p?"active":"", "est-"+(est||"pend")]
-      .filter(Boolean).join(" ");
-    const esq = conMaquinas ? `<span class="n">${puestosDe(S.familia,p).length}</span>` : "";
-    const pie = conCierre
-      ? `<div class="pie">
-           <button type="button" class="acc cero" data-proc="${esc(p)}" data-e="cero"
-             aria-label="${esc(p)}: sin desperdicio">${IC_CERO}<span>Sin desperdicio</span></button>
-           <button type="button" class="acc notrab" data-proc="${esc(p)}" data-e="notrab"
-             aria-label="${esc(p)}: no ha trabajado">${IC_NOTRAB}<span>No ha trabajado</span></button></div>`
-      : "";
-    return `<div class="${cls}">
-      <button type="button" class="pick" data-proc="${esc(p)}">
-        <span class="ic">${iconoProceso(p)}</span>
-        <span class="nom">${esc(p)}</span>${esq}</button>${pie}</div>`;
-  }).join("");
-
-  ajustarColumnas();
-  renderValidados(todos, r, conCierre);
-
-  box.querySelectorAll("button.pick").forEach(b=>
-    b.addEventListener("click",()=>seleccionarProceso(b.dataset.proc)));
-  /* Los atajos no deben arrastrar la selección del proceso: se marca y se
-     sigue en el que se estaba. */
-  box.querySelectorAll("button.acc").forEach(b=>
-    b.addEventListener("click",ev=>{
-      ev.stopPropagation();
-      cerrarItem(b.dataset.proc, b.dataset.e);
-    }));
+  rejillaItems(box, {
+    items: todos, estado: r, sel: S.proceso,
+    icono: p=> iconoProceso(p),
+    insignia: conMaquinas ? (p=> puestosDe(S.familia, p).length) : null,
+    conCierre: conCierre ? true : false,
+    onPick: p=> seleccionarProceso(p)
+  });
+  renderValidados(todos, r, conCierre, document.getElementById("validados"),
+    p=> iconoProceso(p));
 }
 
 /* Los procesos ya resueltos. No se tiran: hay que poder volver si se añadió
    algo tarde o si alguien marcó lo que no era. Pero tampoco estorban arriba,
    así que viven aparte y plegados. */
-function renderValidados(todos, r, conCierre){
-  const caja = document.getElementById("validados");
+function renderValidados(todos, r, conCierre, caja, icono){
+  caja = caja || document.getElementById("validados");
   if(!caja) return;
   if(!conCierre){ caja.style.display = "none"; return; }
   const hechos = todos.filter(x=> r.maq[x]);
   if(!hechos.length){ caja.style.display = "none"; return; }
   caja.style.display = "block";
+  const ic = icono || (x=> iconoProceso(x));
+  const abierto = !!VALIDADOS_ABIERTO[caja.id];
 
   const pendientes = todos.length - hechos.length;
   caja.innerHTML = `
-    <button type="button" class="val-cab" id="valCab" aria-expanded="${VALIDADOS_ABIERTO}">
-      <span class="fl">${VALIDADOS_ABIERTO ? "▾" : "▸"}</span>
+    <button type="button" class="val-cab" aria-expanded="${abierto}">
+      <span class="fl">${abierto ? "▾" : "▸"}</span>
       <b>Ya validados</b><span class="cuenta">${hechos.length}</span>
       <span class="resto">${pendientes ? pendientes+" sin registrar" : "no queda ninguno pendiente"}</span>
     </button>
-    <div class="val-lista" ${VALIDADOS_ABIERTO ? "" : 'style="display:none;"'}>
-      ${hechos.map(p=>{
-        const e = r.maq[p];
-        return `<button type="button" class="val-chip est-${e}" data-proc="${esc(p)}"
-          title="Volver a revisar ${esc(p)}">
-          <span class="ic">${iconoProceso(p)}</span>
-          <span class="nom">${esc(p)}</span>
+    <div class="val-lista" ${abierto ? "" : 'style="display:none;"'}>
+      ${hechos.map(x=>{
+        const e = r.maq[x];
+        return `<button type="button" class="val-chip est-${e}" data-it="${esc(x)}"
+          title="Volver a revisar ${esc(x)}">
+          <span class="ic">${ic(x)}</span>
+          <span class="nom">${esc(x)}</span>
           <span class="et">${ESTADOS_PROC[e].corto}</span></button>`;
       }).join("")}
     </div>`;
 
-  document.getElementById("valCab").addEventListener("click", ()=>{
-    VALIDADOS_ABIERTO = !VALIDADOS_ABIERTO;
-    renderValidados(todos, r, conCierre);
+  const cab = caja.querySelector(".val-cab");
+  cab.id = (caja.id === "validados") ? "valCab" : "valCabMaq";
+  cab.addEventListener("click", ()=>{
+    VALIDADOS_ABIERTO[caja.id] = !abierto;
+    renderValidados(todos, r, conCierre, caja, icono);
   });
   caja.querySelectorAll(".val-chip").forEach(b=>
-    b.addEventListener("click", ()=> preguntarValidado(b.dataset.proc, r.maq[b.dataset.proc])));
+    b.addEventListener("click", ()=> preguntarValidado(b.dataset.it, r.maq[b.dataset.it])));
 }
-let VALIDADOS_ABIERTO = false;
+/* Uno por bloque: el de procesos y el de máquinas se pliegan por separado. */
+let VALIDADOS_ABIERTO = {};
+
 
 /* Al tocar uno ya validado no se reabre sin más: puede ser que falte añadir
    desperdicio, o puede ser que la marca esté mal. Son cosas distintas y la
@@ -3016,8 +3247,13 @@ function preguntarValidado(proc, estado){
      volvería a escribir las cantidades: el desperdicio quedaría duplicado en
      la hoja sin que nadie lo notara. */
   const k = jornadaLlave();
+  /* En auditoría el ítem es la MÁQUINA, no el proceso: filtrar por proceso
+     traería las filas de todas las máquinas del proceso y el número que se
+     muestra antes de ofrecer «quitar la marca» sería el que no es. */
+  const porPuesto = S.tipo === "auditoria";
   const filas = S.registros.filter(r=> r.turnoKey === k && tipoDe(r) === S.tipo
-    && r.proceso === proc && !r.estadoMaquina);
+    && (porPuesto ? (r.proceso === S.proceso && r.puesto === proc) : r.proceso === proc)
+    && !r.estadoMaquina);
   const piezas = filas.reduce((n,x)=> n + (x.cantidad||0), 0);
   document.getElementById("valTit").textContent = `${proc} ya está validado`;
   document.getElementById("valTxt").innerHTML =
@@ -3040,10 +3276,15 @@ function preguntarValidado(proc, estado){
 function cerrarValidado(){ document.getElementById("valModal").classList.remove("show"); }
 
 /* Las filas que tiene cargadas el proceso de la jornada en curso. */
-function filasDelProceso(proc){
+/* Las filas con cantidades de un ítem. En recolección el ítem es el proceso;
+   en auditoría es la máquina, y hay que acotar también por proceso porque un
+   mismo nombre de máquina puede repetirse en otro proceso de la línea. */
+function filasDelProceso(item){
   const k = jornadaLlave();
+  const porPuesto = S.tipo === "auditoria";
   return S.registros.filter(r=> r.turnoKey === k && tipoDe(r) === S.tipo
-    && r.proceso === proc && !r.estadoMaquina);
+    && (porPuesto ? (r.proceso === S.proceso && r.puesto === item) : r.proceso === item)
+    && !r.estadoMaquina);
 }
 
 function renderFilasValidado(proc){
@@ -3148,8 +3389,24 @@ function seleccionarProceso(proc){
   irAPaso(!auditoria || S.puesto ? "zonaDefectos" : "paso3");
 }
 
+/* Elegir máquina desde las tarjetas. Pasa por el <select> oculto para que
+   todo lo que ya escuchaba su "change" siga enterándose igual. */
+function seleccionarPuesto(m){
+  const sel = document.getElementById("puesto");
+  if(sel.value === m) return;
+  if(![...sel.options].some(o=> o.value === m)){
+    /* La máquina puede no estar entre las libres del <select> (se repintó
+       antes). Se añade para no perder la selección. */
+    const o = document.createElement("option"); o.value = m; o.textContent = m;
+    sel.appendChild(o);
+  }
+  sel.value = m;
+  sel.dispatchEvent(new Event("change"));
+}
+
 document.getElementById("puesto").addEventListener("change",e=>{
   S.puesto=e.target.value;
+  renderRecorrido();   // para que la tarjeta elegida quede marcada
   pintarRuta();
   renderDefectos();   // el catálogo sólo aparece con el puesto ya elegido
   actualizarBarra();
@@ -3483,6 +3740,31 @@ document.getElementById("jHoy").addEventListener("click", ()=>{
 });
 
 /* Las tarjetas de elección de tipo ya no existen: el tipo lo fija la pestaña. */
+
+/* Enganches del buscador de referencia. */
+(function(){
+  const txt = document.getElementById("refTxt");
+  if(!txt) return;
+  txt.addEventListener("input", ()=>{
+    document.getElementById("refBox").classList.toggle("con-texto", !!txt.value);
+    abrirListaRef(txt.value);
+  });
+  txt.addEventListener("focus", ()=>{ if(S.familia) abrirListaRef(""); });
+  txt.addEventListener("blur", ()=> setTimeout(cerrarListaRef, 120));
+  txt.addEventListener("keydown", ev=>{
+    const abierta = document.getElementById("refLista").classList.contains("abierta");
+    if(ev.key === "ArrowDown"){ ev.preventDefault(); if(!abierta) abrirListaRef(txt.value); else moverMarcaRef(1); }
+    else if(ev.key === "ArrowUp"){ ev.preventDefault(); moverMarcaRef(-1); }
+    else if(ev.key === "Enter"){
+      const bts = [...document.querySelectorAll("#refLista button[data-n]")];
+      /* Con una sola coincidencia, Enter la toma sin tener que señalarla. */
+      const b = REF_MARCADA >= 0 ? bts[REF_MARCADA] : (bts.length === 1 ? bts[0] : null);
+      if(b){ ev.preventDefault(); elegirRef(b.dataset.n); }
+    }
+    else if(ev.key === "Escape") cerrarListaRef();
+  });
+  document.getElementById("refLimpiar").addEventListener("click", limpiarRef);
+})();
 
 document.getElementById("referencia").addEventListener("change", e=>{
   S.referencia = e.target.value;
@@ -5969,7 +6251,7 @@ function aplicarVistaControl(){
 /* Registro es siempre recolección: cualquiera puede cargarla, sin PIN. La
    sesión de auditoría NO se cierra al venir aquí, para poder ir y volver. */
 document.getElementById("tabRegistro").addEventListener("click",()=>{
-  if(S.tipo !== "recoleccion") aplicarTipo("recoleccion");
+  if(S.tipo !== "recoleccion") aplicarTipo("recoleccion", true);
   irAVista("registro");
   if(S.syncUrl) cargarRemoto();
 });
@@ -5979,13 +6261,19 @@ document.getElementById("tabRegistro").addEventListener("click",()=>{
 document.getElementById("tabAuditoria").addEventListener("click", async ()=>{
   revisarSesion();
   if(sesionVigente()){
-    if(S.tipo !== "auditoria") aplicarTipo("auditoria");
+    if(S.tipo !== "auditoria") aplicarTipo("auditoria", true);
     irAVista("auditoria");
     if(S.syncUrl) cargarRemoto();
     return;
   }
-  if(S.syncUrl) await cargarUsuarios();
+  /* Antes esperaba a que la hoja contestara la lista de usuarios, y eso son
+     uno o dos segundos mirando una pantalla quieta. Se abre con lo que haya
+     en caché y la lista se refresca detrás; si llega algo nuevo, se repinta. */
   abrirPin("auditoria");
+  if(S.syncUrl) cargarUsuarios().then(()=>{
+    if(document.getElementById("pinModal").classList.contains("show"))
+      abrirPin(TIPO_PENDIENTE || "auditoria");
+  });
 });
 
 /* Administrar: la ve todo el mundo, pero sólo entra un jefe o coordinador. */
