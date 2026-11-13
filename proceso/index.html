@@ -1132,7 +1132,7 @@
         <label>Periodo</label>
         <div class="seg" id="tRango" title="Consultan al pulsarlos">
           <button type="button" data-d="7">7 días</button>
-          <button type="button" data-d="30" class="on">30 días</button>
+          <button type="button" data-d="30">30 días</button>
           <button type="button" data-d="90">3 meses</button>
         </div>
       </div>
@@ -1738,14 +1738,23 @@ function referenciasDe(linea){
   return Array.isArray(lista) ? lista.filter(r=>r && (r.d||r.n)) : [];
 }
 
+/* Si un formato pide un campo en su encabezado es porque ahí importa: un
+   acero o una máquina en blanco dejan la medición sin con qué compararla y
+   sin a quién atribuirla, y eso no se puede reconstruir después. Así que
+   todo lo que el formato pida es obligatorio, con una excepción: la orden de
+   fabricación, que a veces no se sabe en el momento de medir y no cambia
+   cómo se juzga el dato.
+
+   «Otro…» sigue en todas las listas, de modo que exigir el campo nunca deja
+   a nadie sin poder registrar: si la máquina no está, se escribe. */
 const CAMPOS_ENC = {
   ordenFabricacion: {etq:"Orden de fabricación", oblig:false},
   referencia:       {etq:"Referencia",           oblig:true},
-  tipoAcero:        {etq:"Acero",                oblig:false},
-  proveedor:        {etq:"Proveedor",            oblig:false},
-  material:         {etq:"Material / resina",  oblig:false},
-  espesorAcero:     {etq:"Espesor (mm)",         oblig:false},
-  maquina:          {etq:"Máquina",              oblig:false}
+  tipoAcero:        {etq:"Acero",                oblig:true},
+  proveedor:        {etq:"Proveedor",            oblig:true},
+  material:         {etq:"Material / resina",    oblig:true},
+  espesorAcero:     {etq:"Espesor (mm)",         oblig:true},
+  maquina:          {etq:"Máquina",              oblig:true}
 };
 
 /* Hoja compartida de Control de Proceso. Viene puesta para que las tabletas
@@ -2321,8 +2330,12 @@ const MAQUINAS_FIJAS = {
   "MAC-CORTE-FLEJE": ["Cortadora 1", "Cortadora 2", "Canaladora 2", "Tronzadora 1"],
   "MAC-TROQUELADO":  ["Troqueladora 2", "Troqueladora 5", "Troqueladora 6"],
   "MAC-REVENIDO":    ["Horno revenido 1", "Horno revenido 3"],
-  "MAC-BISELADO":    ["Biseladora manual 2", "Biseladora manual 3", "Biseladora manual 4",
-                      "Biseladora manual 5", "Enderezadora 1", "Enderezadora 2"],
+  /* Sólo biseladoras: el formato pasó a ser «Biselado manual» y las
+     enderezadoras, que venían de cuando el proceso era «Biselado y
+     enderezado», ofrecían registrar el bisel en una máquina que no lo hace. */
+  "MAC-BISELADO":    ["Biseladora manual 1", "Biseladora manual 2",
+                      "Biseladora manual 3", "Biseladora manual 4",
+                      "Biseladora manual 5"],
   "MAC-LIJADO":      ["Lijadora 2", "Lijadora 3", "Lijadora 5"],
   "MAC-ENCABADO":    ["Remachadora 2", "Remachadora 3", "Remachadora 4",
                       "Remachadora 6", "Remachadora 7"],
@@ -2755,7 +2768,11 @@ function renderEncabezado(f){
       return;
     }
     if(k === "proveedor" && pideProveedorAcero(f.linea)){
-      campos.push(`<div class="campo prov"><label for="e_proveedor">Proveedor <span class="apunte">· del acero</span></label>
+      /* El asterisco también aquí: el guardado ya exigía el proveedor, pero
+         la etiqueta no lo decía, así que el botón se quedaba bloqueado sin
+         que se viera cuál era el campo que faltaba. */
+      campos.push(`<div class="campo prov"><label for="e_proveedor">Proveedor${
+        c.oblig?" *":""} <span class="apunte">· del acero</span></label>
         <select id="e_proveedor"><option value="">Selecciona</option>${
           proveedoresDe(f.linea).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")
         }<option value="__otra">Otro…</option></select>
@@ -3890,7 +3907,7 @@ document.getElementById("tRango").addEventListener("click", async e=>{
 
 function diasDelRango(){
   const b = document.querySelector("#tRango [data-d].on");
-  return b ? +b.dataset.d : 30;
+  return b ? +b.dataset.d : 0;    // 0 = todavía no se eligió
 }
 /* El periodo sale de los botones rápidos o de las fechas escritas a mano.
    Las dos cosas escriben en los mismos campos, así que nunca se contradicen. */
@@ -3902,8 +3919,12 @@ function periodoTendencia(){
   if(desde && hasta) return {desde, hasta, etq: `${fFechaCorta(desde)} a ${fFechaCorta(hasta)}`};
   if(desde)          return {desde, hasta: "", etq: `desde el ${fFechaCorta(desde)}`};
   if(hasta)          return {desde: fechaDesde(365), hasta, etq: `hasta el ${fFechaCorta(hasta)}`};
-  return {desde: fechaDesde(30), hasta: "", etq: "últimos 30 días"};
+  /* Sin periodo elegido no se supone ninguno. Antes caían aquí los 30 días
+     por defecto, y eso leía la hoja al entrar a la pestaña: una consulta que
+     nadie pidió, con un periodo que quizá no era el que interesaba. */
+  return {desde: "", hasta: "", etq: "", sinPeriodo: true};
 }
+function faltaPeriodo(){ return !!periodoTendencia().sinPeriodo; }
 
 async function consultarTendencia(boton){
   const r = periodoTendencia();
@@ -3915,6 +3936,7 @@ async function consultarTendencia(boton){
   const fSel = S.formatos.find(x=>x.id===document.getElementById("tProceso").value);
   /* Sin proceso, sin variable o sin los filtros exigidos no se lee la hoja:
      leer para no dibujar sería gastar cuota a cambio de nada. */
+  if(faltaPeriodo()){ renderTendencia(); return; }
   if(!fSel || !document.getElementById("tVariable").value || faltanFiltrosTend(fSel).length){
     RANGO_APLICADO = document.getElementById("tDesde").value + "|" + document.getElementById("tHasta").value;
     marcarBotonFechas();
@@ -3959,8 +3981,6 @@ document.getElementById("tLimpiar").addEventListener("click", e=>{
   document.getElementById("tDesde").value = "";
   document.getElementById("tHasta").value = "";
   document.querySelectorAll("#tRango [data-d]").forEach(x=>x.classList.remove("on"));
-  const b30 = document.querySelector('#tRango [data-d="30"]');
-  if(b30) b30.classList.add("on");
   RANGO_APLICADO = "";
   consultarTendencia(e.target);
 });
@@ -4469,6 +4489,13 @@ function renderTendencia(){
   const f = S.formatos.find(x=>x.id===fId);
   if(!f || !vNom){
     box.innerHTML = `<div class="panel"><div class="empty-mini">Selecciona un proceso y una variable numérica.</div></div>`;
+    return;
+  }
+  if(faltaPeriodo()){
+    box.innerHTML = `<div class="panel"><div class="empty-mini">
+      Elige un <b>periodo</b> arriba para consultar: 7 días, 30 días o 3 meses.<br>
+      <span style="font-size:.72rem;">También puedes escribir unas fechas concretas y pulsar
+      «Ver estas fechas».</span></div></div>`;
     return;
   }
   const faltaF = faltanFiltrosTend(f);
@@ -6200,11 +6227,16 @@ function renderKpi(){
             <div class="lineas-cards">${porLinea.map(l=>{
               const v = veredictoLinea(l, per.enCurso);
               const gris = v.cl === "gris";
-              /* La barra de conformidad arranca en 90: entre 0 y 90 no pasa
-                 nada y comprimir ahí los cuatro puntos que importan la vuelve
-                 inútil. */
+              /* Las dos barras van en la MISMA escala, 0 a 100.
+                 La de conformidad estaba ampliada de 90 a 100 para que se
+                 notaran los puntos que importan, pero el efecto era el
+                 contrario: 94,1% —a cuatro puntos de la meta— se dibujaba a
+                 media barra, justo debajo de un 100% que la llenaba entera.
+                 Quien la mira compara la barra con el número que tiene al
+                 lado, y la barra decía otra cosa. La distancia a la meta se
+                 lee ahora donde corresponde: pegada a la marca. */
               const anchoConf = l.conf === null ? 0
-                : Math.max(0, Math.min(100, (l.conf - 90) / 10 * 100));
+                : Math.max(0, Math.min(100, l.conf));
               const cCump = gris ? "var(--text-dim)"
                 : l.cump >= META_CUMP ? "var(--ok)" : l.cump >= 70 ? "var(--warn)" : "var(--bad)";
               const cConf = gris ? "var(--text-dim)"
@@ -6233,7 +6265,7 @@ function renderKpi(){
                   <div class="met-cab"><span>Conformidad de mediciones</span><b>${f1(l.conf)}${
                     l.conf===null?"":"%"}</b></div>
                   <span class="barra-meta"><i style="width:${anchoConf}%;background:${
-                    cConf};"></i><u style="left:${(META_CONF-90)/10*100}%;"></u></span>
+                    cConf};"></i><u style="left:${META_CONF}%;"></u></span>
                 </div>
                 <div class="lcard-pie">
                   <div><span class="ic">${IC_KPI.engranaje}</span>
@@ -8038,7 +8070,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-11-12-turnos";
+const APP_VERSION = "2026-11-12-biselado";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -9313,12 +9345,16 @@ document.getElementById("btnSubirTodo").addEventListener("click", async ()=>{
 document.getElementById("cDesde").value = hoyISO();
 document.getElementById("cHasta").value = hoyISO();
 document.getElementById("kMes").value   = mesISO();
-document.getElementById("tDesde").value = inicioMes();
-document.getElementById("tHasta").value = hoyISO();
+/* La tendencia arranca sin periodo: ni botón marcado ni fechas escritas. Con
+   las fechas puestas de antemano, la app daba por elegido un periodo que
+   nadie pidió y consultaba la hoja sola al tocar cualquier desplegable. */
+document.getElementById("tDesde").value = "";
+document.getElementById("tHasta").value = "";
 document.getElementById("mMes").value   = mesISO();
 document.getElementById("mDia").value   = hoyISO();
 
 refrescarSelectoresConsulta();
+renderTendencia();      // que la zona no quede en blanco al entrar
 renderSegLineas();
 actualizarEstadoSync();
 actualizarPillCump(); actualizarMiTurno();
