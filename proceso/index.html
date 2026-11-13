@@ -2367,7 +2367,14 @@ const MAQUINAS_FIJAS = {
 /* Formatos donde la lista de arriba MANDA sobre lo que traiga la hoja. Sólo
    los temples: la hoja los tiene como «1», «2», «4» y Dureza como «Temple 1»,
    «Temple 3»… Unirlas dejaría la misma máquina dos veces en el desplegable. */
-const MAQUINAS_SUSTITUYEN = ["MAC-TEMPLE", "CUC-TEMPLE", "PAL-TEMPLE"]/* Para buscar sin que estorben mayúsculas, tildes o espacios de más: la hoja
+const MAQUINAS_SUSTITUYEN = ["MAC-TEMPLE", "CUC-TEMPLE", "PAL-TEMPLE",
+  /* En el biselado de machetes la hoja guarda las máquinas como «2», «3»,
+     «4», «5» a secas. Unirlas a las del código dejaba la misma biseladora dos
+     veces con dos nombres —«2» y «Biseladora manual 2»—, así que el desplegable
+     salía con ocho entradas para cinco máquinas y el histórico se repartía
+     entre los dos nombres según cuál hubiera elegido cada quien. Manda la
+     lista del código. */
+  "MAC-BISELADO"]/* Para buscar sin que estorben mayúsculas, tildes o espacios de más: la hoja
    escribe «PICADO», «Picado» y «picado  » sin avisar. */
 function clavePlana(t){
   return String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
