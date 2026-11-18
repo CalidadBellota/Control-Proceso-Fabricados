@@ -2027,7 +2027,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-18-mes";
+const APP_VERSION = "2026-11-18-recoleccion";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -5005,38 +5005,71 @@ function resumenLinea(fam, periodo, fecha, turno, rango){
   return (CACHE_RESUMEN[k] = resumenLineaCalc(fam, periodo, fecha, turno, rango));
 }
 function resumenLineaCalc(fam, periodo, fecha, turno, rango){
-  let emp=null, rec=null, faltan=[], deCuantos=0;
+  /* Las UNIDADES EMPACADAS son el único dato que se carga a mano, en Data.
+     Todo lo demás lo pone la app. */
+  let emp=null, faltan=[], deCuantos=0;
   if(periodo==="turno"){
-    emp = empTurno(fam,turno,fecha); rec = recTurnoTotal(fam,turno,fecha);
+    emp = empTurno(fam,turno,fecha);
     deCuantos = 1; if(emp==null) faltan=["T"+turno];
   } else if(periodo==="dia"){
     const e = empDia(fam,fecha); emp=e.total; faltan=e.faltan; deCuantos=3;
-    rec = recDia(fam,fecha);
   } else if(periodo==="mes"){
     const e = empMes(fam,fecha); emp=e.total; faltan=e.faltan;
     deCuantos = e.faltan.length + (emp==null?0:1);   // informativo
-    rec = recMes(fam,fecha);
   } else {
     const e = empSemana(fam,rango.desde); emp=e.total; faltan=e.faltan; deCuantos=21;
-    rec = recSemana(fam,rango.desde);
   }
   const meta = METAS[fam] ?? 1;
-  const ncRondas = ncClasificadas(fam, periodo, fecha, turno, rango);
+
+  /* EL DESPERDICIO RECOLECTADO ES LO QUE SE REGISTRA EN LA APP.
+
+     En Registro hay dos cosas y no se parecen:
+
+       · RECOLECCIÓN — cantidad, defecto y referencia. Es el desperdicio.
+         Esta es la cifra, y no hay ninguna otra fuente.
+
+       · AUDITORÍA — una toma en un punto del día sobre esas mismas piezas,
+         para saber qué máquina genera más desperdicio y con qué defecto.
+         NO se suma: sumarla contaría dos veces las mismas piezas.
+
+     Ninguna cifra de este tablero sale ya del cierre por turno. */
+  const r = recolectado(fam, periodo, fecha, turno, rango);
+  const rec = r.filas ? r.piezas : null;   // sin registros es «sin dato», no un 0
+
+  /* Cuánto de lo recolectado alcanzó a mirarse en auditoría. Dice qué tan
+     firme es el reparto por máquina de más abajo; no entra en el %. */
+  const aud = auditado(fam, periodo, fecha, turno, rango);
+
   const pct = (emp && emp>0 && rec!=null) ? rec/emp*100 : null;
-  return {fam, emp, rec, ncRondas, meta, pct, faltan, deCuantos,
+  return {fam, emp, rec, ncRondas:r.piezas, filas:r.filas, aud:aud.piezas, meta, pct,
+          faltan, deCuantos,
           est: pct==null ? "sin" : estadoPorMeta(pct, meta),
-          cobertura: (rec!=null && rec>0) ? ncRondas/rec*100 : null};
+          cobertura: (rec && rec>0) ? aud.piezas/rec*100 : null};
 }
 
-function ncClasificadas(fam, periodo, fecha, turno, rango){
-  /* Lo clasificado en rondas de RECOLECCIÓN: es lo que se compara con el
-     total que reporta el patinador para saber cuánto quedó sin clasificar. */
-  return S.registros.filter(r=>{
+/* Piezas registradas en RECOLECCIÓN en el periodo: el desperdicio. */
+function recolectado(fam, periodo, fecha, turno, rango){
+  const fs = S.registros.filter(r=>{
     if(tipoDe(r)!=="recoleccion" || r.estadoMaquina) return false;
     if(r.familia!==fam) return false;
     if(periodo==="turno") return r.turnoKey===llaveTurno(turno,fecha);
     const ft=fechaDeTurno(r); return ft>=rango.desde && ft<=rango.hasta;
-  }).reduce((s,r)=>s+r.cantidad,0);
+  });
+  return {piezas: fs.reduce((s,r)=>s+r.cantidad,0), filas: fs.length};
+}
+/* Piezas miradas en AUDITORÍA en el periodo: la muestra por máquina. */
+function auditado(fam, periodo, fecha, turno, rango){
+  const fs = S.registros.filter(r=>{
+    if(tipoDe(r)!=="auditoria" || r.estadoMaquina) return false;
+    if(r.familia!==fam) return false;
+    if(periodo==="turno") return r.turnoKey===llaveTurno(turno,fecha);
+    const ft=fechaDeTurno(r); return ft>=rango.desde && ft<=rango.hasta;
+  });
+  return {piezas: fs.reduce((s,r)=>s+r.cantidad,0), filas: fs.length};
+}
+/* Nombre anterior, por si quedó alguna llamada suelta. */
+function ncClasificadas(fam, periodo, fecha, turno, rango){
+  return recolectado(fam, periodo, fecha, turno, rango).piezas;
 }
 
 function ncPendienteTexto(fam, periodo, fecha, turno, rango){
@@ -5711,15 +5744,19 @@ function analisisTexto(d){
       concentran el <b>${acum}%</b> del desperdicio clasificado.`);
   }
 
-  /* Lo que no se clasificó es la mitad escondida del problema: si el patinador
-     reportó 1.630 piezas y las rondas sólo explican 455, el resto es un bulto
-     del que no se sabe ni el defecto ni el proceso. */
+  /* Cuánto de lo recolectado alcanzó a mirar la auditoría. De eso depende que
+     el reparto por máquina sirva: con poca muestra es una señal, no una
+     conclusión. Las piezas son las mismas, así que esto es cobertura, no una
+     resta de dos totales distintos. */
   const r = d.resumenes.find(x=> x.fam === d.fam);
   if(r && r.rec!=null && r.rec>0){
-    const sinClas = r.rec - r.ncRondas;
-    if(sinClas > 0) ptos.push(`Quedaron <b>${f0(sinClas)} pieza(s) sin clasificar</b>
-      en ${esc(d.fam)} (${Math.round(sinClas/r.rec*100)}% de lo recogido): se sabe
-      cuánto se tiró, no de qué ni dónde.`);
+    const cob = Math.round((r.aud||0)/r.rec*100);
+    if(!r.aud) ptos.push(`De las <b>${f0(r.rec)} pieza(s)</b> recolectadas en
+      ${esc(d.fam)} no se auditó ninguna, así que no hay cómo saber de qué
+      máquina salieron.`);
+    else if(cob < 30) ptos.push(`La auditoría solo cubrió el <b>${cob}%</b> de lo
+      recolectado en ${esc(d.fam)} (${f0(r.aud)} de ${f0(r.rec)} piezas): el
+      reparto por máquina es una señal, no una conclusión.`);
   }
 
   if(d.kilos.kg) ptos.push(`Equivale a <b>${d.kilos.kg.toLocaleString("es-CO",
@@ -5812,9 +5849,11 @@ function renderDashboardTurno(){
   }).sort((a,b)=> (fechaDeTurno(a)+a.hora).localeCompare(fechaDeTurno(b)+b.hora));
 
   const ncTotal = regs.reduce((s,r)=>s+r.cantidad,0);
-  // El % se calcula con lo recogido por el patinador; si aún no está, con lo de las rondas
-  const ncParaPct = recogidas!=null ? recogidas : ncTotal;
-  const fuentePct = recogidas!=null ? "recogido por patinador" : "conteo de rondas";
+  /* Una sola fuente: lo registrado en recolección. `recogidas` sale de
+     resumenLinea y es esta misma suma; antes había dos candidatos y se
+     escogía entre ellos. */
+  const ncParaPct = ncTotal;
+  const fuentePct = "recolección registrada";
   const pct = (empacadas && empacadas>0) ? ncParaPct/empacadas*100 : null;
   const pctRondas = (empacadas && empacadas>0) ? ncTotal/empacadas*100 : null;
   const estado = pct==null?"":estadoPorMeta(pct,meta);
@@ -5971,7 +6010,17 @@ function renderDashboardTurno(){
             return d ? `<div class="vs ${d.neutro?"":d.bien?"bien":"mal"}">${d.flecha} ${d.txt}
               <span>vs. ${etqAnterior}</span></div>` : ""; })()}
           <small>${esc(rango.etiqueta)}</small>
-          <small>${f0(resumenes.reduce((n2,x)=>n2+x.ncRondas,0))} clasificada(s) en rondas</small>
+          ${(()=>{
+            /* De dónde sale: de la recolección registrada en la app. Se dice
+               cuántos registros la componen, para que el número tenga respaldo
+               visible, y aparte cuánto de eso se miró en auditoría —que es
+               muestra, no suma. */
+            const filas = resumenes.reduce((n2,x)=>n2+(x.filas||0),0);
+            const aud   = resumenes.reduce((n2,x)=>n2+(x.aud||0),0);
+            if(!filas) return `<small>sin registros de recolección en el periodo</small>`;
+            return `<small>${f0(filas)} registro(s) de recolección${
+              aud ? ` · ${f0(aud)} pieza(s) vistas en auditoría` : ""}</small>`;
+          })()}
         </div>
 
         <!-- 3. El indicador. La barra va en escala 0 a 2×meta, así que la
@@ -6049,13 +6098,13 @@ function renderDashboardTurno(){
               <div><span class="ic-sec" style="width:24px;height:24px;">${IC_IND.basura}</span>
                 <div><b>${x.rec==null?"—":f0(x.rec)}</b><small>desperdicio</small></div></div>
               <div><span class="ic-sec" style="width:24px;height:24px;">${IC_IND.lupa}</span>
-                <div><b>${f0(x.ncRondas)}</b><small>clasificadas</small></div></div>
+                <div><b>${f0(x.aud||0)}</b><small>en auditoría</small></div></div>
             </div>
             <div class="lin-nota">${
               x.emp==null
-                ? `<b>Falta cargar las unidades empacadas.</b> Sin ese dato no hay porcentaje: lo recogido solo se puede leer como piezas sueltas.`
+                ? `<b>Falta cargar las unidades empacadas.</b> Sin ese dato no hay porcentaje: lo recolectado solo se puede leer como piezas sueltas.`
               : x.rec==null
-                ? `El patinador todavía no reportó el desperdicio de este periodo.`
+                ? `No hay registros de recolección en este periodo.`
               : x.est==="bad"
                 ? `Está <b>${fPct(x.pct-x.meta)}</b> por encima de la meta.`
               : x.est==="warn"
@@ -6201,7 +6250,8 @@ function renderDashboardTurno(){
     b.addEventListener("click", ()=> pedirAccion(b.dataset.id)));
 
   ULTIMO = {fam, meta, rango, periodo, fecha, turno, empacadas, recogidas, ncTotal, pct, estado,
-            cobertura:(recogidas!=null&&recogidas>0)?ncTotal/recogidas*100:null,
+            /* Cobertura = cuánto de lo recolectado se miró en auditoría. */
+            cobertura: resFam.cobertura,
             porProc, porPuesto, ordDef, flujo, regs};
 }
 let ULTIMO=null;
@@ -6295,8 +6345,9 @@ function dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango, famActua
 function dibujarDonut(porProc, ncTotal, recogidas){
   const cv=document.getElementById("cvDonut"); if(!cv) return;
   const colores=["#E2001A","#374151","#f2b90b","#3b82f6","#22c55e","#a855f7","#f97316","#0891b2"];
-  // si hay dato del patinador, la dona representa TODO lo recogido:
-  // lo clasificado en rondas + el remanente sin clasificar
+  /* El recolectado y el total por proceso son la misma suma, así que no hay
+     remanente y la dona es el reparto por proceso. El tramo «Sin clasificar»
+     queda por si alguna vez vuelven a ser dos cifras distintas. */
   const sinClas = (recogidas!=null && recogidas>ncTotal) ? recogidas-ncTotal : 0;
   const base = sinClas>0 ? recogidas : ncTotal;
   const items = sinClas>0 ? [...porProc, ["Sin clasificar", sinClas]] : porProc;
@@ -6559,7 +6610,14 @@ function renderControl(){
       const pctP = teoP>0 ? ncP/teoP*100 : null;
       const clsP = pctP==null ? "" : estadoPorMeta(pctP, meta);
       const totalMaq = datos.filter(d=>d.proc===proc).length;
-      const recP = recProc(fam, proc, turno, fecha);
+      /* Lo recolectado en el proceso: registros de recolección de ese turno.
+         Antes salía del cierre por turno, que ya no se usa. */
+      const recP = (()=>{
+        const fs = S.registros.filter(r=> r.familia===fam && r.proceso===proc &&
+          tipoDe(r)==="recoleccion" && !r.estadoMaquina &&
+          r.turnoKey===llaveTurno(turno,fecha));
+        return fs.length ? fs.reduce((s,r)=>s+r.cantidad,0) : null;
+      })();
       const sinClas = (recP!=null && recP>ncP) ? recP-ncP : 0;
       const pctPat = (recP!=null && teoP>0) ? recP/teoP*100 : null;
       const clsPat = pctPat==null ? "" : estadoPorMeta(pctPat, meta);
@@ -6567,16 +6625,16 @@ function renderControl(){
         <div class="grp-head">
           <div><span class="gt">${proc.toUpperCase()}</span><span class="gc">${totalMaq} máquina(s)</span></div>
           <div class="gr">
-            <span title="Solo lo identificado en rondas">rondas <b class="${clsP}">${pctP==null?"—":pctP.toFixed(2)+"%"}</b>
+            <span title="Lo que vio la auditoría, con máquina asignada">auditoría <b class="${clsP}">${pctP==null?"—":pctP.toFixed(2)+"%"}</b>
               <span style="opacity:.75;">${ncP} NC / ${f0(teoP)} uds</span></span>
             <span class="sep-v"></span>
-            <span title="Recogido por el patinador en este proceso y turno">patinador
+            <span title="Recolección registrada en este proceso y turno">recolección
               ${recP==null
-                ? `<span style="opacity:.6;">sin cargar</span>`
+                ? `<span style="opacity:.6;">sin registros</span>`
                 : `<b class="${clsPat}">${pctPat==null?"—":pctPat.toFixed(2)+"%"}</b>
                    <span style="opacity:.75;">${recP} uds</span>`}
             </span>
-            ${sinClas>0?`<span class="sep-v"></span><span class="sin-clas">${sinClas} sin clasificar</span>`:""}
+            ${sinClas>0?`<span class="sep-v"></span><span class="sin-clas">${sinClas} sin auditar</span>`:""}
           </div>
         </div>
         <div class="mq-grid">
@@ -6712,9 +6770,9 @@ function generarReportePDF(D){
   // KPIs
   const kpis=[
     ["Unidades empacadas", f0(D.empacadas), "unidades"],
-    ["Desperdicio recolectado", f0(D.recogidas), "patinador"],
+    ["Desperdicio recolectado", f0(D.recogidas), "registrado en la app"],
     ["% Desperdicio", D.pct==null?"—":f2(D.pct)+"%", `Meta <= ${D.meta}%`],
-    ["Cobertura clasificación", D.cobertura==null?"—":f2(D.cobertura)+"%", `${f0(D.ncTotal)} de ${f0(D.recogidas)}`]
+    ["Cobertura de auditoría", D.cobertura==null?"—":f2(D.cobertura)+"%", "de lo recolectado"]
   ];
   const kw=(W-2*M-9)/4;
   kpis.forEach((k,i)=>{
@@ -6745,8 +6803,8 @@ function generarReportePDF(D){
   doc.roundedRect(M,y,W-2*M,12,2,2,"FD");
   doc.setFontSize(7.2); doc.setTextColor(146,102,10);
   doc.text(sinClas>0
-    ? `El % de desperdicio se calcula sobre lo recolectado por el patinador. De ${f0(D.recogidas)} piezas, ${f0(D.ncTotal)} se identificaron en rondas y ${f0(sinClas)} quedaron sin clasificar.`
-    : `El % de desperdicio se calcula sobre lo recolectado por el patinador. Los desgloses corresponden a las ${f0(D.ncTotal)} piezas identificadas en rondas.`,
+    ? `El % de desperdicio se calcula sobre la recolección registrada en la app: ${f0(D.recogidas)} piezas.`
+    : `El % de desperdicio se calcula sobre la recolección registrada en la app: ${f0(D.ncTotal)} piezas. El reparto por máquina sale de la auditoría, que es una muestra de esas mismas piezas y no se suma.`,
     M+4, y+7.2, {maxWidth:W-2*M-8});
   doc.setTextColor(28,31,36);
   y+=19;
@@ -7061,13 +7119,17 @@ function renderMaquina(){
     const clasificado = porMaq.reduce((s,x)=>s+x.nc,0);
     const auditadas = porMaq.filter(x=>x.nc>0).length;
 
-    // total recogido por el patinador en el proceso durante el período
+    /* Lo RECOLECTADO en ese proceso durante el período: sale de los registros
+       de recolección, igual que el total del tablero. La tabla de arriba es la
+       AUDITORÍA, que es la muestra por máquina; comparar una contra otra dice
+       qué tan firme es el reparto, nunca se suman. */
     let recogido = null;
-    turnosRango.forEach(tk=>{
-      const [t,f] = [tk.slice(1,2), tk.slice(3)];
-      const v = recProc(fam, proc, t, f);
-      if(v!=null) recogido = (recogido||0)+v;
-    });
+    (function(){
+      const fs = S.registros.filter(r=> r.familia===fam && r.proceso===proc &&
+        tipoDe(r)==="recoleccion" && !r.estadoMaquina &&
+        cubos.includes(claveDe(fechaDeTurno(r),periodo)));
+      if(fs.length) recogido = fs.reduce((s,r)=>s+r.cantidad,0);
+    })();
     const sinClasificar = (recogido!=null && recogido>clasificado) ? recogido-clasificado : null;
     const cobertura = (recogido && recogido>0) ? clasificado/recogido*100 : null;
 
@@ -7077,9 +7139,9 @@ function renderMaquina(){
     document.getElementById("mComparativo").innerHTML = `
       <div class="cob-nota">
         ${recogido!=null
-          ? `El patinador recogió <b>${f0(recogido)}</b> piezas en ${proc}. De esas, <b>${clasificado}</b> se clasificaron en rondas
-             (<b>${cobertura.toFixed(0)}%</b> de cobertura) y <b>${f0(sinClasificar||0)}</b> quedaron sin asignar a una máquina.`
-          : `Sin dato del patinador para ${proc} en este período. La tabla muestra solo lo clasificado en rondas.`}
+          ? `En ${proc} se recolectaron <b>${f0(recogido)}</b> piezas. La auditoría miró <b>${clasificado}</b> de ellas
+             (<b>${cobertura.toFixed(0)}%</b> de cobertura) y asignó máquina; <b>${f0(sinClasificar||0)}</b> no pasaron por auditoría.`
+          : `Sin recolección registrada para ${proc} en este período. La tabla muestra solo lo que vio la auditoría.`}
         <br>Se registraron defectos en <b>${auditadas}</b> de <b>${hermanas.length}</b> máquinas del proceso.
       </div>
       <table class="tbl-comp">
@@ -7092,10 +7154,10 @@ function renderMaquina(){
               <td class="n">${clasificado?Math.round(x.nc/clasificado*100):0}%</td>
               <td><span class="bar"><i style="width:${(x.nc/maxNc*100).toFixed(0)}%"></i></span></td>
             </tr>`).join("")}
-          <tr class="tot"><td>Total clasificado en rondas</td><td class="n">${clasificado}</td><td class="n">100%</td><td></td></tr>
-          ${sinClasificar!=null?`<tr class="gris"><td>Sin clasificar (no se puede asignar a una máquina)</td>
+          <tr class="tot"><td>Total visto en auditoría</td><td class="n">${clasificado}</td><td class="n">100%</td><td></td></tr>
+          ${sinClasificar!=null?`<tr class="gris"><td>No pasaron por auditoría (sin máquina asignada)</td>
             <td class="n">${f0(sinClasificar)}</td><td class="n">—</td><td></td></tr>`:""}
-          ${recogido!=null?`<tr class="tot"><td>Recogido por el patinador en ${proc}</td>
+          ${recogido!=null?`<tr class="tot"><td>Recolección registrada en ${proc}</td>
             <td class="n">${f0(recogido)}</td><td class="n">—</td><td></td></tr>`:""}
         </tbody>
       </table>
