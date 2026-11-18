@@ -744,8 +744,20 @@
   /* Tarjeta por línea: la de Proceso, con las dos barras en la MISMA escala
      0–100, que fue justo lo que hubo que corregir allá. */
   .ind .lineas{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  /* Con «Todas» van las cuatro en una fila; con una línea, una sola tarjeta
+     que ocupa todo el ancho, porque no hay nada contra qué compararla. */
+  .ind .lineas.cuatro{grid-template-columns:repeat(4,1fr);}
+  .ind .lineas.una{grid-template-columns:1fr;}
+  .ind .lineas.una .lin-cuerpo{display:grid;grid-template-columns:1fr 1fr;
+    gap:0 28px;align-items:start;}
+  @media(max-width:900px){ .ind .lineas.una .lin-cuerpo{grid-template-columns:1fr;} }
+  @media(max-width:1250px){ .ind .lineas.cuatro{grid-template-columns:repeat(2,1fr);} }
+  @media(max-width:700px){  .ind .lineas.cuatro{grid-template-columns:1fr;} }
   .ind .lin{background:#fff;border:1px solid var(--border);border-left-width:5px;
     border-radius:12px;padding:16px 18px;}
+  /* La línea que está elegida arriba, marcada: la comparativa muestra las
+     cuatro, y sin esto no se sabe cuál es la de las tarjetas. */
+  .ind .lin.sel{box-shadow:0 0 0 2px var(--red-dark) inset;}
   .ind .lin.t-ok{border-left-color:var(--ok);}
   .ind .lin.t-warn{border-left-color:var(--warn);background:#fffdf5;}
   .ind .lin.t-bad{border-left-color:var(--bad);background:#fff7f8;}
@@ -1734,6 +1746,7 @@
         <label for="dFamilia">Línea</label>
         <select id="dFamilia">
           <option value="">Selecciona una línea</option>
+          <option value="__todas__">Todas las líneas</option>
           <option value="Machetes">Machetes</option>
           <option value="Cuchillas">Cuchillas</option>
           <option value="Limas">Limas</option>
@@ -2070,7 +2083,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-18-editar";
+const APP_VERSION = "2026-11-18-todas";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -6078,8 +6091,27 @@ function renderDashboardTurno(){
     return;
   }
 
-  const meta = METAS[fam] ?? 1;
+  /* «Todas las líneas»: el tablero deja de ser de una línea y pasa a ser de
+     planta. Las piezas de líneas distintas no se pueden comparar entre sí
+     —una lima no pesa lo que un machete—, pero sí se pueden sumar contra lo
+     empacado de cada una, que es justo lo que hace el porcentaje. La meta
+     deja de ser un número fijo: se pondera por lo empacado de cada línea. */
+  const esTodas = (fam === "__todas__");
+  const LINEAS_SEL = esTodas ? Object.keys(METAS) : [fam];
+  const deLaSeleccion = r=> esTodas ? LINEAS_SEL.includes(r.familia) : r.familia===fam;
+
   const rango = rangoPeriodo(periodo, fecha, turno);
+  const resSel = LINEAS_SEL.map(L=> resumenLinea(L, periodo, fecha, turno, rango));
+  /* Media ponderada por lo empacado: es contra esto que se compara el % de
+     planta. Sin empacadas no hay con qué ponderar, así que cae al promedio
+     simple de las metas, que al menos es un número honesto. */
+  const metaPonderada = (()=>{
+    const con = resSel.filter(x=> x.emp!=null && x.emp>0);
+    if(!con.length) return resSel.reduce((a,x)=>a+x.meta,0)/(resSel.length||1);
+    const tot = con.reduce((a,x)=>a+x.emp,0);
+    return con.reduce((a,x)=> a + x.meta*x.emp, 0)/tot;
+  })();
+  const meta = esTodas ? metaPonderada : (METAS[fam] ?? 1);
 
   /* El panel «Datos de producción» desapareció: repetía en cinco casillas lo
      que las tarjetas de arriba ya dicen mejor. Y calculaba mal el mes —caía
@@ -6088,7 +6120,20 @@ function renderDashboardTurno(){
      La carga de unidades sigue donde estaba, en la pestaña Data. */
   const cajaEmp = document.getElementById("empBox");
   if(cajaEmp){ cajaEmp.innerHTML = ""; cajaEmp.style.display = "none"; }
-  const resFam = resumenLinea(fam, periodo, fecha, turno, rango);
+  /* Con una línea es su resumen; con todas, la suma de los cuatro. */
+  const resFam = esTodas ? (()=>{
+    const su = (k)=> resSel.reduce((a,x)=> x[k]==null?a:(a||0)+x[k], null);
+    const emp = su("emp"), rec = su("rec");
+    const pct = (emp && emp>0 && rec!=null) ? rec/emp*100 : null;
+    return {fam:"Todas", emp, rec, meta:metaPonderada, pct,
+            ncRondas: resSel.reduce((a,x)=>a+(x.ncRondas||0),0),
+            filas:    resSel.reduce((a,x)=>a+(x.filas||0),0),
+            aud:      resSel.reduce((a,x)=>a+(x.aud||0),0),
+            faltan: [], deCuantos: 0,
+            est: pct==null ? "sin" : estadoPorMeta(pct, metaPonderada),
+            cobertura: (rec && rec>0)
+              ? resSel.reduce((a,x)=>a+(x.aud||0),0)/rec*100 : null};
+  })() : resSel[0];
   const empacadas = resFam.emp;
   const recogidas = resFam.rec;
 
@@ -6099,7 +6144,7 @@ function renderDashboardTurno(){
      de regsVisibles(), así que elegir «auditoría» arriba convertía el total de
      la planta en el de la muestra, sin que el número avisara de nada. */
   const regs = S.registros.filter(r=>{
-    if(r.familia!==fam || tipoDe(r)!=="recoleccion" || r.estadoMaquina) return false;
+    if(!deLaSeleccion(r) || tipoDe(r)!=="recoleccion" || r.estadoMaquina) return false;
     if(periodo==="turno") return r.turnoKey===llaveTurno(turno,fecha);
     const ft = fechaDeTurno(r);
     return ft >= rango.desde && ft <= rango.hasta;
@@ -6132,7 +6177,7 @@ function renderDashboardTurno(){
      vías, así que tampoco se suman: la auditoría dice el reparto, la
      recolección el total. */
   const regsAud = S.registros.filter(r=>{
-    if(r.familia!==fam || tipoDe(r)!=="auditoria") return false;
+    if(!deLaSeleccion(r) || tipoDe(r)!=="auditoria") return false;
     if(r.estadoMaquina) return false;
     if(periodo==="turno") return r.turnoKey===llaveTurno(turno,fecha);
     const ft = fechaDeTurno(r);
@@ -6170,7 +6215,7 @@ function renderDashboardTurno(){
     } else if(periodo === "semana"){ fAnt = sumarDias(rango.desde, -7); }
     else { fAnt = sumarDias(fecha, -1); }
     const rAnt = rangoPeriodo(periodo, fAnt, turno);
-    return Object.keys(METAS).map(L=> resumenLinea(L, periodo, fAnt, turno, rAnt));
+    return LINEAS_SEL.map(L=> resumenLinea(L, periodo, fAnt, turno, rAnt));
   })();
   const etqAnterior = periodo==="mes" ? "mes anterior"
                     : periodo==="semana" ? "semana anterior"
@@ -6191,18 +6236,29 @@ function renderDashboardTurno(){
             bien: masEsMejor ? v>0 : v<0};
   };
 
-  /* ---- Kilos: las piezas no se pueden sumar entre líneas, los kilos sí ---- */
+  /* ---- Kilos de la línea que se está mirando ---- */
   const filasTodas = S.registros.filter(r=>{
-    if(tipoDe(r)!=="recoleccion" || r.estadoMaquina) return false;
+    if(!deLaSeleccion(r) || tipoDe(r)!=="recoleccion" || r.estadoMaquina) return false;
     if(periodo==="turno") return r.turnoKey===llaveTurno(turno,fecha);
     const ft = fechaDeTurno(r);
     return ft >= rango.desde && ft <= rango.hasta;
   });
   const kilos = kilosDe(filasTodas);
 
-  /* ---- Cabecera de indicadores: las cuatro líneas de un vistazo ---- */
-  const LINEAS_TODAS = Object.keys(METAS);
-  const resumenes = LINEAS_TODAS.map(L=> resumenLinea(L, periodo, fecha, turno, rango));
+  /* ---- Cabecera de indicadores ----
+
+     Las tarjetas son de LA LÍNEA SELECCIONADA, no de la planta. Antes sumaban
+     las cuatro: con Cuchillas elegida y 7 registros de 56 piezas a la vista,
+     arriba aparecían 313 piezas y 24 registros, que eran los de todas las
+     líneas juntas. El selector de Línea obliga a escoger una —no hay opción
+     «todas»—, así que sumar las demás contradecía lo que el usuario pidió y
+     no cuadraba con el detalle de abajo.
+
+     Se deja como lista de un elemento para que las sumas, la comparación con
+     el periodo anterior y el conteo de metas sigan sirviendo tal cual si algún
+     día se añade esa opción «todas». */
+  const LINEAS_TODAS = LINEAS_SEL;
+  const resumenes = resSel;
   const sumaEmp = resumenes.reduce((n2,x)=> x.emp==null?n2:(n2||0)+x.emp, null);
   const sumaRec = resumenes.reduce((n2,x)=> x.rec==null?n2:(n2||0)+x.rec, null);
   const pctPlanta = (sumaEmp && sumaEmp>0 && sumaRec!=null) ? sumaRec/sumaEmp*100 : null;
@@ -6228,7 +6284,7 @@ function renderDashboardTurno(){
      Va fuera del tablero porque se queda fija aunque el contenido cambie. */
   const res = document.getElementById("dResumen");
   if(res) res.innerHTML =
-    `<span>${esc(rango.etiqueta)}</span><i></i><span>${esc(fam||"Sin línea")}</span>` +
+    `<span>${esc(rango.etiqueta)}</span><i></i><span>${esTodas?"Todas las líneas":esc(fam||"Sin línea")}</span>` +
     `<i></i><span>${f0(regs.length)} registro(s) de recolección</span>`;
   const lec = document.getElementById("dLectura");
   if(lec) lec.innerHTML = LECTURA.hora
@@ -6252,8 +6308,10 @@ function renderDashboardTurno(){
             return d ? `<div class="vs ${d.neutro?"":d.bien?"bien":"mal"}">${d.flecha} ${d.txt}
               <span>vs. ${etqAnterior}</span></div>` : ""; })()}
           <small>${sinCargar
-            ? sinCargar+" de "+LINEAS_TODAS.length+" línea(s) sin cargar"
-            : "las "+LINEAS_TODAS.length+" líneas cargadas"}</small>
+            ? (LINEAS_TODAS.length===1 ? "sin cargar para "+esc(fam)
+               : sinCargar+" de "+LINEAS_TODAS.length+" línea(s) sin cargar")
+            : (LINEAS_TODAS.length===1 ? esc(fam)+" · cargado"
+               : "las "+LINEAS_TODAS.length+" líneas cargadas")}</small>
           ${sinCargar ? `<button type="button" class="enlace" id="kpiIrData">Cargar en Data</button>`
                       : `<small>${esc(rango.etiqueta)}</small>`}
         </div>
@@ -6290,7 +6348,7 @@ function renderDashboardTurno(){
             style="width:${pctPlanta==null||metaPlanta==null?0:
               Math.min(100, pctPlanta/(metaPlanta*2)*100)}%;"></i></span>
           <small>meta ${metaPlanta==null?"—":fPct(metaPlanta)}${
-            metaPlanta==null?"":" · ponderada por lo empacado"}</small>
+            metaPlanta==null?"":(esTodas?" · ponderada por lo empacado":"")}</small>
           <small>${pctPlanta==null ? "faltan las unidades empacadas"
             : pctPlanta<=metaPlanta ? "dentro de la meta"
             : fPct(pctPlanta-metaPlanta)+" por encima"}</small>
@@ -6316,13 +6374,18 @@ function renderDashboardTurno(){
           <span>Cumplimiento de meta</span>
           <b class="nom">${pctPlanta==null ? "Sin dato"
             : pctPlanta<=metaPlanta ? "Sí cumple" : "No cumple"}</b>
-          <small>${conDato.length
-            ? `${conDato.length-fueraMeta} de ${conDato.length} línea(s) dentro de meta`
-            : "ninguna línea con dato suficiente"}</small>
-          <small>${fueraMeta
-            ? "fuera: "+esc(conDato.filter(x=>x.pct>x.meta).map(x=>x.fam).join(", "))
-            : sinCargar ? sinCargar+" línea(s) sin unidades empacadas"
-                        : "todas las líneas dentro de su meta"}</small>
+          <small>${!conDato.length ? "falta dato para saberlo"
+            : LINEAS_TODAS.length===1
+              ? `${esc(fam)} · meta ${f2(metaPlanta)}%`
+              : `${conDato.length-fueraMeta} de ${conDato.length} línea(s) dentro de meta`}</small>
+          <small>${!conDato.length
+            ? (sinCargar ? "faltan las unidades empacadas" : "no hay recolección registrada")
+            : LINEAS_TODAS.length===1
+              ? (fueraMeta ? `${f2(pctPlanta-metaPlanta)}% por encima de la meta`
+                           : `${f2(metaPlanta-pctPlanta)}% por debajo de la meta`)
+              : fueraMeta
+                ? "fuera: "+esc(conDato.filter(x=>x.pct>x.meta).map(x=>x.fam).join(", "))
+                : "todas las líneas dentro de su meta"}</small>
         </div>
       </div>
     </div>
@@ -6330,18 +6393,20 @@ function renderDashboardTurno(){
     <div class="panel" style="margin-bottom:16px;">
       <div class="section-title con-ic"><span class="ic-sec">${IC_IND.fabrica}</span>
         <div><h2>DESPERDICIO POR LÍNEA</h2>
-          <span style="font-size:.72rem;color:var(--text-dim);">cada línea contra su propia meta</span></div>
+          <span style="font-size:.72rem;color:var(--text-dim);">${LINEAS_SEL.length===1
+            ? "contra su propia meta" : "cada línea contra su propia meta"}</span></div>
       </div>
-      <div class="lineas">
+      <div class="lineas ${LINEAS_SEL.length===1?"una":"cuatro"}">
         ${resumenes.map(x=>{
           const anchoPct = (x.pct==null) ? 0 : Math.min(100, x.pct/(x.meta*2)*100);
           const anchoMeta = 50;   // la meta queda a mitad de barra: escala 0–2×meta
-          return `<div class="lin ${x.fam===fam?"":""} ${tono(x.est)}">
+          return `<div class="lin ${x.fam===fam?"sel":""} ${tono(x.est)}">
             <div class="lin-cab"><span class="ic-sec">${IC_IND.fabrica}</span>
               <h3>${esc(x.fam)}</h3>
               <span class="badge ${x.est==="ok"?"ok":x.est==="warn"?"warn":x.est==="bad"?"bad":"neutral"}">${
                 x.est==="ok"?"EN META":x.est==="warn"?"AL LÍMITE":x.est==="bad"?"FUERA DE META":"SIN DATO"}</span>
             </div>
+            <div class="lin-cuerpo"><div>
             <div class="lin-gran"><b>${fPct(x.pct)}</b>
               <span>de desperdicio<br>meta ${fPct(x.meta)}</span></div>
             <div class="met-cab"><span>Contra la meta</span><b>${
@@ -6349,6 +6414,7 @@ function renderDashboardTurno(){
             <span class="barra-meta"><i style="width:${anchoPct}%;background:${
               x.est==="ok"?"var(--ok)":x.est==="warn"?"var(--warn)":x.est==="bad"?"var(--bad)":"#c7ccd4"
             };"></i><u style="left:${anchoMeta}%;"></u></span>
+            </div><div>
             <div class="lin-pie">
               <div><span class="ic-sec" style="width:24px;height:24px;">${IC_IND.caja}</span>
                 <div><b>${x.emp==null?"—":f0(x.emp)}</b><small>empacadas</small></div></div>
@@ -6370,6 +6436,7 @@ function renderDashboardTurno(){
             }${x.faltan.length && x.emp!=null
                 ? ` <span style="opacity:.75;">Ojo: faltan ${x.faltan.length} turno(s) de empacadas, así que el porcentaje puede subir.</span>`
                 : ""}</div>
+            </div></div>
           </div>`;
         }).join("")}
       </div>
@@ -6389,7 +6456,7 @@ function renderDashboardTurno(){
            del desperdicio pareciera estar 80 puntos fuera de meta. */
         const emp = resFam.emp;
         const pe  = (emp && emp>0) ? v/emp*100 : null;
-        const meta = METAS[fam] ?? null;
+        const meta = esTodas ? metaPonderada : (METAS[fam] ?? null);
         const señal = (pe==null||meta==null) ? '<span class="sx">—</span>'
           : pe<=meta ? '<span class="sx ok">✓</span>'
           : '<span class="sx bad">!</span>';
@@ -6499,7 +6566,9 @@ function renderDashboardTurno(){
      dejaría de funcionar en cuanto se cambie de línea o de periodo. */
   const irD = document.getElementById("kpiIrData");
   if(irD) irD.addEventListener("click", ()=>{
-    document.getElementById("cxFamilia").value = fam;
+    /* En «Todas» no hay una línea que preseleccionar en Data: se deja la que
+       esté, en vez de dejar el selector en blanco. */
+    if(!esTodas) document.getElementById("cxFamilia").value = fam;
     document.getElementById("cxMes").value = fecha.slice(0,7);
     CX.vista = "emp";
     document.querySelectorAll("#cxTabs button").forEach(b=>
@@ -6549,6 +6618,13 @@ function dibujarPareto(ordDef, ncTotal){
 }
 
 function dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango, famActual){
+  /* Con «Todas» no hay una línea de la que pedir las empacadas del día: se
+     suman las de las cuatro, igual que hace el porcentaje de arriba. */
+  const empDiaSel = (f)=>{
+    if(famActual !== "__todas__") return empDia(famActual, f).total;
+    return Object.keys(METAS).reduce((a,L)=>{
+      const v = empDia(L, f).total; return v==null ? a : (a||0)+v; }, null);
+  };
   const cv=document.getElementById("cvEvol"); if(!cv) return;
   let labels=[], datos=[];
 
@@ -6561,7 +6637,7 @@ function dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango, famActua
     for(let i=0;i<fin;i++){
       const f = sumarDias(ini,i);
       const nc = regs.filter(r=> fechaDeTurno(r)===f).reduce((a,r)=>a+r.cantidad,0);
-      const e  = empDia(famActual,f).total;
+      const e  = empDiaSel(f);
       labels.push(f.slice(8)); 
       datos.push((e&&e>0) ? +(nc/e*100).toFixed(2) : null);
     }
@@ -6572,7 +6648,7 @@ function dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango, famActua
     regs.forEach(r=>{ const f=fechaDeTurno(r); if(f in dias) dias[f]+=r.cantidad; });
     labels=Object.keys(dias).map(f=>f.slice(5));
     datos=Object.keys(dias).map(f=>{
-      const e=empDia(famActual,f).total;
+      const e=empDiaSel(f);
       return (e&&e>0) ? +(dias[f]/e*100).toFixed(2) : 0;
     });
   } else {
