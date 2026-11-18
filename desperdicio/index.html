@@ -653,6 +653,17 @@
   .ind .kpi .barra i.warn{background:var(--warn);}
   .ind .kpi .barra i.bad{background:var(--bad);}
 
+  /* Modificar y eliminar en cada fila del detalle. Cuadrados, del alto de la
+     fila, para que no la estiren. */
+  .ind td.acc-reg{white-space:nowrap;text-align:right;padding-right:10px;}
+  .ind .breg{width:26px;height:26px;padding:0;border:1px solid var(--border);
+    background:#fff;border-radius:7px;color:var(--text-dim);cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;margin-left:4px;}
+  .ind .breg svg{width:14px;height:14px;}
+  .ind .breg:hover{border-color:var(--red);color:var(--red);}
+  .ind .breg.bx:hover{border-color:var(--bad);color:var(--bad);background:var(--bad-bg);}
+  .ind .marca-mod{color:var(--warn-text);font-size:.78rem;cursor:help;}
+
   /* La vista de máquina usa las mismas cabeceras pero vive fuera de .ind. */
   .section-title.con-ic{justify-content:flex-start;}
   .section-title.con-ic > span:not(.ic-sec){margin-left:auto;}
@@ -1846,6 +1857,38 @@
   </div>
 </div>
 
+<!-- Corregir un registro desde Indicadores. No se deja mover de día ni de
+     turno: eso cambiaría totales ya reportados sin dejar rastro. -->
+<div class="modal-bg" id="regModal">
+  <div class="modal">
+    <h3 style="margin-top:0;">Modificar registro</h3>
+    <p id="regCual" style="color:var(--text-dim);font-size:.8rem;"></p>
+    <div class="fila2">
+      <div><label for="regProc">Proceso</label><select id="regProc"></select></div>
+      <div><label for="regCant">Cantidad (NC)</label>
+        <input type="number" id="regCant" min="1" step="1"></div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label for="regDef">Defecto</label><select id="regDef"></select>
+    </div>
+    <div class="fila2">
+      <div><label for="regRef">Referencia</label>
+        <input type="text" id="regRef" autocomplete="off"></div>
+      <div><label for="regPuesto">Máquina / puesto</label>
+        <input type="text" id="regPuesto" autocomplete="off" placeholder="solo auditoría"></div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label for="regObs">Observación</label>
+      <input type="text" id="regObs" autocomplete="off">
+    </div>
+    <div id="regError" class="pin-error" style="display:none;"></div>
+    <div class="modal-actions">
+      <button id="regCancelar">Cancelar</button>
+      <button class="primary" id="regGuardar">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="pinModal">
   <div class="modal" style="max-width:420px;">
     <h3 style="margin-top:0;">Auditoría de puesto</h3>
@@ -2027,7 +2070,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-18-recoleccion";
+const APP_VERSION = "2026-11-18-editar";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -2146,6 +2189,50 @@ function guardarBorrados(){
 }
 function marcarBorrado(id, confirmado){ BORRADOS[id] = {t:Date.now(), ok:!!confirmado}; }
 function esBorrado(id){ return Object.prototype.hasOwnProperty.call(BORRADOS, id); }
+
+/* ======================================================================
+   CORRECCIONES PENDIENTES DE SUBIR
+
+   Mismo problema que las lápidas, al revés. Si se corrige una fila y el
+   envío a la hoja no llega —sin señal, o la hoja respondió mal—, la
+   siguiente lectura trae la versión vieja y pisa la corrección sin avisar:
+   el número vuelve solito a lo que estaba y nadie se entera.
+
+   Así que cada corrección sin confirmar se apunta aquí, se vuelve a aplicar
+   encima de todo lo que baje, y se reintenta hasta que la hoja la acepte.
+   En cuanto la hoja confirma, la anotación sobra y se borra.
+   ====================================================================== */
+let EDICIONES = (function(){
+  try{ return JSON.parse(localStorage.getItem("cd_ediciones")||"{}"); }catch(e){ return {}; }
+})();
+function guardarEdiciones(){
+  const limite = Date.now() - 90*86400000;
+  Object.keys(EDICIONES).forEach(id=>{ if((EDICIONES[id].t||0) < limite) delete EDICIONES[id]; });
+  try{ localStorage.setItem("cd_ediciones", JSON.stringify(EDICIONES)); }catch(e){}
+}
+function anotarEdicion(id, cambios){ EDICIONES[id] = {t:Date.now(), c:cambios}; guardarEdiciones(); }
+function olvidarEdicion(id){ delete EDICIONES[id]; guardarEdiciones(); }
+/* Se aplica sobre una fila recién bajada de la hoja. */
+function conEdicionPendiente(r){
+  const e = EDICIONES[r && r.id];
+  return e ? Object.assign({}, r, e.c) : r;
+}
+/* Reintenta las correcciones que no llegaron a la hoja. */
+async function reintentarEdiciones(){
+  if(!S.syncUrl) return;
+  const ids = Object.keys(EDICIONES);
+  if(!ids.length) return;
+  for(const id of ids){
+    try{
+      const res = await fetch(S.syncUrl, {method:"POST", redirect:"follow",
+        headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body: JSON.stringify({action:"editar",
+          registro: Object.assign({id:id}, EDICIONES[id].c)})});
+      const d = await res.json();
+      if(d && d.ok) olvidarEdicion(id);
+    }catch(e){ /* se vuelve a intentar en la próxima lectura */ }
+  }
+}
 function borradosSinConfirmar(){ return Object.keys(BORRADOS).filter(id=> !BORRADOS[id].ok); }
 
 /* Reintenta los borrados que no llegaron a la hoja. */
@@ -2723,16 +2810,19 @@ function abrirPin(t){
   /* Tres usos del mismo PIN: auditar, administrar usuarios y vaciar una
      jornada. Los dos últimos exigen rol, así que ni se ofrece a quien no lo
      tiene —dejarlo elegir para rechazarlo después sería sólo una burla. */
-  const pideRol = (t === "admin" || t === "borrarjornada" || t === "accion");
+  const pideRol = (t === "admin" || t === "borrarjornada" || t === "accion"
+                   || t === "registro");
   const act = usuariosActivos().filter(u=> !pideRol ||
     ROL_ADMIN.indexOf(String(u.rol||"").toLowerCase()) !== -1);
   const TIT = {admin:"Administrar usuarios",
                borrarjornada:"Borrar una jornada entera",
                accion:"Acciones y seguimiento",
+               registro:"Corregir o eliminar un registro",
                auditoria:"Auditoría de puesto"};
   const SUB = {admin:"Sólo un jefe o coordinador puede dar de alta usuarios.",
                borrarjornada:"Borra de la hoja y no se puede deshacer. Sólo un jefe o coordinador lo autoriza.",
                accion:"Quien se compromete queda registrado. Sólo un jefe o coordinador abre o cierra acciones.",
+               registro:"Tocar un registro ya cargado cambia cifras que pueden estar reportadas. Queda firmado con tu nombre.",
                auditoria:"La auditoría queda firmada con tu nombre. Entra con tu PIN."};
   document.querySelector("#pinModal h3").textContent = TIT[t] || TIT.auditoria;
   document.querySelector("#pinModal p").textContent = SUB[t] || SUB.auditoria;
@@ -2818,6 +2908,32 @@ function validarPin(){
     }
     cerrarPin();
     abrirAccion(ACC_EDITANDO);
+    return;
+  }
+  /* Corregir o eliminar un registro suelto desde Indicadores. Igual que
+     vaciar una jornada: se comprueba el rol, se hace y se olvida el usuario,
+     para que autorizar una corrección no deje al jefe firmando por accidente
+     las auditorías del resto del turno. */
+  if(TIPO_PENDIENTE === "registro"){
+    if(ROL_ADMIN.indexOf(String((S.usuario||{}).rol||"").toLowerCase()) === -1){
+      const e4 = document.getElementById("pinError");
+      e4.style.display = "block";
+      e4.textContent = "Ese usuario no es jefe ni coordinador.";
+      S.usuario = null; SESION_TURNO = "";
+      return;
+    }
+    const quien = S.usuario;
+    cerrarPin();
+    const previo = SESION_TURNO;
+    const devolver = ()=>{
+      /* Igual que al vaciar una jornada: si había sesión de auditoría abierta
+         se respeta; si no, no se hereda una firma por haber autorizado. */
+      if(previo !== turnoReal()){ S.usuario = null; SESION_TURNO = ""; }
+      else S.usuario = quien;
+      renderTipos();
+    };
+    if(REG_INTENCION === "borrar") borrarRegistroSuelto(REG_OBJETIVO, quien).finally(devolver);
+    else { abrirEdicionRegistro(REG_OBJETIVO, quien); devolver(); }
     return;
   }
   if(TIPO_PENDIENTE === "borrarjornada"){
@@ -4275,6 +4391,8 @@ document.getElementById("pesGuardar").addEventListener("click", guardarPesosForm
 document.getElementById("accCancelar").addEventListener("click", ()=>
   document.getElementById("accModal").classList.remove("show"));
 document.getElementById("accGuardar").addEventListener("click", guardarAccionForm);
+document.getElementById("regCancelar").addEventListener("click", cerrarEdicionRegistro);
+document.getElementById("regGuardar").addEventListener("click", guardarEdicionRegistro);
 document.getElementById("accBorrar").addEventListener("click", borrarAccionForm);
 
 document.getElementById("modCancelar").addEventListener("click", cerrarModificar);
@@ -5772,6 +5890,145 @@ function analisisTexto(d){
 }
 
 /* ---------- La tabla de acciones ---------- */
+/* ==========================================================================
+   CORREGIR O ELIMINAR UN REGISTRO DESDE INDICADORES
+
+   El detalle del periodo es donde se ven los errores de digitación: un 25 que
+   eran 2, una referencia cambiada, un defecto mal elegido. Hasta ahora había
+   que ir a buscarlo a la jornada, y si la jornada ya estaba cerrada no había
+   forma.
+
+   Las dos acciones pasan por PIN de jefe o coordinador, porque tocan cifras
+   que pueden estar ya reportadas. La corrección deja firma (modificadoPor);
+   el borrado es definitivo, como el del resto de la app.
+   ========================================================================== */
+let REG_OBJETIVO = "";     // id del registro
+let REG_INTENCION = "";    // "editar" | "borrar"
+let REG_FIRMA = null;      // quién autorizó, mientras el modal está abierto
+
+function pedirRegistro(id, intencion){
+  REG_OBJETIVO = id; REG_INTENCION = intencion;
+  abrirPin("registro");
+}
+
+function registroPorId(id){ return S.registros.find(r=> r.id === id) || null; }
+
+function abrirEdicionRegistro(id, quien){
+  const r = registroPorId(id);
+  if(!r){ toast("Ese registro ya no está"); return; }
+  REG_FIRMA = quien;
+  const fam = r.familia;
+  const selP = document.getElementById("regProc");
+  selP.innerHTML = procesosDe(fam).map(p=>
+    `<option value="${esc(p)}"${p===r.proceso?" selected":""}>${esc(p)}</option>`).join("");
+  const cat = DEFECTOS[String(fam).toLowerCase()] || [];
+  const selD = document.getElementById("regDef");
+  selD.innerHTML = cat.map(d=>
+    `<option value="${esc(d.code)}"${d.code===r.defectoCodigo?" selected":""}>${esc(d.code)} - ${esc(d.name)}</option>`).join("");
+  document.getElementById("regCant").value   = r.cantidad || 0;
+  document.getElementById("regRef").value    = r.referencia || "";
+  document.getElementById("regPuesto").value = r.puesto || "";
+  document.getElementById("regObs").value    = r.observacion || "";
+  document.getElementById("regCual").textContent =
+    `${fam} · ${r.hora} · turno ${r.turno} · ${fechaDeTurno(r)} · autoriza ${quien.nombre||quien.usuario}`;
+  document.getElementById("regError").style.display = "none";
+  document.getElementById("regModal").classList.add("show");
+}
+function cerrarEdicionRegistro(){
+  document.getElementById("regModal").classList.remove("show");
+  REG_FIRMA = null;
+}
+
+async function guardarEdicionRegistro(){
+  const r = registroPorId(REG_OBJETIVO);
+  const err = document.getElementById("regError");
+  if(!r){ err.style.display="block"; err.textContent="Ese registro ya no está."; return; }
+  const cant = parseInt(document.getElementById("regCant").value, 10);
+  if(!(cant > 0)){ err.style.display="block"; err.textContent="La cantidad tiene que ser mayor que cero."; return; }
+
+  const fam  = r.familia;
+  const proc = document.getElementById("regProc").value || r.proceso;
+  const cod  = document.getElementById("regDef").value;
+  const d    = (DEFECTOS[String(fam).toLowerCase()] || []).find(x=> x.code === cod);
+
+  /* El origen y la marca de «defecto ajeno» se recalculan con el proceso y el
+     defecto nuevos: dejarlos como estaban haría que la tabla de flujo entre
+     procesos mintiera después de una corrección. */
+  const cambios = {
+    proceso: proc,
+    puesto: document.getElementById("regPuesto").value.trim(),
+    defectoCodigo: cod,
+    defectoLabel: d ? d.name : (r.defectoLabel || ""),
+    origenDefecto: d ? origenDefecto(d, fam) : "",
+    defectoAjeno: (d && esAjeno(d, proc, fam)) ? "Sí" : "No",
+    cantidad: cant,
+    observacion: document.getElementById("regObs").value.trim(),
+    referencia: document.getElementById("regRef").value.trim(),
+    modificadoPor: (REG_FIRMA && (REG_FIRMA.nombre || REG_FIRMA.usuario)) || ""
+  };
+
+  /* Primero en el equipo, igual que el borrado: si el envío falla, al menos
+     no se sigue mostrando el número que la persona ya dio por corregido.
+     Y se anota como pendiente ANTES de enviar, para que una caída a mitad no
+     deje la corrección viva aquí y perdida en la hoja. */
+  const sello = {modificadoEl: new Date().toISOString().slice(0,19).replace("T"," ")};
+  anotarEdicion(r.id, Object.assign({}, cambios, sello));
+  Object.assign(r, cambios, sello);
+  localStorage.setItem("cd_registros", JSON.stringify(S.registros));
+  cerrarEdicionRegistro();
+  limpiarCacheResumen();
+  renderDashboardTurno();
+
+  let ok = true;
+  if(S.syncUrl){
+    try{
+      const res = await fetch(S.syncUrl, {method:"POST", redirect:"follow",
+        headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body: JSON.stringify({action:"editar", registro: Object.assign({id:r.id}, cambios)})});
+      const j = await res.json();
+      ok = !!(j && j.ok);
+    }catch(e){ ok = false; }
+    if(ok) olvidarEdicion(r.id);   // la hoja ya la tiene: la anotación sobra
+  }
+  toast(ok ? "Registro corregido"
+           : "Corregido aquí · pendiente de escribirlo en la hoja, se reintenta solo");
+}
+
+async function borrarRegistroSuelto(id, quien){
+  const r = registroPorId(id);
+  if(!r){ toast("Ese registro ya no está"); return; }
+  const quienEs = (quien && (quien.nombre || quien.usuario)) || "";
+  if(!confirm(`Se va a BORRAR de la hoja:\n\n`
+    + `${r.familia} · ${r.proceso} · ${r.defectoCodigo} - ${r.defectoLabel}\n`
+    + `${r.cantidad} pieza(s) · ${fechaDeTurno(r)} turno ${r.turno}\n\n`
+    + `Autoriza: ${quienEs}\n\n`
+    + `Desaparece del todo y no se puede deshacer. ¿Continuar?`)) return;
+
+  /* Misma mecánica que el resto de la app: la lápida se pone ANTES de enviar,
+     para que la fila no pueda reaparecer si el envío falla o se cierra la
+     página a mitad. */
+  marcarBorrado(id, false);
+  guardarBorrados();
+  S.registros = S.registros.filter(x=> x.id !== id);
+  localStorage.setItem("cd_registros", JSON.stringify(S.registros));
+  limpiarCacheResumen();
+  renderDashboardTurno();
+
+  let ok = true;
+  if(S.syncUrl){
+    try{
+      const res = await fetch(S.syncUrl, {method:"POST", redirect:"follow",
+        headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body: JSON.stringify({action:"borrar", ids:[id]})});
+      const j = await res.json();
+      ok = !!(j && j.ok);
+    }catch(e){ ok = false; }
+    if(ok){ BORRADOS[id].ok = true; guardarBorrados(); }
+  }
+  toast(ok ? "Borrado de la hoja"
+           : "Borrado aquí · pendiente de quitarlo de la hoja, se reintenta solo");
+}
+
 function tablaAcciones(fam){
   const hoy = hoyISO();
   const lista = ACCIONES.slice().sort((a,b)=>{
@@ -6195,10 +6452,16 @@ function renderDashboardTurno(){
 
   <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.caja}</span><div><h2>DETALLE DEL REGISTRO</h2></div></div><div class="cb">
     ${regs.length?`<div style="overflow-x:auto;"><table><thead><tr>
-      <th>Hora</th><th>Turno</th><th>Proceso</th><th>Referencia</th><th>Defecto</th><th class="num">NC</th><th>Observación</th></tr></thead><tbody>
+      <th>Hora</th><th>Turno</th><th>Proceso</th><th>Referencia</th><th>Defecto</th><th class="num">NC</th><th>Observación</th><th style="width:76px;"></th></tr></thead><tbody>
       ${regs.map(r=>`<tr><td>${r.hora}</td><td>${esc(r.turno||"")}</td><td>${r.proceso}</td><td>${esc(r.referencia||"—")}</td>
         <td>${r.defectoCodigo} - ${r.defectoLabel}${r.defectoAjeno==="Sí"?` <span style="color:var(--warn-text);font-size:.7rem;">⚠ de ${r.origenDefecto}</span>`:""}</td>
-        <td class="num">${r.cantidad}</td><td>${r.observacion||"—"}</td></tr>`).join("")}
+        <td class="num">${r.cantidad}</td><td>${r.observacion||"—"}${
+          r.modificadoPor?` <span class="marca-mod" title="Corregido por ${esc(r.modificadoPor)}${
+            r.modificadoEl?" el "+esc(r.modificadoEl):""}">✎</span>`:""}</td>
+        <td class="acc-reg">
+          <button type="button" class="breg" data-ed="${esc(r.id)}" title="Modificar este registro">${IC_LAPIZ}</button>
+          <button type="button" class="breg bx" data-del="${esc(r.id)}" title="Eliminar este registro">${IC_EQUIS}</button>
+        </td></tr>`).join("")}
       </tbody></table></div>`:'<div class="empty-mini">Sin registros en este turno.</div>'}
   </div></div>
 
@@ -6248,6 +6511,12 @@ function renderDashboardTurno(){
   if(bNueva) bNueva.addEventListener("click", ()=> pedirAccion(null));
   box.querySelectorAll(".acc-ed").forEach(b=>
     b.addEventListener("click", ()=> pedirAccion(b.dataset.id)));
+
+  /* Modificar y eliminar en el detalle del registro. */
+  box.querySelectorAll("button[data-ed]").forEach(b=>
+    b.addEventListener("click", ()=> pedirRegistro(b.dataset.ed, "editar")));
+  box.querySelectorAll("button[data-del]").forEach(b=>
+    b.addEventListener("click", ()=> pedirRegistro(b.dataset.del, "borrar")));
 
   ULTIMO = {fam, meta, rango, periodo, fecha, turno, empacadas, recogidas, ncTotal, pct, estado,
             /* Cobertura = cuánto de lo recolectado se miró en auditoría. */
@@ -7650,7 +7919,9 @@ async function cargarRemoto(desdeISO, motivo, forzarCompleta){
       const m=new Map();
       /* Lo borrado no vuelve a entrar, venga de donde venga. */
       S.registros.forEach(r=>{ if(!esBorrado(r.id)) m.set(r.id,r); });
-      data.forEach(r=>{ if(!esBorrado(r.id)) m.set(r.id,r); });
+      /* Lo que baja de la hoja manda, SALVO donde hay una corrección hecha
+         aquí que la hoja todavía no confirmó: esa se vuelve a poner encima. */
+      data.forEach(r=>{ if(!esBorrado(r.id)) m.set(r.id, conEdicionPendiente(r)); });
 
       if(completa){
         /* Reconciliación: dentro de la ventana que se acaba de pedir, la hoja
@@ -7676,7 +7947,7 @@ async function cargarRemoto(desdeISO, motivo, forzarCompleta){
       localStorage.setItem("cd_registros",JSON.stringify(S.registros));
       if(document.getElementById("viewDashboard").style.display!=="none") renderDashboardTurno();
       if(typeof ajustarRitmo === "function") ajustarRitmo(data);
-      reintentarPendientes(); reintentarBorrados(); actualizarEstadoSync();
+      reintentarPendientes(); reintentarBorrados(); reintentarEdiciones(); actualizarEstadoSync();
     }
   }catch(e){
     anotarLectura({hora:horaAhoraCD(), filas:null, ms:Date.now()-t0,
@@ -8349,7 +8620,7 @@ montarSelectorMes();
 document.getElementById("cxMes").value=hoyISO().slice(0,7);
 document.getElementById("kTurno").value=turnoActual();
 actualizarEstadoSync();
-if(S.syncUrl){comprobarBackend();reintentarBorrados();cargarRemoto(null,"apertura de la app (turno actual)");cargarEmpacadas();cargarRatios();reintentarPendientes();cargarUsuarios();
+if(S.syncUrl){comprobarBackend();reintentarBorrados();reintentarEdiciones();cargarRemoto(null,"apertura de la app (turno actual)");cargarEmpacadas();cargarRatios();reintentarPendientes();cargarUsuarios();
   SONDEO.ultimo = Date.now();
   /* Un solo temporizador que se reprograma solo, en vez de un intervalo fijo:
      así el ritmo puede cambiar sin dejar temporizadores viejos corriendo. */
