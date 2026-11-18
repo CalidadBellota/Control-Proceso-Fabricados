@@ -582,7 +582,11 @@
      entre ellas—, y soltar aquí reglas sueltas sobre `span` o `b` las habría
      descuadrado sin que se notara hasta abrir esa pantalla.
      ==================================================================== */
-  .ind .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:0;}
+  .ind .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:0;}
+  .ind .kpi .vs{display:flex;align-items:center;gap:4px;font-size:.7rem;
+    font-weight:700;margin-top:3px;}
+  .ind .kpi .vs.bien{color:var(--ok);} .ind .kpi .vs.mal{color:var(--bad);}
+  .ind .kpi .vs span{color:var(--text-dim);font-weight:400;display:inline;}
   .ind .kpi{position:relative;background:#fff;border:1px solid var(--border);
     border-radius:11px;padding:14px 16px;}
   .ind .kpi span{display:block;font-size:.72rem;color:var(--text-dim);}
@@ -652,6 +656,20 @@
     font-size:.78rem;margin:14px 0 5px;color:var(--text-dim);}
   .ind .met-cab b{color:var(--text);font-weight:800;}
 
+  .ind .analisis{margin:0;padding-left:18px;font-size:.8rem;line-height:1.65;}
+  .ind .analisis li{margin-bottom:7px;}
+  .ind .analisis li::marker{color:var(--red);}
+  .fila2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+  @media (max-width:560px){ .fila2{grid-template-columns:1fr;} }
+  .btn-mini{border:1px solid var(--border);background:#fff;border-radius:8px;
+    padding:6px 11px;font-family:inherit;font-size:.74rem;font-weight:700;
+    color:var(--text-dim);cursor:pointer;min-height:32px;}
+  .btn-mini:hover{border-color:var(--red);color:var(--red);}
+  .ind .sx{display:inline-flex;width:17px;height:17px;border-radius:50%;
+    align-items:center;justify-content:center;font-size:.66rem;font-weight:800;
+    background:#eef0f3;color:var(--text-dim);vertical-align:middle;margin-left:4px;}
+  .ind .sx.ok{background:var(--ok-bg);color:var(--ok);}
+  .ind .sx.bad{background:var(--bad-bg);color:var(--bad);}
   .ind .badge{padding:4px 11px;border-radius:20px;font-size:.74rem;font-weight:700;
     white-space:nowrap;display:inline-block;}
   .ind .badge.ok{background:var(--ok-bg);color:var(--ok);}
@@ -1725,6 +1743,36 @@
   </div>
 </div>
 
+<!-- Alta y cambio de una acción de seguimiento. -->
+<div class="modal-bg" id="accModal">
+  <div class="modal">
+    <h3 style="margin-top:0;" id="accTit">Nueva acción</h3>
+    <div style="margin-bottom:12px;">
+      <label for="accTxt">¿Qué hay que hacer?</label>
+      <input type="text" id="accTxt" placeholder="Analizar causa raíz de…" autocomplete="off">
+    </div>
+    <div class="fila2">
+      <div><label for="accFam">Línea</label><select id="accFam"></select></div>
+      <div><label for="accResp">Responsable</label>
+        <input type="text" id="accResp" placeholder="Área o persona" autocomplete="off"></div>
+    </div>
+    <div class="fila2">
+      <div><label for="accLim">Para cuándo</label><input type="date" id="accLim"></div>
+      <div><label for="accEst">Estado</label><select id="accEst">
+        <option value="pendiente">Pendiente</option>
+        <option value="en curso">En curso</option>
+        <option value="cerrada">Cerrada</option>
+      </select></div>
+    </div>
+    <div id="accError" class="pin-error" style="display:none;"></div>
+    <div class="modal-actions">
+      <button id="accBorrar" style="margin-right:auto;color:var(--bad);">Borrar</button>
+      <button id="accCancelar">Cancelar</button>
+      <button class="primary" id="accGuardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="pinModal">
   <div class="modal" style="max-width:420px;">
     <h3 style="margin-top:0;">Auditoría de puesto</h3>
@@ -1775,9 +1823,35 @@
 
 <!-- Administración de usuarios. Quien audita queda firmado, así que alguien
      tiene que poder dar de alta a la gente sin tocar la hoja a mano. -->
+<!-- Peso de cada referencia, para convertir piezas en kilos. Se pega una
+     tabla entera porque son cientos de referencias: cargarlas de una en una
+     sería un trabajo que nadie va a hacer, y sin pesos no hay kilos. -->
+<div class="modal-bg" id="pesModal">
+  <div class="modal" style="max-width:720px;">
+    <h3 style="margin-top:0;">Peso de las referencias</h3>
+    <p>Pega dos columnas: <b>referencia</b> y <b>kilos por pieza</b>. Sirve lo
+      copiado de Excel, o separado por coma o punto y coma. El decimal puede ir
+      con coma o con punto.</p>
+    <textarea id="pesTxt" rows="9" placeholder="640072&#9;0,42&#10;104083&#9;0,18&#10;MAC1807&#9;0,55"
+      style="width:100%;font-family:ui-monospace,monospace;font-size:.82rem;"></textarea>
+    <div style="margin:10px 0;">
+      <label for="pesFam">Línea a la que pertenecen (opcional)</label>
+      <select id="pesFam"></select>
+    </div>
+    <div id="pesPrev" class="pin-error" style="display:none;"></div>
+    <div class="modal-actions">
+      <button id="pesCancelar">Cerrar</button>
+      <button class="primary" id="pesGuardar">Revisar y guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="usrModal">
   <div class="modal" style="max-width:760px;max-height:88vh;overflow-y:auto;">
-    <h3 style="margin-top:0;">Usuarios que pueden auditar</h3>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+      <h3 style="margin:0;flex:1;">Usuarios que pueden auditar</h3>
+      <button type="button" class="btn-mini" id="abrirPesos">Peso de las referencias</button>
+    </div>
     <p>La recolección no necesita usuario: el patinador registra sin entrar.
       Esta lista es sólo para firmar auditorías.</p>
     <div id="usrAviso"></div>
@@ -1880,7 +1954,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-17-indicadores";
+const APP_VERSION = "2026-11-18-analisis";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -2576,14 +2650,16 @@ function abrirPin(t){
   /* Tres usos del mismo PIN: auditar, administrar usuarios y vaciar una
      jornada. Los dos últimos exigen rol, así que ni se ofrece a quien no lo
      tiene —dejarlo elegir para rechazarlo después sería sólo una burla. */
-  const pideRol = (t === "admin" || t === "borrarjornada");
+  const pideRol = (t === "admin" || t === "borrarjornada" || t === "accion");
   const act = usuariosActivos().filter(u=> !pideRol ||
     ROL_ADMIN.indexOf(String(u.rol||"").toLowerCase()) !== -1);
   const TIT = {admin:"Administrar usuarios",
                borrarjornada:"Borrar una jornada entera",
+               accion:"Acciones y seguimiento",
                auditoria:"Auditoría de puesto"};
   const SUB = {admin:"Sólo un jefe o coordinador puede dar de alta usuarios.",
                borrarjornada:"Borra de la hoja y no se puede deshacer. Sólo un jefe o coordinador lo autoriza.",
+               accion:"Quien se compromete queda registrado. Sólo un jefe o coordinador abre o cierra acciones.",
                auditoria:"La auditoría queda firmada con tu nombre. Entra con tu PIN."};
   document.querySelector("#pinModal h3").textContent = TIT[t] || TIT.auditoria;
   document.querySelector("#pinModal p").textContent = SUB[t] || SUB.auditoria;
@@ -2659,6 +2735,18 @@ function validarPin(){
   /* Vaciar la jornada no abre sesión de auditoría: se comprueba el rol, se
      ejecuta y se olvida el usuario. Si no, autorizar un borrado dejaría al
      jefe firmando por accidente las auditorías del resto del turno. */
+  if(TIPO_PENDIENTE === "accion"){
+    if(ROL_ADMIN.indexOf(String((S.usuario||{}).rol||"").toLowerCase()) === -1){
+      const e3 = document.getElementById("pinError");
+      e3.style.display = "block";
+      e3.textContent = "Ese usuario no es jefe ni coordinador.";
+      S.usuario = null; SESION_TURNO = "";
+      return;
+    }
+    cerrarPin();
+    abrirAccion(ACC_EDITANDO);
+    return;
+  }
   if(TIPO_PENDIENTE === "borrarjornada"){
     if(ROL_ADMIN.indexOf(String((S.usuario||{}).rol||"").toLowerCase()) === -1){
       const e2 = document.getElementById("pinError");
@@ -2991,7 +3079,9 @@ const IC_IND = {
   alerta:  SVG_(`<path d="M12 4l9 16H3l9-16z"/><path d="M12 10v4M12 17.3v.2"/>`),
   lupa:    SVG_(`<circle cx="11" cy="11" r="6.5"/><path d="M15.8 15.8L21 21"/>`),
   fabrica: SVG_(`<path d="M3 20h18V10l-6 4V10l-6 4V6H3v14z"/><path d="M7 20v-4M12 20v-4M17 20v-4"/>`),
-  reloj:   SVG_(`<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/>`)
+  reloj:   SVG_(`<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/>`),
+  pesa:    SVG_(`<path d="M5 20h14l-1.6-9H6.6L5 20z"/><circle cx="12" cy="7" r="2.6"/>`),
+  tarea:   SVG_(`<rect x="4.5" y="3.5" width="15" height="17" rx="2"/><path d="M9 3.5h6v3H9z"/><path d="M8.5 12l2 2 4.5-4.5"/>`)
 };
 
 const ICONOS_PROC = {
@@ -3938,6 +4028,182 @@ document.getElementById("uCerrar").addEventListener("click", ()=>
 document.getElementById("uGuardar").addEventListener("click", e=> guardarUsuario(e.target));
 
 document.getElementById("pinCancelar").addEventListener("click", cerrarPin);
+/* ---------- Acciones de seguimiento ----------
+   Crear o cambiar una acción es un acto con dueño, así que pasa por el PIN de
+   un jefe o coordinador, igual que administrar usuarios o vaciar una jornada.
+   Verlas, en cambio, puede cualquiera: de nada sirve un seguimiento que sólo
+   ve quien lo escribió. */
+let ACC_EDITANDO = null;
+
+function pedirAccion(id){
+  if(!usuariosActivos().length){
+    alert("No hay usuarios cargados en la hoja. Una acción tiene que crearla "
+        + "un jefe o coordinador, y no hay a quién pedírselo todavía.");
+    return;
+  }
+  ACC_EDITANDO = id || null;
+  if(sesionVigente() && ROL_ADMIN.indexOf(String((S.usuario||{}).rol||"").toLowerCase()) !== -1){
+    abrirAccion(ACC_EDITANDO);     // ya entró un jefe en este turno
+    return;
+  }
+  abrirPin("accion");
+}
+
+function abrirAccion(id){
+  const a = id ? ACCIONES.find(x=> String(x.id) === String(id)) : null;
+  document.getElementById("accTit").textContent = a ? "Cambiar la acción" : "Nueva acción";
+  document.getElementById("accTxt").value  = a ? (a.accion||"") : "";
+  document.getElementById("accResp").value = a ? (a.responsable||"") : "";
+  document.getElementById("accLim").value  = a ? (a.limite||"") : "";
+  document.getElementById("accEst").value  = a ? (a.estado||"pendiente") : "pendiente";
+  const sel = document.getElementById("accFam");
+  sel.innerHTML = `<option value="">Todas las líneas</option>` +
+    Object.keys(METAS).map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join("");
+  sel.value = a ? (a.familia||"") : (S.familia || document.getElementById("dFamilia").value || "");
+  document.getElementById("accBorrar").style.display = a ? "" : "none";
+  document.getElementById("accError").style.display = "none";
+  ACC_EDITANDO = id || null;
+  document.getElementById("accModal").classList.add("show");
+}
+
+async function guardarAccionForm(){
+  const txt = document.getElementById("accTxt").value.trim();
+  const e = document.getElementById("accError");
+  if(!txt){ e.style.display="block"; e.textContent="Escribe qué hay que hacer."; return; }
+  const quien = S.usuario ? (S.usuario.usuario || S.usuario.nombre) : "";
+  const previa = ACC_EDITANDO ? ACCIONES.find(x=> String(x.id)===String(ACC_EDITANDO)) : null;
+  const estado = document.getElementById("accEst").value;
+  const a = {
+    id: ACC_EDITANDO || ("AC-" + Date.now().toString(36) + "-" +
+         Math.random().toString(36).slice(2,6)),
+    creadoEl: previa ? (previa.creadoEl||"") : "",
+    fecha: previa ? (previa.fecha||hoyISO()) : hoyISO(),
+    familia: document.getElementById("accFam").value,
+    accion: txt,
+    responsable: document.getElementById("accResp").value.trim(),
+    limite: document.getElementById("accLim").value,
+    estado,
+    creadoPor: previa ? (previa.creadoPor||quien) : quien,
+    /* La fecha de cierre la pone la app, no quien edita: es el dato que
+       después permite saber cuánto tardó cada acción. */
+    cerradoEl: estado === "cerrada"
+      ? ((previa && previa.estado === "cerrada" && previa.cerradoEl) || hoyISO()) : ""
+  };
+  ACCIONES = ACCIONES.filter(x=> String(x.id) !== String(a.id)).concat([a]);
+  guardarAcciones();
+  document.getElementById("accModal").classList.remove("show");
+  renderDashboardTurno();
+  const ok = await enviarAccion(a);
+  if(!ok) toast("La acción quedó en este equipo; no se pudo guardar en la hoja");
+  else toast("Acción guardada");
+}
+
+async function borrarAccionForm(){
+  if(!ACC_EDITANDO) return;
+  if(!confirm("Se va a borrar esta acción de la hoja. No se puede deshacer.\n\n¿Continuar?")) return;
+  const id = ACC_EDITANDO;
+  ACCIONES = ACCIONES.filter(x=> String(x.id) !== String(id));
+  guardarAcciones();
+  document.getElementById("accModal").classList.remove("show");
+  renderDashboardTurno();
+  const ok = await enviarAccion({id, borrar:true});
+  if(!ok) toast("Se quitó aquí, pero sigue en la hoja: vuelve a intentarlo");
+}
+
+/* ---------- Pesos: carga en bloque ---------- */
+function abrirPesos(){
+  const sel = document.getElementById("pesFam");
+  sel.innerHTML = `<option value="">— sin asignar —</option>` +
+    Object.keys(METAS).map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join("");
+  const n = Object.keys(PESOS).length;
+  const pv = document.getElementById("pesPrev");
+  pv.style.display = "block";
+  pv.style.color = "var(--text-dim)";
+  pv.textContent = n ? `Hay ${n} referencia(s) con peso cargado.`
+                     : "Todavía no hay ningún peso cargado.";
+  document.getElementById("pesTxt").value = "";
+  document.getElementById("pesModal").classList.add("show");
+}
+
+/* Coma o punto decimal, sin adivinar mal.
+   Si vienen los dos separadores, manda el ÚLTIMO: en «1.250,5» el punto es de
+   miles y en «1,250.5» lo es la coma. Si viene uno solo, se toma como DECIMAL,
+   aunque sean tres cifras: el peso de una pieza es de gramos o de pocos kilos,
+   así que «0.250» son 250 gramos y nunca doscientos cincuenta kilos. Leerlo al
+   revés metería un error de mil veces en los kilos de toda la línea. */
+function aNumero(txt){
+  let t = String(txt||"").trim().replace(/\s|kg/gi, "");
+  if(!t) return null;
+  /* El último separador es el decimal; todo lo anterior son miles. Una sola
+     regla cubre «0,42», «0.18», «1.250,5» y «1,250.5» sin casos especiales. */
+  const dec = Math.max(t.lastIndexOf(","), t.lastIndexOf("."));
+  if(dec !== -1){
+    const ent  = t.slice(0, dec).replace(/[.,]/g, "");
+    const frac = t.slice(dec + 1).replace(/[^\d]/g, "");
+    t = (ent || "0") + "." + (frac || "0");
+  }
+  const v = parseFloat(t);
+  return (isFinite(v) && v > 0) ? v : null;
+}
+
+/* Acepta tabulador, coma o punto y coma, y el decimal con coma o con punto.
+   Si se exigiera un único formato, la mitad de los pegados fallaría y nadie
+   volvería a intentarlo. */
+function leerPesosPegados(txt){
+  const filas = [], malas = [];
+  String(txt||"").split(/\r?\n/).forEach((l, i)=>{
+    const t = l.trim();
+    if(!t) return;
+    const partes = t.split(/\t|;|,(?=\s*[^\d])|\s{2,}/).map(x=>x.trim()).filter(Boolean);
+    let ref, kg;
+    if(partes.length >= 2){ ref = partes[0]; kg = partes[partes.length-1]; }
+    else {
+      const m = t.match(/^(.+?)[\s,;]+([\d.,]+)$/);
+      if(m){ ref = m[1].trim(); kg = m[2]; }
+    }
+    if(!ref || kg == null){ malas.push({linea:i+1, txt:t}); return; }
+    const num2 = aNumero(kg);
+    if(num2 == null){ malas.push({linea:i+1, txt:t}); return; }
+    filas.push({referencia:ref, kg:num2});
+  });
+  return {filas, malas};
+}
+
+async function guardarPesosForm(){
+  const pv = document.getElementById("pesPrev");
+  const {filas, malas} = leerPesosPegados(document.getElementById("pesTxt").value);
+  if(!filas.length){
+    pv.style.display="block"; pv.style.color="var(--bad)";
+    pv.textContent = "No se pudo leer ninguna línea. Revisa que haya dos columnas.";
+    return;
+  }
+  const fam = document.getElementById("pesFam").value;
+  const lista = filas.map(x=> ({referencia:x.referencia, familia:fam, kg:x.kg}));
+  pv.style.display="block"; pv.style.color="var(--text-dim)";
+  pv.innerHTML = `Leídas <b>${filas.length}</b> referencia(s)` +
+    (malas.length ? ` · <span style="color:var(--bad);">${malas.length} línea(s)
+      no se entendieron (la primera: «${esc(malas[0].txt.slice(0,40))}»)</span>` : "") +
+    ` · guardando…`;
+  lista.forEach(x=> PESOS[x.referencia] = x.kg);
+  guardarPesos();
+  const ok = await enviarPesos(lista);
+  pv.innerHTML = ok
+    ? `Guardadas <b>${filas.length}</b> referencia(s) en la hoja.` +
+      (malas.length ? ` ${malas.length} línea(s) quedaron fuera.` : "")
+    : `Quedaron en este equipo, pero <b>no se pudieron guardar en la hoja</b>.`;
+  if(VISTA_ACTUAL === "dashboard") renderDashboardTurno();
+}
+
+document.getElementById("abrirPesos").addEventListener("click", abrirPesos);
+document.getElementById("pesCancelar").addEventListener("click", ()=>
+  document.getElementById("pesModal").classList.remove("show"));
+document.getElementById("pesGuardar").addEventListener("click", guardarPesosForm);
+
+document.getElementById("accCancelar").addEventListener("click", ()=>
+  document.getElementById("accModal").classList.remove("show"));
+document.getElementById("accGuardar").addEventListener("click", guardarAccionForm);
+document.getElementById("accBorrar").addEventListener("click", borrarAccionForm);
+
 document.getElementById("modCancelar").addEventListener("click", cerrarModificar);
 document.getElementById("modEntrar").addEventListener("click", confirmarModificar);
 document.getElementById("modQuien").addEventListener("change", modVerOtro);
@@ -4066,6 +4332,101 @@ async function guardarUsuario(boton){
 
 /* Usuarios para firmar la auditoría. Si la hoja no los trae, la auditoría
    sigue siendo posible escribiendo el nombre: no se bloquea a calidad. */
+/* ======================================================================
+   PESO DE CADA REFERENCIA
+
+   El desperdicio en piezas no se puede comparar entre líneas: mil limas y
+   mil palas no son lo mismo. Con el peso de cada referencia las piezas se
+   vuelven kilos, que sí suman entre líneas.
+
+   Va por referencia y no por línea porque dentro de una misma línea el peso
+   cambia mucho: una lima de 4" y una de 14" no pesan igual.
+   ====================================================================== */
+let PESOS = (function(){
+  try{ return JSON.parse(localStorage.getItem("cd_pesos") || "{}") || {}; }
+  catch(e){ return {}; }
+})();
+function guardarPesos(){
+  try{ localStorage.setItem("cd_pesos", JSON.stringify(PESOS)); }catch(e){}
+}
+function pesoDe(ref){
+  const k = String(ref||"").trim();
+  const v = PESOS[k];
+  return (typeof v === "number" && isFinite(v) && v > 0) ? v : null;
+}
+/* Kilos de un conjunto de filas. Devuelve también cuántas piezas quedaron sin
+   peso: un total de kilos que calla las referencias que no tienen peso se lee
+   como si fuera todo, y sería menos de lo que de verdad se tiró. */
+function kilosDe(filas){
+  let kg = 0, conPeso = 0, sinPeso = 0;
+  const faltan = {};
+  filas.forEach(r=>{
+    const n = r.cantidad || 0;
+    const p = pesoDe(r.referencia);
+    if(p == null){ sinPeso += n; if(r.referencia) faltan[r.referencia] = true; }
+    else { kg += n * p; conPeso += n; }
+  });
+  return {kg, conPeso, sinPeso, refsSinPeso: Object.keys(faltan)};
+}
+async function cargarPesos(){
+  if(!S.syncUrl) return;
+  try{
+    const d = await pedirJSON(S.syncUrl + "?tipo=pesos", "los pesos");
+    if(Array.isArray(d)){
+      const m = {};
+      d.forEach(x=>{ const r = String((x&&x.referencia)||"").trim();
+        if(r) m[r] = Number(x.kg) || 0; });
+      PESOS = m; guardarPesos();
+    }
+  }catch(e){ /* se sigue con lo que haya en el equipo */ }
+}
+async function enviarPesos(lista){
+  if(!S.syncUrl) return false;
+  try{
+    const res = await fetch(S.syncUrl, {method:"POST", redirect:"follow",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify({action:"pesos", pesos:lista})});
+    const d = await res.json();
+    return !!(d && d.ok);
+  }catch(e){ return false; }
+}
+
+/* ======================================================================
+   ACCIONES Y SEGUIMIENTO
+
+   Un tablero que sólo enseña números no cambia nada: lo que cierra el ciclo
+   es qué se decidió hacer, quién responde y para cuándo.
+   ====================================================================== */
+let ACCIONES = (function(){
+  try{ return JSON.parse(localStorage.getItem("cd_acciones") || "[]") || []; }
+  catch(e){ return []; }
+})();
+function guardarAcciones(){
+  try{ localStorage.setItem("cd_acciones", JSON.stringify(ACCIONES)); }catch(e){}
+}
+const ESTADOS_ACC = {
+  pendiente: {et:"Pendiente", clase:"bad"},
+  "en curso": {et:"En curso",  clase:"warn"},
+  cerrada:   {et:"Cerrada",   clase:"ok"}
+};
+async function cargarAcciones(){
+  if(!S.syncUrl) return;
+  try{
+    const d = await pedirJSON(S.syncUrl + "?tipo=acciones", "las acciones");
+    if(Array.isArray(d)){ ACCIONES = d; guardarAcciones(); }
+  }catch(e){ /* se sigue con lo que haya en el equipo */ }
+}
+async function enviarAccion(a){
+  if(!S.syncUrl) return false;
+  try{
+    const res = await fetch(S.syncUrl, {method:"POST", redirect:"follow",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify({action:"accion", accion:a})});
+    const d = await res.json();
+    return !!(d && d.ok);
+  }catch(e){ return false; }
+}
+
 async function cargarUsuarios(){
   if(!S.syncUrl) return;
   try{
@@ -5186,6 +5547,124 @@ function prodMaquina(fam, maq, horasTurno){
   return {teorico: cfg.ratio * h / HORAS_TURNO, ratio: cfg.ratio, horas: h};
 }
 
+/* ======================================================================
+   EL ANÁLISIS ESCRITO
+
+   Las mismas cifras de arriba, dichas en frases. No es adorno: quien abre el
+   tablero cinco minutos antes de una reunión necesita saber qué mirar, y un
+   número suelto no dice si es mucho o poco.
+
+   Sólo se escribe lo que los datos sostienen. Si falta el dato, se dice que
+   falta en vez de rellenar con una frase que suene bien.
+   ====================================================================== */
+/* Miles con punto, sin decimales. Estaba repetida como variable local en
+   seis funciones; las de análisis y acciones viven fuera de todas ellas y por
+   eso no la encontraban. Una sola, a la vista de todo el archivo. */
+function f0(n){ return n==null ? "—" : Math.round(n).toLocaleString("es-CO"); }
+
+function analisisTexto(d){
+  const ptos = [];
+  const pc = v=> v==null ? "—"
+    : v.toLocaleString("es-CO",{minimumFractionDigits:2,maximumFractionDigits:2})+"%";
+
+  if(d.pctPlanta == null){
+    ptos.push(`<b>Todavía no hay porcentaje.</b> Faltan las unidades empacadas;
+      sin ellas el desperdicio sólo se puede leer como piezas sueltas.`);
+  } else {
+    const dif = d.metaPlanta==null ? null : d.pctPlanta - d.metaPlanta;
+    ptos.push(dif==null
+      ? `El desperdicio de la planta fue <b>${pc(d.pctPlanta)}</b>.`
+      : dif<=0
+        ? `El desperdicio fue <b>${pc(d.pctPlanta)}</b>, <b>dentro</b> de la meta
+           ponderada (${pc(d.metaPlanta)}).`
+        : `El desperdicio fue <b>${pc(d.pctPlanta)}</b>, <b>${pc(dif)} por encima</b>
+           de la meta ponderada (${pc(d.metaPlanta)}).`);
+  }
+
+  const v = d.variacion(d.sumaRec, d.sumaRecAnt, false);
+  if(v) ptos.push(v.v===0
+    ? `Se recogió lo mismo que el periodo anterior.`
+    : `Se recogió <b>${v.txt.replace("-","")}</b> ${v.v>0?"más":"menos"} que el
+       periodo anterior (${f0(d.sumaRecAnt)} → ${f0(d.sumaRec)} piezas).`);
+
+  const fuera = d.resumenes.filter(x=> x.pct!=null && x.pct > x.meta);
+  if(fuera.length) ptos.push(`Fuera de meta: ${fuera.map(x=>
+    `<b>${esc(x.fam)}</b> (${pc(x.pct)} sobre ${pc(x.meta)})`).join(", ")}.`);
+  else if(d.resumenes.some(x=>x.pct!=null))
+    ptos.push(`Ninguna línea se salió de su meta.`);
+
+  const sinEmp = d.resumenes.filter(x=> x.emp==null).map(x=>x.fam);
+  if(sinEmp.length) ptos.push(`Sin unidades empacadas cargadas:
+    <b>${sinEmp.map(esc).join(", ")}</b> — esas líneas no entran en el porcentaje.`);
+
+  if(d.porProc.length){
+    const [p0, v0] = d.porProc[0];
+    const peso = d.ncTotal ? Math.round(v0/d.ncTotal*100) : 0;
+    ptos.push(`En <b>${esc(d.fam)}</b>, el proceso de mayor impacto fue
+      <b>${esc(p0)}</b> con el ${peso}% de lo clasificado.`);
+  }
+  if(d.defsMostrar && d.defsMostrar.length >= 3 && d.ncTotal){
+    const tres = d.defsMostrar.slice(0,3);
+    const acum = Math.round(tres.reduce((a,[,n])=>a+n,0)/d.ncTotal*100);
+    ptos.push(`Los tres defectos principales
+      (${tres.map(([k])=>esc(String(k).split(" - ")[0])).join(", ")})
+      concentran el <b>${acum}%</b> del desperdicio clasificado.`);
+  }
+
+  /* Lo que no se clasificó es la mitad escondida del problema: si el patinador
+     reportó 1.630 piezas y las rondas sólo explican 455, el resto es un bulto
+     del que no se sabe ni el defecto ni el proceso. */
+  const r = d.resumenes.find(x=> x.fam === d.fam);
+  if(r && r.rec!=null && r.rec>0){
+    const sinClas = r.rec - r.ncRondas;
+    if(sinClas > 0) ptos.push(`Quedaron <b>${f0(sinClas)} pieza(s) sin clasificar</b>
+      en ${esc(d.fam)} (${Math.round(sinClas/r.rec*100)}% de lo recogido): se sabe
+      cuánto se tiró, no de qué ni dónde.`);
+  }
+
+  if(d.kilos.kg) ptos.push(`Equivale a <b>${d.kilos.kg.toLocaleString("es-CO",
+    {maximumFractionDigits:1})} kg</b>${d.kilos.sinPeso
+    ? `, sin contar ${f0(d.kilos.sinPeso)} pieza(s) cuya referencia no tiene peso cargado` : ""}.`);
+  else if(d.kilos.sinPeso) ptos.push(`No hay kilos todavía: ninguna de las
+    referencias de este periodo tiene peso cargado (se cargan en Administrar).`);
+
+  if(!d.audTotal) ptos.push(`La auditoría no recorrió puestos en este periodo,
+    así que no se puede decir de qué máquina salió el desperdicio.`);
+
+  return `<ul class="analisis">${ptos.map(x=>`<li>${x}</li>`).join("")}</ul>`;
+}
+
+/* ---------- La tabla de acciones ---------- */
+function tablaAcciones(fam){
+  const hoy = hoyISO();
+  const lista = ACCIONES.slice().sort((a,b)=>{
+    const o = {pendiente:0, "en curso":1, cerrada:2};
+    const da = o[String(a.estado||"pendiente")] ?? 0;
+    const db = o[String(b.estado||"pendiente")] ?? 0;
+    if(da !== db) return da - db;
+    return String(a.limite||"").localeCompare(String(b.limite||""));
+  });
+  if(!lista.length) return `<div class="empty-mini">Ninguna acción abierta.
+    Las que se creen aquí las ven todas las tabletas.</div>`;
+  return `<div style="overflow-x:auto;"><table><thead><tr>
+    <th>Acción</th><th>Línea</th><th>Responsable</th><th>Fecha</th>
+    <th>Estado</th><th></th></tr></thead><tbody>
+    ${lista.map(a=>{
+      const est = String(a.estado||"pendiente");
+      const cfg = ESTADOS_ACC[est] || ESTADOS_ACC.pendiente;
+      /* Una acción vencida y sin cerrar es lo que hay que ver primero. */
+      const vencida = est!=="cerrada" && a.limite && String(a.limite) < hoy;
+      return `<tr class="${vencida?"fila-alta":""}">
+        <td>${esc(a.accion||"")}</td>
+        <td>${esc(a.familia||"todas")}</td>
+        <td>${esc(a.responsable||"—")}</td>
+        <td>${a.limite?esc(a.limite):"—"}${vencida?' <span class="sx bad">!</span>':""}</td>
+        <td><span class="badge ${cfg.clase}">${cfg.et}</span></td>
+        <td><button type="button" class="btn-mini acc-ed" data-id="${esc(a.id)}">Cambiar</button></td>
+      </tr>`;}).join("")}
+    </tbody></table></div>`;
+}
+
 function renderDashboardTurno(){
   const fam=document.getElementById("dFamilia").value;
   const fecha=document.getElementById("dFecha").value||hoyISO();
@@ -5269,6 +5748,44 @@ function renderDashboardTurno(){
   const maxPue=Math.max(...porPuesto.map(([,v])=>v),1);
   const maxFlu=Math.max(...flujo.map(([,v])=>v),1);
 
+  /* ---- Comparación con el periodo anterior ----
+     Un porcentaje solo no dice si vamos mejor o peor. La referencia natural
+     es el mismo periodo anterior: el día de antes, o el mes de antes. */
+  const antes = (function(){
+    let fAnt;
+    if(periodo === "mes"){
+      const d = new Date(fecha+"T12:00:00");
+      d.setMonth(d.getMonth()-1);
+      fAnt = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    } else if(periodo === "semana"){ fAnt = sumarDias(rango.desde, -7); }
+    else { fAnt = sumarDias(fecha, -1); }
+    const rAnt = rangoPeriodo(periodo, fAnt, turno);
+    return Object.keys(METAS).map(L=> resumenLinea(L, periodo, fAnt, turno, rAnt));
+  })();
+  const sumaEmpAnt = antes.reduce((a,x)=> x.emp==null?a:(a||0)+x.emp, null);
+  const sumaRecAnt = antes.reduce((a,x)=> x.rec==null?a:(a||0)+x.rec, null);
+  /* La flecha de las empacadas es al revés que la del desperdicio: producir
+     más es bueno, tirar más no. */
+  const variacion = (hoy, ayer, masEsMejor)=>{
+    if(hoy==null || ayer==null || ayer===0) return null;
+    const v = (hoy-ayer)/ayer*100;
+    /* Sin cambio no es ni subida ni bajada: una flecha verde sobre un «+0%»
+       se lee como mejora y no la hubo. */
+    if(Math.abs(v) < 0.05) return {v:0, txt:"igual", flecha:"=", neutro:true};
+    return {v, txt:(v>0?"+":"")+v.toLocaleString("es-CO",{maximumFractionDigits:1})+"%",
+            flecha: v>0?"▲":"▼",
+            bien: masEsMejor ? v>0 : v<0};
+  };
+
+  /* ---- Kilos: las piezas no se pueden sumar entre líneas, los kilos sí ---- */
+  const filasTodas = S.registros.filter(r=>{
+    if(tipoDe(r)!=="recoleccion" || r.estadoMaquina) return false;
+    if(periodo==="turno") return r.turnoKey===llaveTurno(turno,fecha);
+    const ft = fechaDeTurno(r);
+    return ft >= rango.desde && ft <= rango.hasta;
+  });
+  const kilos = kilosDe(filasTodas);
+
   /* ---- Cabecera de indicadores: las cuatro líneas de un vistazo ---- */
   const LINEAS_TODAS = Object.keys(METAS);
   const resumenes = LINEAS_TODAS.map(L=> resumenLinea(L, periodo, fecha, turno, rango));
@@ -5306,14 +5823,18 @@ function renderDashboardTurno(){
           <span class="ic">${IC_IND.caja}</span>
           <span>Unidades empacadas</span>
           <b>${sumaEmp==null?"—":f0(sumaEmp)}</b>
+          ${(()=>{ const d=variacion(sumaEmp,sumaEmpAnt,true);
+            return d ? `<div class="vs ${d.neutro?"":d.bien?"bien":"mal"}">${d.flecha} ${d.txt}
+              <span>vs. ${periodo==="mes"?"mes":periodo==="semana"?"semana":"día"} anterior</span></div>` : ""; })()}
           <small>${sinCargar ? sinCargar+" línea(s) sin cargar" : "las ".concat(LINEAS_TODAS.length," líneas cargadas")}</small>
-          <small>se cargan abajo, en Data</small>
         </div>
         <div class="kpi">
           <span class="ic">${IC_IND.basura}</span>
           <span>Desperdicio recolectado</span>
           <b>${sumaRec==null?"—":f0(sumaRec)}</b>
-          <small>lo que reportó el patinador al cerrar</small>
+          ${(()=>{ const d=variacion(sumaRec,sumaRecAnt,false);
+            return d ? `<div class="vs ${d.neutro?"":d.bien?"bien":"mal"}">${d.flecha} ${d.txt}
+              <span>vs. ${periodo==="mes"?"mes":periodo==="semana"?"semana":"día"} anterior</span></div>` : ""; })()}
           <small>${f0(resumenes.reduce((n2,x)=>n2+x.ncRondas,0))} pieza(s) clasificadas en rondas</small>
         </div>
         <div class="kpi ${tono(estPlanta)}">
@@ -5332,6 +5853,15 @@ function renderDashboardTurno(){
           <b>${fueraMeta}</b>
           <small>de ${conDato.length} con dato suficiente</small>
           <small>${sinCargar?sinCargar+" sin unidades empacadas":"ninguna sin empacadas"}</small>
+        </div>
+        <div class="kpi ${kilos.sinPeso && !kilos.kg ? "t-warn" : ""}">
+          <span class="ic">${IC_IND.pesa}</span>
+          <span>Kilos de desperdicio</span>
+          <b>${kilos.kg ? kilos.kg.toLocaleString("es-CO",{maximumFractionDigits:1})+" kg" : "—"}</b>
+          <small>${kilos.conPeso ? f0(kilos.conPeso)+" pieza(s) con peso cargado" : "ninguna referencia tiene peso"}</small>
+          <small>${kilos.sinPeso
+            ? f0(kilos.sinPeso)+" sin peso — no entran en los kilos"
+            : "todas las referencias tienen peso"}</small>
         </div>
         <div class="kpi">
           <span class="ic">${IC_IND.lupa}</span>
@@ -5395,10 +5925,25 @@ function renderDashboardTurno(){
   box.innerHTML = cabecera + `<div class="ind">
   <div class="dash-grid">
     <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.fabrica}</span><div><h2>DESPERDICIO POR PROCESO</h2><span style="font-size:.72rem;color:var(--text-dim);">de la recolección, sobre lo clasificado en rondas</span></div></div><div class="cb">
-      ${porProc.length?`<table><thead><tr><th>Proceso</th><th class="num">NC</th><th class="num">% de lo clasificado</th><th></th></tr></thead><tbody>
-      ${porProc.map(([k,v])=>{const p=ncTotal>0?Math.round(v/ncTotal*100):null;
-        return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${p==null?"—":p+"%"}</td><td style="width:70px;">${barra(v,maxProc)}</td></tr>`;}).join("")}
-      <tr class="tot"><td>TOTAL</td><td class="num">${ncTotal}</td><td class="num">100%</td><td></td></tr>
+      ${porProc.length?`<table><thead><tr><th>Proceso</th><th class="num">NC</th><th class="num">% de lo clasificado</th><th class="num">% de lo empacado</th><th></th></tr></thead><tbody>
+      ${porProc.map(([k,v])=>{
+        const p=ncTotal>0?Math.round(v/ncTotal*100):null;
+        /* El % sobre lo clasificado dice cuánto pesa el proceso DENTRO del
+           desperdicio. El que se compara con la meta es otro: el proceso
+           sobre lo empacado de la línea, que es la misma cuenta que el
+           indicador de arriba. Mezclarlos haría que un proceso con el 83%
+           del desperdicio pareciera estar 80 puntos fuera de meta. */
+        const emp = resumenLinea(fam, periodo, fecha, turno, rango).emp;
+        const pe  = (emp && emp>0) ? v/emp*100 : null;
+        const meta = METAS[fam] ?? null;
+        const señal = (pe==null||meta==null) ? '<span class="sx">—</span>'
+          : pe<=meta ? '<span class="sx ok">✓</span>'
+          : '<span class="sx bad">!</span>';
+        return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${
+          p==null?"—":p+"%"}</td><td class="num">${
+          pe==null?"—":pe.toLocaleString("es-CO",{maximumFractionDigits:2})+"% "+señal
+          }</td><td style="width:70px;">${barra(v,maxProc)}</td></tr>`;}).join("")}
+      <tr class="tot"><td>TOTAL</td><td class="num">${ncTotal}</td><td class="num">100%</td><td class="num"></td><td></td></tr>
       </tbody></table>`:'<div class="empty-mini">Sin registros.</div>'}
     </div></div>
 
@@ -5411,9 +5956,17 @@ function renderDashboardTurno(){
     </div></div>
 
     <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>TOP 5 DEFECTOS</h2></div></div><div class="cb">
-      ${defsMostrar.length?`<table><thead><tr><th>Defecto</th><th class="num">NC</th><th class="num">% NC</th><th></th></tr></thead><tbody>
-      ${defsMostrar.map(([k,v])=>`<tr><td>${k}</td><td class="num">${v}</td><td class="num">${ncTotal?Math.round(v/ncTotal*100):0}%</td><td style="width:70px;">${barra(v,maxDef)}</td></tr>`).join("")}
-      <tr class="tot"><td>TOTAL</td><td class="num">${ncTotal}</td><td class="num">100%</td><td></td></tr>
+      ${defsMostrar.length?`<table><thead><tr><th>Defecto</th><th class="num">NC</th><th class="num">% NC</th><th></th><th class="num">Acumulado</th></tr></thead><tbody>
+      ${(()=>{ /* El acumulado es lo que convierte una lista en un Pareto: dice
+                  cuántos defectos hay que atacar para cubrir la mayor parte. */
+        let acum=0;
+        return defsMostrar.map(([k,v])=>{ acum+=v;
+          const pa = ncTotal?Math.round(acum/ncTotal*100):0;
+          return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${
+            ncTotal?Math.round(v/ncTotal*100):0}%</td><td style="width:70px;">${
+            barra(v,maxDef)}</td><td class="num"><b>${pa}%</b></td></tr>`;}).join("");
+      })()}
+      <tr class="tot"><td>TOTAL</td><td class="num">${ncTotal}</td><td class="num">100%</td><td></td><td></td></tr>
       </tbody></table>`:'<div class="empty-mini">Sin registros.</div>'}
     </div></div>
   </div>
@@ -5452,6 +6005,19 @@ function renderDashboardTurno(){
       </tbody></table></div>`:'<div class="empty-mini">Sin registros en este turno.</div>'}
   </div></div>
 
+  <div class="dash-grid" style="margin-top:14px;">
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.lupa}</span><div><h2>ANÁLISIS DEL PERIODO</h2><span style="font-size:.72rem;color:var(--text-dim);">lo que dicen los números, en una frase cada uno</span></div></div><div class="cb">
+      ${analisisTexto({resumenes, antes, sumaEmp, sumaRec, sumaEmpAnt, sumaRecAnt,
+        pctPlanta, metaPlanta, kilos, porProc, defsMostrar, ncTotal, audTotal,
+        porPuesto, periodo, fam, variacion})}
+    </div></div>
+
+    <div class="card" style="grid-column:span 2;"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.tarea}</span><div><h2>ACCIONES Y SEGUIMIENTO</h2><span style="font-size:.72rem;color:var(--text-dim);">qué se decidió hacer, quién responde y para cuándo</span></div>
+      <button type="button" id="accNueva" class="btn-mini">+ Nueva acción</button></div><div class="cb">
+      ${tablaAcciones(fam)}
+    </div></div>
+  </div>
+
   <div class="panel" style="margin-top:14px;">
     <div class="nota-pie"><span class="ic-sec">${IC_IND.alerta}</span>
       <div>El <b>total y el porcentaje</b> salen de la <b>recolección</b>: lo que el
@@ -5467,6 +6033,14 @@ function renderDashboardTurno(){
   dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango, fam);
   dibujarDonut(porProc, ncTotal, recogidas);
   dibujarPareto(ordDef, ncTotal);
+
+  /* Los botones del panel de acciones se enganchan aquí: el tablero se
+     repinta entero cada vez, así que engancharlos una sola vez al arrancar
+     dejaría de funcionar en cuanto se cambie de línea o de periodo. */
+  const bNueva = document.getElementById("accNueva");
+  if(bNueva) bNueva.addEventListener("click", ()=> pedirAccion(null));
+  box.querySelectorAll(".acc-ed").forEach(b=>
+    b.addEventListener("click", ()=> pedirAccion(b.dataset.id)));
 
   ULTIMO = {fam, meta, rango, periodo, fecha, turno, empacadas, recogidas, ncTotal, pct, estado,
             cobertura:(recogidas!=null&&recogidas>0)?ncTotal/recogidas*100:null,
@@ -6671,7 +7245,7 @@ document.getElementById("tabAuditoria").addEventListener("click", async ()=>{
 document.getElementById("tabAdmin").addEventListener("click", ()=> abrirUsuarios());
 document.getElementById("tabDashboard").addEventListener("click",()=>{
   irAVista("dashboard");
-  if(S.syncUrl){ cargarRemoto(); sincronizarCargue(true); }
+  if(S.syncUrl){ cargarRemoto(); sincronizarCargue(true); cargarPesos(); cargarAcciones(); }
 });
 
 /* ---------- Sincronización ---------- */
