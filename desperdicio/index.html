@@ -79,6 +79,11 @@
      sin importar qué tan alargado sea el producto */
   .familia-card .foto img{width:100%;height:66px;object-fit:contain;display:block;}
   .familia-card .emoji{font-size:1.7rem;line-height:1;}
+  /* Respaldo cuando la foto de la línea no carga: el icono de trazo en vez de
+     un emoji genérico. Se ve igual en todos los equipos, que es más de lo que
+     puede decirse de un emoji. */
+  .familia-card .ic-fam{display:block;width:46px;height:46px;color:var(--red);}
+  .familia-card .ic-fam svg{width:100%;height:100%;display:block;}
   .familia-card.active{border-color:var(--red);background:#fdeceb;color:var(--red);}
   @media(max-width:600px){.familia-card .foto,.familia-card .foto img{height:52px;}}
 
@@ -191,7 +196,9 @@
     min-height:38px;}
   /* Aviso con acciones: el texto a la izquierda y los dos cuadros al extremo
      derecho, que es donde la vista los busca al terminar de leer. */
-  .j-aviso.con-acciones{display:flex;align-items:flex-start;gap:14px;}
+  /* Centrado vertical: con el texto en dos renglones, los botones alineados
+     arriba quedaban flotando en la esquina. */
+  .j-aviso.con-acciones{display:flex;align-items:center;gap:14px;}
   .j-aviso .j-cuerpo{flex:1;min-width:0;}
   /* Buscador de referencia: campo normal con la lista colgando debajo. */
   .ref-busca{position:relative;}
@@ -232,6 +239,16 @@
      porque uno se deshace y el otro no. */
   .j-aviso button.peligro{border-color:var(--bad);color:#fff;background:var(--bad);}
   .j-aviso button.peligro:hover{filter:brightness(.92);}
+  /* Cuando Borrar va SOLO no hay con qué confundirlo, y un bloque rojo macizo
+     sobre un aviso verde de «jornada completa» grita más de lo que merece:
+     pasa a botón normal, perfilado, y se llena de rojo al apuntarlo. */
+  .j-aviso .j-acciones button.peligro:only-child{
+    flex-direction:row;gap:7px;width:auto;height:38px;padding:0 15px;
+    background:#fff;color:var(--bad);border-color:var(--bad);}
+  .j-aviso .j-acciones button.peligro:only-child svg{width:14px;height:14px;}
+  .j-aviso .j-acciones button.peligro:only-child span{font-size:.68rem;}
+  .j-aviso .j-acciones button.peligro:only-child:hover{
+    background:var(--bad);color:#fff;filter:none;}
   /* En pantalla angosta el texto manda y los cuadros pasan debajo, pero sin
      encogerse: siguen siendo blancos de 52px, que es lo que se toca con el dedo. */
   @media (max-width:620px){
@@ -1288,6 +1305,18 @@
   .card tr.tot td{font-weight:700;border-bottom:none;border-top:1px solid var(--border);}
   .card td.num,.card th.num{text-align:right;}
   .minibar{background:#f7d7d7;border-radius:3px;height:11px;display:block;}
+
+  /* Paneles partidos por línea, en modo «Todas las líneas». */
+  .ind .porlinea{display:flex;flex-direction:column;gap:13px;}
+  .ind .pl-cab{display:flex;align-items:center;gap:7px;font-weight:800;font-size:.78rem;
+    padding-bottom:4px;border-bottom:1px solid var(--border);}
+  .ind .pl-cab .ic-sec{width:21px;height:21px;flex:0 0 21px;}
+  .ind .pl-cab .tot{margin-left:auto;font-weight:600;font-size:.7rem;color:var(--text-dim);}
+  .ind table.pl-t{margin:0;width:100%;}
+  .ind table.pl-t td{padding:4px 6px;font-size:.78rem;border:0;}
+  .ind table.pl-t td:first-child{padding-left:0;}
+  .ind .pl-vacio{font-size:.73rem;color:var(--text-dim);padding:5px 0 2px;}
+  .ind .pl-mas{font-size:.69rem;color:var(--text-dim);padding-top:2px;}
   .chart-wrap{position:relative;height:210px;padding:8px 4px;}
   .donut-wrap{display:flex;align-items:center;gap:14px;padding:6px 0;}
   .donut-wrap .cv{position:relative;width:150px;height:150px;flex:none;}
@@ -1890,11 +1919,13 @@
     <div style="margin-bottom:12px;">
       <label for="regDef">Defecto</label><select id="regDef"></select>
     </div>
-    <div class="fila2">
+    <!-- En recolección no hay máquina: el patinador recoge lo que se tiró, sin
+         saber de qué puesto salió. El campo solo aparece en auditoría. -->
+    <div class="fila2" id="regFila2">
       <div><label for="regRef">Referencia</label>
         <input type="text" id="regRef" autocomplete="off"></div>
-      <div><label for="regPuesto">Máquina / puesto</label>
-        <input type="text" id="regPuesto" autocomplete="off" placeholder="solo auditoría"></div>
+      <div id="regCampoPuesto"><label for="regPuesto">Máquina / puesto</label>
+        <input type="text" id="regPuesto" autocomplete="off"></div>
     </div>
     <div style="margin-bottom:12px;">
       <label for="regObs">Observación</label>
@@ -2089,7 +2120,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-18-regfix";
+const APP_VERSION = "2026-11-18-tops";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -3417,7 +3448,7 @@ function renderFamilias(){
   const box=document.getElementById("familias");
   box.innerHTML=FAMILIAS.map(f=>`
     <div class="familia-card${S.familia===f?' active':''}" data-familia="${f}">
-      <div class="foto" data-linea="${f}"><span class="emoji">${FAMILIA_EMOJI[f]}</span></div>${f}
+      <div class="foto" data-linea="${f}"><span class="ic-fam">${icLinea(f)}</span></div>${f}
     </div>`).join("");
   box.querySelectorAll(".foto").forEach(pintarFoto);
   box.querySelectorAll(".familia-card").forEach(c=>c.addEventListener("click",()=>seleccionarFamilia(c.dataset.familia)));
@@ -6001,7 +6032,12 @@ function abrirEdicionRegistro(id, quien, procVolver){
     `<option value="${esc(d.code)}"${d.code===r.defectoCodigo?" selected":""}>${esc(d.code)} - ${esc(d.name)}</option>`).join("");
   document.getElementById("regCant").value   = r.cantidad || 0;
   document.getElementById("regRef").value    = r.referencia || "";
+  /* Solo la auditoría asigna máquina. En recolección el campo sobra y además
+     confunde: invita a escribir un puesto que ese registro no puede tener. */
+  const esAud = tipoDe(r) === "auditoria";
   document.getElementById("regPuesto").value = r.puesto || "";
+  document.getElementById("regCampoPuesto").style.display = esAud ? "" : "none";
+  document.getElementById("regFila2").style.gridTemplateColumns = esAud ? "" : "1fr";
   document.getElementById("regObs").value    = r.observacion || "";
   const firma = quien && (quien.nombre || quien.usuario);
   document.getElementById("regCual").textContent =
@@ -6032,7 +6068,9 @@ async function guardarEdicionRegistro(){
      procesos mintiera después de una corrección. */
   const cambios = {
     proceso: proc,
-    puesto: document.getElementById("regPuesto").value.trim(),
+    puesto: tipoDe(r)==="auditoria"
+      ? document.getElementById("regPuesto").value.trim()
+      : (r.puesto || ""),
     defectoCodigo: cod,
     defectoLabel: d ? d.name : (r.defectoLabel || ""),
     origenDefecto: d ? origenDefecto(d, fam) : "",
@@ -6264,15 +6302,63 @@ function renderDashboardTurno(){
   const porDef=agrupa(r=>`${r.defectoCodigo} - ${r.defectoLabel}`);
   const flujo=agrupa(r=> r.defectoAjeno==="Sí" ? `${r.origenDefecto||"?"}|${r.puesto}` : null);
 
-  // top5 + otros
   const ordDef=[...porDef].sort((a,b)=>b[1]-a[1]);
-  const top5=ordDef.slice(0,5), resto=ordDef.slice(5).reduce((s,[,v])=>s+v,0);
-  const defsMostrar = resto>0 ? [...ordDef.slice(0,4), ["Otros",resto]] : top5;
 
   const barra=(v,max)=>`<span class="minibar" style="width:${max?Math.max(6,v/max*100):0}%"></span>`;
-  const maxProc=Math.max(...porProc.map(([,v])=>v),1);
+
+  /* ====================================================================
+     TOP POR LÍNEA
+
+     Con las cuatro líneas juntas, una sola tabla no sirve para decidir:
+     «Temple» existe en machetes y en cuchillas, son máquinas distintas y
+     al mezclarlas el número grande no dice dónde hay que ir. Así que en
+     «Todas» cada panel se parte por línea con su top 3, y con una línea
+     sola va corrido con el top 5.
+     ==================================================================== */
+  const TOPE = esTodas ? 3 : 5;
+  function agrupaDe(filas, fn){
+    const m={}; filas.forEach(r=>{ const k=fn(r); if(k==null) return;
+      m[k]=(m[k]||0)+(r.cantidad||0); });
+    return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+  }
+  /* Recorta al top n y mete el resto en una fila, para que el TOTAL siga
+     cuadrando con lo que se ve. */
+  function conOtros(lista, n){
+    if(lista.length <= n) return lista;
+    const resto = lista.slice(n).reduce((s,[,v])=>s+v,0);
+    return [...lista.slice(0,n), [`Otros (${lista.length-n} más)`, resto]];
+  }
+  /* Un panel partido por línea. `fuente` dice de qué filas sale cada línea. */
+  function panelPorLinea(fuente, fn, vacio){
+    return `<div class="porlinea">${LINEAS_SEL.map(L=>{
+      const filas = fuente.filter(r=> r.familia === L);
+      const lista = agrupaDe(filas, fn);
+      const tot   = filas.reduce((n2,r)=>n2+(r.cantidad||0),0);
+      const top   = lista.slice(0, TOPE);
+      const mas   = lista.length - top.length;
+      const masPz = lista.slice(TOPE).reduce((n2,[,v])=>n2+v,0);
+      const mx    = Math.max(...top.map(([,v])=>v), 1);
+      return `<div class="pl">
+        <div class="pl-cab"><span class="ic-sec">${icLinea(L)}</span>${esc(L)}
+          <span class="tot">${f0(tot)} pieza(s)</span></div>
+        ${top.length ? `<table class="pl-t"><tbody>${top.map(([k,v])=>`
+            <tr><td>${esc(k)}</td><td class="num">${f0(v)}</td>
+                <td class="num">${tot>0?Math.round(v/tot*100):0}%</td>
+                <td style="width:48px;">${barra(v,mx)}</td></tr>`).join("")}
+          </tbody></table>${mas>0
+            ? `<div class="pl-mas">y ${mas} más · ${f0(masPz)} pieza(s)</div>` : ""}`
+          : `<div class="pl-vacio">${vacio}</div>`}
+      </div>`;
+    }).join("")}</div>`;
+  }
+  /* Las tres tablas de una línea van al top 5, con el resto agrupado para que
+     el TOTAL no deje de cuadrar. */
+  const procMostrar = conOtros(porProc,   TOPE);
+  const pueMostrar  = conOtros(porPuesto, TOPE);
+  const defsMostrar = conOtros(ordDef,    TOPE);
+  const maxProc=Math.max(...procMostrar.map(([,v])=>v),1);
   const maxDef=Math.max(...defsMostrar.map(([,v])=>v),1);
-  const maxPue=Math.max(...porPuesto.map(([,v])=>v),1);
+  const maxPue=Math.max(...pueMostrar.map(([,v])=>v),1);
   const maxFlu=Math.max(...flujo.map(([,v])=>v),1);
 
   /* ---- Comparación con el periodo anterior ----
@@ -6529,9 +6615,12 @@ function renderDashboardTurno(){
 
   box.innerHTML = cabecera + `<div class="ind">
   <div class="dash-grid">
-    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.fabrica}</span><div><h2>DESPERDICIO POR PROCESO</h2><span style="font-size:.72rem;color:var(--text-dim);">de la recolección, sobre lo clasificado en rondas</span></div></div><div class="cb">
-      ${porProc.length?`<table><thead><tr><th>Proceso</th><th class="num">NC</th><th class="num">% de lo clasificado</th><th class="num">% de lo empacado</th><th></th></tr></thead><tbody>
-      ${porProc.map(([k,v])=>{
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.fabrica}</span><div><h2>${
+      esTodas?"TOP 3 PROCESOS POR LÍNEA":"TOP 5 PROCESOS"}</h2><span style="font-size:.72rem;color:var(--text-dim);">${
+      esTodas?"de la recolección, los que más aportan en cada línea":"de la recolección, sobre lo clasificado en rondas"}</span></div></div><div class="cb">
+      ${esTodas ? panelPorLinea(regs, r=>r.proceso, "Sin recolección registrada.")
+      : porProc.length?`<table><thead><tr><th>Proceso</th><th class="num">NC</th><th class="num">% de lo clasificado</th><th class="num">% de lo empacado</th><th></th></tr></thead><tbody>
+      ${procMostrar.map(([k,v])=>{
         const p=ncTotal>0?Math.round(v/ncTotal*100):null;
         /* El % sobre lo clasificado dice cuánto pesa el proceso DENTRO del
            desperdicio. El que se compara con la meta es otro: el proceso
@@ -6552,16 +6641,21 @@ function renderDashboardTurno(){
       </tbody></table>`:'<div class="empty-mini">Sin registros.</div>'}
     </div></div>
 
-    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.lupa}</span><div><h2>DESPERDICIO POR PUESTO</h2><span style="font-size:.72rem;color:var(--text-dim);">de la auditoría: es la única que sabe de qué máquina salió</span></div></div><div class="cb">
-      ${porPuesto.length?`<table><thead><tr><th>Puesto</th><th class="num">NC</th><th class="num">% de lo auditado</th><th></th></tr></thead><tbody>
-      ${porPuesto.map(([k,v])=>{const pc=audTotal>0?Math.round(v/audTotal*100):null;
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.lupa}</span><div><h2>${
+      esTodas?"TOP 3 PUESTOS POR LÍNEA":"TOP 5 PUESTOS"}</h2><span style="font-size:.72rem;color:var(--text-dim);">de la auditoría: es la única que sabe de qué máquina salió</span></div></div><div class="cb">
+      ${esTodas ? panelPorLinea(regsAud, r=> r.puesto || null, "La auditoría no recorrió puestos.")
+      : pueMostrar.length?`<table><thead><tr><th>Puesto</th><th class="num">NC</th><th class="num">% de lo auditado</th><th></th></tr></thead><tbody>
+      ${pueMostrar.map(([k,v])=>{const pc=audTotal>0?Math.round(v/audTotal*100):null;
         return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${pc==null?"—":pc+"%"}</td><td style="width:70px;">${barra(v,maxPue)}</td></tr>`;}).join("")}
       <tr class="tot"><td>TOTAL AUDITADO</td><td class="num">${audTotal}</td><td class="num">100%</td><td></td></tr>
       </tbody></table>`:'<div class="empty-mini">La auditoría todavía no recorrió puestos en este periodo.</div>'}
     </div></div>
 
-    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>TOP 5 DEFECTOS</h2></div></div><div class="cb">
-      ${defsMostrar.length?`<table><thead><tr><th>Defecto</th><th class="num">NC</th><th class="num">% NC</th><th></th><th class="num">Acumulado</th></tr></thead><tbody>
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>${
+      esTodas?"TOP 3 DEFECTOS POR LÍNEA":"TOP 5 DEFECTOS"}</h2>${
+      esTodas?'<span style="font-size:.72rem;color:var(--text-dim);">de la recolección, los que más pesan en cada línea</span>':""}</div></div><div class="cb">
+      ${esTodas ? panelPorLinea(regs, r=>`${r.defectoCodigo} - ${r.defectoLabel}`, "Sin recolección registrada.")
+      : defsMostrar.length?`<table><thead><tr><th>Defecto</th><th class="num">NC</th><th class="num">% NC</th><th></th><th class="num">Acumulado</th></tr></thead><tbody>
       ${(()=>{ /* El acumulado es lo que convierte una lista en un Pareto: dice
                   cuántos defectos hay que atacar para cubrir la mayor parte. */
         let acum=0;
