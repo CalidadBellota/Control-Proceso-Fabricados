@@ -691,15 +691,33 @@
     color:var(--red-dark);display:inline-flex;align-items:center;
     justify-content:center;flex:none;}
   .ic-sec svg{width:16px;height:16px;}
-  .ind .section-title{display:flex;justify-content:space-between;align-items:center;
-    gap:14px;flex-wrap:wrap;margin-bottom:14px;}
+  /* CABECERA DE CADA PANEL
+
+     Iba con align-items:center, que centra el icono contra el bloque entero
+     —título más subtítulo—, así que una tarjeta con subtítulo y otra sin él
+     alineaban distinto y, puestas en fila, los títulos quedaban a alturas
+     diferentes. Ahora el icono se alinea arriba, a la altura de la primera
+     línea del título, y la cabecera tiene alto fijo: las tres tarjetas de una
+     fila empiezan su contenido en el mismo sitio tenga o no subtítulo, y
+     tanto si el subtítulo ocupa una línea como dos. */
+  .ind .section-title{display:flex;justify-content:space-between;align-items:flex-start;
+    gap:11px;flex-wrap:wrap;margin-bottom:12px;min-height:52px;}
+  .ind .section-title > div{min-width:0;}
   .ind .section-title h2{margin:0;font-size:.9rem;font-weight:800;letter-spacing:.3px;
-    color:var(--red);}
+    color:var(--red);line-height:1.35;}
+  /* El subtítulo siempre ocupa su renglón, aunque venga vacío. */
+  .ind .section-title .sub-sec{display:block;font-size:.72rem;color:var(--text-dim);
+    line-height:1.3;margin-top:2px;min-height:1.3em;}
   .ind .section-title.con-ic{justify-content:flex-start;}
   .ind .section-title.con-ic > span:not(.ic-sec){margin-left:auto;}
   .ind .ic-sec{width:30px;height:30px;border-radius:9px;background:var(--bad-bg);
-    color:var(--red-dark);display:inline-flex;align-items:center;justify-content:center;flex:none;}
+    color:var(--red-dark);display:inline-flex;align-items:center;justify-content:center;
+    flex:none;margin-top:-2px;}
   .ind .ic-sec svg{width:16px;height:16px;}
+  /* Los encabezados de estas tablas se partían en dos renglones y descuadraban
+     la fila: se dejan en una línea y, si no caben, encogen la letra. */
+  .ind .card th{white-space:nowrap;}
+  .ind .card th.num{font-size:.68rem;}
 
   .ind .tabla{width:100%;border-collapse:collapse;}
   .ind .tabla th{background:#f3f4f7;text-align:left;padding:9px 11px;font-size:.68rem;
@@ -1711,7 +1729,7 @@
   <div class="kpis" id="mKpis" style="grid-template-columns:repeat(5,1fr);"></div>
 
   <div class="dash-grid" style="grid-template-columns:1.5fr 1fr;">
-    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>PIEZAS NO CONFORMES POR DÍA</h2><span style="font-size:.72rem;color:var(--text-dim);">registradas en rondas</span></div></div>
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>PIEZAS NO CONFORMES POR DÍA</h2><span class="sub-sec">registradas en rondas</span></div></div>
       <div class="chart-wrap" style="height:250px;"><canvas id="mChart"></canvas></div></div>
     <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>PARETO DE DEFECTOS DE LA MÁQUINA</h2></div></div>
       <div class="cb"><div class="pareto" id="mPareto"></div></div></div>
@@ -2120,7 +2138,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-18-tops";
+const APP_VERSION = "2026-11-18-cabeceras";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -6558,7 +6576,7 @@ function renderDashboardTurno(){
     <div class="panel" style="margin-bottom:16px;">
       <div class="section-title con-ic"><span class="ic-sec">${esTodas?IC_IND.fabrica:icLinea(fam)}</span>
         <div><h2>DESPERDICIO POR LÍNEA</h2>
-          <span style="font-size:.72rem;color:var(--text-dim);">${LINEAS_SEL.length===1
+          <span class="sub-sec">${LINEAS_SEL.length===1
             ? "contra su propia meta" : "cada línea contra su propia meta"}</span></div>
       </div>
       <div class="lineas ${LINEAS_SEL.length===1?"una":"cuatro"}">
@@ -6616,10 +6634,10 @@ function renderDashboardTurno(){
   box.innerHTML = cabecera + `<div class="ind">
   <div class="dash-grid">
     <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.fabrica}</span><div><h2>${
-      esTodas?"TOP 3 PROCESOS POR LÍNEA":"TOP 5 PROCESOS"}</h2><span style="font-size:.72rem;color:var(--text-dim);">${
-      esTodas?"de la recolección, los que más aportan en cada línea":"de la recolección, sobre lo clasificado en rondas"}</span></div></div><div class="cb">
+      esTodas?"TOP 3 PROCESOS POR LÍNEA":"TOP 5 PROCESOS"}</h2><span class="sub-sec">${
+      esTodas?"los que más aportan en cada línea":"de la recolección registrada"}</span></div></div><div class="cb">
       ${esTodas ? panelPorLinea(regs, r=>r.proceso, "Sin recolección registrada.")
-      : porProc.length?`<table><thead><tr><th>Proceso</th><th class="num">NC</th><th class="num">% de lo clasificado</th><th class="num">% de lo empacado</th><th></th></tr></thead><tbody>
+      : porProc.length?`<table><thead><tr><th>Proceso</th><th class="num">NC</th><th class="num">% del total</th><th class="num">% empacado</th><th></th></tr></thead><tbody>
       ${procMostrar.map(([k,v])=>{
         const p=ncTotal>0?Math.round(v/ncTotal*100):null;
         /* El % sobre lo clasificado dice cuánto pesa el proceso DENTRO del
@@ -6642,9 +6660,9 @@ function renderDashboardTurno(){
     </div></div>
 
     <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.lupa}</span><div><h2>${
-      esTodas?"TOP 3 PUESTOS POR LÍNEA":"TOP 5 PUESTOS"}</h2><span style="font-size:.72rem;color:var(--text-dim);">de la auditoría: es la única que sabe de qué máquina salió</span></div></div><div class="cb">
+      esTodas?"TOP 3 PUESTOS POR LÍNEA":"TOP 5 PUESTOS"}</h2><span class="sub-sec">de la auditoría, la única que sabe la máquina</span></div></div><div class="cb">
       ${esTodas ? panelPorLinea(regsAud, r=> r.puesto || null, "La auditoría no recorrió puestos.")
-      : pueMostrar.length?`<table><thead><tr><th>Puesto</th><th class="num">NC</th><th class="num">% de lo auditado</th><th></th></tr></thead><tbody>
+      : pueMostrar.length?`<table><thead><tr><th>Puesto</th><th class="num">NC</th><th class="num">% auditado</th><th></th></tr></thead><tbody>
       ${pueMostrar.map(([k,v])=>{const pc=audTotal>0?Math.round(v/audTotal*100):null;
         return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${pc==null?"—":pc+"%"}</td><td style="width:70px;">${barra(v,maxPue)}</td></tr>`;}).join("")}
       <tr class="tot"><td>TOTAL AUDITADO</td><td class="num">${audTotal}</td><td class="num">100%</td><td></td></tr>
@@ -6652,8 +6670,8 @@ function renderDashboardTurno(){
     </div></div>
 
     <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>${
-      esTodas?"TOP 3 DEFECTOS POR LÍNEA":"TOP 5 DEFECTOS"}</h2>${
-      esTodas?'<span style="font-size:.72rem;color:var(--text-dim);">de la recolección, los que más pesan en cada línea</span>':""}</div></div><div class="cb">
+      esTodas?"TOP 3 DEFECTOS POR LÍNEA":"TOP 5 DEFECTOS"}</h2><span class="sub-sec">${
+      esTodas?"los que más pesan en cada línea":"de la recolección, con su acumulado"}</span></div></div><div class="cb">
       ${esTodas ? panelPorLinea(regs, r=>`${r.defectoCodigo} - ${r.defectoLabel}`, "Sin recolección registrada.")
       : defsMostrar.length?`<table><thead><tr><th>Defecto</th><th class="num">NC</th><th class="num">% NC</th><th></th><th class="num">Acumulado</th></tr></thead><tbody>
       ${(()=>{ /* El acumulado es lo que convierte una lista en un Pareto: dice
@@ -6711,13 +6729,13 @@ function renderDashboardTurno(){
   </div></div>
 
   <div class="dash-grid" style="margin-top:14px;">
-    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.lupa}</span><div><h2>ANÁLISIS DEL PERIODO</h2><span style="font-size:.72rem;color:var(--text-dim);">lo que dicen los números, en una frase cada uno</span></div></div><div class="cb">
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.lupa}</span><div><h2>ANÁLISIS DEL PERIODO</h2><span class="sub-sec">lo que dicen los números, en una frase cada uno</span></div></div><div class="cb">
       ${analisisTexto({resumenes, antes, sumaEmp, sumaRec, sumaEmpAnt, sumaRecAnt,
         pctPlanta, metaPlanta, kilos, porProc, defsMostrar, ncTotal, audTotal,
         porPuesto, periodo, fam, variacion})}
     </div></div>
 
-    <div class="card" style="grid-column:span 2;"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.tarea}</span><div><h2>ACCIONES Y SEGUIMIENTO</h2><span style="font-size:.72rem;color:var(--text-dim);">qué se decidió hacer, quién responde y para cuándo</span></div>
+    <div class="card" style="grid-column:span 2;"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.tarea}</span><div><h2>ACCIONES Y SEGUIMIENTO</h2><span class="sub-sec">qué se decidió hacer, quién responde y para cuándo</span></div>
       <button type="button" id="accNueva" class="btn-mini">+ Nueva acción</button></div><div class="cb">
       ${tablaAcciones(fam)}
     </div></div>
