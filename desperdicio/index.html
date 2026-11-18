@@ -2083,7 +2083,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-18-todas";
+const APP_VERSION = "2026-11-18-sinempaque";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -5172,8 +5172,28 @@ function resumenLineaCalc(fam, periodo, fecha, turno, rango){
   const aud = auditado(fam, periodo, fecha, turno, rango);
 
   const pct = (emp && emp>0 && rec!=null) ? rec/emp*100 : null;
+
+  /* TURNO SIN EMPAQUE.
+
+     Pasa de verdad: el 14 de noviembre en turno 3 no se empacaron cuchillas,
+     pero temple, biselado y los demás sí trabajaron y generaron desperdicio.
+     Entonces hay numerador y no hay denominador.
+
+     Ese turno NO tiene porcentaje, y no se puede inventar uno: ni 0 % (no es
+     que se hiciera bien) ni infinito. Lo que sí tiene es desperdicio, y ese
+     desperdicio es real y pertenece al día, donde los otros turnos sí
+     empacaron. Las piezas que temple desechó salen de material que se empacará
+     en el siguiente turno; por eso el indicador honesto es el del día, no el
+     del turno suelto.
+
+     Se distingue de «no lo he cargado todavía»: un 0 escrito en Data es una
+     afirmación —no se empacó—, y un hueco es una pregunta sin responder. La
+     app no convierte lo segundo en lo primero, porque eso escondería datos
+     que faltan haciéndolos pasar por ceros. */
+  const sinEmpaque = (emp === 0);
+
   return {fam, emp, rec, ncRondas:r.piezas, filas:r.filas, aud:aud.piezas, meta, pct,
-          faltan, deCuantos,
+          faltan, deCuantos, sinEmpaque,
           est: pct==null ? "sin" : estadoPorMeta(pct, meta),
           cobertura: (rec && rec>0) ? aud.piezas/rec*100 : null};
 }
@@ -6347,9 +6367,12 @@ function renderDashboardTurno(){
           <span class="barra"><i class="${estPlanta==="ok"?"":estPlanta==="warn"?"warn":"bad"}"
             style="width:${pctPlanta==null||metaPlanta==null?0:
               Math.min(100, pctPlanta/(metaPlanta*2)*100)}%;"></i></span>
-          <small>meta ${metaPlanta==null?"—":fPct(metaPlanta)}${
-            metaPlanta==null?"":(esTodas?" · ponderada por lo empacado":"")}</small>
-          <small>${pctPlanta==null ? "faltan las unidades empacadas"
+          <small>${sumaEmp===0
+            ? "no se empacó en este periodo"
+            : `meta ${metaPlanta==null?"—":fPct(metaPlanta)}${
+               metaPlanta==null?"":(esTodas?" · ponderada por lo empacado":"")}`}</small>
+          <small>${sumaEmp===0 ? (sumaRec ? "el desperdicio cuenta en el día" : "sin movimiento")
+            : pctPlanta==null ? "faltan las unidades empacadas"
             : pctPlanta<=metaPlanta ? "dentro de la meta"
             : fPct(pctPlanta-metaPlanta)+" por encima"}</small>
         </div>
@@ -6372,13 +6395,17 @@ function renderDashboardTurno(){
         <div class="kpi ${pctPlanta==null ? "" : tono(estPlanta)}">
           <span class="ic">${IC_IND.diana}</span>
           <span>Cumplimiento de meta</span>
-          <b class="nom">${pctPlanta==null ? "Sin dato"
+          <b class="nom">${sumaEmp===0 ? "No aplica"
+            : pctPlanta==null ? "Sin dato"
             : pctPlanta<=metaPlanta ? "Sí cumple" : "No cumple"}</b>
-          <small>${!conDato.length ? "falta dato para saberlo"
+          <small>${sumaEmp===0 ? "sin empaque no hay porcentaje"
+            : !conDato.length ? "falta dato para saberlo"
             : LINEAS_TODAS.length===1
               ? `${esc(fam)} · meta ${f2(metaPlanta)}%`
               : `${conDato.length-fueraMeta} de ${conDato.length} línea(s) dentro de meta`}</small>
-          <small>${!conDato.length
+          <small>${sumaEmp===0
+            ? (sumaRec ? `las ${f0(sumaRec)} pieza(s) cuentan en el día` : "sin desperdicio tampoco")
+            : !conDato.length
             ? (sinCargar ? "faltan las unidades empacadas" : "no hay recolección registrada")
             : LINEAS_TODAS.length===1
               ? (fueraMeta ? `${f2(pctPlanta-metaPlanta)}% por encima de la meta`
@@ -6404,7 +6431,8 @@ function renderDashboardTurno(){
             <div class="lin-cab"><span class="ic-sec">${IC_IND.fabrica}</span>
               <h3>${esc(x.fam)}</h3>
               <span class="badge ${x.est==="ok"?"ok":x.est==="warn"?"warn":x.est==="bad"?"bad":"neutral"}">${
-                x.est==="ok"?"EN META":x.est==="warn"?"AL LÍMITE":x.est==="bad"?"FUERA DE META":"SIN DATO"}</span>
+                x.est==="ok"?"EN META":x.est==="warn"?"AL LÍMITE":x.est==="bad"?"FUERA DE META"
+                :x.sinEmpaque?"NO SE EMPACÓ":"SIN DATO"}</span>
             </div>
             <div class="lin-cuerpo"><div>
             <div class="lin-gran"><b>${fPct(x.pct)}</b>
@@ -6424,7 +6452,11 @@ function renderDashboardTurno(){
                 <div><b>${f0(x.aud||0)}</b><small>en auditoría</small></div></div>
             </div>
             <div class="lin-nota">${
-              x.emp==null
+              x.sinEmpaque
+                ? `<b>No se empacó en este ${periodo==="turno"?"turno":"periodo"}.</b> ${
+                    x.rec ? `Las ${f0(x.rec)} pieza(s) de desperdicio son reales y cuentan en el total del día; el porcentaje no se puede calcular aquí porque no hay contra qué dividir.`
+                          : `Tampoco hubo desperdicio.`}`
+              : x.emp==null
                 ? `<b>Falta cargar las unidades empacadas.</b> Sin ese dato no hay porcentaje: lo recolectado solo se puede leer como piezas sueltas.`
               : x.rec==null
                 ? `No hay registros de recolección en este periodo.`
