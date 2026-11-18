@@ -2083,7 +2083,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-18-sinempaque";
+const APP_VERSION = "2026-11-18-iconos";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -3285,6 +3285,22 @@ const IC_IND = {
   pesa:    SVG_(`<path d="M5 20h14l-1.6-9H6.6L5 20z"/><circle cx="12" cy="7" r="2.6"/>`),
   tarea:   SVG_(`<rect x="4.5" y="3.5" width="15" height="17" rx="2"/><path d="M9 3.5h6v3H9z"/><path d="M8.5 12l2 2 4.5-4.5"/>`)
 };
+
+/* Iconos de las cuatro líneas. Dibujados a trazo, igual que los demás: un
+   PNG por línea pesaría más que toda la app y se vería borroso al escalar.
+   Heredan el color del contenedor, así que sirven en rojo, en gris o sobre
+   una tarjeta de color sin tocarlos. */
+const IC_LINEA = {
+  Machetes: SVG_(`<path d="M2.55 18.95l1.7 1.7 5-5-1.7-1.7z"/><circle cx="4.5" cy="19.1" r=".42" fill="currentColor" stroke="none"/><circle cx="6.2" cy="17.4" r=".42" fill="currentColor" stroke="none"/><path d="M7.9 13.6L18.6 4.4l2.6 2.2c-1.2 4-6.6 9.2-11.6 8.7z"/>`),
+  Limas:    SVG_(`<path d="M10.9 15.7L8.3 13.1 17.4 4l2.6 2.6z"/><path d="M11.8 11l1.5 1.5M14.2 8.6l1.5 1.5M16.6 6.2l1.5 1.5"/><path d="M8.3 13.1L5 16.4M10.9 15.7L7.6 19"/><path d="M5 16.4a1.9 1.9 0 0 0 2.6 2.6"/>`),
+  /* La cuchilla de Bellota: hexágono alargado con el agujero descentrado, no
+     la cuchilla trapezoidal de bisturí. El agujero va a la izquierda y chico;
+     centrado y grande, a 18 px el icono se leía como un ojo. */
+  Cuchillas:SVG_(`<path d="M2.3 9.9l7.3-2.1 12 2v4.4l-12 2-7.3-2.1z"/><circle cx="9.5" cy="12" r="1.1"/>`),
+  Palas:    SVG_(`<path d="M9 7.6V5.8a3 3 0 0 1 6 0v1.8z"/><path d="M12 7.6v5.2"/><path d="M6.9 13h10.2c0 3.6-3.1 7.2-5.1 8.2-2-1-5.1-4.6-5.1-8.2z"/><path d="M12 13.4v5.8"/>`)
+};
+/* Si algún día entra una línea nueva, cae al icono genérico en vez de romperse. */
+function icLinea(fam){ return IC_LINEA[fam] || IC_IND.fabrica; }
 
 const ICONOS_PROC = {
   /* Disco de corte */
@@ -6418,7 +6434,7 @@ function renderDashboardTurno(){
     </div>
 
     <div class="panel" style="margin-bottom:16px;">
-      <div class="section-title con-ic"><span class="ic-sec">${IC_IND.fabrica}</span>
+      <div class="section-title con-ic"><span class="ic-sec">${esTodas?IC_IND.fabrica:icLinea(fam)}</span>
         <div><h2>DESPERDICIO POR LÍNEA</h2>
           <span style="font-size:.72rem;color:var(--text-dim);">${LINEAS_SEL.length===1
             ? "contra su propia meta" : "cada línea contra su propia meta"}</span></div>
@@ -6428,7 +6444,7 @@ function renderDashboardTurno(){
           const anchoPct = (x.pct==null) ? 0 : Math.min(100, x.pct/(x.meta*2)*100);
           const anchoMeta = 50;   // la meta queda a mitad de barra: escala 0–2×meta
           return `<div class="lin ${x.fam===fam?"sel":""} ${tono(x.est)}">
-            <div class="lin-cab"><span class="ic-sec">${IC_IND.fabrica}</span>
+            <div class="lin-cab"><span class="ic-sec">${icLinea(x.fam)}</span>
               <h3>${esc(x.fam)}</h3>
               <span class="badge ${x.est==="ok"?"ok":x.est==="warn"?"warn":x.est==="bad"?"bad":"neutral"}">${
                 x.est==="ok"?"EN META":x.est==="warn"?"AL LÍMITE":x.est==="bad"?"FUERA DE META"
