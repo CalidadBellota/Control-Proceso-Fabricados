@@ -57,7 +57,7 @@
   .modo-cab .firma button:hover{border-color:var(--red);color:var(--red);}
 
   main{max-width:1250px;margin:0 auto;padding:20px 20px 110px 20px;}
-  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:18px;}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:16px;}
   label{display:block;font-size:.78rem;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
   select,input[type=text],input[type=number],input[type=date],input[type=month],
   input[type=password],input[type=time],textarea{
@@ -585,7 +585,7 @@
   .btn-actualizar:disabled{opacity:.6;cursor:default;}
   .fila-kpi{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;}
   .fila-kpi .campo{flex:0 0 auto;margin:0;}
-  .fila-kpi .campo.corto{flex:0 0 170px;}
+  .fila-kpi .campo.corto{flex:0 0 160px;}   /* igual que Proceso */
   .fila-kpi .campo.der{margin-left:auto;}
   .fila-kpi .campo label{display:block;font-size:.74rem;color:var(--text-dim);
     margin-bottom:5px;font-weight:600;}
@@ -615,7 +615,12 @@
      entre ellas—, y soltar aquí reglas sueltas sobre `span` o `b` las habría
      descuadrado sin que se notara hasta abrir esa pantalla.
      ==================================================================== */
+  /* Cinco tarjetas en una fila solo caben en pantalla ancha. Proceso baja a
+     tres y luego a dos; aquí faltaban esos dos cortes y en la tablet las
+     cifras quedaban aplastadas en columnas de 190 px. Mismas medidas. */
   .ind .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:0;}
+  @media(max-width:1250px){.ind .kpis{grid-template-columns:repeat(3,1fr);}}
+  @media(max-width:900px){ .ind .kpis{grid-template-columns:1fr 1fr;}}
   .ind .kpi .enlace{background:none;border:0;padding:0;margin-top:3px;
     font:inherit;font-size:.7rem;color:var(--red);text-decoration:underline;
     cursor:pointer;display:block;}
@@ -1695,15 +1700,18 @@
         <div class="seg seg-kpi" id="dSeg">
           <button type="button" data-p="turno">Turno</button>
           <button type="button" data-p="dia" class="on">Día</button>
-          <button type="button" data-p="semana">Semana</button>
           <button type="button" data-p="mes">Mes</button>
         </div>
       </div>
-      <div class="campo corto">
+      <div class="campo corto" id="dCampoDia">
         <label for="dFecha">Día</label>
         <input type="date" id="dFecha">
       </div>
-      <div class="campo corto" id="wrapTurno">
+      <div class="campo corto" id="dCampoMes" style="display:none;">
+        <label for="dMes">Mes</label>
+        <input type="month" id="dMes">
+      </div>
+      <div class="campo corto" id="wrapTurno" style="display:none;">
         <label for="dTurno">Turno</label>
         <select id="dTurno">
           <option value="1">Turno 1 (Mañana)</option>
@@ -2019,7 +2027,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-18-cabecera";
+const APP_VERSION = "2026-11-18-mes";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -4547,15 +4555,27 @@ function rangoPeriodo(periodo, fecha, turno){
 }
 // Las unidades empacadas SIEMPRE se guardan por línea + fecha + turno.
 // Día y semana son sumas de esos turnos; ahí no se captura nada.
+/* Un mes del dashboard pide este almacén unas 10.000 veces. Parsearlo en cada
+   lectura costaba segundos, así que se conserva parseado y se invalida al
+   escribir. Cualquier escritura nueva en cd_empacadas DEBE llamar a
+   invalidarEmpacadas(). */
+let CACHE_EMP = null;
+function empacadasTodas(){
+  if(CACHE_EMP) return CACHE_EMP;
+  try{ CACHE_EMP = JSON.parse(localStorage.getItem("cd_empacadas")||"{}") || {}; }
+  catch(e){ CACHE_EMP = {}; }
+  return CACHE_EMP;
+}
+function invalidarEmpacadas(){ CACHE_EMP = null; limpiarCacheResumen(); }
 function guardarEmpacadas(fam, clave, valor){
   const all=JSON.parse(localStorage.getItem("cd_empacadas")||"{}");
   all[fam+"|"+clave]=valor;
   localStorage.setItem("cd_empacadas",JSON.stringify(all));
+  invalidarEmpacadas();
   if(S.syncUrl) enviarEmpacadas(fam, clave, valor);
 }
 function leerEmpacadas(fam, clave){
-  const all=JSON.parse(localStorage.getItem("cd_empacadas")||"{}");
-  const v=all[fam+"|"+clave];
+  const v=empacadasTodas()[fam+"|"+clave];
   return (v==null||v==="")?null:Number(v);
 }
 function empTurno(fam,turno,fecha){ return leerEmpacadas(fam, `T${turno}-${fecha}`); }
@@ -4761,6 +4781,7 @@ async function cargarEmpacadas(){
     });
     const despues=JSON.stringify(all);
     localStorage.setItem("cd_empacadas",despues);
+    invalidarEmpacadas();
     migrarProcesosUnificados();          // normaliza lo que llegue con nombres viejos
     const d=new Date();
     ESTADO_CARGUE.hora = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -4970,7 +4991,20 @@ function recMes(fam, fecha){
   return tot;
 }
 
+/* Caché de un solo repintado. En el periodo «mes», resumenLinea recorre 30
+   días × 3 turnos por línea y además filtra todos los registros; el tablero lo
+   pedía para las 4 líneas, otra vez para el mes anterior, y —esto era lo
+   grave— una vez más por CADA fila de la tabla por proceso. Con un mes
+   cargado eso eran más de seis segundos de pantalla congelada.
+   Se vacía al empezar cada repintado, así que nunca sirve un dato viejo. */
+let CACHE_RESUMEN = {};
+function limpiarCacheResumen(){ CACHE_RESUMEN = {}; }
 function resumenLinea(fam, periodo, fecha, turno, rango){
+  const k = fam+"|"+periodo+"|"+fecha+"|"+turno;
+  if(CACHE_RESUMEN[k]) return CACHE_RESUMEN[k];
+  return (CACHE_RESUMEN[k] = resumenLineaCalc(fam, periodo, fecha, turno, rango));
+}
+function resumenLineaCalc(fam, periodo, fecha, turno, rango){
   let emp=null, rec=null, faltan=[], deCuantos=0;
   if(periodo==="turno"){
     emp = empTurno(fam,turno,fecha); rec = recTurnoTotal(fam,turno,fecha);
@@ -5442,6 +5476,7 @@ function guardarLoteCargue(fam, lote){
   const all = JSON.parse(localStorage.getItem("cd_empacadas")||"{}");
   lote.forEach(x=> all[fam+"|"+x.clave] = x.valor);
   localStorage.setItem("cd_empacadas", JSON.stringify(all));
+  invalidarEmpacadas();
   if(!S.syncUrl) return;
   guardarEnSheet(fam, lote.map(x=>({clave:x.clave, unidades:x.valor})));
 }
@@ -5731,8 +5766,16 @@ function tablaAcciones(fam){
 }
 
 function renderDashboardTurno(){
+  limpiarCacheResumen();
   const fam=document.getElementById("dFamilia").value;
-  const fecha=document.getElementById("dFecha").value||hoyISO();
+  const periodo = document.getElementById("dPeriodo").value;
+  /* En «Mes» la fecha la pone el selector de mes, no el de día: el usuario
+     elige noviembre, no el 18 de noviembre. */
+  const inMes = document.getElementById("dMes");
+  if(inMes && !inMes.value) inMes.value = (document.getElementById("dFecha").value||hoyISO()).slice(0,7);
+  const fecha = (periodo==="mes" && inMes && inMes.value)
+    ? inMes.value + "-01"
+    : (document.getElementById("dFecha").value||hoyISO());
   const turno=document.getElementById("dTurno").value;
   const box=document.getElementById("dashContenido");
 
@@ -5742,7 +5785,6 @@ function renderDashboardTurno(){
   }
 
   const meta = METAS[fam] ?? 1;
-  const periodo = document.getElementById("dPeriodo").value;
   const rango = rangoPeriodo(periodo, fecha, turno);
 
   /* El panel «Datos de producción» desapareció: repetía en cinco casillas lo
@@ -6039,7 +6081,7 @@ function renderDashboardTurno(){
            sobre lo empacado de la línea, que es la misma cuenta que el
            indicador de arriba. Mezclarlos haría que un proceso con el 83%
            del desperdicio pareciera estar 80 puntos fuera de meta. */
-        const emp = resumenLinea(fam, periodo, fecha, turno, rango).emp;
+        const emp = resFam.emp;
         const pe  = (emp && emp>0) ? v/emp*100 : null;
         const meta = METAS[fam] ?? null;
         const señal = (pe==null||meta==null) ? '<span class="sx">—</span>'
@@ -6302,9 +6344,17 @@ document.getElementById("dSeg").addEventListener("click", ev=>{
 });
 document.getElementById("dFamilia").addEventListener("change",renderDashboardTurno);
 document.getElementById("dPeriodo").addEventListener("change",()=>{
-  document.getElementById("wrapTurno").style.display =
-    document.getElementById("dPeriodo").value==="turno" ? "" : "none";
+  const p = document.getElementById("dPeriodo").value;
+  document.getElementById("wrapTurno").style.display  = p==="turno" ? "" : "none";
+  /* El día se elige también en la vista de turno; en el mes, estorba. */
+  document.getElementById("dCampoDia").style.display  = p==="mes"   ? "none" : "";
+  document.getElementById("dCampoMes").style.display  = p==="mes"   ? "" : "none";
   renderDashboardTurno();
+});
+document.getElementById("dMes").addEventListener("change", async ()=>{
+  renderDashboardTurno();
+  const m = document.getElementById("dMes").value;
+  if(m){ await asegurarHistorico(m+"-01"); renderDashboardTurno(); }
 });
 document.getElementById("dFecha").addEventListener("change", async ()=>{
   renderDashboardTurno();
@@ -7869,6 +7919,7 @@ function migrarProcesosUnificados(){
   });
   if(!nuevas.length) return;
   localStorage.setItem("cd_empacadas", JSON.stringify(all));
+  invalidarEmpacadas();
   {
     console.log(`Procesos unificados: ${nuevas.length} dato(s) trasladados al nombre nuevo.`);
     if(S.syncUrl){
@@ -8229,6 +8280,7 @@ document.querySelectorAll(".tv-sel").forEach(s=>{
   s.addEventListener("change", e=> cambiarTipoVista(e.target.value));
 });
 document.getElementById("dFecha").value=hoyISO();
+document.getElementById("dMes").value=hoyISO().slice(0,7);
 document.getElementById("dTurno").value=turnoActual();
 document.getElementById("kFecha").value=hoyISO();
 montarSelectorMes();
