@@ -1324,6 +1324,64 @@
   .card td.num,.card th.num{text-align:right;}
   .minibar{background:#f7d7d7;border-radius:3px;height:11px;display:block;}
 
+  /* TARJETA ANCHA DE UNA LÍNEA
+
+     Mismas piezas que la tarjeta de inspector de Control de Proceso —bandas
+     verticales con su rotulito, recuadros de cifra y barra— para que las dos
+     apps se lean igual. Solo aparece con una línea seleccionada; con las
+     cuatro siguen las tarjetas compactas. */
+  .ind .lin-ancha{display:grid;align-items:stretch;
+    grid-template-columns:minmax(200px,1fr) 300px 205px minmax(190px,1.05fr);
+    border:1px solid var(--border);border-left-width:5px;border-radius:12px;
+    background:#fff;overflow:hidden;}
+  .ind .lin-ancha.t-ok{border-left-color:var(--ok);}
+  .ind .lin-ancha.t-warn{border-left-color:var(--warn);background:#fffdf5;}
+  .ind .lin-ancha.t-bad{border-left-color:var(--bad);background:#fff7f7;}
+  .ind .lx-g{padding:15px 20px;display:flex;flex-direction:column;gap:7px;
+    border-left:1px solid var(--border);min-width:0;}
+  .ind .lx-g:first-child{border-left:none;}
+  .ind .lx-g.id{flex-direction:row;align-items:center;gap:12px;}
+  .ind .lx-g.centro{justify-content:center;}
+  .ind .lx-g .g-tit{font-size:.72rem;font-weight:800;color:var(--text);}
+  .ind .lx-g .g-pie{font-size:.66rem;color:var(--text-dim);line-height:1.35;}
+  .ind .lin-ancha .ic-sec{width:38px;height:38px;border-radius:11px;}
+  .ind .lin-ancha .ic-sec svg{width:21px;height:21px;}
+  .ind .lin-ancha .nom{font-size:.98rem;font-weight:800;line-height:1.2;display:block;}
+  .ind .lin-ancha .sub{font-size:.7rem;color:var(--text-dim);display:block;margin-top:2px;}
+  .ind .lin-ancha .chip{display:inline-flex;align-items:center;gap:6px;margin-top:7px;
+    padding:3px 10px;border-radius:999px;font-size:.68rem;font-weight:800;}
+  .ind .lin-ancha .chip i{width:7px;height:7px;border-radius:50%;background:currentColor;}
+  .ind .lin-ancha .chip.ok{background:var(--ok-bg);color:#15733f;}
+  .ind .lin-ancha .chip.warn{background:var(--warn-bg);color:var(--warn-text);}
+  .ind .lin-ancha .chip.bad{background:var(--bad-bg);color:var(--bad);}
+  .ind .lin-ancha .chip.sin{background:#f2f3f5;color:#8a919b;}
+  .ind .cajas{display:flex;gap:8px;}
+  .ind .caja{background:#f5f6f8;border-radius:9px;padding:8px 13px;text-align:center;
+    flex:1 1 0;min-width:0;}
+  .ind .caja b{display:block;font-size:1.25rem;font-weight:800;line-height:1.15;}
+  .ind .caja span{display:block;font-size:.63rem;color:var(--text-dim);margin-top:1px;line-height:1.25;}
+  .ind .caja.warn{background:var(--warn-bg);} .ind .caja.warn b{color:var(--warn-text);}
+  .ind .caja.bad{background:var(--bad-bg);}   .ind .caja.bad b{color:var(--bad);}
+  .ind .cifra-gr{font-size:1.45rem;font-weight:800;line-height:1.1;}
+  .ind .cifra-gr span{font-size:.92rem;font-weight:600;color:var(--text-dim);}
+  .ind .lx-cump{display:flex;align-items:center;gap:10px;}
+  .ind .barra-mini{display:block;height:9px;border-radius:5px;background:#eceef1;
+    overflow:hidden;flex:1 1 auto;min-width:80px;}
+  .ind .barra-mini i{display:block;height:100%;background:var(--ok);}
+  .ind .barra-mini i.warn{background:var(--warn);}
+  .ind .barra-mini i.bad{background:var(--bad);}
+  .ind .barra-mini u{display:none;}
+  @media(max-width:1250px){
+    .ind .lin-ancha{grid-template-columns:minmax(190px,1fr) 1fr;}
+    .ind .lx-g{border-left:none;border-top:1px solid var(--border);}
+    .ind .lx-g:nth-child(2){border-top:none;border-left:1px solid var(--border);}
+  }
+  @media(max-width:760px){
+    .ind .lin-ancha{grid-template-columns:1fr;}
+    .ind .lx-g,.ind .lx-g:nth-child(2){border-left:none;border-top:1px solid var(--border);}
+    .ind .lx-g:first-child{border-top:none;}
+  }
+
   /* Paneles partidos por línea, en modo «Todas las líneas». */
   .ind .porlinea{display:flex;flex-direction:column;gap:13px;}
   .ind .pl-cab{display:flex;align-items:center;gap:7px;font-weight:800;font-size:.78rem;
@@ -2138,7 +2196,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-18-cabeceras";
+const APP_VERSION = "2026-11-18-tarjeta";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -6580,7 +6638,65 @@ function renderDashboardTurno(){
             ? "contra su propia meta" : "cada línea contra su propia meta"}</span></div>
       </div>
       <div class="lineas ${LINEAS_SEL.length===1?"una":"cuatro"}">
-        ${resumenes.map(x=>{
+        ${LINEAS_SEL.length===1 ? (x=>{
+          /* Una sola línea: bandas horizontales, como la tarjeta de inspector
+             de Control de Proceso. Con cuatro no cabría, así que esas siguen
+             con la tarjeta compacta de abajo. */
+          const etq = x.sinEmpaque ? "No se empacó"
+            : x.est==="ok" ? "En meta" : x.est==="warn" ? "Al límite"
+            : x.est==="bad" ? "Fuera de meta" : "Sin dato";
+          const cls = x.sinEmpaque ? "sin"
+            : x.est==="ok" ? "ok" : x.est==="warn" ? "warn" : x.est==="bad" ? "bad" : "sin";
+          /* Escala 0–2×meta: la marca de la meta cae justo a la mitad. */
+          const ancho = x.pct==null ? 0 : Math.min(100, x.pct/(x.meta*2)*100);
+          const nota = x.sinEmpaque
+              ? (x.rec ? `Las ${f0(x.rec)} pieza(s) cuentan en el total del día.`
+                       : "Sin desperdicio tampoco.")
+            : x.emp==null ? "Falta cargar las unidades empacadas."
+            : x.rec==null ? "No hay registros de recolección."
+            : x.est==="bad" ? `Está ${fPct(x.pct-x.meta)} por encima de la meta.`
+            : x.est==="warn" ? "Dentro de la meta, pero cerca del límite."
+            : `Le sobran ${fPct(x.meta-x.pct)} de margen.`;
+          return `<div class="lin-ancha ${tono(x.est)}">
+            <div class="lx-g id">
+              <span class="ic-sec">${icLinea(x.fam)}</span>
+              <div style="min-width:0;">
+                <span class="nom">${esc(x.fam)}</span>
+                <span class="sub">meta ${fPct(x.meta)} de lo empacado</span>
+                <span class="chip ${cls}"><i></i>${etq}</span>
+              </div>
+            </div>
+
+            <div class="lx-g">
+              <span class="g-tit">Producción del periodo</span>
+              <div class="cajas">
+                <div class="caja"><b>${x.emp==null?"—":f0(x.emp)}</b><span>Empacadas</span></div>
+                <div class="caja${x.rec?" bad":""}"><b>${x.rec==null?"—":f0(x.rec)}</b><span>Desperdicio</span></div>
+                <div class="caja${x.aud?"":" warn"}"><b>${f0(x.aud||0)}</b><span>Auditadas</span></div>
+              </div>
+              <span class="g-pie">${esc(rango.etiqueta)}${
+                x.faltan.length && x.emp!=null
+                  ? ` · faltan ${x.faltan.length} turno(s) de empacadas` : ""}</span>
+            </div>
+
+            <div class="lx-g centro">
+              <span class="g-tit">% de desperdicio</span>
+              <div class="cifra-gr">${fPct(x.pct)} <span>de ${fPct(x.meta)}</span></div>
+              <span class="g-pie">${x.rec==null||x.emp==null ? "sin los dos datos no hay porcentaje"
+                : `${f0(x.rec)} de ${f0(x.emp)} pieza(s)`}</span>
+            </div>
+
+            <div class="lx-g centro">
+              <span class="g-tit">Contra la meta</span>
+              <div class="lx-cump">
+                <span class="barra-mini"><i class="${
+                  x.est==="ok"?"":x.est==="warn"?"warn":"bad"}" style="width:${ancho}%;"></i></span>
+                <b>${x.pct==null?"—":(x.pct<=x.meta?"dentro":"+"+fPct(x.pct-x.meta))}</b>
+              </div>
+              <span class="g-pie">${nota}</span>
+            </div>
+          </div>`;
+        })(resumenes[0]) : resumenes.map(x=>{
           const anchoPct = (x.pct==null) ? 0 : Math.min(100, x.pct/(x.meta*2)*100);
           const anchoMeta = 50;   // la meta queda a mitad de barra: escala 0–2×meta
           return `<div class="lin ${x.fam===fam?"sel":""} ${tono(x.est)}">
