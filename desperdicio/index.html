@@ -582,7 +582,10 @@
      entre ellas—, y soltar aquí reglas sueltas sobre `span` o `b` las habría
      descuadrado sin que se notara hasta abrir esa pantalla.
      ==================================================================== */
-  .ind .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:0;}
+  .ind .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0;}
+  .ind .kpi .enlace{background:none;border:0;padding:0;margin-top:3px;
+    font:inherit;font-size:.7rem;color:var(--red);text-decoration:underline;
+    cursor:pointer;display:block;}
   .ind .kpi .vs{display:flex;align-items:center;gap:4px;font-size:.7rem;
     font-weight:700;margin-top:3px;}
   .ind .kpi .vs.bien{color:var(--ok);} .ind .kpi .vs.mal{color:var(--bad);}
@@ -712,7 +715,7 @@
   .ind .lin-nota{margin-top:12px;font-size:.74rem;line-height:1.5;}
 
   @media (max-width:1200px){
-    .ind .kpis{grid-template-columns:repeat(3,1fr);}
+    .ind .kpis{grid-template-columns:repeat(2,1fr);}
     .ind .lineas{grid-template-columns:repeat(2,1fr);}
   }
   @media (max-width:760px){
@@ -1954,7 +1957,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-18-analisis";
+const APP_VERSION = "2026-11-18-tarjetas";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -5680,9 +5683,16 @@ function renderDashboardTurno(){
   const periodo = document.getElementById("dPeriodo").value;
   const rango = rangoPeriodo(periodo, fecha, turno);
 
-  const datosEmp = renderEmpBox(fam, periodo, fecha, turno, rango);
-  const empacadas = datosEmp.empacadas;
-  const recogidas = datosEmp.recogidas;
+  /* El panel «Datos de producción» desapareció: repetía en cinco casillas lo
+     que las tarjetas de arriba ya dicen mejor. Y calculaba mal el mes —caía
+     en la rama de la semana—, así que de paso se corrige: estos dos números
+     salen ahora de resumenLinea, que sí distingue turno, día, semana y mes.
+     La carga de unidades sigue donde estaba, en la pestaña Data. */
+  const cajaEmp = document.getElementById("empBox");
+  if(cajaEmp){ cajaEmp.innerHTML = ""; cajaEmp.style.display = "none"; }
+  const resFam = resumenLinea(fam, periodo, fecha, turno, rango);
+  const empacadas = resFam.emp;
+  const recogidas = resFam.rec;
 
   /* El tablero ya no depende del selector «origen de los datos»: cada cosa
      viene de donde puede venir. El censo —total, procesos, defectos, evolución—
@@ -5762,6 +5772,10 @@ function renderDashboardTurno(){
     const rAnt = rangoPeriodo(periodo, fAnt, turno);
     return Object.keys(METAS).map(L=> resumenLinea(L, periodo, fAnt, turno, rAnt));
   })();
+  const etqAnterior = periodo==="mes" ? "mes anterior"
+                    : periodo==="semana" ? "semana anterior"
+                    : periodo==="turno" ? "mismo turno del día anterior"
+                    : "día anterior";
   const sumaEmpAnt = antes.reduce((a,x)=> x.emp==null?a:(a||0)+x.emp, null);
   const sumaRecAnt = antes.reduce((a,x)=> x.rec==null?a:(a||0)+x.rec, null);
   /* La flecha de las empacadas es al revés que la del desperdicio: producir
@@ -5819,24 +5833,36 @@ function renderDashboardTurno(){
             · ${regs.length} registro(s) de recolección</span></div>
       </div>
       <div class="kpis">
+        <!-- 1. Lo que se produjo. Sin esto no hay porcentaje, así que cuando
+             falta la tarjeta lo dice y ofrece ir a cargarlo. -->
         <div class="kpi ${sumaEmp==null?"t-warn":""}">
           <span class="ic">${IC_IND.caja}</span>
           <span>Unidades empacadas</span>
           <b>${sumaEmp==null?"—":f0(sumaEmp)}</b>
           ${(()=>{ const d=variacion(sumaEmp,sumaEmpAnt,true);
             return d ? `<div class="vs ${d.neutro?"":d.bien?"bien":"mal"}">${d.flecha} ${d.txt}
-              <span>vs. ${periodo==="mes"?"mes":periodo==="semana"?"semana":"día"} anterior</span></div>` : ""; })()}
-          <small>${sinCargar ? sinCargar+" línea(s) sin cargar" : "las ".concat(LINEAS_TODAS.length," líneas cargadas")}</small>
+              <span>vs. ${etqAnterior}</span></div>` : ""; })()}
+          <small>${sinCargar
+            ? sinCargar+" de "+LINEAS_TODAS.length+" línea(s) sin cargar"
+            : "las "+LINEAS_TODAS.length+" líneas cargadas"}</small>
+          ${sinCargar ? `<button type="button" class="enlace" id="kpiIrData">Cargar en Data</button>`
+                      : `<small>${esc(rango.etiqueta)}</small>`}
         </div>
+
+        <!-- 2. Lo que se tiró, en piezas, del periodo que esté elegido. -->
         <div class="kpi">
           <span class="ic">${IC_IND.basura}</span>
           <span>Desperdicio recolectado</span>
           <b>${sumaRec==null?"—":f0(sumaRec)}</b>
           ${(()=>{ const d=variacion(sumaRec,sumaRecAnt,false);
             return d ? `<div class="vs ${d.neutro?"":d.bien?"bien":"mal"}">${d.flecha} ${d.txt}
-              <span>vs. ${periodo==="mes"?"mes":periodo==="semana"?"semana":"día"} anterior</span></div>` : ""; })()}
-          <small>${f0(resumenes.reduce((n2,x)=>n2+x.ncRondas,0))} pieza(s) clasificadas en rondas</small>
+              <span>vs. ${etqAnterior}</span></div>` : ""; })()}
+          <small>${esc(rango.etiqueta)}</small>
+          <small>${f0(resumenes.reduce((n2,x)=>n2+x.ncRondas,0))} clasificada(s) en rondas</small>
         </div>
+
+        <!-- 3. El indicador. La barra va en escala 0 a 2×meta, así que la
+             marca queda en la mitad: se ve de un vistazo si se pasó. -->
         <div class="kpi ${tono(estPlanta)}">
           <span class="ic">${IC_IND.diana}</span>
           <span>% de desperdicio</span>
@@ -5844,31 +5870,23 @@ function renderDashboardTurno(){
           <span class="barra"><i class="${estPlanta==="ok"?"":estPlanta==="warn"?"warn":"bad"}"
             style="width:${pctPlanta==null||metaPlanta==null?0:
               Math.min(100, pctPlanta/(metaPlanta*2)*100)}%;"></i></span>
-          <small>meta ponderada ${metaPlanta==null?"—":fPct(metaPlanta)}</small>
-          <small>desperdicio ÷ empacadas</small>
+          <small>meta ${metaPlanta==null?"—":fPct(metaPlanta)}${
+            metaPlanta==null?"":" · ponderada por lo empacado"}</small>
+          <small>${pctPlanta==null ? "faltan las unidades empacadas"
+            : pctPlanta<=metaPlanta ? "dentro de la meta"
+            : fPct(pctPlanta-metaPlanta)+" por encima"}</small>
         </div>
-        <div class="kpi ${fueraMeta?"t-bad":conDato.length?"t-ok":""}">
-          <span class="ic">${IC_IND.alerta}</span>
-          <span>Líneas fuera de meta</span>
-          <b>${fueraMeta}</b>
-          <small>de ${conDato.length} con dato suficiente</small>
-          <small>${sinCargar?sinCargar+" sin unidades empacadas":"ninguna sin empacadas"}</small>
-        </div>
+
+        <!-- 4. Los kilos: es lo único que se puede sumar entre líneas. -->
         <div class="kpi ${kilos.sinPeso && !kilos.kg ? "t-warn" : ""}">
           <span class="ic">${IC_IND.pesa}</span>
           <span>Kilos de desperdicio</span>
           <b>${kilos.kg ? kilos.kg.toLocaleString("es-CO",{maximumFractionDigits:1})+" kg" : "—"}</b>
-          <small>${kilos.conPeso ? f0(kilos.conPeso)+" pieza(s) con peso cargado" : "ninguna referencia tiene peso"}</small>
+          <small>${kilos.conPeso ? f0(kilos.conPeso)+" pieza(s) con peso cargado"
+                                 : "ninguna referencia tiene peso"}</small>
           <small>${kilos.sinPeso
             ? f0(kilos.sinPeso)+" sin peso — no entran en los kilos"
             : "todas las referencias tienen peso"}</small>
-        </div>
-        <div class="kpi">
-          <span class="ic">${IC_IND.lupa}</span>
-          <span>Auditoría de puesto</span>
-          <b>${f0(audTotal)}</b>
-          <small>pieza(s) con máquina identificada</small>
-          <small>${porPuesto.length} puesto(s) recorridos</small>
         </div>
       </div>
     </div>
@@ -6037,6 +6055,16 @@ function renderDashboardTurno(){
   /* Los botones del panel de acciones se enganchan aquí: el tablero se
      repinta entero cada vez, así que engancharlos una sola vez al arrancar
      dejaría de funcionar en cuanto se cambie de línea o de periodo. */
+  const irD = document.getElementById("kpiIrData");
+  if(irD) irD.addEventListener("click", ()=>{
+    document.getElementById("cxFamilia").value = fam;
+    document.getElementById("cxMes").value = fecha.slice(0,7);
+    CX.vista = "emp";
+    document.querySelectorAll("#cxTabs button").forEach(b=>
+      b.classList.toggle("on", b.dataset.v==="emp"));
+    document.getElementById("tabCierre").click();
+  });
+
   const bNueva = document.getElementById("accNueva");
   if(bNueva) bNueva.addEventListener("click", ()=> pedirAccion(null));
   box.querySelectorAll(".acc-ed").forEach(b=>
