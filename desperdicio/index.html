@@ -569,6 +569,138 @@
   .ctrl-top button.sec{background:#fff;color:var(--text);border:1px solid var(--border);}
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
   @media(max-width:900px){.kpis{grid-template-columns:1fr 1fr;}}
+  /* ====================================================================
+     INDICADORES — mismo aspecto que Control de Proceso
+
+     Las dos apps ya compartían la paleta exacta, así que lo que faltaba era
+     la forma: la tarjeta con el icono en la esquina, el rótulo arriba y la
+     cifra grande debajo, la barra con la marca de meta, y la tabla de
+     desempeño.
+
+     Todo va acotado a `.ind`. Desperdicio ya tenía once tarjetas `.kpi` con
+     otra estructura por dentro (`.v`, `.l`, `.m`) —el tablero de planta,
+     entre ellas—, y soltar aquí reglas sueltas sobre `span` o `b` las habría
+     descuadrado sin que se notara hasta abrir esa pantalla.
+     ==================================================================== */
+  .ind .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:0;}
+  .ind .kpi{position:relative;background:#fff;border:1px solid var(--border);
+    border-radius:11px;padding:14px 16px;}
+  .ind .kpi span{display:block;font-size:.72rem;color:var(--text-dim);}
+  .ind .kpi b{display:block;font-size:1.7rem;font-weight:800;margin-top:4px;line-height:1.1;}
+  .ind .kpi b.nom{font-size:1.1rem;line-height:1.3;margin-top:5px;}
+  .ind .kpi small{display:block;font-size:.7rem;color:var(--text-dim);margin-top:3px;}
+  .ind .kpi .ic{position:absolute;top:14px;right:14px;width:34px;height:34px;
+    border-radius:10px;display:flex;align-items:center;justify-content:center;
+    background:#eef0f3;color:var(--text-dim);}
+  .ind .kpi .ic svg{width:17px;height:17px;}
+  .ind .kpi.t-ok{background:var(--ok-bg);border-color:#c8ead7;}
+  .ind .kpi.t-ok .ic{background:#d6f2e2;color:#15733f;}
+  .ind .kpi.t-ok b{color:var(--ok);}
+  .ind .kpi.t-warn{background:var(--warn-bg);border-color:#f3e3b0;}
+  .ind .kpi.t-warn .ic{background:#fdeec2;color:var(--warn-text);}
+  .ind .kpi.t-warn b{color:var(--warn-text);}
+  .ind .kpi.t-bad{background:var(--bad-bg);border-color:#f6ccd1;}
+  .ind .kpi.t-bad .ic{background:#fad7db;color:var(--bad);}
+  .ind .kpi.t-bad b{color:var(--bad);}
+  .ind .kpi .barra{display:block;height:8px;border-radius:5px;background:#e7e9ed;
+    overflow:hidden;margin:8px 0 7px;}
+  .ind .kpi .barra i{display:block;height:100%;background:var(--ok);}
+  .ind .kpi .barra i.warn{background:var(--warn);}
+  .ind .kpi .barra i.bad{background:var(--bad);}
+
+  /* La vista de máquina usa las mismas cabeceras pero vive fuera de .ind. */
+  .section-title.con-ic{justify-content:flex-start;}
+  .section-title.con-ic > span:not(.ic-sec){margin-left:auto;}
+  .ic-sec{width:30px;height:30px;border-radius:9px;background:var(--bad-bg);
+    color:var(--red-dark);display:inline-flex;align-items:center;
+    justify-content:center;flex:none;}
+  .ic-sec svg{width:16px;height:16px;}
+  .ind .section-title{display:flex;justify-content:space-between;align-items:center;
+    gap:14px;flex-wrap:wrap;margin-bottom:14px;}
+  .ind .section-title h2{margin:0;font-size:.9rem;font-weight:800;letter-spacing:.3px;
+    color:var(--red);}
+  .ind .section-title.con-ic{justify-content:flex-start;}
+  .ind .section-title.con-ic > span:not(.ic-sec){margin-left:auto;}
+  .ind .ic-sec{width:30px;height:30px;border-radius:9px;background:var(--bad-bg);
+    color:var(--red-dark);display:inline-flex;align-items:center;justify-content:center;flex:none;}
+  .ind .ic-sec svg{width:16px;height:16px;}
+
+  .ind .tabla{width:100%;border-collapse:collapse;}
+  .ind .tabla th{background:#f3f4f7;text-align:left;padding:9px 11px;font-size:.68rem;
+    text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);font-weight:700;}
+  .ind .tabla td{padding:9px 11px;border-top:1px solid var(--border);vertical-align:middle;}
+  .ind .t-desemp{font-size:.8rem;}
+  .ind .t-desemp th{white-space:nowrap;}
+  .ind .t-desemp td{padding:6px 10px;height:46px;line-height:1.25;}
+  .ind .t-desemp .celda2{height:34px;display:flex;flex-direction:column;
+    align-items:flex-end;justify-content:center;}
+  .ind .t-desemp .celda2 .sub{font-size:.64rem;color:var(--text-dim);font-weight:400;
+    line-height:1.1;margin-top:1px;}
+  .ind .t-desemp td.c-num{text-align:right;font-variant-numeric:tabular-nums;}
+  .ind .t-desemp td:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .ind .t-desemp tbody tr:hover{background:#fafbfc;}
+  .ind .t-desemp tr.fila-alta{background:var(--bad-bg);}
+  .ind .t-desemp tr.fila-alta:hover{background:#fbe3e6;}
+  .ind .t-desemp tr.fila-alta td:first-child{font-weight:700;}
+
+  .ind .barra-meta{display:block;height:7px;border-radius:5px;background:#e7e9ec;
+    position:relative;}
+  .ind .barra-meta i{display:block;height:100%;border-radius:5px;}
+  .ind .barra-meta u{position:absolute;top:-3px;bottom:-3px;width:2px;
+    background:var(--text);opacity:.45;}
+  .ind .met-cab{display:flex;justify-content:space-between;align-items:baseline;
+    font-size:.78rem;margin:14px 0 5px;color:var(--text-dim);}
+  .ind .met-cab b{color:var(--text);font-weight:800;}
+
+  .ind .badge{padding:4px 11px;border-radius:20px;font-size:.74rem;font-weight:700;
+    white-space:nowrap;display:inline-block;}
+  .ind .badge.ok{background:var(--ok-bg);color:var(--ok);}
+  .ind .badge.warn{background:var(--warn-bg);color:var(--warn-text);}
+  .ind .badge.bad{background:var(--bad-bg);color:var(--bad);}
+  .ind .badge.neutral{background:#eef0f3;color:var(--text-dim);}
+
+  .ind .nota-pie{display:flex;gap:12px;align-items:flex-start;font-size:.72rem;
+    color:var(--text-dim);line-height:1.5;}
+  .ind .nota-pie .ic-sec{width:26px;height:26px;border-radius:8px;}
+  .ind .sin-novedad{margin-top:12px;}
+  .ind .sin-novedad summary{cursor:pointer;font-size:.76rem;font-weight:700;
+    color:var(--text-dim);padding:9px 12px;border:1px solid var(--border);
+    border-radius:9px;background:#fafbfc;list-style:none;}
+  .ind .sin-novedad summary::-webkit-details-marker{display:none;}
+  .ind .sin-novedad summary::before{content:"▸ ";font-weight:800;}
+  .ind .sin-novedad[open] summary::before{content:"▾ ";}
+  .ind .sin-novedad summary:hover{background:#f3f4f6;color:var(--text);}
+
+  /* Tarjeta por línea: la de Proceso, con las dos barras en la MISMA escala
+     0–100, que fue justo lo que hubo que corregir allá. */
+  .ind .lineas{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .ind .lin{background:#fff;border:1px solid var(--border);border-left-width:5px;
+    border-radius:12px;padding:16px 18px;}
+  .ind .lin.t-ok{border-left-color:var(--ok);}
+  .ind .lin.t-warn{border-left-color:var(--warn);background:#fffdf5;}
+  .ind .lin.t-bad{border-left-color:var(--bad);background:#fff7f8;}
+  .ind .lin.t-sin{border-left-color:#c7ccd4;}
+  .ind .lin-cab{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .ind .lin-cab .ic-sec{width:30px;height:30px;}
+  .ind .lin-cab h3{margin:0;font-size:1rem;font-weight:800;flex:1;}
+  .ind .lin-gran{display:flex;align-items:baseline;gap:10px;}
+  .ind .lin-gran b{font-size:2.2rem;font-weight:800;line-height:1;}
+  .ind .lin-gran span{font-size:.76rem;color:var(--text-dim);line-height:1.25;}
+  .ind .lin-pie{display:flex;gap:16px;margin-top:14px;padding-top:12px;
+    border-top:1px solid var(--border);flex-wrap:wrap;}
+  .ind .lin-pie div{display:flex;align-items:center;gap:7px;font-size:.78rem;}
+  .ind .lin-pie b{font-weight:800;}
+  .ind .lin-pie small{display:block;font-size:.65rem;color:var(--text-dim);}
+  .ind .lin-nota{margin-top:12px;font-size:.74rem;line-height:1.5;}
+
+  @media (max-width:1200px){
+    .ind .kpis{grid-template-columns:repeat(3,1fr);}
+    .ind .lineas{grid-template-columns:repeat(2,1fr);}
+  }
+  @media (max-width:760px){
+    .ind .kpis,.ind .lineas{grid-template-columns:1fr;}
+  }
+
   .kpi{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;}
   .kpi .v{font-size:1.7rem;font-weight:800;line-height:1.1;}
   .kpi .l{font-size:.74rem;color:var(--text-dim);font-weight:600;margin-top:4px;}
@@ -1459,10 +1591,9 @@
   <div class="kpis" id="mKpis" style="grid-template-columns:repeat(5,1fr);"></div>
 
   <div class="dash-grid" style="grid-template-columns:1.5fr 1fr;">
-    <div class="card"><div class="ch"><span class="ic">📊</span>Piezas no conformes por día
-      <span style="font-weight:400;font-size:.72rem;color:var(--text-dim);">· registradas en rondas</span></div>
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>PIEZAS NO CONFORMES POR DÍA</h2><span style="font-size:.72rem;color:var(--text-dim);">registradas en rondas</span></div></div>
       <div class="chart-wrap" style="height:250px;"><canvas id="mChart"></canvas></div></div>
-    <div class="card"><div class="ch"><span class="ic">📊</span>Pareto de defectos de la máquina</div>
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>PARETO DE DEFECTOS DE LA MÁQUINA</h2></div></div>
       <div class="cb"><div class="pareto" id="mPareto"></div></div></div>
   </div>
 
@@ -1479,7 +1610,7 @@
     <span style="font-weight:400;font-size:.72rem;color:var(--text-dim);" id="mCompSub"></span></div>
     <div class="cb" id="mComparativo"></div></div>
 
-  <div class="card"><div class="ch"><span class="ic">📋</span>Registros de la máquina</div>
+  <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.caja}</span><div><h2>REGISTROS DE LA MÁQUINA</h2></div></div>
     <div class="cb" id="mDetalle"></div></div>
 </section>
 
@@ -1507,6 +1638,7 @@
           <option value="turno">Un turno</option>
           <option value="dia">Día completo</option>
           <option value="semana">Semana fiscal</option>
+          <option value="mes">Mes</option>
         </select>
       </div>
       <div id="wrapTurno">
@@ -1517,13 +1649,11 @@
           <option value="3">Turno 3 (Noche)</option>
         </select>
       </div>
-      <div>
-        <label for="dTipo">Origen de los datos *</label>
-        <select id="dTipo" class="tv-sel">
-          <option value="auditoria">Auditoría de puesto</option>
-          <option value="recoleccion">Recolección de turno</option>
-        </select>
-      </div>
+      <!-- El selector de origen desapareció del tablero: ahora cada cifra
+           viene de donde puede venir, y elegir "auditoría" arriba convertía
+           el total de la planta en el de la muestra sin avisar. El censo es
+           la recolección; el reparto por máquina, la auditoría. Se dice al
+           pie de la pantalla. -->
       <button id="dActualizar">Actualizar</button>
       <button id="dPdf" style="background:#fff;color:var(--text);border:1px solid var(--border);">📄 Reporte PDF</button>
     </div>
@@ -1750,7 +1880,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-12-auditoria";
+const APP_VERSION = "2026-11-17-indicadores";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -2850,6 +2980,19 @@ function moverMarcaRef(paso){
    ====================================================================== */
 const SVG_ = (d)=> `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
   stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+
+/* Iconos de los indicadores. Mismo trazo que los de Control de Proceso, para
+   que las dos pantallas se lean como una sola app y no como dos parecidas. */
+const IC_IND = {
+  barras:  SVG_(`<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>`),
+  caja:    SVG_(`<path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>`),
+  basura:  SVG_(`<path d="M4 7h16M10 7V5h4v2M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/>`),
+  diana:   SVG_(`<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>`),
+  alerta:  SVG_(`<path d="M12 4l9 16H3l9-16z"/><path d="M12 10v4M12 17.3v.2"/>`),
+  lupa:    SVG_(`<circle cx="11" cy="11" r="6.5"/><path d="M15.8 15.8L21 21"/>`),
+  fabrica: SVG_(`<path d="M3 20h18V10l-6 4V10l-6 4V6H3v14z"/><path d="M7 20v-4M12 20v-4M17 20v-4"/>`),
+  reloj:   SVG_(`<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/>`)
+};
 
 const ICONOS_PROC = {
   /* Disco de corte */
@@ -3965,6 +4108,14 @@ function rangoPeriodo(periodo, fecha, turno){
     return {desde:fecha, hasta:fecha, clave:`T${turno}-${fecha}`, etiqueta:`Turno ${turno} · ${fecha}`};
   if(periodo==="dia")
     return {desde:fecha, hasta:fecha, clave:`D-${fecha}`, etiqueta:`Día ${fecha}`};
+  if(periodo==="mes"){
+    const ini = fecha.slice(0,8)+"01";
+    const d = new Date(fecha+"T12:00:00");
+    const fin = new Date(d.getFullYear(), d.getMonth()+1, 0);
+    const finISO = `${fin.getFullYear()}-${pad(fin.getMonth()+1)}-${pad(fin.getDate())}`;
+    return {desde:ini, hasta:finISO, clave:`M-${fecha.slice(0,7)}`,
+            etiqueta:`Mes de ${fFechaLarga(ini).replace(/^\w+ /,"").replace(/^\d+ de /,"")}`};
+  }
   const l=lunesDe(fecha), dom=sumarDias(l,6);
   return {desde:l, hasta:dom, clave:`W-${l}`, etiqueta:`Semana ${numeroSemana(fecha)} (${l} a ${dom})`};
 }
@@ -4355,8 +4506,73 @@ function desgloseTurnos(fam, fecha){
   }).join(" · ");
 }
 
+/* ======================================================================
+   RESUMEN DE UNA LÍNEA EN UN PERIODO
+
+   Lo que de verdad se pregunta en planta: cuánto se empacó, cuánto se tiró y
+   qué porcentaje salió, contra la meta de esa línea.
+
+   El porcentaje se calcula SIEMPRE con lo que reporta el patinador, no con la
+   suma de las rondas. La recolección es el censo —todo lo que se recogió al
+   cerrar el turno—; las rondas de auditoría son una muestra de las mismas
+   piezas. Usar las rondas como numerador daría un porcentaje bajo no porque
+   se tire poco, sino porque se auditó poco.
+   ====================================================================== */
+function empMes(fam, fecha){
+  const ini = fecha.slice(0,8)+"01";
+  const d = new Date(fecha+"T12:00:00");
+  const dias = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+  let tot=null, faltan=[];
+  for(let i=0;i<dias;i++){
+    const f = sumarDias(ini,i);
+    ["1","2","3"].forEach(t=>{
+      const v = empTurno(fam,t,f);
+      if(v==null) faltan.push(`${f.slice(5)} T${t}`); else tot=(tot||0)+v;
+    });
+  }
+  return {total:tot, faltan};
+}
+function recMes(fam, fecha){
+  const ini = fecha.slice(0,8)+"01";
+  const d = new Date(fecha+"T12:00:00");
+  const dias = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+  let tot=null;
+  for(let i=0;i<dias;i++){
+    const v = recTotalDia(fam, sumarDias(ini,i));
+    if(v!=null) tot=(tot||0)+v;
+  }
+  return tot;
+}
+
+function resumenLinea(fam, periodo, fecha, turno, rango){
+  let emp=null, rec=null, faltan=[], deCuantos=0;
+  if(periodo==="turno"){
+    emp = empTurno(fam,turno,fecha); rec = recTurnoTotal(fam,turno,fecha);
+    deCuantos = 1; if(emp==null) faltan=["T"+turno];
+  } else if(periodo==="dia"){
+    const e = empDia(fam,fecha); emp=e.total; faltan=e.faltan; deCuantos=3;
+    rec = recDia(fam,fecha);
+  } else if(periodo==="mes"){
+    const e = empMes(fam,fecha); emp=e.total; faltan=e.faltan;
+    deCuantos = e.faltan.length + (emp==null?0:1);   // informativo
+    rec = recMes(fam,fecha);
+  } else {
+    const e = empSemana(fam,rango.desde); emp=e.total; faltan=e.faltan; deCuantos=21;
+    rec = recSemana(fam,rango.desde);
+  }
+  const meta = METAS[fam] ?? 1;
+  const ncRondas = ncClasificadas(fam, periodo, fecha, turno, rango);
+  const pct = (emp && emp>0 && rec!=null) ? rec/emp*100 : null;
+  return {fam, emp, rec, ncRondas, meta, pct, faltan, deCuantos,
+          est: pct==null ? "sin" : estadoPorMeta(pct, meta),
+          cobertura: (rec!=null && rec>0) ? ncRondas/rec*100 : null};
+}
+
 function ncClasificadas(fam, periodo, fecha, turno, rango){
-  return regsVisibles().filter(r=>{
+  /* Lo clasificado en rondas de RECOLECCIÓN: es lo que se compara con el
+     total que reporta el patinador para saber cuánto quedó sin clasificar. */
+  return S.registros.filter(r=>{
+    if(tipoDe(r)!=="recoleccion" || r.estadoMaquina) return false;
     if(r.familia!==fam) return false;
     if(periodo==="turno") return r.turnoKey===llaveTurno(turno,fecha);
     const ft=fechaDeTurno(r); return ft>=rango.desde && ft<=rango.hasta;
@@ -4989,8 +5205,14 @@ function renderDashboardTurno(){
   const empacadas = datosEmp.empacadas;
   const recogidas = datosEmp.recogidas;
 
-  const regs = regsVisibles().filter(r=>{
-    if(r.familia!==fam) return false;
+  /* El tablero ya no depende del selector «origen de los datos»: cada cosa
+     viene de donde puede venir. El censo —total, procesos, defectos, evolución—
+     es la RECOLECCIÓN, que es lo que el patinador recoge al cerrar el turno.
+     El reparto por máquina sale más abajo, de la auditoría. Antes todo salía
+     de regsVisibles(), así que elegir «auditoría» arriba convertía el total de
+     la planta en el de la muestra, sin que el número avisara de nada. */
+  const regs = S.registros.filter(r=>{
+    if(r.familia!==fam || tipoDe(r)!=="recoleccion" || r.estadoMaquina) return false;
     if(periodo==="turno") return r.turnoKey===llaveTurno(turno,fecha);
     const ft = fechaDeTurno(r);
     return ft >= rango.desde && ft <= rango.hasta;
@@ -5011,7 +5233,28 @@ function renderDashboardTurno(){
     const m={}; regs.forEach(r=>{const k=fn(r); if(k==null) return; m[k]=(m[k]||0)+r.cantidad;});
     return Object.entries(m).sort((a,b)=>b[1]-a[1]);
   }
-  const porProc=agrupa(r=>r.proceso), porPuesto=agrupa(r=>r.puesto);
+  const porProc=agrupa(r=>r.proceso);
+
+  /* El puesto SÓLO lo sabe la auditoría. La recolección cuenta lo que el
+     patinador recoge al cerrar el turno, y a esa altura ya no hay forma de
+     saber de qué máquina salió cada pieza: agrupar por puesto lo que viene de
+     recolección daba una tabla de casillas vacías o, peor, atribuía piezas a
+     un puesto que nunca se registró. Son las MISMAS piezas contadas por dos
+     vías, así que tampoco se suman: la auditoría dice el reparto, la
+     recolección el total. */
+  const regsAud = S.registros.filter(r=>{
+    if(r.familia!==fam || tipoDe(r)!=="auditoria") return false;
+    if(r.estadoMaquina) return false;
+    if(periodo==="turno") return r.turnoKey===llaveTurno(turno,fecha);
+    const ft = fechaDeTurno(r);
+    return ft >= rango.desde && ft <= rango.hasta;
+  });
+  const audTotal = regsAud.reduce((n2,r)=>n2+(r.cantidad||0),0);
+  const porPuesto = (function(){
+    const m={}; regsAud.forEach(r=>{ if(!r.puesto) return;
+      m[r.puesto]=(m[r.puesto]||0)+(r.cantidad||0); });
+    return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+  })();
   const porDef=agrupa(r=>`${r.defectoCodigo} - ${r.defectoLabel}`);
   const flujo=agrupa(r=> r.defectoAjeno==="Sí" ? `${r.origenDefecto||"?"}|${r.puesto}` : null);
 
@@ -5026,9 +5269,132 @@ function renderDashboardTurno(){
   const maxPue=Math.max(...porPuesto.map(([,v])=>v),1);
   const maxFlu=Math.max(...flujo.map(([,v])=>v),1);
 
-  box.innerHTML = `
+  /* ---- Cabecera de indicadores: las cuatro líneas de un vistazo ---- */
+  const LINEAS_TODAS = Object.keys(METAS);
+  const resumenes = LINEAS_TODAS.map(L=> resumenLinea(L, periodo, fecha, turno, rango));
+  const sumaEmp = resumenes.reduce((n2,x)=> x.emp==null?n2:(n2||0)+x.emp, null);
+  const sumaRec = resumenes.reduce((n2,x)=> x.rec==null?n2:(n2||0)+x.rec, null);
+  const pctPlanta = (sumaEmp && sumaEmp>0 && sumaRec!=null) ? sumaRec/sumaEmp*100 : null;
+  const conDato = resumenes.filter(x=> x.pct!=null);
+  const fueraMeta = conDato.filter(x=> x.pct > x.meta).length;
+  const sinCargar = resumenes.filter(x=> x.emp==null).length;
+
+  /* La meta de planta no es un número fijo: cada línea tiene la suya y pesan
+     distinto. La de referencia es la media ponderada por lo empacado, que es
+     contra lo que de verdad se compara el porcentaje de arriba. */
+  const metaPlanta = (function(){
+    let num=0, den=0;
+    resumenes.forEach(x=>{ if(x.emp){ num += x.meta*x.emp; den += x.emp; } });
+    return den ? num/den : null;
+  })();
+  const estPlanta = (pctPlanta==null||metaPlanta==null) ? "sin"
+                  : estadoPorMeta(pctPlanta, metaPlanta);
+  const tono = e=> e==="ok" ? "t-ok" : e==="warn" ? "t-warn" : e==="bad" ? "t-bad" : "";
+  const fPct = v=> v==null ? "—" : v.toLocaleString("es-CO",
+    {minimumFractionDigits:2, maximumFractionDigits:2})+"%";
+
+  const cabecera = `
+  <div class="ind">
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span>
+        <div><h2>INDICADORES DE DESPERDICIO</h2>
+          <span style="font-size:.72rem;color:var(--text-dim);">${esc(rango.etiqueta)}
+            · ${regs.length} registro(s) de recolección</span></div>
+      </div>
+      <div class="kpis">
+        <div class="kpi ${sumaEmp==null?"t-warn":""}">
+          <span class="ic">${IC_IND.caja}</span>
+          <span>Unidades empacadas</span>
+          <b>${sumaEmp==null?"—":f0(sumaEmp)}</b>
+          <small>${sinCargar ? sinCargar+" línea(s) sin cargar" : "las ".concat(LINEAS_TODAS.length," líneas cargadas")}</small>
+          <small>se cargan abajo, en Data</small>
+        </div>
+        <div class="kpi">
+          <span class="ic">${IC_IND.basura}</span>
+          <span>Desperdicio recolectado</span>
+          <b>${sumaRec==null?"—":f0(sumaRec)}</b>
+          <small>lo que reportó el patinador al cerrar</small>
+          <small>${f0(resumenes.reduce((n2,x)=>n2+x.ncRondas,0))} pieza(s) clasificadas en rondas</small>
+        </div>
+        <div class="kpi ${tono(estPlanta)}">
+          <span class="ic">${IC_IND.diana}</span>
+          <span>% de desperdicio</span>
+          <b>${fPct(pctPlanta)}</b>
+          <span class="barra"><i class="${estPlanta==="ok"?"":estPlanta==="warn"?"warn":"bad"}"
+            style="width:${pctPlanta==null||metaPlanta==null?0:
+              Math.min(100, pctPlanta/(metaPlanta*2)*100)}%;"></i></span>
+          <small>meta ponderada ${metaPlanta==null?"—":fPct(metaPlanta)}</small>
+          <small>desperdicio ÷ empacadas</small>
+        </div>
+        <div class="kpi ${fueraMeta?"t-bad":conDato.length?"t-ok":""}">
+          <span class="ic">${IC_IND.alerta}</span>
+          <span>Líneas fuera de meta</span>
+          <b>${fueraMeta}</b>
+          <small>de ${conDato.length} con dato suficiente</small>
+          <small>${sinCargar?sinCargar+" sin unidades empacadas":"ninguna sin empacadas"}</small>
+        </div>
+        <div class="kpi">
+          <span class="ic">${IC_IND.lupa}</span>
+          <span>Auditoría de puesto</span>
+          <b>${f0(audTotal)}</b>
+          <small>pieza(s) con máquina identificada</small>
+          <small>${porPuesto.length} puesto(s) recorridos</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="section-title con-ic"><span class="ic-sec">${IC_IND.fabrica}</span>
+        <div><h2>DESPERDICIO POR LÍNEA</h2>
+          <span style="font-size:.72rem;color:var(--text-dim);">cada línea contra su propia meta</span></div>
+      </div>
+      <div class="lineas">
+        ${resumenes.map(x=>{
+          const anchoPct = (x.pct==null) ? 0 : Math.min(100, x.pct/(x.meta*2)*100);
+          const anchoMeta = 50;   // la meta queda a mitad de barra: escala 0–2×meta
+          return `<div class="lin ${x.fam===fam?"":""} ${tono(x.est)}">
+            <div class="lin-cab"><span class="ic-sec">${IC_IND.fabrica}</span>
+              <h3>${esc(x.fam)}</h3>
+              <span class="badge ${x.est==="ok"?"ok":x.est==="warn"?"warn":x.est==="bad"?"bad":"neutral"}">${
+                x.est==="ok"?"EN META":x.est==="warn"?"AL LÍMITE":x.est==="bad"?"FUERA DE META":"SIN DATO"}</span>
+            </div>
+            <div class="lin-gran"><b>${fPct(x.pct)}</b>
+              <span>de desperdicio<br>meta ${fPct(x.meta)}</span></div>
+            <div class="met-cab"><span>Contra la meta</span><b>${
+              x.pct==null?"—":(x.pct<=x.meta?"dentro":"+"+fPct(x.pct-x.meta))}</b></div>
+            <span class="barra-meta"><i style="width:${anchoPct}%;background:${
+              x.est==="ok"?"var(--ok)":x.est==="warn"?"var(--warn)":x.est==="bad"?"var(--bad)":"#c7ccd4"
+            };"></i><u style="left:${anchoMeta}%;"></u></span>
+            <div class="lin-pie">
+              <div><span class="ic-sec" style="width:24px;height:24px;">${IC_IND.caja}</span>
+                <div><b>${x.emp==null?"—":f0(x.emp)}</b><small>empacadas</small></div></div>
+              <div><span class="ic-sec" style="width:24px;height:24px;">${IC_IND.basura}</span>
+                <div><b>${x.rec==null?"—":f0(x.rec)}</b><small>desperdicio</small></div></div>
+              <div><span class="ic-sec" style="width:24px;height:24px;">${IC_IND.lupa}</span>
+                <div><b>${f0(x.ncRondas)}</b><small>clasificadas</small></div></div>
+            </div>
+            <div class="lin-nota">${
+              x.emp==null
+                ? `<b>Falta cargar las unidades empacadas.</b> Sin ese dato no hay porcentaje: lo recogido solo se puede leer como piezas sueltas.`
+              : x.rec==null
+                ? `El patinador todavía no reportó el desperdicio de este periodo.`
+              : x.est==="bad"
+                ? `Está <b>${fPct(x.pct-x.meta)}</b> por encima de la meta.`
+              : x.est==="warn"
+                ? `Dentro de la meta pero cerca del límite.`
+                : `Dentro de la meta.`
+            }${x.faltan.length && x.emp!=null
+                ? ` <span style="opacity:.75;">Ojo: faltan ${x.faltan.length} turno(s) de empacadas, así que el porcentaje puede subir.</span>`
+                : ""}</div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
+  </div>`;
+
+  box.innerHTML = cabecera + `<div class="ind">
   <div class="dash-grid">
-    <div class="card"><div class="ch"><span class="ic">🏭</span>Desperdicio por Proceso <span style="font-weight:400;font-size:.72rem;color:var(--text-dim);">· solo lo clasificado en rondas</span></div><div class="cb">
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.fabrica}</span><div><h2>DESPERDICIO POR PROCESO</h2><span style="font-size:.72rem;color:var(--text-dim);">de la recolección, sobre lo clasificado en rondas</span></div></div><div class="cb">
       ${porProc.length?`<table><thead><tr><th>Proceso</th><th class="num">NC</th><th class="num">% de lo clasificado</th><th></th></tr></thead><tbody>
       ${porProc.map(([k,v])=>{const p=ncTotal>0?Math.round(v/ncTotal*100):null;
         return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${p==null?"—":p+"%"}</td><td style="width:70px;">${barra(v,maxProc)}</td></tr>`;}).join("")}
@@ -5036,15 +5402,15 @@ function renderDashboardTurno(){
       </tbody></table>`:'<div class="empty-mini">Sin registros.</div>'}
     </div></div>
 
-    <div class="card"><div class="ch"><span class="ic">📍</span>Desperdicio por Puesto <span style="font-weight:400;font-size:.72rem;color:var(--text-dim);">· solo lo clasificado en rondas</span></div><div class="cb">
-      ${porPuesto.length?`<table><thead><tr><th>Puesto</th><th class="num">NC</th><th class="num">% de lo clasificado</th><th></th></tr></thead><tbody>
-      ${porPuesto.map(([k,v])=>{const pc=ncTotal>0?Math.round(v/ncTotal*100):null;
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.lupa}</span><div><h2>DESPERDICIO POR PUESTO</h2><span style="font-size:.72rem;color:var(--text-dim);">de la auditoría: es la única que sabe de qué máquina salió</span></div></div><div class="cb">
+      ${porPuesto.length?`<table><thead><tr><th>Puesto</th><th class="num">NC</th><th class="num">% de lo auditado</th><th></th></tr></thead><tbody>
+      ${porPuesto.map(([k,v])=>{const pc=audTotal>0?Math.round(v/audTotal*100):null;
         return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${pc==null?"—":pc+"%"}</td><td style="width:70px;">${barra(v,maxPue)}</td></tr>`;}).join("")}
-      <tr class="tot"><td>TOTAL</td><td class="num">${ncTotal}</td><td class="num">100%</td><td></td></tr>
-      </tbody></table>`:'<div class="empty-mini">Sin registros.</div>'}
+      <tr class="tot"><td>TOTAL AUDITADO</td><td class="num">${audTotal}</td><td class="num">100%</td><td></td></tr>
+      </tbody></table>`:'<div class="empty-mini">La auditoría todavía no recorrió puestos en este periodo.</div>'}
     </div></div>
 
-    <div class="card"><div class="ch"><span class="ic">📊</span>Top 5 Defectos</div><div class="cb">
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>TOP 5 DEFECTOS</h2></div></div><div class="cb">
       ${defsMostrar.length?`<table><thead><tr><th>Defecto</th><th class="num">NC</th><th class="num">% NC</th><th></th></tr></thead><tbody>
       ${defsMostrar.map(([k,v])=>`<tr><td>${k}</td><td class="num">${v}</td><td class="num">${ncTotal?Math.round(v/ncTotal*100):0}%</td><td style="width:70px;">${barra(v,maxDef)}</td></tr>`).join("")}
       <tr class="tot"><td>TOTAL</td><td class="num">${ncTotal}</td><td class="num">100%</td><td></td></tr>
@@ -5053,7 +5419,7 @@ function renderDashboardTurno(){
   </div>
 
   <div class="dash-grid">
-    <div class="card"><div class="ch"><span class="ic">🔀</span>Flujo de defectos entre procesos</div><div class="cb">
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>FLUJO DE DEFECTOS ENTRE PROCESOS</h2></div></div><div class="cb">
       ${flujo.length?`<table><thead><tr><th>Origen</th><th>Detectado en</th><th class="num">NC</th><th class="num">%</th></tr></thead><tbody>
       ${flujo.map(([k,v])=>{const [o,d]=k.split("|");
         return `<tr><td>${o}</td><td>${d}</td><td class="num">${v}</td><td class="num">${ncTotal?Math.round(v/ncTotal*100):0}%</td></tr>`;}).join("")}
@@ -5062,10 +5428,10 @@ function renderDashboardTurno(){
       </tbody></table>`:'<div class="empty-mini">Ningún defecto llegó desde otro proceso.</div>'}
     </div></div>
 
-    <div class="card"><div class="ch"><span class="ic">📈</span>Evolución del % de desperdicio</div>
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.reloj}</span><div><h2>EVOLUCIÓN DEL % DE DESPERDICIO</h2></div></div>
       <div class="chart-wrap"><canvas id="cvEvol"></canvas></div></div>
 
-    <div class="card"><div class="ch"><span class="ic">🥧</span>Distribución del desperdicio recogido</div><div class="cb">
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.diana}</span><div><h2>DISTRIBUCIÓN DEL DESPERDICIO RECOGIDO</h2></div></div><div class="cb">
       <div class="donut-wrap">
         <div class="cv"><canvas id="cvDonut"></canvas>
           <div class="donut-center"><b>${ncTotal}</b><span>piezas NC</span></div></div>
@@ -5074,17 +5440,29 @@ function renderDashboardTurno(){
     </div></div>
   </div>
 
-  <div class="card" style="margin-bottom:14px;"><div class="ch"><span class="ic">📉</span>Pareto de defectos — todos</div>
+  <div class="card" style="margin-bottom:14px;"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>PARETO DE DEFECTOS — TODOS</h2></div></div>
     <div class="chart-wrap" style="height:${Math.max(230, ordDef.length*26)}px;"><canvas id="cvPareto"></canvas></div></div>
 
-  <div class="card"><div class="ch"><span class="ic">📋</span>Detalle del registro</div><div class="cb">
+  <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.caja}</span><div><h2>DETALLE DEL REGISTRO</h2></div></div><div class="cb">
     ${regs.length?`<div style="overflow-x:auto;"><table><thead><tr>
-      <th>Hora</th><th>Proceso</th><th>Puesto</th><th>Defecto</th><th class="num">NC</th><th>Observación</th></tr></thead><tbody>
-      ${regs.map(r=>`<tr><td>${r.hora}</td><td>${r.proceso}</td><td>${r.puesto}</td>
+      <th>Hora</th><th>Turno</th><th>Proceso</th><th>Referencia</th><th>Defecto</th><th class="num">NC</th><th>Observación</th></tr></thead><tbody>
+      ${regs.map(r=>`<tr><td>${r.hora}</td><td>${esc(r.turno||"")}</td><td>${r.proceso}</td><td>${esc(r.referencia||"—")}</td>
         <td>${r.defectoCodigo} - ${r.defectoLabel}${r.defectoAjeno==="Sí"?` <span style="color:var(--warn-text);font-size:.7rem;">⚠ de ${r.origenDefecto}</span>`:""}</td>
         <td class="num">${r.cantidad}</td><td>${r.observacion||"—"}</td></tr>`).join("")}
       </tbody></table></div>`:'<div class="empty-mini">Sin registros en este turno.</div>'}
-  </div></div>`;
+  </div></div>
+
+  <div class="panel" style="margin-top:14px;">
+    <div class="nota-pie"><span class="ic-sec">${IC_IND.alerta}</span>
+      <div>El <b>total y el porcentaje</b> salen de la <b>recolección</b>: lo que el
+      patinador recoge al cerrar el turno, que es el censo de la línea. El
+      <b>desperdicio por puesto</b> sale de la <b>auditoría</b>, porque es la única que
+      sabe de qué máquina salió cada pieza. <b>No se suman nunca</b>: son las mismas
+      piezas contadas por dos vías, y sumarlas contaría cada pieza dos veces.
+      Sin unidades empacadas no hay porcentaje — se cargan en <b>Data</b>.</div>
+    </div>
+  </div>
+  </div>`;
 
   dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango, fam);
   dibujarDonut(porProc, ncTotal, recogidas);
@@ -5123,7 +5501,20 @@ function dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango, famActua
   const cv=document.getElementById("cvEvol"); if(!cv) return;
   let labels=[], datos=[];
 
-  if(periodo==="semana"){
+  if(periodo==="mes"){
+    /* Día a día del mes. Cada día se divide por SUS propias empacadas: usar
+       las del mes entero daría un porcentaje diminuto que no se parece a
+       ningún día real. */
+    const ini = rango.desde;
+    const fin = new Date(rango.hasta+"T12:00:00").getDate();
+    for(let i=0;i<fin;i++){
+      const f = sumarDias(ini,i);
+      const nc = regs.filter(r=> fechaDeTurno(r)===f).reduce((a,r)=>a+r.cantidad,0);
+      const e  = empDia(famActual,f).total;
+      labels.push(f.slice(8)); 
+      datos.push((e&&e>0) ? +(nc/e*100).toFixed(2) : null);
+    }
+  } else if(periodo==="semana"){
     // % por día de la semana (usa las empacadas del período repartidas por día con registro)
     const dias={};
     for(let i=0;i<7;i++){ const f=sumarDias(rango.desde,i); dias[f]=0; }
