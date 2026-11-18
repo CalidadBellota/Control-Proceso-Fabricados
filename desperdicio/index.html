@@ -569,6 +569,39 @@
   .ctrl-top button.sec{background:#fff;color:var(--text);border:1px solid var(--border);}
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
   @media(max-width:900px){.kpis{grid-template-columns:1fr 1fr;}}
+  /* Cabecera de página y barra de filtros, igual que en Control de Proceso. */
+  .pag-tit{display:flex;flex-wrap:wrap;align-items:flex-start;gap:14px;margin-bottom:16px;}
+  .pag-tit h1{margin:0;font-size:1.45rem;font-weight:800;color:var(--red);
+    text-transform:uppercase;letter-spacing:.01em;line-height:1.15;}
+  .pag-tit .sub{margin-top:5px;font-size:.78rem;color:var(--text-dim);
+    display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+  .pag-tit .sub i{display:inline-block;width:1px;height:12px;background:var(--border);}
+  .pag-tit .der{margin-left:auto;display:flex;align-items:center;gap:14px;}
+  .pag-tit .lectura{font-size:.72rem;color:var(--text-dim);text-align:right;line-height:1.35;}
+  .btn-actualizar{border:1px solid var(--border);background:#fff;color:var(--text-dim);
+    border-radius:8px;padding:9px 14px;font-family:inherit;font-size:.76rem;
+    font-weight:700;cursor:pointer;min-height:38px;white-space:nowrap;}
+  .btn-actualizar:hover{background:#f3f4f6;color:var(--text);}
+  .btn-actualizar:disabled{opacity:.6;cursor:default;}
+  .fila-kpi{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;}
+  .fila-kpi .campo{flex:0 0 auto;margin:0;}
+  .fila-kpi .campo.corto{flex:0 0 170px;}
+  .fila-kpi .campo.der{margin-left:auto;}
+  .fila-kpi .campo label{display:block;font-size:.74rem;color:var(--text-dim);
+    margin-bottom:5px;font-weight:600;}
+  /* La app ya tenía un .seg con otro aspecto (subrayado en vez de relleno) y
+     se define más abajo, así que ganaba. El del tablero lleva clase propia. */
+  .seg.seg-kpi{display:flex;border:1px solid var(--border);border-radius:9px;
+    overflow:hidden;background:#fff;width:fit-content;max-width:100%;flex-wrap:wrap;
+    padding:0;gap:0;}
+  .seg.seg-kpi button{padding:10px 15px;border:none;background:#fff;font-family:inherit;
+    font-size:.78rem;font-weight:700;color:var(--text-dim);cursor:pointer;
+    border-right:1px solid var(--border);min-height:38px;border-radius:0;box-shadow:none;}
+  .seg.seg-kpi button:last-child{border-right:none;}
+  .seg.seg-kpi button.on{background:var(--red);color:#fff;box-shadow:none;}
+  @media (max-width:760px){ .fila-kpi .campo,.fila-kpi .campo.corto{flex:1 1 100%;}
+    .fila-kpi .campo.der{margin-left:0;} }
+
   /* ====================================================================
      INDICADORES — mismo aspecto que Control de Proceso
 
@@ -582,7 +615,7 @@
      entre ellas—, y soltar aquí reglas sueltas sobre `span` o `b` las habría
      descuadrado sin que se notara hasta abrir esa pantalla.
      ==================================================================== */
-  .ind .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0;}
+  .ind .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:0;}
   .ind .kpi .enlace{background:none;border:0;padding:0;margin-top:3px;
     font:inherit;font-size:.7rem;color:var(--red);text-decoration:underline;
     cursor:pointer;display:block;}
@@ -714,7 +747,10 @@
   .ind .lin-pie small{display:block;font-size:.65rem;color:var(--text-dim);}
   .ind .lin-nota{margin-top:12px;font-size:.74rem;line-height:1.5;}
 
-  @media (max-width:1200px){
+  @media (max-width:1400px){
+    .ind .kpis{grid-template-columns:repeat(3,1fr);}
+  }
+  @media (max-width:1000px){
     .ind .kpis{grid-template-columns:repeat(2,1fr);}
     .ind .lineas{grid-template-columns:repeat(2,1fr);}
   }
@@ -1637,10 +1673,46 @@
 
 <!-- ============ DASHBOARD ============ -->
 <section id="viewDashboard" style="display:none;">
+  <!-- Cabecera de página y barra de filtros con la misma forma que los
+       indicadores de Control de Proceso: título fuera del panel, resumen
+       debajo, y a la derecha cuándo se leyó la hoja y el botón de releer. -->
+  <div class="pag-tit">
+    <div>
+      <h1>Indicadores de desperdicio</h1>
+      <div class="sub" id="dResumen"></div>
+    </div>
+    <div class="der">
+      <div class="lectura" id="dLectura"></div>
+      <button type="button" class="btn-actualizar" id="dActualizar"
+        title="Volver a leer la hoja compartida">&#8635; Actualizar</button>
+    </div>
+  </div>
+
   <div class="panel">
-    <div class="dash-filtros">
-      <div>
-        <label for="dFamilia">Línea de producto *</label>
+    <div class="fila-kpi">
+      <div class="campo">
+        <label>Periodo</label>
+        <div class="seg seg-kpi" id="dSeg">
+          <button type="button" data-p="turno">Turno</button>
+          <button type="button" data-p="dia" class="on">Día</button>
+          <button type="button" data-p="semana">Semana</button>
+          <button type="button" data-p="mes">Mes</button>
+        </div>
+      </div>
+      <div class="campo corto">
+        <label for="dFecha">Día</label>
+        <input type="date" id="dFecha">
+      </div>
+      <div class="campo corto" id="wrapTurno">
+        <label for="dTurno">Turno</label>
+        <select id="dTurno">
+          <option value="1">Turno 1 (Mañana)</option>
+          <option value="2">Turno 2 (Tarde)</option>
+          <option value="3">Turno 3 (Noche)</option>
+        </select>
+      </div>
+      <div class="campo corto">
+        <label for="dFamilia">Línea</label>
         <select id="dFamilia">
           <option value="">Selecciona una línea</option>
           <option value="Machetes">Machetes</option>
@@ -1649,36 +1721,26 @@
           <option value="Palas">Palas</option>
         </select>
       </div>
-      <div>
-        <label for="dFecha">Fecha</label>
-        <input type="date" id="dFecha">
-      </div>
-      <div>
-        <label for="dPeriodo">Período</label>
-        <select id="dPeriodo">
-          <option value="turno">Un turno</option>
-          <option value="dia">Día completo</option>
-          <option value="semana">Semana fiscal</option>
-          <option value="mes">Mes</option>
-        </select>
-      </div>
-      <div id="wrapTurno">
-        <label for="dTurno">Turno</label>
-        <select id="dTurno">
-          <option value="1">Turno 1 (Mañana)</option>
-          <option value="2">Turno 2 (Tarde)</option>
-          <option value="3">Turno 3 (Noche)</option>
-        </select>
-      </div>
       <!-- El selector de origen desapareció del tablero: ahora cada cifra
            viene de donde puede venir, y elegir "auditoría" arriba convertía
            el total de la planta en el de la muestra sin avisar. El censo es
-           la recolección; el reparto por máquina, la auditoría. Se dice al
-           pie de la pantalla. -->
-      <button id="dActualizar">Actualizar</button>
-      <button id="dPdf" style="background:#fff;color:var(--text);border:1px solid var(--border);">📄 Reporte PDF</button>
+           la recolección; el reparto por máquina, la auditoría. -->
+      <div class="campo der">
+        <label>&nbsp;</label>
+        <button type="button" class="btn-actualizar" id="dPdf">&#128196; Reporte PDF</button>
+      </div>
     </div>
-    <div id="empBox" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);"></div>
+    <!-- El antiguo panel de producción vive aquí, oculto: lo que decía está
+         ahora en las tarjetas. -->
+    <div id="empBox" style="display:none;"></div>
+    <!-- El periodo lo fija el segmentado de arriba; este <select> oculto es
+         el que guarda el valor, así que todo lo que ya lo leía sigue igual. -->
+    <select id="dPeriodo" hidden>
+      <option value="turno">Un turno</option>
+      <option value="dia" selected>Día completo</option>
+      <option value="semana">Semana fiscal</option>
+      <option value="mes">Mes</option>
+    </select>
   </div>
 
   <div id="dashContenido">
@@ -1957,7 +2019,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-18-tarjetas";
+const APP_VERSION = "2026-11-18-cabecera";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -5824,14 +5886,23 @@ function renderDashboardTurno(){
   const fPct = v=> v==null ? "—" : v.toLocaleString("es-CO",
     {minimumFractionDigits:2, maximumFractionDigits:2})+"%";
 
+  /* La cabecera de página: qué se está mirando y cuándo se leyó la hoja.
+     Va fuera del tablero porque se queda fija aunque el contenido cambie. */
+  const res = document.getElementById("dResumen");
+  if(res) res.innerHTML =
+    `<span>${esc(rango.etiqueta)}</span><i></i><span>${esc(fam||"Sin línea")}</span>` +
+    `<i></i><span>${f0(regs.length)} registro(s) de recolección</span>`;
+  const lec = document.getElementById("dLectura");
+  if(lec) lec.innerHTML = LECTURA.hora
+    ? `Última lectura<br><b>${esc(LECTURA.hora)}</b>${
+        LECTURA.recibidos ? ` · ${f0(LECTURA.recibidos)} fila(s)` : ""}`
+    : `Sin leer la hoja<br>en esta sesión`;
+
   const cabecera = `
   <div class="ind">
     <div class="panel" style="margin-bottom:16px;">
-      <div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span>
-        <div><h2>INDICADORES DE DESPERDICIO</h2>
-          <span style="font-size:.72rem;color:var(--text-dim);">${esc(rango.etiqueta)}
-            · ${regs.length} registro(s) de recolección</span></div>
-      </div>
+      <!-- Sin cabecera: el título y el resumen ya están arriba de la página,
+           repetirlos aquí sólo gastaba una franja de pantalla. -->
       <div class="kpis">
         <!-- 1. Lo que se produjo. Sin esto no hay porcentaje, así que cuando
              falta la tarjeta lo dice y ofrece ir a cargarlo. -->
@@ -5887,6 +5958,23 @@ function renderDashboardTurno(){
           <small>${kilos.sinPeso
             ? f0(kilos.sinPeso)+" sin peso — no entran en los kilos"
             : "todas las referencias tienen peso"}</small>
+        </div>
+
+        <!-- 5. El veredicto. Es la pregunta que de verdad se hace quien abre
+             esto: ¿cumplimos o no? Cuando falta el dato lo dice, en vez de
+             enseñar un «No» que en realidad significa «no se sabe». -->
+        <div class="kpi ${pctPlanta==null ? "" : tono(estPlanta)}">
+          <span class="ic">${IC_IND.diana}</span>
+          <span>Cumplimiento de meta</span>
+          <b class="nom">${pctPlanta==null ? "Sin dato"
+            : pctPlanta<=metaPlanta ? "Sí cumple" : "No cumple"}</b>
+          <small>${conDato.length
+            ? `${conDato.length-fueraMeta} de ${conDato.length} línea(s) dentro de meta`
+            : "ninguna línea con dato suficiente"}</small>
+          <small>${fueraMeta
+            ? "fuera: "+esc(conDato.filter(x=>x.pct>x.meta).map(x=>x.fam).join(", "))
+            : sinCargar ? sinCargar+" línea(s) sin unidades empacadas"
+                        : "todas las líneas dentro de su meta"}</small>
         </div>
       </div>
     </div>
@@ -6186,14 +6274,36 @@ function dibujarDonut(porProc, ncTotal, recogidas){
      <span><b>${k}</b><span>${v} piezas (${base?Math.round(v/base*100):0}%)</span></span></div>`).join("");
 }
 
-document.getElementById("dActualizar").addEventListener("click",()=>{
+/* El botón de la cabecera relee la hoja además de repintar: es lo que hace
+   el de Proceso, y es lo que espera quien lo pulsa cuando sospecha que la
+   pantalla está mostrando datos viejos. */
+document.getElementById("dActualizar").addEventListener("click", async ()=>{
+  const b = document.getElementById("dActualizar");
   if(!document.getElementById("dFamilia").value){toast("Selecciona una línea de producto");return;}
+  const txt = b.textContent;
+  b.disabled = true; b.textContent = "Leyendo…";
+  try{
+    if(S.syncUrl){ await cargarRemoto(null,"botón actualizar",true);
+                   await sincronizarCargue(true);
+                   await cargarPesos(); await cargarAcciones(); }
+  }finally{ b.disabled = false; b.textContent = txt; }
   renderDashboardTurno();
+});
+
+/* El segmentado de periodo escribe en el <select> oculto y lanza su evento:
+   así todo lo que ya leía dPeriodo sigue funcionando sin tocarlo. */
+document.getElementById("dSeg").addEventListener("click", ev=>{
+  const b = ev.target.closest("button[data-p]");
+  if(!b) return;
+  document.querySelectorAll("#dSeg button").forEach(x=> x.classList.toggle("on", x===b));
+  const sel = document.getElementById("dPeriodo");
+  sel.value = b.dataset.p;
+  sel.dispatchEvent(new Event("change"));
 });
 document.getElementById("dFamilia").addEventListener("change",renderDashboardTurno);
 document.getElementById("dPeriodo").addEventListener("change",()=>{
   document.getElementById("wrapTurno").style.display =
-    document.getElementById("dPeriodo").value==="turno" ? "block":"none";
+    document.getElementById("dPeriodo").value==="turno" ? "" : "none";
   renderDashboardTurno();
 });
 document.getElementById("dFecha").addEventListener("change", async ()=>{
