@@ -809,6 +809,12 @@
   .ind .lin-gran{display:flex;align-items:baseline;gap:10px;}
   .ind .lin-gran b{font-size:2.2rem;font-weight:800;line-height:1;}
   .ind .lin-gran span{font-size:.76rem;color:var(--text-dim);line-height:1.25;}
+  /* Los tres recuadros dentro de la tarjeta compacta: la misma pieza de la
+     tarjeta ancha, con la letra ajustada al ancho de cuatro columnas. */
+  .ind .lin-cajas{margin-top:14px;padding-top:12px;border-top:1px solid var(--border);gap:6px;}
+  .ind .lin-cajas .caja{padding:7px 4px;}
+  .ind .lin-cajas .caja b{font-size:1.02rem;}
+  .ind .lin-cajas .caja span{font-size:.6rem;}
   .ind .lin-pie{display:flex;gap:16px;margin-top:14px;padding-top:12px;
     border-top:1px solid var(--border);flex-wrap:wrap;}
   .ind .lin-pie div{display:flex;align-items:center;gap:7px;font-size:.78rem;}
@@ -1328,11 +1334,6 @@
      —1 px— mientras su propia tabla iba a 15, así que ni respiraba ni
      alineaba con las columnas de abajo. */
   .card > .section-title{padding:18px 20px 0 20px;}
-  /* La cabecera de un PANEL va pegada a su contenido: el panel ya aporta su
-     propio relleno de 18px, así que el margen de la cabecera se sumaba a él y
-     sobraba. En las tarjetas sí se queda, porque ahí separa el título de la
-     tabla y no hay nada más entre medias. */
-  .ind .panel > .section-title{margin-bottom:0;}
   /* Entre 1000 y 1250 px la rejilla sigue en tres columnas pero las tarjetas
      se estrechan, y un título de 20 letras se parte en dos renglones: solo esa
      tarjeta crece y descuadra su fila. Se encoge un punto el título en esa
@@ -2228,7 +2229,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-19-aire2";
+const APP_VERSION = "2026-11-19-cajas";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -6747,13 +6748,13 @@ function renderDashboardTurno(){
               x.est==="ok"?"var(--ok)":x.est==="warn"?"var(--warn)":x.est==="bad"?"var(--bad)":"#c7ccd4"
             };"></i><u style="left:${anchoMeta}%;"></u></span>
             </div><div>
-            <div class="lin-pie">
-              <div><span class="ic-sec" style="width:24px;height:24px;">${IC_IND.caja}</span>
-                <div><b>${x.emp==null?"—":f0(x.emp)}</b><small>empacadas</small></div></div>
-              <div><span class="ic-sec" style="width:24px;height:24px;">${IC_IND.basura}</span>
-                <div><b>${x.rec==null?"—":f0(x.rec)}</b><small>desperdicio</small></div></div>
-              <div><span class="ic-sec" style="width:24px;height:24px;">${IC_IND.lupa}</span>
-                <div><b>${f0(x.aud||0)}</b><small>en auditoría</small></div></div>
+            <!-- Mismos recuadros que la tarjeta ancha: con el icono delante,
+                 las cifras se partían en dos renglones en cuanto la tarjeta se
+                 estrechaba y las tres líneas no alineaban entre tarjetas. -->
+            <div class="cajas lin-cajas">
+              <div class="caja"><b>${x.emp==null?"—":f0(x.emp)}</b><span>Empacadas</span></div>
+              <div class="caja${x.rec?" bad":""}"><b>${x.rec==null?"—":f0(x.rec)}</b><span>Desperdicio</span></div>
+              <div class="caja${x.aud?"":" warn"}"><b>${f0(x.aud||0)}</b><span>Auditadas</span></div>
             </div>
             <div class="lin-nota">${
               x.sinEmpaque
