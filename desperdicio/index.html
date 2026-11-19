@@ -1421,6 +1421,43 @@
   }
 
   /* Matriz proceso × defecto. */
+  /* Las cuatro líneas en paralelo dentro de la tarjeta ancha de «no
+     segregados»: apiladas obligaban a bajar para comparar una con otra, que
+     es justo lo que se quiere hacer aquí. */
+  /* Mismo reparto para las dos tarjetas anchas: los no segregados (bloques
+     .mx-linea) y la auditoría de puestos (bloques .pl). */
+  .ind .fuga-lineas,
+  .ind .lineas-par .porlinea{display:grid;grid-template-columns:repeat(4,1fr);gap:0 20px;}
+  .ind .lineas-par .porlinea > .pl{border-left:1px solid var(--border);padding-left:20px;}
+  .ind .lineas-par .porlinea > .pl:first-child{border-left:none;padding-left:0;}
+  @media(max-width:1100px){
+    .ind .lineas-par .porlinea{grid-template-columns:repeat(2,1fr);gap:18px 20px;}
+    .ind .lineas-par .porlinea > .pl:nth-child(odd){border-left:none;padding-left:0;}
+  }
+  @media(max-width:700px){
+    .ind .lineas-par .porlinea{grid-template-columns:1fr;gap:16px;}
+    .ind .lineas-par .porlinea > .pl{border-left:none;padding-left:0;}
+  }
+  /* El selector lleva «+ .mx-linea» para ganar a la regla de más abajo, que
+     separa los bloques apilados con margen y borde superior: aquí van en
+     paralelo y ese margen los descolocaba uno respecto de otro. */
+  .ind .fuga-lineas > .mx-linea,
+  .ind .fuga-lineas > .mx-linea + .mx-linea{margin-top:0;padding-top:0;border-top:none;
+    border-left:1px solid var(--border);padding-left:20px;}
+  .ind .fuga-lineas > .mx-linea:first-child{border-left:none;padding-left:0;}
+  .ind .fuga-lineas > .mx-linea > .mx-cab{margin-bottom:7px;}
+  @media(max-width:1100px){
+    .ind .fuga-lineas{grid-template-columns:repeat(2,1fr);gap:18px 20px;}
+    .ind .fuga-lineas > .mx-linea:nth-child(odd),
+    .ind .fuga-lineas > .mx-linea + .mx-linea:nth-child(odd){border-left:none;padding-left:0;}
+  }
+  @media(max-width:700px){
+    .ind .fuga-lineas{grid-template-columns:1fr;}
+    .ind .fuga-lineas > .mx-linea{border-left:none;padding-left:0;}
+    .ind .fuga-lineas > .mx-linea + .mx-linea{padding-top:16px;margin-top:0;
+      border-top:1px solid var(--border);border-left:none;padding-left:0;}
+  }
+
   /* Con «Todas», un bloque por línea: separador grueso para que no se lea
      como una sola tabla, que es justo lo que confundía. */
   .ind .mx-linea + .mx-linea{margin-top:20px;padding-top:18px;border-top:2px solid var(--border);}
@@ -1468,6 +1505,29 @@
     padding-bottom:4px;border-bottom:1px solid var(--border);}
   .ind .pl-cab .ic-sec{width:21px;height:21px;flex:0 0 21px;}
   .ind .pl-cab .tot{margin-left:auto;font-weight:600;font-size:.7rem;color:var(--text-dim);}
+  /* Las dos mitades del top. auto-FILL, no auto-fit: con auto-fit, una línea
+     con solo tres entradas estiraba su única tabla a todo el ancho y sus
+     cifras no caían bajo las de las líneas que sí tienen cinco. auto-fill
+     conserva la segunda columna vacía y todo queda en la misma vertical.
+     En las tarjetas estrechas —puestos, referencias, las que se colan— no
+     cabe la segunda columna y se apilan solas. */
+  /* stretch, no start: la divisoria vive en el borde de la mitad derecha y
+     con align-items:start esa mitad medía solo sus dos filas, así que la
+     línea quedaba más corta que la columna de al lado. */
+  .ind .pl-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+    gap:0 24px;align-items:stretch;}
+  .ind .pl-col{min-width:0;}
+  /* Separador entre las dos mitades. Va con consulta de contenedor y no de
+     ventana a propósito: la misma tarjeta es ancha en la fila de dos y
+     estrecha en la de tres, así que el ancho de la pantalla no dice si las
+     mitades están lado a lado. Si el navegador no soporta @container, no se
+     pinta la línea y el resto queda igual. */
+  .ind .pl{container-type:inline-size;}
+  @container (min-width:482px){
+    .ind .pl-cols > .pl-col + .pl-col{
+      border-left:1px solid var(--border);
+      margin-left:-12px;padding-left:12px;}
+  }
   .ind table.pl-t{margin:0;width:100%;}
   .ind table.pl-t td{padding:4px 6px;font-size:.78rem;border:0;}
   .ind table.pl-t td:first-child{padding-left:0;}
@@ -2276,7 +2336,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-19-refnum";
+const APP_VERSION = "2026-11-19-orden5";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -6535,6 +6595,9 @@ function renderDashboardTurno(){
      «Todas» cada panel se parte por línea con su top 3, y con una línea
      sola va corrido con el top 5.
      ==================================================================== */
+  /* Por línea van 3: con las cuatro apiladas en una columna de un tercio,
+     cinco por línea hacían la tarjeta demasiado alta. Con una sola línea
+     seleccionada hay sitio y van 5. */
   const TOPE = esTodas ? 3 : 5;
   function agrupaDe(filas, fn){
     const m={}; filas.forEach(r=>{ const k=fn(r); if(k==null) return;
@@ -6558,14 +6621,23 @@ function renderDashboardTurno(){
       const mas   = lista.length - top.length;
       const masPz = lista.slice(TOPE).reduce((n2,[,v])=>n2+v,0);
       const mx    = Math.max(...top.map(([,v])=>v), 1);
+
+      /* El top va partido en dos: 3 a la izquierda y el resto a la derecha.
+         Estas tarjetas ganaron ancho al pasar la fila a dos columnas, y
+         apilar cinco filas dejaba media tarjeta vacía. La barra se escala
+         contra el máximo de LAS CINCO, no de cada mitad, o la cuarta
+         parecería tan grande como la primera. */
+      const media = t => `<div class="pl-col"><table class="pl-t"><tbody>${t.map(([k,v])=>`
+          <tr><td>${esc(k)}</td><td class="num">${f0(v)}</td>
+              <td class="num">${tot>0?Math.round(v/tot*100):0}%</td>
+              <td style="width:42px;">${barra(v,mx)}</td></tr>`).join("")}
+        </tbody></table></div>`;
+
       return `<div class="pl">
         <div class="pl-cab"><span class="ic-sec">${icLinea(L)}</span>${esc(L)}
           <span class="tot">${f0(tot)} pieza(s)</span></div>
-        ${top.length ? `<table class="pl-t"><tbody>${top.map(([k,v])=>`
-            <tr><td>${esc(k)}</td><td class="num">${f0(v)}</td>
-                <td class="num">${tot>0?Math.round(v/tot*100):0}%</td>
-                <td style="width:48px;">${barra(v,mx)}</td></tr>`).join("")}
-          </tbody></table>${mas>0
+        ${top.length ? `<div class="pl-cols">${media(top.slice(0,3))}${
+            top.length>3 ? media(top.slice(3)) : ""}</div>${mas>0
             ? `<div class="pl-mas">y ${mas} más · ${f0(masPz)} pieza(s)</div>` : ""}`
           : `<div class="pl-vacio">${vacio}</div>`}
       </div>`;
@@ -6894,7 +6966,8 @@ function renderDashboardTurno(){
 
   box.innerHTML = cabecera + `<div class="ind">
   <!-- Procesos y defectos juntos: las dos lecturas del mismo total. -->
-  <div class="dash-grid" style="grid-template-columns:1fr 1fr;">
+  <!-- Las tres lecturas «por línea», una al lado de la otra. -->
+  <div class="dash-grid">
     <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.fabrica}</span><div><h2>${
       esTodas?"TOP 3 PROCESOS POR LÍNEA":"TOP 5 PROCESOS"}</h2><span class="sub-sec">${
       esTodas?"los que más aportan en cada línea":"de la recolección registrada"}</span></div></div><div class="cb">
@@ -6921,6 +6994,21 @@ function renderDashboardTurno(){
       </tbody></table>`:'<div class="empty-mini">Sin registros.</div>'}
     </div></div>
 
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.caja}</span><div><h2>${
+      esTodas?"TOP 3 REFERENCIAS POR LÍNEA":"TOP 5 REFERENCIAS"}</h2><span class="sub-sec">qué producto concreto se está botando</span></div></div><div class="cb">
+      ${esTodas ? panelPorLinea(regs, refDe, "Sin recolección registrada.")
+      : refMostrar.length?`<table><thead><tr><th>Referencia</th><th class="num">NC</th><th class="num">% del total</th><th></th></tr></thead><tbody>
+      ${refMostrar.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="num">${f0(v)}</td>
+        <td class="num">${ncTotal?Math.round(v/ncTotal*100):0}%</td>
+        <td style="width:70px;">${barra(v,maxRef)}</td></tr>`).join("")}
+      <tr class="tot"><td>TOTAL</td><td class="num">${f0(ncTotal)}</td><td class="num">100%</td><td></td></tr>
+      </tbody></table>`:'<div class="empty-mini">Sin referencias registradas en este periodo.</div>'}
+    </div></div>
+
+    <!-- Sustituye a «Flujo entre procesos», que solo listaba pares
+         origen → detectado y no respondía nada. La pregunta útil es cuál
+         defecto se escapa del proceso que lo genera. -->
+
     <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>${
       esTodas?"TOP 3 DEFECTOS POR LÍNEA":"TOP 5 DEFECTOS"}</h2><span class="sub-sec">${
       esTodas?"los que más pesan en cada línea":"de la recolección, con su acumulado"}</span></div></div><div class="cb">
@@ -6940,9 +7028,10 @@ function renderDashboardTurno(){
     </div></div>
   </div>
 
-  <!-- De dónde salió: puesto, referencia y lo que llegó de otro proceso. -->
-  <div class="dash-grid">
-    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.lupa}</span><div><h2>${
+  <!-- La auditoría de puestos, con las cuatro líneas en paralelo igual que
+       los no segregados de más abajo. -->
+  <div class="dash-grid" style="grid-template-columns:1fr;">
+    <div class="card lineas-par"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.lupa}</span><div><h2>${
       esTodas?"TOP 3 PUESTOS POR LÍNEA":"TOP 5 PUESTOS"}</h2><span class="sub-sec">de la auditoría, la única que sabe la máquina</span></div></div><div class="cb">
       ${esTodas ? panelPorLinea(regsAud, r=> r.puesto || null, "La auditoría no recorrió puestos.")
       : pueMostrar.length?`<table><thead><tr><th>Puesto</th><th class="num">NC</th><th class="num">% auditado</th><th></th></tr></thead><tbody>
@@ -6951,36 +7040,31 @@ function renderDashboardTurno(){
       <tr class="tot"><td>TOTAL AUDITADO</td><td class="num">${audTotal}</td><td class="num">100%</td><td></td></tr>
       </tbody></table>`:'<div class="empty-mini">La auditoría todavía no recorrió puestos en este periodo.</div>'}
     </div></div>
+  </div>
 
-    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.caja}</span><div><h2>${
-      esTodas?"TOP 3 REFERENCIAS POR LÍNEA":"TOP 5 REFERENCIAS"}</h2><span class="sub-sec">qué producto concreto se está botando</span></div></div><div class="cb">
-      ${esTodas ? panelPorLinea(regs, refDe, "Sin recolección registrada.")
-      : refMostrar.length?`<table><thead><tr><th>Referencia</th><th class="num">NC</th><th class="num">% del total</th><th></th></tr></thead><tbody>
-      ${refMostrar.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="num">${f0(v)}</td>
-        <td class="num">${ncTotal?Math.round(v/ncTotal*100):0}%</td>
-        <td style="width:70px;">${barra(v,maxRef)}</td></tr>`).join("")}
-      <tr class="tot"><td>TOTAL</td><td class="num">${f0(ncTotal)}</td><td class="num">100%</td><td></td></tr>
-      </tbody></table>`:'<div class="empty-mini">Sin referencias registradas en este periodo.</div>'}
-    </div></div>
+  <!-- El pareto a toda la hoja: con barras verticales y treinta defectos,
+       el ancho completo es lo único que deja leer las etiquetas. -->
+  <div class="dash-grid" style="grid-template-columns:1fr;">
+  <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>PARETO DE DEFECTOS</h2><span class="sub-sec">cuántos defectos cubren la mayor parte</span></div></div>
+    <div class="chart-wrap" style="height:${Math.max(360, Math.min(520, ordDef.length*16))}px;"><canvas id="cvPareto"></canvas></div></div>
+  </div>
 
-    <!-- Sustituye a «Flujo entre procesos», que solo listaba pares
-         origen → detectado y no respondía nada. La pregunta útil es cuál
-         defecto se escapa del proceso que lo genera. -->
+  <!-- A todo el ancho y con las cuatro líneas en paralelo: puestas una
+       debajo de otra había que bajar para comparar. -->
+  <div class="dash-grid" style="grid-template-columns:1fr;">
     <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>${
-      esTodas?"DEFECTOS QUE SE COLAN, POR LÍNEA":"DEFECTOS QUE SE COLAN"}</h2><span class="sub-sec">no se filtran donde se generan</span></div></div><div class="cb">
+      "DEFECTOS NO SEGREGADOS EN ORIGEN"}</h2><span class="sub-sec">se generan en un proceso y se detectan en otro posterior</span></div></div><div class="cb">
       ${esTodas
-        ? LINEAS_SEL.map(L=>{
+        ? `<div class="fuga-lineas">` + LINEAS_SEL.map(L=>{
             const fl = regs.filter(r=> r.familia === L);
             return `<div class="mx-linea">
               <div class="mx-cab"><span class="ic-sec">${icLinea(L)}</span>${esc(L)}</div>
               ${tablaFuga(fl)}</div>`;
-          }).join("")
+          }).join("") + `</div>`
         : tablaFuga(regs)}
     </div></div>
   </div>
 
-  <!-- La evolución a todo lo ancho: una serie de 30 días en un tercio de
-       la pantalla no se podía leer. -->
   <div class="dash-grid" style="grid-template-columns:1fr;">
     <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.reloj}</span><div><h2>EVOLUCIÓN</h2><span class="sub-sec">el % de desperdicio contra la meta de la línea</span></div></div>
       <div class="chart-wrap"><canvas id="cvEvol"></canvas></div></div>
@@ -7126,8 +7210,6 @@ function renderDashboardTurno(){
       </div></div>`;
   })()}
 
-  <div class="card" style="margin-bottom:14px;"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>PARETO DE DEFECTOS</h2><span class="sub-sec">cuántos defectos cubren la mayor parte</span></div></div>
-    <div class="chart-wrap" style="height:${Math.max(230, ordDef.length*26)}px;"><canvas id="cvPareto"></canvas></div></div>
 
   <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.caja}</span><div><h2>DETALLE DEL REGISTRO</h2><span class="sub-sec">cada línea cargada en el periodo</span></div></div><div class="cb">
     ${regs.length?`<div style="overflow-x:auto;"><table><thead><tr>
@@ -7236,11 +7318,18 @@ function dibujarPareto(ordDef, ncTotal){
       {type:"line",label:"% acumulado",data:acumPct,borderColor:"#374151",backgroundColor:"#374151",
        pointRadius:3,tension:.2,order:1,yAxisID:"y1"}
     ]},
-    options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,
+    /* Barras VERTICALES: el pareto ocupa el ancho completo, y en vertical la
+       curva de acumulado se lee como se espera —subiendo de izquierda a
+       derecha— en vez de bajando. Los nombres de defecto son largos, así que
+       las etiquetas van giradas y con el eje sin saltarse ninguna. */
+    options:{indexAxis:"x",responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:10}}}},
-      scales:{y:{ticks:{font:{size:10},autoSkip:false}},
-              x:{beginAtZero:true,position:"top",ticks:{font:{size:10}}},
-              y1:{display:false}}}
+      scales:{x:{ticks:{font:{size:10},autoSkip:false,maxRotation:60,minRotation:45}},
+              y:{beginAtZero:true,ticks:{font:{size:10}},
+                 title:{display:true,text:"Piezas NC",font:{size:10}}},
+              y1:{display:true,position:"right",beginAtZero:true,max:100,
+                  grid:{drawOnChartArea:false},
+                  ticks:{font:{size:10},callback:v=>v+"%"}}}}
   });
 }
 
