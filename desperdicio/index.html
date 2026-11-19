@@ -1424,7 +1424,19 @@
   .ind .mx-cab .ic-sec{width:24px;height:24px;flex:0 0 24px;}
   .ind .mx-cab .ic-sec svg{width:14px;height:14px;}
   .ind .mx-cab .tot{margin-left:auto;font-weight:600;font-size:.71rem;color:var(--text-dim);}
-  .ind table.matriz{min-width:620px;}
+  /* Rejilla fija: con el ancho automático, dos tablas apiladas con los mismos
+     datos pero nombres de distinto largo partían las columnas en sitios
+     distintos y no se podían comparar en vertical. */
+  .ind table.matriz{min-width:760px;table-layout:fixed;width:100%;}
+  .ind table.matriz th:first-child,
+  .ind table.matriz td:first-child{width:118px;}
+  .ind table.matriz th:nth-last-child(2),
+  .ind table.matriz td:nth-last-child(2){width:62px;}
+  .ind table.matriz th:last-child,
+  .ind table.matriz td:last-child{width:82px;}
+  /* Un defecto sin registros en el periodo: columna presente pero apagada. */
+  .ind table.matriz th.sin-dato b{color:var(--text-dim);font-weight:700;}
+  .ind table.matriz th.sin-dato span{opacity:.7;}
   .ind table.matriz th.num{text-align:center;vertical-align:bottom;padding:6px 5px;line-height:1.2;}
   .ind table.matriz th.num b{display:block;font-size:.72rem;color:var(--text);font-weight:800;}
   .ind table.matriz th.num span{display:block;font-size:.6rem;font-weight:500;color:var(--text-dim);}
@@ -2254,7 +2266,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-19-matriz2";
+const APP_VERSION = "2026-11-19-matriz3";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -6914,13 +6926,30 @@ function renderDashboardTurno(){
        propio total; lo que nunca se mezcla es el contenido de una con otra. */
     const COLS = 7;
 
-    function tablaMatriz(filasReg){
+    function tablaMatriz(filasReg, fam){
       const porDef = {};
       filasReg.forEach(r=>{ const d=`${r.defectoCodigo} - ${r.defectoLabel}`;
         porDef[d]=(porDef[d]||0)+(r.cantidad||0); });
-      const cols = Object.entries(porDef).sort((a2,b2)=>b2[1]-a2[1])
+      const conDato = Object.entries(porDef).sort((a2,b2)=>b2[1]-a2[1])
         .slice(0, COLS).map(([k])=>k);
-      const enCols = new Set(cols);
+
+      /* Todas las tablas con el MISMO número de columnas. Apiladas, una línea
+         con seis defectos y otra con ocho se veían desiguales y costaba
+         compararlas de un vistazo. Si a una línea le faltan columnas, se
+         completan con defectos de su propio catálogo que no se registraron en
+         el periodo: salen en blanco, y ese blanco también dice algo. */
+      const cols = conDato.slice();
+      if(cols.length < COLS){
+        const cat = DEFECTOS[String(fam||"").toLowerCase()] || [];
+        const yaEstan = new Set(cols.map(c=>c.split(" - ")[0]));
+        for(const dd of cat){
+          if(cols.length >= COLS) break;
+          if(yaEstan.has(dd.code)) continue;
+          yaEstan.add(dd.code);
+          cols.push(`${dd.code} - ${dd.name}`);
+        }
+      }
+      const enCols = new Set(conDato);   // «Otros» se mide contra los que SÍ tienen dato
       const cel = {}, totFila = {}, totCol = {};
       filasReg.forEach(r=>{
         const f = r.proceso || "—";
@@ -6938,16 +6967,20 @@ function renderDashboardTurno(){
         totCol[c]  = (totCol[c]||0)  + (r.cantidad||0);
       });
       const filas = Object.keys(totFila).sort((a2,b2)=>totFila[b2]-totFila[a2]);
-      const cabs = [...cols, ...(totCol["Otros"] ? ["Otros"] : [])];
+      const cabs = [...cols, "Otros"];   // siempre, aunque venga en cero
       const total = filasReg.reduce((n2,r)=>n2+(r.cantidad||0),0);
       const maxCel = Math.max(1, ...Object.values(cel).map(c=>c.n));
-      const corto = d => d==="Otros" ? "Otros"
+      const conDatoSet = new Set(conDato);
+      const corto = d => d==="Otros" ? "<b>Otros</b>"
         : `<b>${esc(d.split(" - ")[0])}</b><span>${esc((d.split(" - ")[1]||"").slice(0,13))}</span>`;
       const ajenas = Object.values(cel).reduce((n2,c)=>n2+(c.ajenas>0?1:0),0);
       return {ajenas, total, html:`<div style="overflow-x:auto;">
         <table class="matriz"><thead><tr>
           <th>Proceso</th>
-          ${cabs.map(d=>`<th class="num">${corto(d)}</th>`).join("")}
+          ${cabs.map(d=>`<th class="num${
+            (d!=="Otros" && !conDatoSet.has(d)) ? " sin-dato" : ""}"${
+            (d!=="Otros" && !conDatoSet.has(d)) ? ' title="sin registros en este periodo"' : ""
+            }>${corto(d)}</th>`).join("")}
           <th class="num tot-col">Total</th><th class="num">% de la línea</th>
         </tr></thead><tbody>
         ${filas.map(f=>`<tr>
@@ -6978,7 +7011,7 @@ function renderDashboardTurno(){
     if(esTodas){
       LINEAS_SEL.forEach(L=>{
         const fl = regs.filter(r=> r.familia === L);
-        const t = fl.length ? tablaMatriz(fl) : null;
+        const t = fl.length ? tablaMatriz(fl, L) : null;
         if(t && t.ajenas) hayAjenas = true;
         cuerpo += `<div class="mx-linea">
           <div class="mx-cab"><span class="ic-sec">${icLinea(L)}</span>${esc(L)}
@@ -6987,7 +7020,7 @@ function renderDashboardTurno(){
         </div>`;
       });
     } else {
-      const t = tablaMatriz(regs);
+      const t = tablaMatriz(regs, fam);
       hayAjenas = t.ajenas > 0;
       cuerpo = t.html;
     }
