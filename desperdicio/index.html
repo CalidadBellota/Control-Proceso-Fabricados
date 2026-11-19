@@ -1416,6 +1416,14 @@
   }
 
   /* Matriz proceso × defecto. */
+  /* Con «Todas», un bloque por línea: separador grueso para que no se lea
+     como una sola tabla, que es justo lo que confundía. */
+  .ind .mx-linea + .mx-linea{margin-top:20px;padding-top:18px;border-top:2px solid var(--border);}
+  .ind .mx-cab{display:flex;align-items:center;gap:8px;font-weight:800;font-size:.84rem;
+    margin-bottom:9px;}
+  .ind .mx-cab .ic-sec{width:24px;height:24px;flex:0 0 24px;}
+  .ind .mx-cab .ic-sec svg{width:14px;height:14px;}
+  .ind .mx-cab .tot{margin-left:auto;font-weight:600;font-size:.71rem;color:var(--text-dim);}
   .ind table.matriz{min-width:620px;}
   .ind table.matriz th.num{text-align:center;vertical-align:bottom;padding:6px 5px;line-height:1.2;}
   .ind table.matriz th.num b{display:block;font-size:.72rem;color:var(--text);font-weight:800;}
@@ -2246,7 +2254,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-19-matriz";
+const APP_VERSION = "2026-11-19-matriz2";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -6896,64 +6904,101 @@ function renderDashboardTurno(){
        guarda en cada registro (origenDefecto), no hay que capturarlo.
        ================================================================== */
     if(!regs.length) return "";
+
+    /* Una tabla por línea cuando están todas.
+
+       No basta con separar las filas: el catálogo de defectos es propio de
+       cada línea (C.. en cuchillas, L.. en limas, M.. en machetes), así que
+       unas columnas comunes las copaba la línea con más piezas y las demás
+       volcaban todo en «Otros». Cada línea lleva sus propias columnas y su
+       propio total; lo que nunca se mezcla es el contenido de una con otra. */
     const COLS = 7;
-    const cols = ordDef.slice(0, COLS).map(([k])=>k);
-    const enCols = new Set(cols);
-    const cel = {}, totFila = {}, totCol = {};
-    regs.forEach(r=>{
-      const f = r.proceso || "—";
-      const d = `${r.defectoCodigo} - ${r.defectoLabel}`;
-      const c = enCols.has(d) ? d : "Otros";
-      const k = f + "||" + c;
-      if(!cel[k]) cel[k] = {n:0, ajenas:0, origenes:{}};
-      cel[k].n += r.cantidad||0;
-      if(r.defectoAjeno === "Sí"){
-        cel[k].ajenas += r.cantidad||0;
-        const o = r.origenDefecto || "?";
-        cel[k].origenes[o] = (cel[k].origenes[o]||0) + (r.cantidad||0);
-      }
-      totFila[f] = (totFila[f]||0) + (r.cantidad||0);
-      totCol[c]  = (totCol[c]||0)  + (r.cantidad||0);
-    });
-    const filas = Object.keys(totFila).sort((a2,b2)=>totFila[b2]-totFila[a2]);
-    const cabs = [...cols, ...(totCol["Otros"] ? ["Otros"] : [])];
+
+    function tablaMatriz(filasReg){
+      const porDef = {};
+      filasReg.forEach(r=>{ const d=`${r.defectoCodigo} - ${r.defectoLabel}`;
+        porDef[d]=(porDef[d]||0)+(r.cantidad||0); });
+      const cols = Object.entries(porDef).sort((a2,b2)=>b2[1]-a2[1])
+        .slice(0, COLS).map(([k])=>k);
+      const enCols = new Set(cols);
+      const cel = {}, totFila = {}, totCol = {};
+      filasReg.forEach(r=>{
+        const f = r.proceso || "—";
+        const d = `${r.defectoCodigo} - ${r.defectoLabel}`;
+        const c = enCols.has(d) ? d : "Otros";
+        const k = f + "||" + c;
+        if(!cel[k]) cel[k] = {n:0, ajenas:0, origenes:{}};
+        cel[k].n += r.cantidad||0;
+        if(r.defectoAjeno === "Sí"){
+          cel[k].ajenas += r.cantidad||0;
+          const o = r.origenDefecto || "?";
+          cel[k].origenes[o] = (cel[k].origenes[o]||0) + (r.cantidad||0);
+        }
+        totFila[f] = (totFila[f]||0) + (r.cantidad||0);
+        totCol[c]  = (totCol[c]||0)  + (r.cantidad||0);
+      });
+      const filas = Object.keys(totFila).sort((a2,b2)=>totFila[b2]-totFila[a2]);
+      const cabs = [...cols, ...(totCol["Otros"] ? ["Otros"] : [])];
+      const total = filasReg.reduce((n2,r)=>n2+(r.cantidad||0),0);
+      const maxCel = Math.max(1, ...Object.values(cel).map(c=>c.n));
+      const corto = d => d==="Otros" ? "Otros"
+        : `<b>${esc(d.split(" - ")[0])}</b><span>${esc((d.split(" - ")[1]||"").slice(0,13))}</span>`;
+      const ajenas = Object.values(cel).reduce((n2,c)=>n2+(c.ajenas>0?1:0),0);
+      return {ajenas, total, html:`<div style="overflow-x:auto;">
+        <table class="matriz"><thead><tr>
+          <th>Proceso</th>
+          ${cabs.map(d=>`<th class="num">${corto(d)}</th>`).join("")}
+          <th class="num tot-col">Total</th><th class="num">% de la línea</th>
+        </tr></thead><tbody>
+        ${filas.map(f=>`<tr>
+          <td class="nom-proc">${esc(f)}</td>
+          ${cabs.map(d=>{
+            const c = cel[f+"||"+d];
+            if(!c || !c.n) return `<td class="num vacia">·</td>`;
+            const int = c.n/maxCel;
+            const tit = c.ajenas
+              ? `${c.n} pieza(s) · ${c.ajenas} llegaron de: ${Object.keys(c.origenes).join(", ")}`
+              : `${c.n} pieza(s) detectadas y originadas en ${f}`;
+            return `<td class="num celda${c.ajenas?" ajena":""}" title="${esc(tit)}"
+              style="background:rgba(200,29,46,${(0.06+int*0.34).toFixed(3)});">${f0(c.n)}${
+              c.ajenas?'<i>&#9656;</i>':""}</td>`;
+          }).join("")}
+          <td class="num tot-col">${f0(totFila[f])}</td>
+          <td class="num">${Math.round(totFila[f]/total*100)}%</td>
+        </tr>`).join("")}
+        </tbody><tfoot><tr>
+          <td>TOTAL</td>
+          ${cabs.map(d=>`<td class="num">${f0(totCol[d]||0)}</td>`).join("")}
+          <td class="num tot-col">${f0(total)}</td><td class="num">100%</td>
+        </tr></tfoot></table></div>`};
+    }
+
     const granTotal = regs.reduce((n2,r)=>n2+(r.cantidad||0),0);
-    const maxCel = Math.max(1, ...Object.values(cel).map(c=>c.n));
-    const corto = d => d==="Otros" ? "Otros"
-      : `<b>${esc(d.split(" - ")[0])}</b><span>${esc((d.split(" - ")[1]||"").slice(0,13))}</span>`;
-    const hayAjenas = Object.values(cel).some(c=>c.ajenas>0);
+    let cuerpo = "", hayAjenas = false;
+    if(esTodas){
+      LINEAS_SEL.forEach(L=>{
+        const fl = regs.filter(r=> r.familia === L);
+        const t = fl.length ? tablaMatriz(fl) : null;
+        if(t && t.ajenas) hayAjenas = true;
+        cuerpo += `<div class="mx-linea">
+          <div class="mx-cab"><span class="ic-sec">${icLinea(L)}</span>${esc(L)}
+            <span class="tot">${t? f0(t.total)+" pieza(s) · "+Math.round(t.total/granTotal*100)+"% del total" : "sin recolección"}</span></div>
+          ${t ? t.html : `<div class="pl-vacio">Sin recolección registrada en este periodo.</div>`}
+        </div>`;
+      });
+    } else {
+      const t = tablaMatriz(regs);
+      hayAjenas = t.ajenas > 0;
+      cuerpo = t.html;
+    }
 
     return `<div class="card" style="margin-bottom:14px;">
       <div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span>
         <div><h2>MATRIZ PROCESO × DEFECTO</h2>
-        <span class="sub-sec">en qué proceso se detectó cada defecto · las filas, las columnas y el total cuadran con las ${f0(granTotal)} piezas del periodo</span></div></div>
-      <div class="cb"><div style="overflow-x:auto;">
-      <table class="matriz"><thead><tr>
-        <th>Proceso</th>
-        ${cabs.map(d=>`<th class="num">${corto(d)}</th>`).join("")}
-        <th class="num tot-col">Total</th><th class="num">% del total</th>
-      </tr></thead><tbody>
-      ${filas.map(f=>`<tr>
-        <td class="nom-proc">${esc(f)}</td>
-        ${cabs.map(d=>{
-          const c = cel[f+"||"+d];
-          if(!c || !c.n) return `<td class="num vacia">·</td>`;
-          const int = c.n/maxCel;
-          const tit = c.ajenas
-            ? `${c.n} pieza(s) · ${c.ajenas} llegaron de: ${Object.keys(c.origenes).join(", ")}`
-            : `${c.n} pieza(s) detectadas y originadas en ${f}`;
-          return `<td class="num celda${c.ajenas?" ajena":""}" title="${esc(tit)}"
-            style="background:rgba(200,29,46,${(0.06+int*0.34).toFixed(3)});">${f0(c.n)}${
-            c.ajenas?'<i>&#9656;</i>':""}</td>`;
-        }).join("")}
-        <td class="num tot-col">${f0(totFila[f])}</td>
-        <td class="num">${Math.round(totFila[f]/granTotal*100)}%</td>
-      </tr>`).join("")}
-      </tbody><tfoot><tr>
-        <td>TOTAL</td>
-        ${cabs.map(d=>`<td class="num">${f0(totCol[d]||0)}</td>`).join("")}
-        <td class="num tot-col">${f0(granTotal)}</td><td class="num">100%</td>
-      </tr></tfoot></table></div>
+        <span class="sub-sec">en qué proceso se detectó cada defecto · ${esTodas
+          ? `una tabla por línea, porque los defectos de una no existen en otra · ${f0(granTotal)} piezas en total`
+          : `las filas, las columnas y el total cuadran con las ${f0(granTotal)} piezas del periodo`}</span></div></div>
+      <div class="cb">${cuerpo}
       ${hayAjenas?`<div class="matriz-pie"><i>&#9656;</i> el defecto no se originó en ese proceso: llegó de uno anterior. Pase el cursor por la celda para ver de cuál.</div>`:""}
       </div></div>`;
   })()}
