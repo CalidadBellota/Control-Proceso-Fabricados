@@ -701,14 +701,17 @@
      fila empiezan su contenido en el mismo sitio tenga o no subtítulo, y
      tanto si el subtítulo ocupa una línea como dos. */
   .ind .section-title{display:flex;justify-content:space-between;align-items:flex-start;
-    gap:11px;flex-wrap:wrap;margin-bottom:12px;min-height:52px;}
+    gap:11px;flex-wrap:wrap;margin-bottom:10px;}
   .ind .section-title > div{min-width:0;}
   .ind .section-title h2{margin:0;font-size:.9rem;font-weight:800;letter-spacing:.3px;
     color:var(--red);line-height:1.35;}
   /* El subtítulo siempre ocupa su renglón, aunque venga vacío. */
   .ind .section-title .sub-sec{display:block;font-size:.72rem;color:var(--text-dim);
     line-height:1.3;margin-top:2px;min-height:1.3em;}
-  .ind .section-title.con-ic{justify-content:flex-start;}
+  /* Sin esto, al estrecharse la tarjeta el bloque de título NO encogía: se
+     iba entero al renglón de abajo del icono y esa cabecera crecía 39 px,
+     descuadrando su fila. Con nowrap se queda al lado y encoge. */
+  .ind .section-title.con-ic{justify-content:flex-start;flex-wrap:nowrap;}
   .ind .section-title.con-ic > span:not(.ic-sec){margin-left:auto;}
   .ind .ic-sec{width:30px;height:30px;border-radius:9px;background:var(--bad-bg);
     color:var(--red-dark);display:inline-flex;align-items:center;justify-content:center;
@@ -1316,7 +1319,36 @@
   .card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
   .card .ch{display:flex;align-items:center;gap:9px;padding:12px 15px;border-bottom:1px solid var(--border);font-weight:700;font-size:.88rem;}
   .card .ch .ic{width:26px;height:26px;border-radius:7px;background:#fdeceb;display:flex;align-items:center;justify-content:center;font-size:.85rem;}
-  .card .cb{padding:6px 15px 14px 15px;}
+  /* EL AIRE DE LA TARJETA
+
+     .card no lleva padding propio porque tres cabeceras de la vista de máquina
+     (.ch) necesitan que su borde inferior llegue de lado a lado. Así que el
+     aire se lo ponen el título y el cuerpo, con la MISMA medida que los
+     paneles grandes (18px 20px): antes el título nacía pegado a la esquina
+     —1 px— mientras su propia tabla iba a 15, así que ni respiraba ni
+     alineaba con las columnas de abajo. */
+  .card > .section-title{padding:18px 20px 0 20px;}
+  /* La cabecera de un PANEL va pegada a su contenido: el panel ya aporta su
+     propio relleno de 18px, así que el margen de la cabecera se sumaba a él y
+     sobraba. En las tarjetas sí se queda, porque ahí separa el título de la
+     tabla y no hay nada más entre medias. */
+  .ind .panel > .section-title{margin-bottom:0;}
+  /* Entre 1000 y 1250 px la rejilla sigue en tres columnas pero las tarjetas
+     se estrechan, y un título de 20 letras se parte en dos renglones: solo esa
+     tarjeta crece y descuadra su fila. Se encoge un punto el título en esa
+     franja, que estropea menos que recortar las palabras. */
+  /* Franja estrecha: la rejilla sigue en TRES columnas (abajo de 1000 px pasa
+     a una y el problema desaparece), pero las tarjetas se encogen y algunos
+     subtítulos pasan a dos renglones mientras otros se quedan en uno. Eso
+     hacía que las cabeceras de una misma fila midieran distinto. Se reservan
+     los dos renglones para todas: un poco de aire es mejor que una fila a
+     escalones, y fuera de esta franja no se reserva nada. */
+  @media(min-width:1001px) and (max-width:1250px){
+    .ind .section-title h2{font-size:.82rem;letter-spacing:.2px;}
+    .ind .section-title .sub-sec{min-height:2.6em;}
+  }
+  .card .cb{padding:0 20px 18px 20px;}
+  .card > .chart-wrap{padding:0 16px 14px 16px;}
   .card table{width:100%;border-collapse:collapse;font-size:.82rem;}
   .card th{text-align:left;color:var(--text-dim);font-weight:600;font-size:.72rem;padding:8px 4px;border-bottom:1px solid var(--border);}
   .card td{padding:7px 4px;border-bottom:1px solid #f1f2f4;}
@@ -2196,7 +2228,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-18-tarjeta";
+const APP_VERSION = "2026-11-19-aire2";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -6805,7 +6837,7 @@ function renderDashboardTurno(){
   </div>
 
   <div class="dash-grid">
-    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>FLUJO DE DEFECTOS ENTRE PROCESOS</h2></div></div><div class="cb">
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>FLUJO ENTRE PROCESOS</h2><span class="sub-sec">defectos detectados lejos de donde se originaron</span></div></div><div class="cb">
       ${flujo.length?`<table><thead><tr><th>Origen</th><th>Detectado en</th><th class="num">NC</th><th class="num">%</th></tr></thead><tbody>
       ${flujo.map(([k,v])=>{const [o,d]=k.split("|");
         return `<tr><td>${o}</td><td>${d}</td><td class="num">${v}</td><td class="num">${ncTotal?Math.round(v/ncTotal*100):0}%</td></tr>`;}).join("")}
@@ -6814,10 +6846,10 @@ function renderDashboardTurno(){
       </tbody></table>`:'<div class="empty-mini">Ningún defecto llegó desde otro proceso.</div>'}
     </div></div>
 
-    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.reloj}</span><div><h2>EVOLUCIÓN DEL % DE DESPERDICIO</h2></div></div>
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.reloj}</span><div><h2>EVOLUCIÓN</h2><span class="sub-sec">el % de desperdicio contra la meta de la línea</span></div></div>
       <div class="chart-wrap"><canvas id="cvEvol"></canvas></div></div>
 
-    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.diana}</span><div><h2>DISTRIBUCIÓN DEL DESPERDICIO RECOGIDO</h2></div></div><div class="cb">
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.diana}</span><div><h2>DISTRIBUCIÓN</h2><span class="sub-sec">reparto del desperdicio por proceso</span></div></div><div class="cb">
       <div class="donut-wrap">
         <div class="cv"><canvas id="cvDonut"></canvas>
           <div class="donut-center"><b>${ncTotal}</b><span>piezas NC</span></div></div>
@@ -6826,10 +6858,10 @@ function renderDashboardTurno(){
     </div></div>
   </div>
 
-  <div class="card" style="margin-bottom:14px;"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>PARETO DE DEFECTOS — TODOS</h2></div></div>
+  <div class="card" style="margin-bottom:14px;"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>PARETO DE DEFECTOS</h2><span class="sub-sec">cuántos defectos cubren la mayor parte</span></div></div>
     <div class="chart-wrap" style="height:${Math.max(230, ordDef.length*26)}px;"><canvas id="cvPareto"></canvas></div></div>
 
-  <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.caja}</span><div><h2>DETALLE DEL REGISTRO</h2></div></div><div class="cb">
+  <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.caja}</span><div><h2>DETALLE DEL REGISTRO</h2><span class="sub-sec">cada línea cargada en el periodo</span></div></div><div class="cb">
     ${regs.length?`<div style="overflow-x:auto;"><table><thead><tr>
       <th>Hora</th><th>Turno</th><th>Proceso</th><th>Referencia</th><th>Defecto</th><th class="num">NC</th><th>Observación</th><th style="width:76px;"></th></tr></thead><tbody>
       ${regs.map(r=>`<tr><td>${r.hora}</td><td>${esc(r.turno||"")}</td><td>${r.proceso}</td><td>${esc(r.referencia||"—")}</td>
