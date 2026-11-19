@@ -1389,12 +1389,17 @@
   .ind .lin-ancha .chip.bad{background:var(--bad-bg);color:var(--bad);}
   .ind .lin-ancha .chip.sin{background:#f2f3f5;color:#8a919b;}
   .ind .cajas{display:flex;gap:8px;}
-  .ind .caja{background:#f5f6f8;border-radius:9px;padding:8px 13px;text-align:center;
-    flex:1 1 0;min-width:0;}
+  /* Las tres cajas repartían el ancho a partes iguales, así que «181.675»
+     quedaba apretado contra los bordes mientras «2» nadaba. Ahora cada una
+     toma lo que necesita y el resto se reparte. */
+  .ind .caja{background:#f5f6f8;border-radius:9px;padding:8px 12px;text-align:center;
+    flex:1 1 auto;min-width:0;white-space:nowrap;}
   .ind .caja b{display:block;font-size:1.25rem;font-weight:800;line-height:1.15;}
   .ind .caja span{display:block;font-size:.63rem;color:var(--text-dim);margin-top:1px;line-height:1.25;}
   .ind .caja.warn{background:var(--warn-bg);} .ind .caja.warn b{color:var(--warn-text);}
   .ind .caja.bad{background:var(--bad-bg);}   .ind .caja.bad b{color:var(--bad);}
+  /* El desperdicio no es malo por existir: lo es por pasarse de la meta. */
+  .ind .caja.ok{background:var(--ok-bg);}     .ind .caja.ok b{color:#15733f;}
   .ind .cifra-gr{font-size:1.45rem;font-weight:800;line-height:1.1;}
   .ind .cifra-gr span{font-size:.92rem;font-weight:600;color:var(--text-dim);}
   .ind .lx-cump{display:flex;align-items:center;gap:10px;}
@@ -1449,6 +1454,11 @@
     font-style:normal;color:var(--warn-text);line-height:1;}
   .ind table.matriz .tot-col{font-weight:800;background:#f5f6f8;}
   .ind table.matriz tfoot td{font-weight:800;background:#eef0f3;border-top:2px solid var(--border);}
+  /* La ruta del defecto: de dónde sale y dónde acaba apareciendo. */
+  .ind .fuga-ruta{display:block;font-size:.65rem;color:var(--text-dim);
+    line-height:1.35;margin-top:2px;}
+  .ind .fuga-ruta b{color:var(--text);font-weight:700;}
+
   .ind .matriz-pie{font-size:.7rem;color:var(--text-dim);padding-top:9px;line-height:1.4;}
   .ind .matriz-pie i{font-style:normal;color:var(--warn-text);font-weight:700;}
 
@@ -2266,7 +2276,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-19-matriz3";
+const APP_VERSION = "2026-11-19-fuga2";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -6446,11 +6456,71 @@ function renderDashboardTurno(){
     return Object.entries(m).sort((a,b)=>b[1]-a[1]);
   })();
   const porDef=agrupa(r=>`${r.defectoCodigo} - ${r.defectoLabel}`);
-  const flujo=agrupa(r=> r.defectoAjeno==="Sí" ? `${r.origenDefecto||"?"}|${r.puesto}` : null);
+  /* Por referencia: dice qué producto concreto se está botando, que es otra
+     pregunta distinta a en qué proceso o con qué defecto. */
+  const porRef=agrupa(r=> (r.referencia||"").trim() || null);
 
   const ordDef=[...porDef].sort((a,b)=>b[1]-a[1]);
 
   const barra=(v,max)=>`<span class="minibar" style="width:${max?Math.max(6,v/max*100):0}%"></span>`;
+  /* El recuadro de desperdicio pinta el ESTADO CONTRA LA META, no el hecho de
+     que haya piezas. Antes salía rojo siempre que hubiera desperdicio, así que
+     una línea «En meta» mostraba su cifra en rojo y se leía como un problema
+     cuando no lo era. Sin unidades empacadas no hay meta contra la que medir,
+     y entonces se queda neutro. */
+  /* ====================================================================
+     DEFECTOS QUE SE COLAN
+
+     Cada defecto tiene un proceso donde se genera (lo dice el catálogo). Si
+     una pieza con ese defecto aparece en un proceso POSTERIOR, significa que
+     el proceso de origen no la segregó y la dejó seguir. Eso cuesta: se le
+     siguió agregando trabajo a una pieza que ya estaba perdida.
+
+     Lo que se ordena no es cuántas piezas hay, sino cuántas se escaparon, y
+     se acompaña del % sobre ese defecto: 40 piezas que son el 100% del
+     defecto es un filtro que no existe; 40 que son el 5% es una fuga normal.
+     ==================================================================== */
+  function tablaFuga(filasReg){
+    const m = {};
+    filasReg.forEach(r=>{
+      const d = `${r.defectoCodigo} - ${r.defectoLabel}`;
+      if(!m[d]) m[d] = {total:0, fuera:0, origen:r.origenDefecto||"", donde:{}};
+      m[d].total += r.cantidad||0;
+      if(r.defectoAjeno === "Sí"){
+        m[d].fuera += r.cantidad||0;
+        if(r.origenDefecto) m[d].origen = r.origenDefecto;
+        m[d].donde[r.proceso] = (m[d].donde[r.proceso]||0) + (r.cantidad||0);
+      }
+    });
+    const filas = Object.entries(m).filter(([,v])=>v.fuera>0)
+      .sort((a3,b3)=> b3[1].fuera - a3[1].fuera).slice(0, TOPE);
+    if(!filas.length)
+      return '<div class="empty-mini">Cada defecto se está detectando en el proceso que lo genera.</div>';
+    const mx = Math.max(...filas.map(([,v])=>v.fuera), 1);
+    return `<table><thead><tr><th>Defecto</th><th class="num">Se coló</th>
+      <th class="num">% del defecto</th><th></th></tr></thead><tbody>
+      ${filas.map(([k,v])=>{
+        const pc = Math.round(v.fuera/v.total*100);
+        const donde = Object.entries(v.donde).sort((a3,b3)=>b3[1]-a3[1])
+          .map(([pz,c])=>`${pz} (${f0(c)})`).join(", ");
+        /* El destino va A LA VISTA, no en el title: la app se usa en tablet y
+           ahí no hay cursor que pasar por encima, así que un dato que solo
+           aparece al apuntar es un dato que nadie ve. */
+        const dest = Object.entries(v.donde).sort((a3,b3)=>b3[1]-a3[1]);
+        const dLista = dest.slice(0,2).map(([pz,c])=>`${esc(pz)} (${f0(c)})`).join(", ")
+          + (dest.length>2 ? ` y ${dest.length-2} más` : "");
+        return `<tr title="${esc(`Se genera en ${v.origen||"?"} · se detectó en: ${donde} · ${f0(v.fuera)} de ${f0(v.total)} pieza(s) de este defecto`)}">
+          <td>${esc(k)}<small class="fuga-ruta">
+            <b>${esc(v.origen||"?")}</b> &rarr; ${dLista}</small></td>
+          <td class="num">${f0(v.fuera)}</td>
+          <td class="num"><b class="${pc>=50?"bad":pc>=25?"warn":""}">${pc}%</b></td>
+          <td style="width:62px;">${barra(v.fuera,mx)}</td></tr>`;
+      }).join("")}
+      </tbody></table>`;
+  }
+
+  const tonoCaja = x => x.rec==null || !x.rec ? ""
+    : x.est==="ok" ? " ok" : x.est==="warn" ? " warn" : x.est==="bad" ? " bad" : "";
 
   /* ====================================================================
      TOP POR LÍNEA
@@ -6501,11 +6571,12 @@ function renderDashboardTurno(){
      el TOTAL no deje de cuadrar. */
   const procMostrar = conOtros(porProc,   TOPE);
   const pueMostrar  = conOtros(porPuesto, TOPE);
+  const refMostrar  = conOtros(porRef,    TOPE);
+  const maxRef = Math.max(...refMostrar.map(([,v])=>v), 1);
   const defsMostrar = conOtros(ordDef,    TOPE);
   const maxProc=Math.max(...procMostrar.map(([,v])=>v),1);
   const maxDef=Math.max(...defsMostrar.map(([,v])=>v),1);
   const maxPue=Math.max(...pueMostrar.map(([,v])=>v),1);
-  const maxFlu=Math.max(...flujo.map(([,v])=>v),1);
 
   /* ---- Comparación con el periodo anterior ----
      Un porcentaje solo no dice si vamos mejor o peor. La referencia natural
@@ -6741,7 +6812,7 @@ function renderDashboardTurno(){
               <span class="g-tit">Producción del periodo</span>
               <div class="cajas">
                 <div class="caja"><b>${x.emp==null?"—":f0(x.emp)}</b><span>Empacadas</span></div>
-                <div class="caja${x.rec?" bad":""}"><b>${x.rec==null?"—":f0(x.rec)}</b><span>Desperdicio</span></div>
+                <div class="caja${tonoCaja(x)}"><b>${x.rec==null?"—":f0(x.rec)}</b><span>Desperdicio</span></div>
                 <div class="caja${x.aud?"":" warn"}"><b>${f0(x.aud||0)}</b><span>Auditadas</span></div>
               </div>
               <span class="g-pie">${esc(rango.etiqueta)}${
@@ -6790,7 +6861,7 @@ function renderDashboardTurno(){
                  estrechaba y las tres líneas no alineaban entre tarjetas. -->
             <div class="cajas lin-cajas">
               <div class="caja"><b>${x.emp==null?"—":f0(x.emp)}</b><span>Empacadas</span></div>
-              <div class="caja${x.rec?" bad":""}"><b>${x.rec==null?"—":f0(x.rec)}</b><span>Desperdicio</span></div>
+              <div class="caja${tonoCaja(x)}"><b>${x.rec==null?"—":f0(x.rec)}</b><span>Desperdicio</span></div>
               <div class="caja${x.aud?"":" warn"}"><b>${f0(x.aud||0)}</b><span>Auditadas</span></div>
             </div>
             <div class="lin-nota">${
@@ -6818,7 +6889,8 @@ function renderDashboardTurno(){
   </div>`;
 
   box.innerHTML = cabecera + `<div class="ind">
-  <div class="dash-grid">
+  <!-- Procesos y defectos juntos: las dos lecturas del mismo total. -->
+  <div class="dash-grid" style="grid-template-columns:1fr 1fr;">
     <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.fabrica}</span><div><h2>${
       esTodas?"TOP 3 PROCESOS POR LÍNEA":"TOP 5 PROCESOS"}</h2><span class="sub-sec">${
       esTodas?"los que más aportan en cada línea":"de la recolección registrada"}</span></div></div><div class="cb">
@@ -6845,16 +6917,6 @@ function renderDashboardTurno(){
       </tbody></table>`:'<div class="empty-mini">Sin registros.</div>'}
     </div></div>
 
-    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.lupa}</span><div><h2>${
-      esTodas?"TOP 3 PUESTOS POR LÍNEA":"TOP 5 PUESTOS"}</h2><span class="sub-sec">de la auditoría, la única que sabe la máquina</span></div></div><div class="cb">
-      ${esTodas ? panelPorLinea(regsAud, r=> r.puesto || null, "La auditoría no recorrió puestos.")
-      : pueMostrar.length?`<table><thead><tr><th>Puesto</th><th class="num">NC</th><th class="num">% auditado</th><th></th></tr></thead><tbody>
-      ${pueMostrar.map(([k,v])=>{const pc=audTotal>0?Math.round(v/audTotal*100):null;
-        return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${pc==null?"—":pc+"%"}</td><td style="width:70px;">${barra(v,maxPue)}</td></tr>`;}).join("")}
-      <tr class="tot"><td>TOTAL AUDITADO</td><td class="num">${audTotal}</td><td class="num">100%</td><td></td></tr>
-      </tbody></table>`:'<div class="empty-mini">La auditoría todavía no recorrió puestos en este periodo.</div>'}
-    </div></div>
-
     <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>${
       esTodas?"TOP 3 DEFECTOS POR LÍNEA":"TOP 5 DEFECTOS"}</h2><span class="sub-sec">${
       esTodas?"los que más pesan en cada línea":"de la recolección, con su acumulado"}</span></div></div><div class="cb">
@@ -6874,26 +6936,50 @@ function renderDashboardTurno(){
     </div></div>
   </div>
 
+  <!-- De dónde salió: puesto, referencia y lo que llegó de otro proceso. -->
   <div class="dash-grid">
-    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>FLUJO ENTRE PROCESOS</h2><span class="sub-sec">defectos detectados lejos de donde se originaron</span></div></div><div class="cb">
-      ${flujo.length?`<table><thead><tr><th>Origen</th><th>Detectado en</th><th class="num">NC</th><th class="num">%</th></tr></thead><tbody>
-      ${flujo.map(([k,v])=>{const [o,d]=k.split("|");
-        return `<tr><td>${o}</td><td>${d}</td><td class="num">${v}</td><td class="num">${ncTotal?Math.round(v/ncTotal*100):0}%</td></tr>`;}).join("")}
-      <tr class="tot"><td colspan="2">TOTAL</td><td class="num">${flujo.reduce((s,[,v])=>s+v,0)}</td>
-        <td class="num">${ncTotal?Math.round(flujo.reduce((s,[,v])=>s+v,0)/ncTotal*100):0}%</td></tr>
-      </tbody></table>`:'<div class="empty-mini">Ningún defecto llegó desde otro proceso.</div>'}
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.lupa}</span><div><h2>${
+      esTodas?"TOP 3 PUESTOS POR LÍNEA":"TOP 5 PUESTOS"}</h2><span class="sub-sec">de la auditoría, la única que sabe la máquina</span></div></div><div class="cb">
+      ${esTodas ? panelPorLinea(regsAud, r=> r.puesto || null, "La auditoría no recorrió puestos.")
+      : pueMostrar.length?`<table><thead><tr><th>Puesto</th><th class="num">NC</th><th class="num">% auditado</th><th></th></tr></thead><tbody>
+      ${pueMostrar.map(([k,v])=>{const pc=audTotal>0?Math.round(v/audTotal*100):null;
+        return `<tr><td>${k}</td><td class="num">${v}</td><td class="num">${pc==null?"—":pc+"%"}</td><td style="width:70px;">${barra(v,maxPue)}</td></tr>`;}).join("")}
+      <tr class="tot"><td>TOTAL AUDITADO</td><td class="num">${audTotal}</td><td class="num">100%</td><td></td></tr>
+      </tbody></table>`:'<div class="empty-mini">La auditoría todavía no recorrió puestos en este periodo.</div>'}
     </div></div>
 
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.caja}</span><div><h2>${
+      esTodas?"TOP 3 REFERENCIAS POR LÍNEA":"TOP 5 REFERENCIAS"}</h2><span class="sub-sec">qué producto concreto se está botando</span></div></div><div class="cb">
+      ${esTodas ? panelPorLinea(regs, r=> (r.referencia||"").trim() || null, "Sin recolección registrada.")
+      : refMostrar.length?`<table><thead><tr><th>Referencia</th><th class="num">NC</th><th class="num">% del total</th><th></th></tr></thead><tbody>
+      ${refMostrar.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="num">${f0(v)}</td>
+        <td class="num">${ncTotal?Math.round(v/ncTotal*100):0}%</td>
+        <td style="width:70px;">${barra(v,maxRef)}</td></tr>`).join("")}
+      <tr class="tot"><td>TOTAL</td><td class="num">${f0(ncTotal)}</td><td class="num">100%</td><td></td></tr>
+      </tbody></table>`:'<div class="empty-mini">Sin referencias registradas en este periodo.</div>'}
+    </div></div>
+
+    <!-- Sustituye a «Flujo entre procesos», que solo listaba pares
+         origen → detectado y no respondía nada. La pregunta útil es cuál
+         defecto se escapa del proceso que lo genera. -->
+    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>${
+      esTodas?"DEFECTOS QUE SE COLAN, POR LÍNEA":"DEFECTOS QUE SE COLAN"}</h2><span class="sub-sec">no se filtran donde se generan</span></div></div><div class="cb">
+      ${esTodas
+        ? LINEAS_SEL.map(L=>{
+            const fl = regs.filter(r=> r.familia === L);
+            return `<div class="mx-linea">
+              <div class="mx-cab"><span class="ic-sec">${icLinea(L)}</span>${esc(L)}</div>
+              ${tablaFuga(fl)}</div>`;
+          }).join("")
+        : tablaFuga(regs)}
+    </div></div>
+  </div>
+
+  <!-- La evolución a todo lo ancho: una serie de 30 días en un tercio de
+       la pantalla no se podía leer. -->
+  <div class="dash-grid" style="grid-template-columns:1fr;">
     <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.reloj}</span><div><h2>EVOLUCIÓN</h2><span class="sub-sec">el % de desperdicio contra la meta de la línea</span></div></div>
       <div class="chart-wrap"><canvas id="cvEvol"></canvas></div></div>
-
-    <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.diana}</span><div><h2>DISTRIBUCIÓN</h2><span class="sub-sec">reparto del desperdicio por proceso</span></div></div><div class="cb">
-      <div class="donut-wrap">
-        <div class="cv"><canvas id="cvDonut"></canvas>
-          <div class="donut-center"><b>${ncTotal}</b><span>piezas NC</span></div></div>
-        <div class="donut-leg" id="donutLeg"></div>
-      </div>
-    </div></div>
   </div>
 
   ${(()=>{
@@ -7080,7 +7166,8 @@ function renderDashboardTurno(){
   </div>`;
 
   dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango, fam);
-  dibujarDonut(porProc, ncTotal, recogidas);
+  /* La dona de distribución se quitó: la matriz proceso × defecto da el mismo
+     reparto y además dice de qué defecto está hecho cada proceso. */
   dibujarPareto(ordDef, ncTotal);
 
   /* Los botones del panel de acciones se enganchan aquí: el tablero se
@@ -7112,7 +7199,21 @@ function renderDashboardTurno(){
   ULTIMO = {fam, meta, rango, periodo, fecha, turno, empacadas, recogidas, ncTotal, pct, estado,
             /* Cobertura = cuánto de lo recolectado se miró en auditoría. */
             cobertura: resFam.cobertura,
-            porProc, porPuesto, ordDef, flujo, regs};
+            porProc, porPuesto, ordDef, porRef, regs,
+            /* Los defectos que se escapan del proceso que los genera, para
+               que el PDF diga lo mismo que la pantalla. */
+            fuga: (()=>{
+              const m={};
+              regs.forEach(r=>{
+                const d=`${r.defectoCodigo} - ${r.defectoLabel}`;
+                if(!m[d]) m[d]={total:0,fuera:0,origen:r.origenDefecto||""};
+                m[d].total+=r.cantidad||0;
+                if(r.defectoAjeno==="Sí"){ m[d].fuera+=r.cantidad||0;
+                  if(r.origenDefecto) m[d].origen=r.origenDefecto; }
+              });
+              return Object.entries(m).filter(([,v])=>v.fuera>0)
+                .sort((a3,b3)=>b3[1].fuera-a3[1].fuera);
+            })()};
 }
 let ULTIMO=null;
 
@@ -7207,31 +7308,6 @@ function dibujarEvolucion(regs, empacadas, periodo, turno, meta, rango, famActua
         }}}},
       scales:{y:{beginAtZero:true,ticks:{callback:v=>v+"%",font:{size:10}}},x:{ticks:{font:{size:10}}}}}
   });
-}
-
-function dibujarDonut(porProc, ncTotal, recogidas){
-  const cv=document.getElementById("cvDonut"); if(!cv) return;
-  const colores=["#E2001A","#374151","#f2b90b","#3b82f6","#22c55e","#a855f7","#f97316","#0891b2"];
-  /* El recolectado y el total por proceso son la misma suma, así que no hay
-     remanente y la dona es el reparto por proceso. El tramo «Sin clasificar»
-     queda por si alguna vez vuelven a ser dos cifras distintas. */
-  const sinClas = (recogidas!=null && recogidas>ncTotal) ? recogidas-ncTotal : 0;
-  const base = sinClas>0 ? recogidas : ncTotal;
-  const items = sinClas>0 ? [...porProc, ["Sin clasificar", sinClas]] : porProc;
-  const labels=items.map(([k])=>k), datos=items.map(([,v])=>v);
-  const cols = items.map((it,i)=> it[0]==="Sin clasificar" ? "#c2c8d0" : colores[i%colores.length]);
-  const centro=document.querySelector("#viewDashboard .donut-center");
-  if(centro) centro.innerHTML = `<b>${base}</b><span>${sinClas>0?"piezas recogidas":"piezas NC"}</span>`;
-  if(chartDonut) chartDonut.destroy();
-  if(!datos.length){ document.getElementById("donutLeg").innerHTML='<span style="color:var(--text-dim);font-size:.8rem;">Sin registros.</span>'; return; }
-  chartDonut=new Chart(cv.getContext("2d"),{
-    type:"doughnut",
-    data:{labels,datasets:[{data:datos,backgroundColor:cols,borderWidth:0}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:"66%",plugins:{legend:{display:false}}}
-  });
-  document.getElementById("donutLeg").innerHTML=items.map(([k,v],i)=>
-    `<div><span class="dot" style="background:${cols[i]}"></span>
-     <span><b>${k}</b><span>${v} piezas (${base?Math.round(v/base*100):0}%)</span></span></div>`).join("");
 }
 
 /* El botón de la cabecera relee la hoja además de repintar: es lo que hace
@@ -7733,10 +7809,17 @@ function generarReportePDF(D){
       return [k,v,pctDe(v), totNC>0?Math.round(a/totNC*100)+"%":"—"]; }); })(),
     [W-2*M-62,18,22,22]);
 
-  if(D.flujo.length){
-    tabla("FLUJO DE DEFECTOS ENTRE PROCESOS", ["Origen","Detectado en","NC"],
-      D.flujo.map(([k,v])=>{ const [o,d]=k.split("|"); return [o,d,v]; }),
-      [(W-2*M-20)/2,(W-2*M-20)/2,20]);
+  if(D.fuga && D.fuga.length){
+    tabla("DEFECTOS QUE SE COLAN DE SU PROCESO",
+      ["Defecto","Se genera en","Se coló","% del defecto"],
+      D.fuga.map(([k,v])=>[k, v.origen||"?", v.fuera,
+                           Math.round(v.fuera/v.total*100)+"%"]),
+      [W-2*M-104,60,22,22]);
+  }
+  if(D.porRef && D.porRef.length){
+    tabla("DESPERDICIO POR REFERENCIA", ["Referencia","NC","%"],
+      D.porRef.slice(0,10).map(([k,v])=>[k, v, pctDe(v)]),
+      [W-2*M-44,22,22]);
   }
 
   if(sinClas>0){
