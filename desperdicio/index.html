@@ -2276,7 +2276,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-19-fuga2";
+const APP_VERSION = "2026-11-19-refnum";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -6458,7 +6458,11 @@ function renderDashboardTurno(){
   const porDef=agrupa(r=>`${r.defectoCodigo} - ${r.defectoLabel}`);
   /* Por referencia: dice qué producto concreto se está botando, que es otra
      pregunta distinta a en qué proceso o con qué defecto. */
-  const porRef=agrupa(r=> (r.referencia||"").trim() || null);
+  /* String() y no `|| ""`: las referencias de la hoja llegan como NÚMERO
+     (352420), y un número no tiene .trim(). Sin esto reventaba el render
+     entero y el tablero se quedaba en blanco. */
+  const refDe = r => String(r.referencia==null ? "" : r.referencia).trim() || null;
+  const porRef = agrupa(refDe);
 
   const ordDef=[...porDef].sort((a,b)=>b[1]-a[1]);
 
@@ -6950,7 +6954,7 @@ function renderDashboardTurno(){
 
     <div class="card"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.caja}</span><div><h2>${
       esTodas?"TOP 3 REFERENCIAS POR LÍNEA":"TOP 5 REFERENCIAS"}</h2><span class="sub-sec">qué producto concreto se está botando</span></div></div><div class="cb">
-      ${esTodas ? panelPorLinea(regs, r=> (r.referencia||"").trim() || null, "Sin recolección registrada.")
+      ${esTodas ? panelPorLinea(regs, refDe, "Sin recolección registrada.")
       : refMostrar.length?`<table><thead><tr><th>Referencia</th><th class="num">NC</th><th class="num">% del total</th><th></th></tr></thead><tbody>
       ${refMostrar.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="num">${f0(v)}</td>
         <td class="num">${ncTotal?Math.round(v/ncTotal*100):0}%</td>
