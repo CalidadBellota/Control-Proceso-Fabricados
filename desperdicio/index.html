@@ -1415,6 +1415,23 @@
     .ind .lx-g:first-child{border-top:none;}
   }
 
+  /* Matriz proceso × defecto. */
+  .ind table.matriz{min-width:620px;}
+  .ind table.matriz th.num{text-align:center;vertical-align:bottom;padding:6px 5px;line-height:1.2;}
+  .ind table.matriz th.num b{display:block;font-size:.72rem;color:var(--text);font-weight:800;}
+  .ind table.matriz th.num span{display:block;font-size:.6rem;font-weight:500;color:var(--text-dim);}
+  .ind table.matriz td{text-align:center;padding:7px 5px;}
+  .ind table.matriz td.nom-proc{text-align:left;font-weight:700;font-size:.8rem;white-space:nowrap;}
+  .ind table.matriz td.celda{font-weight:700;position:relative;}
+  .ind table.matriz td.vacia{color:#c9ced6;}
+  /* La marca de «llegó de otro proceso» va en la esquina, sin empujar la cifra. */
+  .ind table.matriz td.ajena i{position:absolute;top:1px;right:2px;font-size:.52rem;
+    font-style:normal;color:var(--warn-text);line-height:1;}
+  .ind table.matriz .tot-col{font-weight:800;background:#f5f6f8;}
+  .ind table.matriz tfoot td{font-weight:800;background:#eef0f3;border-top:2px solid var(--border);}
+  .ind .matriz-pie{font-size:.7rem;color:var(--text-dim);padding-top:9px;line-height:1.4;}
+  .ind .matriz-pie i{font-style:normal;color:var(--warn-text);font-weight:700;}
+
   /* Paneles partidos por línea, en modo «Todas las líneas». */
   .ind .porlinea{display:flex;flex-direction:column;gap:13px;}
   .ind .pl-cab{display:flex;align-items:center;gap:7px;font-weight:800;font-size:.78rem;
@@ -2229,7 +2246,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-19-cajas";
+const APP_VERSION = "2026-11-19-matriz";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -6858,6 +6875,88 @@ function renderDashboardTurno(){
       </div>
     </div></div>
   </div>
+
+  ${(()=>{
+    /* ==================================================================
+       MATRIZ PROCESO × DEFECTO
+
+       Resuelve la pregunta que ninguna de las tablas de arriba contesta:
+       «Enderezado tiene el 50% del desperdicio, pero ¿de qué defectos
+       está hecho ese 50%?». El ranking de procesos y el top de defectos
+       miran el mismo total por dos lados distintos y nunca se cruzan, así
+       que al leerlos juntos las cifras parecen no cuadrar.
+
+       Aquí cuadran por construcción: cada pieza cae en una sola celda, la
+       fila suma el proceso, la columna suma el defecto y el total general
+       es el desperdicio del periodo. Si algo no suma, es un error de datos,
+       no de lectura.
+
+       Y marca lo otro que preocupaba: una celda con ▸ es un defecto que NO
+       se originó en ese proceso, sino que llegó de otro. Ese dato ya se
+       guarda en cada registro (origenDefecto), no hay que capturarlo.
+       ================================================================== */
+    if(!regs.length) return "";
+    const COLS = 7;
+    const cols = ordDef.slice(0, COLS).map(([k])=>k);
+    const enCols = new Set(cols);
+    const cel = {}, totFila = {}, totCol = {};
+    regs.forEach(r=>{
+      const f = r.proceso || "—";
+      const d = `${r.defectoCodigo} - ${r.defectoLabel}`;
+      const c = enCols.has(d) ? d : "Otros";
+      const k = f + "||" + c;
+      if(!cel[k]) cel[k] = {n:0, ajenas:0, origenes:{}};
+      cel[k].n += r.cantidad||0;
+      if(r.defectoAjeno === "Sí"){
+        cel[k].ajenas += r.cantidad||0;
+        const o = r.origenDefecto || "?";
+        cel[k].origenes[o] = (cel[k].origenes[o]||0) + (r.cantidad||0);
+      }
+      totFila[f] = (totFila[f]||0) + (r.cantidad||0);
+      totCol[c]  = (totCol[c]||0)  + (r.cantidad||0);
+    });
+    const filas = Object.keys(totFila).sort((a2,b2)=>totFila[b2]-totFila[a2]);
+    const cabs = [...cols, ...(totCol["Otros"] ? ["Otros"] : [])];
+    const granTotal = regs.reduce((n2,r)=>n2+(r.cantidad||0),0);
+    const maxCel = Math.max(1, ...Object.values(cel).map(c=>c.n));
+    const corto = d => d==="Otros" ? "Otros"
+      : `<b>${esc(d.split(" - ")[0])}</b><span>${esc((d.split(" - ")[1]||"").slice(0,13))}</span>`;
+    const hayAjenas = Object.values(cel).some(c=>c.ajenas>0);
+
+    return `<div class="card" style="margin-bottom:14px;">
+      <div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span>
+        <div><h2>MATRIZ PROCESO × DEFECTO</h2>
+        <span class="sub-sec">en qué proceso se detectó cada defecto · las filas, las columnas y el total cuadran con las ${f0(granTotal)} piezas del periodo</span></div></div>
+      <div class="cb"><div style="overflow-x:auto;">
+      <table class="matriz"><thead><tr>
+        <th>Proceso</th>
+        ${cabs.map(d=>`<th class="num">${corto(d)}</th>`).join("")}
+        <th class="num tot-col">Total</th><th class="num">% del total</th>
+      </tr></thead><tbody>
+      ${filas.map(f=>`<tr>
+        <td class="nom-proc">${esc(f)}</td>
+        ${cabs.map(d=>{
+          const c = cel[f+"||"+d];
+          if(!c || !c.n) return `<td class="num vacia">·</td>`;
+          const int = c.n/maxCel;
+          const tit = c.ajenas
+            ? `${c.n} pieza(s) · ${c.ajenas} llegaron de: ${Object.keys(c.origenes).join(", ")}`
+            : `${c.n} pieza(s) detectadas y originadas en ${f}`;
+          return `<td class="num celda${c.ajenas?" ajena":""}" title="${esc(tit)}"
+            style="background:rgba(200,29,46,${(0.06+int*0.34).toFixed(3)});">${f0(c.n)}${
+            c.ajenas?'<i>&#9656;</i>':""}</td>`;
+        }).join("")}
+        <td class="num tot-col">${f0(totFila[f])}</td>
+        <td class="num">${Math.round(totFila[f]/granTotal*100)}%</td>
+      </tr>`).join("")}
+      </tbody><tfoot><tr>
+        <td>TOTAL</td>
+        ${cabs.map(d=>`<td class="num">${f0(totCol[d]||0)}</td>`).join("")}
+        <td class="num tot-col">${f0(granTotal)}</td><td class="num">100%</td>
+      </tr></tfoot></table></div>
+      ${hayAjenas?`<div class="matriz-pie"><i>&#9656;</i> el defecto no se originó en ese proceso: llegó de uno anterior. Pase el cursor por la celda para ver de cuál.</div>`:""}
+      </div></div>`;
+  })()}
 
   <div class="card" style="margin-bottom:14px;"><div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span><div><h2>PARETO DE DEFECTOS</h2><span class="sub-sec">cuántos defectos cubren la mayor parte</span></div></div>
     <div class="chart-wrap" style="height:${Math.max(230, ordDef.length*26)}px;"><canvas id="cvPareto"></canvas></div></div>
