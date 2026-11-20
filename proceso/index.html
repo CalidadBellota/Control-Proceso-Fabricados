@@ -5795,6 +5795,10 @@ function renderKpi(){
   /* Lo guardado sin firma no es nadie: se saca de las tarjetas y se avisa
      aparte, con cuántos registros son, para poder ir a corregirlos. */
   const sinFirma = todosQuien.find(x=> x.nombre === SIN_FIRMA) || null;
+  /* Y CUÁLES son, no sólo cuántos: con la fecha, el turno y el proceso se
+     encuentran en la hoja en diez segundos. Sin esto el aviso obliga a
+     rebuscar a ciegas entre miles de filas. */
+  const regsSinFirma = regs.filter(r=> !String(r.inspector||"").trim());
   const conNombre = todosQuien.filter(x=> x.nombre !== SIN_FIRMA);
   const insp  = conNombre.filter(x=> x.rol === "inspector" || x.rol === "");
   const otros = conNombre.filter(x=> x.rol && x.rol !== "inspector");
@@ -6413,11 +6417,17 @@ function renderKpi(){
           </div>`}
         ${sinFirma && sinFirma.registros ? `<div class="nota-pie" style="margin-top:14px;">
             <span class="ic-sec">${IC_KPI.alerta}</span>
-            <span><b>Ojo:</b> ${ent(sinFirma.registros)} registro(s) de este periodo se guardaron
-            <b>sin nombre de inspector</b>, así que no se le pueden sumar a nadie y no salen como
-            tarjeta. Pasa cuando el usuario que los guardó tiene vacía la columna
-            <b>nombre</b> en Administrar → Usuarios. Se corrige llenando ese nombre y editando
-            esos registros en la pestaña Data.</span>
+            <span><b>Ojo:</b> ${ent(sinFirma.registros)} registro(s) de este periodo no traen
+            <b>nombre de inspector</b> en la hoja, así que no se le pueden sumar a nadie y no
+            salen como tarjeta. La app de hoy no los puede crear —exige sesión para guardar—,
+            de modo que son filas viejas o escritas a mano en la hoja.
+            ${regsSinFirma.length ? `Son estos, para buscarlos en <b>Consultar</b> y corregirles
+            el inspector:<br>${regsSinFirma.slice(0,6).map(r=>
+              `· ${esc(fechaTurnoDe(r))} T${esc(String(r.turno||"?"))} · ${esc(r.linea||"—")}
+               · ${esc(r.proceso||"—")} · ${esc(r.hora||"—")}${
+                 r.noTrabajo ? " · no trabajó" : ""} · <code>${esc(r.id)}</code>`
+              ).join("<br>")}${regsSinFirma.length > 6
+                ? `<br>· y ${ent(regsSinFirma.length - 6)} más` : ""}` : ""}</span>
           </div>` : ""}
       </div>
     </div>
@@ -8104,7 +8114,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-11-20-firma";
+const APP_VERSION = "2026-11-20-firma2";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
