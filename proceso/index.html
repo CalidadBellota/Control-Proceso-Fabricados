@@ -2041,6 +2041,23 @@ function firmaDe(u){
   return String(u.nombre||"").trim() || String(u.usuario||"").trim();
 }
 
+/* Con qué se firma AHORA. Si la sesión viene de una lista de usuarios que esa
+   tableta tenía a medias, el nombre puede llegar vacío o ni existir: se cae al
+   código de usuario antes que guardar sin dueño. */
+function firmaSesion(){
+  if(!S.sesion) return "";
+  return String(S.sesion.nombre||"").trim() || String(S.sesion.usuario||"").trim();
+}
+
+/* Un registro sin línea o sin firma no se le puede atribuir a nadie y ensucia
+   el tablero para siempre: es mejor no guardarlo y decir qué falta. */
+function faltaParaGuardar(reg){
+  const falta = [];
+  if(!String(reg.linea||"").trim())     falta.push("la línea");
+  if(!String(reg.inspector||"").trim()) falta.push("el inspector");
+  return falta;
+}
+
 function abrirSesion(u){
   /* El turno queda pegado a la sesión: si cambia, la sesión no sirve más.
      Sin esto, el inspector que entra a las 14:00 sobre la sesión abierta del
@@ -3263,6 +3280,12 @@ function construirRegistro(){
   };
   // la fecha, la hora y el turno los pone la aplicación al momento de guardar
   const hora = horaAhora();
+  /* Nunca se manda un campo en blanco ni, peor, sin existir: JSON.stringify
+     borra las claves con undefined, y la hoja escribe "" en su lugar. Así es
+     como aparecen filas sin línea y sin inspector que luego no se le pueden
+     atribuir a nadie. */
+  const laLinea = String(f.linea || S.lineaActiva || "").trim();
+  const laFirma = firmaSesion();
   const segL = document.getElementById("segLima");
   /* Sin el selector a la vista la lima es de planta: dejarlo vacío haría
      parecer que el dato se perdió. */
@@ -3274,11 +3297,11 @@ function construirRegistro(){
     hora: hora,
     turno: turnoDeHora(hora, hoyISO()),
     tipoLima: tipoLima,
-    linea: f.linea, proceso: f.proceso, formatoId: f.id, codigoDoc: f.codigoDoc || "",
+    linea: laLinea, proceso: f.proceso, formatoId: f.id, codigoDoc: f.codigoDoc || "",
     ordenFabricacion: val("ordenFabricacion"), referencia: val("referencia"),
     tipoAcero: val("tipoAcero"), proveedor: val("proveedor"),
     espesorAcero: val("espesorAcero"), maquina: val("maquina"),
-    inspector: S.sesion ? S.sesion.nombre : "",
+    inspector: laFirma,
     observaciones: document.getElementById("iObservaciones").value.trim(),
     resultados: (f.variables||[]).map((v,i)=>{
       const m = S.mediciones[i] || {};
@@ -3316,16 +3339,22 @@ document.getElementById("btnNoTrabajo").addEventListener("click",()=>{
   const reg = {
     id: "CP-"+Date.now()+"-"+Math.floor(Math.random()*1000),
     fecha: hoyISO(), hora: h, turno: turnoDeHora(h, hoyISO()),
-    linea: f.linea, proceso: f.proceso, formatoId: f.id, codigoDoc: f.codigoDoc || "",
+    linea: String(f.linea || S.lineaActiva || "").trim(),
+    proceso: f.proceso, formatoId: f.id, codigoDoc: f.codigoDoc || "",
     noTrabajo: "Sí",
     ordenFabricacion: "", referencia: "", tipoAcero: "", proveedor: "",
     espesorAcero: "", maquina: "", tipoLima: "",
-    inspector: S.sesion ? S.sesion.nombre : "",
+    inspector: firmaSesion(),
     observaciones: (document.getElementById("iObservaciones").value.trim()
                     || "El proceso no estuvo trabajando en este turno."),
     resultados: [],
     pendienteSync: !!S.syncUrl
   };
+  const faltaNT = faltaParaGuardar(reg);
+  if(faltaNT.length){
+    toast("No se guardó: falta " + faltaNT.join(" y ") + ". Vuelve a entrar y reintenta.");
+    return;
+  }
   S.registros.unshift(reg);
   persist();
   if(S.syncUrl) enviarRemoto(reg);
@@ -3342,6 +3371,11 @@ document.getElementById("btnGuardar").addEventListener("click",()=>{
   if(turnoVencido()){ cerrarPorTurno(); toast("Cambió el turno: vuelve a iniciar sesión"); return; }
   if(!S.formatoActivo) return;
   const reg = construirRegistro();
+  const falta = faltaParaGuardar(reg);
+  if(falta.length){
+    toast("No se guardó: falta " + falta.join(" y ") + ". Vuelve a entrar y reintenta.");
+    return;
+  }
   S.registros.unshift(reg);
   persist();
   if(S.syncUrl) enviarRemoto(reg);
@@ -8114,7 +8148,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-11-20-firma2";
+const APP_VERSION = "2026-11-20-firma3";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
