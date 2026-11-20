@@ -2031,11 +2031,21 @@ function intentarEntrar(){
 document.getElementById("loginEntrar").addEventListener("click", intentarEntrar);
 document.getElementById("loginPin").addEventListener("keydown", e=>{ if(e.key==="Enter") intentarEntrar(); });
 
+/* El nombre con el que se firma todo lo que se guarda. Si la hoja de usuarios
+   trae la columna «nombre» vacía, se firma con el usuario: un registro sin
+   firma no se le puede atribuir a nadie y acaba apareciendo en el tablero como
+   un inspector «(sin nombre)» que no existe. (Ojo: `nombreDeUsuario`, más
+   abajo, es otra cosa: busca por código de usuario, no recibe la ficha.) */
+function firmaDe(u){
+  if(!u) return "";
+  return String(u.nombre||"").trim() || String(u.usuario||"").trim();
+}
+
 function abrirSesion(u){
   /* El turno queda pegado a la sesión: si cambia, la sesión no sirve más.
      Sin esto, el inspector que entra a las 14:00 sobre la sesión abierta del
      compañero guarda todo el turno con el nombre del otro. */
-  S.sesion = {usuario:u.usuario, nombre:u.nombre, rol:u.rol, turno: turnoDeHora(horaAhora())};
+  S.sesion = {usuario:u.usuario, nombre:firmaDe(u), rol:u.rol, turno: turnoDeHora(horaAhora())};
   sessionStorage.setItem("cp_sesion", JSON.stringify(S.sesion));
   document.getElementById("loginBg").style.display = "none";
   aplicarRol();
@@ -5168,6 +5178,11 @@ function rolDeNombre(nombre){
   return u ? String(u.rol||"").trim().toLowerCase() : "";
 }
 
+/* Cajón de lo que se guardó sin firma. No es una persona: es el montón de
+   registros a los que no se les puede poner dueño, y sale aparte para que no
+   aparezca como un inspector más en el tablero. */
+const SIN_FIRMA = "(sin nombre)";
+
 function inspectoresDe(per, linea){
   const exigibles = {};
   formatosExigibles("").forEach(f=>{ exigibles[f.id] = true; });
@@ -5175,7 +5190,7 @@ function inspectoresDe(per, linea){
 
   const acum = {};
   const quien = n => {
-    const k = String(n||"").trim() || "(sin nombre)";
+    const k = String(n||"").trim() || SIN_FIRMA;
     return acum[k] = acum[k] || {nombre:k, turnos:{}, medidas:0, fuera:0, crit:0,
                                  registros:0, noTrabajo:0, lineas:{}};
   };
@@ -5571,7 +5586,7 @@ function inspectoresDelPeriodo(lista){
     const rol = String(i.rol||"");
     if(rol === "inspector" || rol === "") n[i.nombre] = true;
   });
-  return Object.keys(n).filter(x=>x && x !== "(sin nombre)").sort();
+  return Object.keys(n).filter(x=>x && x !== SIN_FIRMA).sort();
 }
 
 /* --------------------------------------------------------------------------
@@ -5777,8 +5792,12 @@ function renderKpi(){
   /* Sólo el perfil de inspector entra en el seguimiento. Quien no lo sea
      —jefe, coordinador— no desaparece: se dice aparte cuánto registró, para
      que nadie piense que se perdieron esas rondas. */
-  const insp  = todosQuien.filter(x=> x.rol === "inspector" || x.rol === "");
-  const otros = todosQuien.filter(x=> x.rol && x.rol !== "inspector");
+  /* Lo guardado sin firma no es nadie: se saca de las tarjetas y se avisa
+     aparte, con cuántos registros son, para poder ir a corregirlos. */
+  const sinFirma = todosQuien.find(x=> x.nombre === SIN_FIRMA) || null;
+  const conNombre = todosQuien.filter(x=> x.nombre !== SIN_FIRMA);
+  const insp  = conNombre.filter(x=> x.rol === "inspector" || x.rol === "");
+  const otros = conNombre.filter(x=> x.rol && x.rol !== "inspector");
   /* Las casillas se arman SIEMPRE completas, aunque se muestren filtradas:
      el indicador de «sin controlar» se cuenta sobre todas, y antes salía
      siempre en cero porque las vacías ni se creaban. */
@@ -6392,6 +6411,14 @@ function renderKpi(){
               `<b>${esc(o.nombre)}</b> (${esc(o.rol)}) registró ${ent(o.registros)} ronda(s)`
               ).join(" y ")}.` : ""}</span>
           </div>`}
+        ${sinFirma && sinFirma.registros ? `<div class="nota-pie" style="margin-top:14px;">
+            <span class="ic-sec">${IC_KPI.alerta}</span>
+            <span><b>Ojo:</b> ${ent(sinFirma.registros)} registro(s) de este periodo se guardaron
+            <b>sin nombre de inspector</b>, así que no se le pueden sumar a nadie y no salen como
+            tarjeta. Pasa cuando el usuario que los guardó tiene vacía la columna
+            <b>nombre</b> en Administrar → Usuarios. Se corrige llenando ese nombre y editando
+            esos registros en la pestaña Data.</span>
+          </div>` : ""}
       </div>
     </div>
 
@@ -8077,7 +8104,7 @@ const BACKEND = {
 /* Versión de ESTE archivo. El panel ya mostraba la versión del código de la
    hoja, pero no la de la app, así que no había forma de saber si el navegador
    estaba corriendo el HTML nuevo o uno viejo guardado en caché. */
-const APP_VERSION = "2026-11-12-biselado";
+const APP_VERSION = "2026-11-20-firma";
 
 const LECTURA = {hora:null, sello:0, ms:0, recibidos:null, nuevos:0, completo:false,
                  backendViejo:false, error:null, corte:null, motivo:null};
@@ -9376,6 +9403,9 @@ actualizarPillCump(); actualizarMiTurno();
     ses = null;
   }
   if(ses && S.usuarios.some(u=>u.usuario===ses.usuario)){
+    /* Una sesión guardada antes de este arreglo puede traer el nombre vacío:
+       se vuelve a firmar al restaurarla, no vaya a seguir guardando sin firma. */
+    if(!String(ses.nombre||"").trim()) ses.nombre = String(ses.usuario||"").trim();
     S.sesion = ses;
     document.getElementById("loginBg").style.display = "none";
     aplicarRol();
