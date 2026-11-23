@@ -587,6 +587,38 @@
   @media(max-width:900px){.ctrl-top{grid-template-columns:1fr 1fr;}}
   .ctrl-top button{padding:11px 18px;border:none;border-radius:8px;background:var(--red);color:#fff;font-weight:700;cursor:pointer;height:41px;}
   .ctrl-top button.sec{background:#fff;color:var(--text);border:1px solid var(--border);}
+  /* Tendencia por defecto. Mismas medidas que la tendencia de Control de
+     Proceso, para que las dos apps se lean igual. */
+  .grid2-tend{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;}
+  @media(max-width:980px){.grid2-tend{grid-template-columns:1fr;}}
+  .chart-box{position:relative;height:320px;}
+  .leyenda-lim{display:flex;gap:16px;flex-wrap:wrap;font-size:.74rem;color:var(--text-dim);margin-top:10px;}
+  .leyenda-lim span{display:inline-flex;align-items:center;gap:6px;}
+  .leyenda-lim i{width:16px;height:0;border-top:2px solid var(--text-dim);display:inline-block;}
+  .leyenda-lim i.punteada{border-top-style:dashed;border-top-color:#b06000;}
+  .leyenda-lim i.dot{width:10px;height:10px;border:none;border-radius:50%;flex:none;}
+
+  /* El segmentado de agrupar es ancho: se obliga a una sola fila para que no
+     se apile y empuje la barra de filtros hacia arriba. */
+  #viewTendencia .seg.seg-kpi{flex-direction:row;flex-wrap:nowrap;}
+  #viewTendencia .seg.seg-kpi button{white-space:nowrap;flex:0 0 auto;}
+  /* Las tarjetas de esta pestaña llevan la misma tipografía que las del
+     tablero, que es donde ya está resuelta. */
+  #tdContenido .kpi>span{font-size:.74rem;color:var(--text-dim);font-weight:600;}
+  #tdContenido .kpi b{display:block;font-size:1.7rem;font-weight:800;margin-top:4px;line-height:1.1;}
+  #tdContenido .kpi small{display:block;font-size:.7rem;color:var(--text-dim);margin-top:3px;}
+  #tdContenido .kpi.malo b{color:var(--red);}
+  #tdContenido .kpi.bueno b{color:#15733f;}
+  /* Dos columnas de cifras alineadas a la derecha: leídas en vertical es como
+     se compara, no renglón a renglón. */
+  #tdContenido .pl-t{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:4px;}
+  #tdContenido .pl-t td{padding:8px 6px;border-bottom:1px solid var(--border);
+    font-size:.84rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #tdContenido .pl-t tr:last-child td{border-bottom:none;}
+  #tdContenido .pl-t td:nth-child(2){width:84px;text-align:right;font-weight:700;}
+  #tdContenido .pl-t td:nth-child(3){width:110px;text-align:right;font-size:.76rem;color:var(--text-dim);}
+  #tdContenido .pl-t td.mal{color:var(--red);font-weight:700;}
+
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
   @media(max-width:900px){.kpis{grid-template-columns:1fr 1fr;}}
   /* Cabecera de página y barra de filtros, igual que en Control de Proceso. */
@@ -1629,6 +1661,7 @@
         <button id="tabAuditoria">Auditoría</button>
         <button id="tabControl">Control</button>
         <button id="tabDashboard">Dashboard</button>
+        <button id="tabTendencia">Tendencia</button>
         <button id="tabCierre">Data</button>
         <button id="tabAdmin">Administrar</button>
       </nav>
@@ -2050,6 +2083,69 @@
   </div>
 </section>
 
+<!-- ======================================================================
+     TENDENCIA DE UN DEFECTO
+
+     El tablero contesta «cuánto desperdicio hubo»; esta pantalla contesta
+     otra cosa: «este defecto, ¿se está portando igual que siempre?».
+     Es la misma idea de la tendencia de Control de Proceso, pero allá el eje
+     es una variable medida (temperatura, dureza) y aquí es un defecto
+     contado. Por eso no hay histograma ni cota: lo que se vigila es si un día
+     se sale de lo que viene siendo normal en ese defecto.
+     ====================================================================== -->
+<section id="viewTendencia" style="display:none;">
+  <div class="pag-tit">
+    <div>
+      <h1>Tendencia por defecto</h1>
+      <div class="sub" id="tdResumen">Elige una línea y un defecto para ver cómo se viene comportando.</div>
+    </div>
+    <div class="der">
+      <div class="lectura" id="tdLectura"></div>
+      <button type="button" class="btn-actualizar" id="tdActualizar"
+        title="Volver a leer la hoja compartida">&#8635; Actualizar</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="fila-kpi">
+      <div class="campo">
+        <label>Periodo</label>
+        <div class="seg seg-kpi" id="tdSeg">
+          <button type="button" data-p="30">30 días</button>
+          <button type="button" data-p="90" class="on">3 meses</button>
+          <button type="button" data-p="180">6 meses</button>
+        </div>
+      </div>
+      <div class="campo corto">
+        <label for="tdLinea">Línea</label>
+        <select id="tdLinea">
+          <option value="__todas__">Todas las líneas</option>
+          <option value="Machetes">Machetes</option>
+          <option value="Cuchillas">Cuchillas</option>
+          <option value="Limas">Limas</option>
+          <option value="Palas">Palas</option>
+        </select>
+      </div>
+      <div class="campo">
+        <label for="tdDefecto">Defecto</label>
+        <select id="tdDefecto"><option value="">Elige una línea primero</option></select>
+      </div>
+      <div class="campo">
+        <label>Agrupar</label>
+        <div class="seg seg-kpi" id="tdGran">
+          <button type="button" data-g="dia">Por día</button>
+          <button type="button" data-g="semana" class="on">Por semana</button>
+          <button type="button" data-g="mes">Por mes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tdContenido">
+    <div class="panel"><div class="empty-mini">Elige una línea y un defecto.</div></div>
+  </div>
+</section>
+
 </main>
 
 <div class="barra-fija" id="barraFija" style="display:none;">
@@ -2355,7 +2451,7 @@ const SIN_FOTO = {};
    Aquí siempre se empieza arriba. */
 if("scrollRestoration" in history) history.scrollRestoration = "manual";
 
-const APP_VERSION = "2026-11-19-evol2";
+const APP_VERSION = "2026-11-23-tendencia";
 
 /* Versión MÍNIMA del Apps Script que este index necesita para funcionar.
    No es lo mismo que la de arriba y no tienen por qué coincidir: el index
@@ -2869,11 +2965,12 @@ const VISTAS = {
   auditoria: {tab:"tabAuditoria", view:"viewRegistro"},
   control:   {tab:"tabControl",   view:"viewControl"},
   dashboard: {tab:"tabDashboard", view:"viewDashboard"},
+  tendencia: {tab:"tabTendencia", view:"viewTendencia"},
   cierre:    {tab:"tabCierre",    view:"viewCierre"},
   maquina:   {tab:"tabControl",   view:"viewMaquina"}
 };
-const TABS_TODAS = ["tabRegistro","tabAuditoria","tabControl","tabDashboard","tabCierre","tabAdmin"];
-const VISTAS_TODAS = ["viewRegistro","viewControl","viewDashboard","viewCierre","viewMaquina"];
+const TABS_TODAS = ["tabRegistro","tabAuditoria","tabControl","tabDashboard","tabTendencia","tabCierre","tabAdmin"];
+const VISTAS_TODAS = ["viewRegistro","viewControl","viewDashboard","viewTendencia","viewCierre","viewMaquina"];
 let VISTA_ACTUAL = "registro";
 function irAVista(id){
   const v = VISTAS[id];
@@ -8681,6 +8778,359 @@ document.getElementById("tabAuditoria").addEventListener("click", async ()=>{
 
 /* Administrar: la ve todo el mundo, pero sólo entra un jefe o coordinador. */
 document.getElementById("tabAdmin").addEventListener("click", ()=> abrirUsuarios());
+
+/* ======================================================================
+   TENDENCIA DE UN DEFECTO
+
+   Control de Proceso tiene una tendencia por VARIABLE: una medida continua
+   con su cota, su histograma y su banda. Aquí no hay medidas, hay conteos,
+   así que el histograma y la cota no aplican. Lo que sí aplica —y es lo que
+   de verdad se quiere saber— es si un defecto se está portando como viene
+   siendo normal o si un periodo se salió de lo suyo.
+
+   Por eso el límite no se saca de una especificación sino del propio
+   defecto: su promedio más dos desviaciones. Un defecto que siempre deja
+   400 piezas por semana no es noticia; que esta semana deje 1.200, sí.
+   ====================================================================== */
+let TD_DIAS = 90;        // ventana del periodo
+let TD_GRAN = "semana";  // día · semana · mes
+
+/* El nombre es lo que se compara entre líneas: el código no sirve, porque la
+   misma fisura es L01 en limas y C01 en cuchillas. */
+function defectosDisponibles(fam){
+  const lineas = (fam === "__todas__") ? Object.keys(METAS) : [fam];
+  const vistos = new Map();
+  lineas.forEach(L=>{
+    (DEFECTOS[String(L).toLowerCase()] || []).forEach(d=>{
+      if(!vistos.has(d.name)) vistos.set(d.name, {name:d.name, process:d.process||"", cause:d.cause||""});
+    });
+  });
+  return [...vistos.values()].sort((a,b)=> a.name.localeCompare(b.name,"es"));
+}
+
+function tdRango(){
+  const hasta = hoyISO();
+  return {desde: sumarDias(hasta, -(TD_DIAS-1)), hasta: hasta,
+          etq: TD_DIAS===30 ? "últimos 30 días" : TD_DIAS===90 ? "últimos 3 meses" : "últimos 6 meses"};
+}
+
+/* El cubo al que cae una fecha, y cómo se rotula. La semana arranca en lunes
+   porque así se mira la planta, no en domingo. */
+function cuboTend(f, gran){
+  if(gran === "dia")   return {k:f, et:f.slice(8)+"/"+f.slice(5,7)};
+  if(gran === "mes")   return {k:f.slice(0,7), et:f.slice(5,7)+"/"+f.slice(2,4)};
+  const l = lunesDe(f);
+  return {k:l, et:"sem "+numeroSemana(l)};
+}
+
+/* Todos los cubos del rango, incluidos los vacíos: saltarse una semana sin
+   desperdicio comprimiría el tiempo y haría ver dos picos como seguidos. */
+function cubosDelRango(rango, gran){
+  const out = [], vistos = new Set();
+  let f = rango.desde, tope = 0;
+  while(f <= rango.hasta && tope++ < 400){
+    const c = cuboTend(f, gran);
+    if(!vistos.has(c.k)){ vistos.add(c.k); out.push(c); }
+    f = sumarDias(f, 1);
+  }
+  return out;
+}
+
+/* Recolección = el censo del desperdicio. La auditoría es una muestra de las
+   MISMAS piezas, así que sumarla contaría dos veces. */
+function regsDeTendencia(fam, rango){
+  const lineas = (fam === "__todas__") ? Object.keys(METAS) : [fam];
+  return S.registros.filter(r=>{
+    if(tipoDe(r) !== "recoleccion" || r.estadoMaquina) return false;
+    if(lineas.indexOf(r.familia) === -1) return false;
+    const f = fechaDeTurno(r);
+    return f >= rango.desde && f <= rango.hasta;
+  });
+}
+
+function promDesv(ys){
+  const n = ys.length;
+  if(!n) return {prom:0, desv:0};
+  const prom = ys.reduce((a,b)=>a+b,0)/n;
+  const v = ys.reduce((a,b)=>a+(b-prom)*(b-prom),0)/n;
+  return {prom: prom, desv: Math.sqrt(v)};
+}
+
+let chartTend = null;
+function renderTendencia(){
+  const box = document.getElementById("tdContenido");
+  const fam = document.getElementById("tdLinea").value;
+  const def = document.getElementById("tdDefecto").value;
+  const sub = document.getElementById("tdResumen");
+  if(!def){
+    sub.textContent = "Elige una línea y un defecto para ver cómo se viene comportando.";
+    box.innerHTML = `<div class="panel"><div class="empty-mini">Elige un <b>defecto</b> para ver su tendencia.</div></div>`;
+    return;
+  }
+  const rango = tdRango();
+  const regs  = regsDeTendencia(fam, rango);
+  const mios  = regs.filter(r=> String(r.defectoLabel||"").trim() === def);
+  const esTodas = (fam === "__todas__");
+  const lineas  = esTodas ? Object.keys(METAS) : [fam];
+
+  sub.innerHTML = `<b>${esc(def)}</b> · ${esc(esTodas ? "todas las líneas" : fam)} · ${esc(rango.etq)}`;
+
+  if(!mios.length){
+    box.innerHTML = `<div class="panel"><div class="empty-mini">
+      No hay desperdicio registrado de <b>${esc(def)}</b> en ${esc(rango.etq)}${
+        esTodas?"":" en "+esc(fam)}.<br>
+      <span style="font-size:.72rem;">Prueba con un periodo más largo o con otra línea.</span>
+      </div></div>`;
+    if(chartTend){ chartTend.destroy(); chartTend = null; }
+    return;
+  }
+
+  const cubos = cubosDelRango(rango, TD_GRAN);
+  const idx = {}; cubos.forEach((c,i)=> idx[c.k] = i);
+
+  /* Serie del defecto, y debajo el total de la línea para saber qué parte del
+     desperdicio representa: 300 piezas son mucho o poco según el resto. */
+  const serie = cubos.map(()=>0);
+  mios.forEach(r=>{ const i = idx[cuboTend(fechaDeTurno(r), TD_GRAN).k]; if(i!=null) serie[i] += r.cantidad; });
+  const piezas = mios.reduce((s,r)=>s+r.cantidad, 0);
+  const totalLinea = regs.reduce((s,r)=>s+r.cantidad, 0);
+  const parte = totalLinea ? (piezas/totalLinea*100) : 0;
+
+  /* El límite sale del propio defecto, no de una especificación: promedio de
+     los periodos con registro más dos desviaciones. Los ceros se dejan fuera
+     del promedio porque un turno que no corrió no es un buen periodo. */
+  const conDato = serie.filter(v=>v>0);
+  const st = promDesv(conDato);
+  const limite = st.prom + 2*st.desv;
+  const picos = serie.map((v,i)=> (v>0 && conDato.length>=3 && v>limite) ? i : -1).filter(i=>i>=0);
+
+  /* Mitad contra mitad: si la segunda mitad del periodo trae más que la
+     primera, el defecto va subiendo. Es la pregunta que se hace de verdad. */
+  const mitad = Math.floor(serie.length/2);
+  const sum1 = serie.slice(0, mitad).reduce((a,b)=>a+b,0);
+  const sum2 = serie.slice(mitad).reduce((a,b)=>a+b,0);
+  const cambio = sum1 ? ((sum2-sum1)/sum1*100) : (sum2?100:0);
+  const sube = cambio > 10, baja = cambio < -10;
+
+  const nCubo = TD_GRAN==="dia" ? "día" : TD_GRAN==="mes" ? "mes" : "semana";
+  const ficha = defectosDisponibles(fam).find(d=>d.name===def) || {};
+  const nf = n => Math.round(n).toLocaleString("es-CO");
+
+  /* De dónde sale: el proceso donde se recogió, y si ese no es el que lo
+     provoca, es que se está colando sin segregar. */
+  const porProc = {};
+  mios.forEach(r=>{
+    const k = String(r.proceso||"").trim() || "Sin proceso";
+    const g = porProc[k] = porProc[k] || {piezas:0, ajenas:0};
+    g.piezas += r.cantidad;
+    if(String(r.defectoAjeno||"") === "Sí") g.ajenas += r.cantidad;
+  });
+  const procs = Object.entries(porProc).sort((a,b)=>b[1].piezas-a[1].piezas).slice(0,6);
+
+  const porRef = {};
+  mios.forEach(r=>{
+    const k = String(r.referencia==null?"":r.referencia).trim();
+    if(!k) return;
+    porRef[k] = (porRef[k]||0) + r.cantidad;
+  });
+  const refs = Object.entries(porRef).sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+  box.innerHTML = `
+    <div class="panel">
+      <div class="kpis">
+        <div class="kpi"><span>Piezas del defecto</span><b>${nf(piezas)}</b>
+          <small>${esc(rango.etq)} · ${nf(mios.length)} registro(s)</small></div>
+        <div class="kpi"><span>Parte del desperdicio</span><b>${parte.toFixed(1)}%</b>
+          <small>de ${nf(totalLinea)} piezas de ${esc(esTodas?"las 4 líneas":fam)}</small></div>
+        <div class="kpi"><span>Promedio por ${esc(nCubo)}</span><b>${nf(st.prom)}</b>
+          <small>${conDato.length? "en "+nf(conDato.length)+" "+esc(nCubo)+"(s) con registro" : "sin datos suficientes"}</small></div>
+        <div class="kpi ${sube?"malo":baja?"bueno":""}"><span>Cómo va</span>
+          <b>${sube?"▲":baja?"▼":"="} ${Math.abs(cambio).toFixed(0)}%</b>
+          <small>${sube?"subiendo":baja?"bajando":"estable"} contra el inicio del periodo</small></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="section-title con-ic"><span class="ic-sec">${IC_IND.barras}</span>
+        <div><h2>${esc(def).toUpperCase()}</h2>
+          <span class="sub-sec">piezas por ${esc(nCubo)}${
+            ficha.process?` · lo provoca ${esc(ficha.process)}`:""}</span></div></div>
+      <div class="chart-box"><canvas id="cvTend"></canvas></div>
+      <div class="leyenda-lim">
+        <span><i class="dot" style="background:#15733f;"></i>Dentro de lo normal</span>
+        <span><i class="dot" style="background:#E2001A;"></i>Se salió de lo normal</span>
+        <span><i class="punteada"></i>Límite: promedio + 2 desviaciones (${nf(limite)} piezas)</span>
+        ${conDato.length<3?`<span style="color:var(--warn-text);">Con menos de 3 ${esc(nCubo)}(s) con registro
+          no hay con qué comparar: el límite se dibuja pero no juzga.</span>`:""}
+      </div>
+    </div>
+
+    <div class="grid2-tend">
+      <div class="panel">
+        <div class="section-title con-ic"><span class="ic-sec">${IC_IND.fabrica}</span>
+          <div><h2>DÓNDE SE RECOGE</h2><span class="sub-sec">y cuánto se está colando sin segregar</span></div></div>
+        ${procs.length ? `<table class="pl-t"><tbody>${procs.map(([p,g])=>`
+          <tr><td>${esc(p)}</td>
+              <td style="text-align:right;">${nf(g.piezas)}</td>
+              <td style="text-align:right;" class="${g.ajenas? "mal":""}">${
+                g.ajenas ? nf(g.ajenas)+" colada(s)" : "—"}</td></tr>`).join("")}
+          </tbody></table>` : `<div class="empty-mini">Sin proceso anotado.</div>`}
+      </div>
+      <div class="panel">
+        <div class="section-title con-ic"><span class="ic-sec">${IC_IND.caja}</span>
+          <div><h2>REFERENCIAS MÁS AFECTADAS</h2><span class="sub-sec">por este defecto</span></div></div>
+        ${refs.length ? `<table class="pl-t"><tbody>${refs.map(([k,v])=>`
+          <tr><td>${esc(k)}</td><td style="text-align:right;">${nf(v)}</td></tr>`).join("")}
+          </tbody></table>` : `<div class="empty-mini">Ninguna referencia anotada en estos registros.</div>`}
+      </div>
+    </div>`;
+
+  dibujarTendencia(cubos, serie, limite, picos, def, esTodas, lineas, mios, nCubo);
+}
+
+/* Barras, no línea: cada periodo es un conteo cerrado, no una medida que
+   siga variando entre un punto y el siguiente. La barra que se pasa del
+   límite se pinta en rojo, que es lo único que hay que mirar de lejos. */
+function dibujarTendencia(cubos, serie, limite, picos, def, esTodas, lineas, mios, nCubo){
+  const cv = document.getElementById("cvTend");
+  if(!cv || typeof Chart === "undefined") return;
+  if(chartTend){ chartTend.destroy(); chartTend = null; }
+  const pico = new Set(picos);
+  const juzga = serie.filter(v=>v>0).length >= 3;
+
+  /* Con las 4 líneas, una barra apilada por línea: dice de dónde sale el
+     pico sin obligar a cambiar el filtro y volver a mirar. */
+  const datasets = [];
+  if(esTodas){
+    const idx = {}; cubos.forEach((c,i)=> idx[c.k] = i);
+    lineas.forEach(L=>{
+      const s = cubos.map(()=>0);
+      mios.filter(r=>r.familia===L).forEach(r=>{
+        const i = idx[cuboTend(fechaDeTurno(r), TD_GRAN).k]; if(i!=null) s[i] += r.cantidad;
+      });
+      if(s.some(v=>v>0))
+        datasets.push({label:L, data:s, backgroundColor:COLOR_LINEA[L]||"#888", stack:"t", borderWidth:0});
+    });
+  } else {
+    datasets.push({
+      label:"Piezas", data:serie, borderWidth:0,
+      backgroundColor: serie.map((v,i)=> (juzga && pico.has(i)) ? "#E2001A" : "#15733f")
+    });
+  }
+
+  /* La raya del límite va como complemento registrado AL CREAR la gráfica:
+     asignarla después a config.plugins no la dibuja. Con menos de 3 periodos
+     con registro no se pinta, porque un promedio de dos datos no es límite. */
+  const rayaLimite = {
+    id:"limTend",
+    afterDatasetsDraw(c){
+      if(!juzga || !isFinite(limite) || !(limite > 0)) return;
+      const y = c.scales.y.getPixelForValue(limite);
+      const g = c.ctx;
+      g.save();
+      g.setLineDash([5,4]); g.lineWidth = 1.5; g.strokeStyle = "#b06000";
+      g.beginPath(); g.moveTo(c.chartArea.left, y); g.lineTo(c.chartArea.right, y); g.stroke();
+      g.restore();
+    }
+  };
+  chartTend = new Chart(cv.getContext("2d"), {
+    type:"bar",
+    plugins:[rayaLimite],
+    data:{labels: cubos.map(c=>c.et), datasets: datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:"index", intersect:false},
+      plugins:{
+        legend:{display: esTodas, position:"bottom", labels:{boxWidth:10, font:{size:11}}},
+        tooltip:{callbacks:{
+          afterBody: it=>{
+            const i = it[0].dataIndex;
+            return (juzga && pico.has(i))
+              ? "Se salió de lo normal (límite "+Math.round(limite).toLocaleString("es-CO")+")" : "";
+          }
+        }}
+      },
+      scales:{
+        x:{stacked:esTodas, grid:{display:false}, ticks:{font:{size:10}, maxRotation:0, autoSkip:true}},
+        y:{stacked:esTodas, beginAtZero:true, title:{display:true, text:"piezas por "+nCubo},
+           ticks:{font:{size:10}}}
+      }
+    }
+  });
+
+}
+
+/* La lista de defectos cambia con la línea, y se ordena por lo que más pesa
+   en el periodo: así el que hay que mirar sale de primero en vez de perderse
+   entre treinta y cinco nombres en orden alfabético. */
+function refrescarDefectos(){
+  const fam = document.getElementById("tdLinea").value;
+  const sel = document.getElementById("tdDefecto");
+  const antes = sel.value;
+  const rango = tdRango();
+  const regs = regsDeTendencia(fam, rango);
+  const peso = {};
+  regs.forEach(r=>{
+    const k = String(r.defectoLabel||"").trim();
+    if(k) peso[k] = (peso[k]||0) + r.cantidad;
+  });
+  const lista = defectosDisponibles(fam).map(d=> Object.assign({}, d, {piezas: peso[d.name]||0}));
+  lista.sort((a,b)=> b.piezas - a.piezas || a.name.localeCompare(b.name,"es"));
+  const conDato = lista.filter(d=>d.piezas>0), sinDato = lista.filter(d=>!d.piezas);
+  sel.innerHTML = `<option value="">Elige un defecto</option>`
+    + (conDato.length ? `<optgroup label="Con desperdicio en ${esc(rango.etq)}">`
+        + conDato.map(d=>`<option value="${esc(d.name)}">${esc(d.name)} · ${d.piezas.toLocaleString("es-CO")} pz</option>`).join("")
+        + `</optgroup>` : "")
+    + (sinDato.length ? `<optgroup label="Sin registros en el periodo">`
+        + sinDato.map(d=>`<option value="${esc(d.name)}">${esc(d.name)}</option>`).join("")
+        + `</optgroup>` : "");
+  if(antes && lista.some(d=>d.name===antes)) sel.value = antes;
+}
+
+(function montarTendencia(){
+  const seg = document.getElementById("tdSeg");
+  if(seg) seg.querySelectorAll("[data-p]").forEach(b=> b.addEventListener("click", ()=>{
+    seg.querySelectorAll("[data-p]").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    TD_DIAS = Number(b.dataset.p);
+    refrescarDefectos();   /* el peso de cada defecto depende del periodo */
+    renderTendencia();
+  }));
+
+  const gran = document.getElementById("tdGran");
+  if(gran) gran.querySelectorAll("[data-g]").forEach(b=> b.addEventListener("click", ()=>{
+    gran.querySelectorAll("[data-g]").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    TD_GRAN = b.dataset.g;
+    renderTendencia();
+  }));
+
+  const lin = document.getElementById("tdLinea");
+  if(lin) lin.addEventListener("change", ()=>{ refrescarDefectos(); renderTendencia(); });
+
+  const def = document.getElementById("tdDefecto");
+  if(def) def.addEventListener("change", renderTendencia);
+
+  const act = document.getElementById("tdActualizar");
+  if(act) act.addEventListener("click", async ()=>{
+    act.disabled = true;
+    const antes = act.innerHTML;
+    act.innerHTML = "&#8635; Leyendo…";
+    try{ if(S.syncUrl) await cargarRemoto(null, "botón Actualizar de tendencia"); }
+    catch(e){ console.error("actualizar tendencia:", e); }
+    finally{
+      act.disabled = false; act.innerHTML = antes;
+      refrescarDefectos(); renderTendencia();
+    }
+  });
+})();
+
+document.getElementById("tabTendencia").addEventListener("click", ()=>{
+  irAVista("tendencia");
+  refrescarDefectos();
+  renderTendencia();
+});
+
 document.getElementById("tabDashboard").addEventListener("click",()=>{
   irAVista("dashboard");
   if(S.syncUrl){ cargarRemoto(); sincronizarCargue(true); cargarPesos(); cargarAcciones(); }
