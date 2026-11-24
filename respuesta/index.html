@@ -96,10 +96,44 @@
     font-size:.71rem;font-weight:700;background:#f1f3f5;color:var(--text-dim);white-space:nowrap;}
   .chip.area{background:#eef2ff;color:#3949ab;}
   .chip.mant{background:var(--warn-bg);color:var(--warn-text);}
-  .chip.alta{background:var(--bad-bg);color:var(--bad);}
+  .chip.p-alta{background:var(--bad-bg);color:var(--bad);}
+  .chip.p-media{background:var(--warn-bg);color:var(--warn-text);}
+  .chip.p-baja{background:#e8f0fe;color:#1a56b8;}
   .chip.fecha{background:#fff;border:1px solid var(--border);color:var(--text);}
   .chip.pospuesta{background:var(--bad-bg);color:var(--bad);}
   .chip.ok{background:var(--ok-bg);color:var(--ok);}
+
+  /* ---- panel de mando ---- */
+  .grid-mando{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;}
+  @media(max-width:980px){.grid-mando{grid-template-columns:1fr;}}
+
+  .pr-bloque{border-top:1px solid var(--border);margin-top:16px;padding-top:14px;}
+  .pr-barra{display:flex;height:9px;border-radius:999px;overflow:hidden;background:#eef0f3;}
+  .pr-barra i{display:block;height:100%;}
+  .pr-leyenda{display:flex;gap:18px;flex-wrap:wrap;margin-top:9px;font-size:.76rem;color:var(--text-dim);}
+  .pr-leyenda span{display:inline-flex;align-items:center;gap:6px;}
+  .pr-leyenda i{width:9px;height:9px;border-radius:2px;display:inline-block;}
+  .pr-leyenda b{color:var(--text);}
+
+  /* La fila roja no es decoración: es la máquina que hay que nombrar en la
+     reunión antes que ninguna otra. */
+  table.tmaq td{vertical-align:top;}
+  table.tmaq tr.urg td{background:var(--bad-bg);}
+  table.tmaq tr.urg td:first-child{box-shadow:inset 3px 0 0 var(--bad);}
+  table.tmaq td.viejo{color:var(--text-dim);font-size:.78rem;max-width:1px;width:40%;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sutil{font-size:.72rem;color:var(--text-dim);font-weight:400;}
+  .chip.urg{background:var(--bad);color:#fff;letter-spacing:.04em;}
+
+  .barra-fila{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:.8rem;}
+  .barra-fila .et{flex:0 0 118px;color:var(--text-dim);overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;}
+  .barra-fila .pista{flex:1 1 auto;display:flex;height:11px;border-radius:999px;
+    overflow:hidden;background:#eef0f3;}
+  .barra-fila .pista i{display:block;height:100%;}
+  .barra-fila .pista i.ok{background:#2d7ff9;}
+  .barra-fila .pista i.mal{background:var(--bad);}
+  .barra-fila .val{flex:0 0 28px;text-align:right;font-weight:700;}
 
   .filtros{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
   .filtros .campo{flex:0 0 190px;}
@@ -213,12 +247,24 @@
       <div><button class="btn" id="btnActa">Acta de hoy (PDF)</button></div>
     </div>
 
-    <div class="panel"><div class="kpis" id="hoyKpis"></div></div>
+    <div class="panel">
+      <div class="kpis" id="hoyKpis"></div>
+      <div id="barraPrioridad" class="pr-bloque"></div>
+    </div>
+
+    <div class="grid-mando">
+      <div class="panel" id="cajaMaquinas"></div>
+      <div class="panel" id="cajaAreas"></div>
+    </div>
 
     <div class="panel">
       <div class="filtros">
         <div class="campo"><label for="fArea">Área responsable</label>
           <select id="fArea"><option value="">Todas las áreas</option></select></div>
+        <div class="campo"><label for="fPrioridad">Prioridad</label>
+          <select id="fPrioridad">
+            <option value="">Todas</option><option>Alta</option>
+            <option>Media</option><option>Baja</option></select></div>
         <div class="campo"><label for="fEstado">Mostrar</label>
           <select id="fEstado">
             <option value="abiertas">Solo abiertas</option>
@@ -249,6 +295,10 @@
           <input type="text" id="nTexto" placeholder="Ej.: cambiar rodamiento de la prensa 3"></div>
         <div class="campo"><label for="nArea">Área responsable</label>
           <select id="nArea"></select></div>
+        <div class="campo" style="flex:0 0 130px;"><label for="nPrioridad">Prioridad</label>
+          <select id="nPrioridad">
+            <option>Alta</option><option selected>Media</option><option>Baja</option>
+          </select></div>
         <div class="campo"><label for="nFecha">Fecha de compromiso</label>
           <input type="date" id="nFecha">
           <div class="atajos" data-para="nFecha"></div></div>
@@ -271,8 +321,6 @@
         <div><label for="nTema">Tema</label>
           <input type="text" id="nTema" list="temas" placeholder="opcional">
           <datalist id="temas"></datalist></div>
-        <div><label for="nPrioridad">Prioridad</label>
-          <select id="nPrioridad"><option>Media</option><option>Alta</option><option>Baja</option></select></div>
         <div><label for="nMant">¿Requiere mantenimiento?</label>
           <select id="nMant"><option>No</option><option>Sí</option></select></div>
         <div><label for="nOT">N.º de orden de trabajo</label>
@@ -380,7 +428,7 @@
       son un problema mal planteado que hay que volver a discutir.
    ====================================================================== */
 
-const APP_VERSION = "2026-11-24-proto2";
+const APP_VERSION = "2026-11-24-proto3";
 
 /* Las ocho áreas de la respuesta rápida. El orden es el de la reunión. */
 const AREAS = ["Producción","Mantenimiento","Calidad","Planeación",
@@ -398,6 +446,7 @@ const MAQUINAS = [
 
 const DIAS_POR_VENCER = 3;      // cuántos días antes empieza a avisar
 const PLAZO_DEFECTO   = 7;      // compromiso por defecto al registrar
+const DIAS_MAQUINA_URGENTE = 2; // una máquina con algo pendiente más de esto, se marca
 
 /* ---------------- utilidades de fecha ---------------- */
 function hoyISO(){
@@ -521,17 +570,58 @@ function demo(){
 }
 
 /* ====================================================================
+   MÁQUINAS QUE LLEVAN DÍAS CON ALGO PENDIENTE
+
+   Un pendiente viejo se pierde entre los demás; una MÁQUINA parada con algo
+   sin resolver desde hace días es lo que cuesta plata. Por eso se cuenta por
+   máquina y no por tarea: si un equipo lleva dos días o más con cualquier
+   cosa abierta, sale en rojo y marcado URGENTE.
+
+   Se mide desde que se abrió el pendiente más viejo que sigue abierto, no
+   desde su fecha de compromiso: aplazarlo no rejuvenece la máquina.
+   ==================================================================== */
+function maquinasPendientes(){
+  const h = hoyISO();
+  const m = {};
+  TAREAS.filter(t=> !t.cierre && String(t.maquina||"").trim()).forEach(t=>{
+    const k = t.maquina.trim();
+    const g = m[k] = m[k] || {maquina:k, abiertos:0, vencidos:0, dias:0, masViejo:null, linea:t.linea||""};
+    g.abiertos++;
+    if(estadoDe(t) === "vencida") g.vencidos++;
+    const edad = diasEntre(t.creado, h);
+    if(edad > g.dias){ g.dias = edad; g.masViejo = t; }
+  });
+  return Object.values(m).sort((a,b)=> b.dias - a.dias || b.abiertos - a.abiertos);
+}
+
+function repartoPorArea(){
+  const abiertas = TAREAS.filter(t=>!t.cierre);
+  return AREAS.map(a=>({
+    area: a,
+    n: abiertas.filter(t=>t.area===a).length,
+    vencidas: abiertas.filter(t=>t.area===a && estadoDe(t)==="vencida").length
+  })).filter(x=>x.n).sort((a,b)=> b.n - a.n);
+}
+
+function repartoPrioridad(){
+  const abiertas = TAREAS.filter(t=>!t.cierre);
+  return ["Alta","Media","Baja"].map(p=>({p, n: abiertas.filter(t=>t.prioridad===p).length}));
+}
+
+/* ====================================================================
    PANTALLA DE PENDIENTES
    ==================================================================== */
 const ORDEN = {vencida:0, hoy:1, porvencer:2, entiempo:3, cerrada:4, cancelada:5};
 
 function tareasFiltradas(){
   const area = document.getElementById("fArea").value;
+  const prio = document.getElementById("fPrioridad").value;
   const modo = document.getElementById("fEstado").value;
   const q = document.getElementById("fTexto").value.trim().toLowerCase();
   return TAREAS.filter(t=>{
     const e = estadoDe(t);
     if(area && t.area !== area) return false;
+    if(prio && String(t.prioridad||"Media") !== prio) return false;
     if(modo === "abiertas"  && t.cierre) return false;
     if(modo === "vencidas"  && e !== "vencida") return false;
     if(modo === "cerradas"  && !t.cierre) return false;
@@ -566,7 +656,8 @@ function filaTarea(t){
         ${t.maquina ? `<span class="chip">${esc(t.maquina)}</span>` : ""}
         ${t.persona ? `<span class="chip">${esc(t.persona)}</span>` : ""}
         ${t.tema ? `<span class="chip">${esc(t.tema)}</span>` : ""}
-        ${t.prioridad==="Alta" ? `<span class="chip alta">Prioridad alta</span>` : ""}
+        <span class="chip p-${esc(String(t.prioridad||"Media").toLowerCase())}">${
+          esc(t.prioridad||"Media")}</span>
         ${t.mantenimiento==="Sí" ? `<span class="chip mant">Mantenimiento${t.ot?" · "+esc(t.ot):""}</span>` : ""}
         ${ap ? `<span class="chip pospuesta">pospuesta ${ap} ${ap===1?"vez":"veces"}</span>` : ""}
         ${t.cierre && t.cierre.resultado==="cumplida" && cumplioEnFecha(t)
@@ -592,6 +683,56 @@ function renderHoy(){
 
   document.getElementById("hoyResumen").innerHTML =
     `${todas.length} pendiente(s) abierto(s) · hoy es ${fCorta(hoyISO())}`;
+
+  /* Barra de prioridad al estilo del tablero que pediste: de un vistazo se
+     ve si lo abierto es todo alta o si está repartido. */
+  const pr = repartoPrioridad();
+  const totPr = pr.reduce((a,b)=>a+b.n,0) || 1;
+  const COLOR_PR = {Alta:"#E2001A", Media:"#f2b90b", Baja:"#2d7ff9"};
+  document.getElementById("barraPrioridad").innerHTML = `
+    <div class="pr-barra">${pr.filter(x=>x.n).map(x=>
+      `<i style="width:${(x.n/totPr*100).toFixed(1)}%;background:${COLOR_PR[x.p]}"
+          title="${x.p}: ${x.n}"></i>`).join("")}</div>
+    <div class="pr-leyenda">${pr.map(x=>
+      `<span><i style="background:${COLOR_PR[x.p]}"></i>${x.p} <b>${x.n}</b></span>`).join("")}</div>`;
+
+  /* Máquinas con algo pendiente hace días */
+  const maqs = maquinasPendientes();
+  const urgentes = maqs.filter(m=> m.dias >= DIAS_MAQUINA_URGENTE);
+  const resto   = maqs.filter(m=> m.dias <  DIAS_MAQUINA_URGENTE);
+  document.getElementById("cajaMaquinas").innerHTML = `
+    <div class="section-title"><div>
+      <h2>MÁQUINAS CON PENDIENTES</h2>
+      <span class="sub-sec">en rojo, las que llevan ${DIAS_MAQUINA_URGENTE} días o más
+        con algo sin resolver</span></div>
+      ${urgentes.length ? `<span class="chip urg" style="margin-left:auto;">${
+        urgentes.length} urgente${urgentes.length===1?"":"s"}</span>` : ""}</div>
+    ${maqs.length ? `<table class="simple tmaq"><thead><tr>
+        <th>Máquina</th><th>Lleva</th><th>Abiertos</th><th>El más viejo</th><th></th>
+      </tr></thead><tbody>
+      ${urgentes.concat(resto).map(m=>`<tr class="${m.dias>=DIAS_MAQUINA_URGENTE?"urg":""}">
+        <td><b>${esc(m.maquina)}</b>${m.linea?`<br><span class="sutil">${esc(m.linea)}</span>`:""}</td>
+        <td class="num">${m.dias} día${m.dias===1?"":"s"}</td>
+        <td class="num">${m.abiertos}${m.vencidos?`<br><span class="sutil">${m.vencidos} vencido(s)</span>`:""}</td>
+        <td class="viejo">${esc(m.masViejo ? m.masViejo.texto : "—")}</td>
+        <td class="num">${m.dias>=DIAS_MAQUINA_URGENTE
+            ? `<span class="chip urg">URGENTE</span>` : ""}</td></tr>`).join("")}
+      </tbody></table>`
+      : `<div class="empty">Ninguna máquina tiene pendientes abiertos.</div>`}`;
+
+  /* Carga por área, en barras simples */
+  const areas = repartoPorArea();
+  const maxA = Math.max(1, ...areas.map(a=>a.n));
+  document.getElementById("cajaAreas").innerHTML = `
+    <div class="section-title"><div><h2>CARGA POR ÁREA</h2>
+      <span class="sub-sec">pendientes abiertos · la parte roja son los vencidos</span></div></div>
+    ${areas.length ? areas.map(a=>`
+      <div class="barra-fila">
+        <span class="et">${esc(a.area)}</span>
+        <span class="pista"><i class="ok" style="width:${((a.n-a.vencidas)/maxA*100).toFixed(1)}%"></i><i
+          class="mal" style="width:${(a.vencidas/maxA*100).toFixed(1)}%"></i></span>
+        <span class="val">${a.n}</span>
+      </div>`).join("") : `<div class="empty">No hay pendientes abiertos.</div>`}`;
 
   document.getElementById("hoyKpis").innerHTML = `
     <div class="kpi ${venc?"malo":"bueno"}"><span>Vencidas</span><b>${venc}</b>
@@ -776,7 +917,11 @@ function verDetalle(id){
       ${t.linea?`<tr><td>Línea</td><td style="text-align:right;">${esc(t.linea)}</td></tr>`:""}
       ${t.maquina?`<tr><td>Máquina</td><td style="text-align:right;">${esc(t.maquina)}</td></tr>`:""}
       ${t.tema?`<tr><td>Tema</td><td style="text-align:right;">${esc(t.tema)}</td></tr>`:""}
-      <tr><td>Prioridad</td><td style="text-align:right;">${esc(t.prioridad)}</td></tr>
+      <tr><td>Prioridad</td><td style="text-align:right;">
+        <select class="sel-prio" data-id="${esc(t.id)}" style="width:120px;display:inline-block;height:32px;">
+          ${["Alta","Media","Baja"].map(x=>
+            `<option${x===(t.prioridad||"Media")?" selected":""}>${x}</option>`).join("")}
+        </select></td></tr>
       <tr><td>Mantenimiento</td><td style="text-align:right;">${esc(t.mantenimiento)}${t.ot?" · "+esc(t.ot):""}</td></tr>
       <tr><td>Registrada</td><td style="text-align:right;">${fCorta(t.creado)} por ${esc(t.creadoPor)}</td></tr>
       <tr><td>Fecha prometida</td><td style="text-align:right;"><b>${fCorta(t.fechaOriginal)}</b></td></tr>
@@ -1179,7 +1324,8 @@ document.getElementById("btnMas").addEventListener("click", ()=>{
   document.getElementById("btnMas").textContent =
     ver ? "− Ocultar los campos extra" : "+ Agregar máquina, tema y demás";
 });
-["fArea","fEstado"].forEach(id=>document.getElementById(id).addEventListener("change", renderHoy));
+["fArea","fPrioridad","fEstado"].forEach(id=>
+  document.getElementById(id).addEventListener("change", renderHoy));
 document.getElementById("fTexto").addEventListener("input", renderHoy);
 ["gArea","gVer"].forEach(id=>document.getElementById(id).addEventListener("change", renderGantt));
 
@@ -1193,6 +1339,12 @@ document.addEventListener("click", e=>{
   if(b.dataset["cerrarT"]) return pedirCerrar(b.dataset["cerrarT"]);
   if(b.dataset.reabrir)  return reabrir(b.dataset.reabrir);
   if(b.dataset.ver)      return verDetalle(b.dataset.ver);
+});
+document.addEventListener("change", e=>{
+  const sel = e.target.closest(".sel-prio"); if(!sel) return;
+  const t = porId(sel.dataset.id); if(!t) return;
+  t.prioridad = sel.value;
+  guardar(); renderHoy();
 });
 document.getElementById("okPosponer").addEventListener("click", hacerPosponer);
 document.getElementById("okCerrar").addEventListener("click", hacerCerrar);
