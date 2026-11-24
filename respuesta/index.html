@@ -159,6 +159,63 @@
     color:var(--text-dim);cursor:pointer;min-height:28px;}
   .atajos button:hover{border-color:var(--red);color:var(--red);}
   .atajos button.on{background:var(--red);border-color:var(--red);color:#fff;}
+  /* ---- FORMULARIO DE REGISTRO ----
+     Secciones en tarjetas, con una marca roja corta junto al título en vez de
+     una barra de lado a lado, e iconos de trazo dentro de cada campo. Los
+     emoji se veían distintos en cada tableta y abarataban la pantalla. */
+  .form-cab{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+  .form-ic{width:46px;height:46px;flex:0 0 46px;border-radius:12px;background:#fdeceb;
+    color:var(--red);display:flex;align-items:center;justify-content:center;}
+  .form-ic svg{width:24px;height:24px;}
+  .form-cab h1{margin:0;font-size:1.45rem;font-weight:800;color:var(--red);letter-spacing:-.01em;}
+  .form-cab .sub{font-size:.84rem;color:var(--text-dim);margin-top:2px;}
+
+  .sec{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:18px 20px 20px;margin-bottom:14px;}
+  .sec-cab{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+  .sec-cab .pin{width:3px;height:26px;border-radius:2px;background:var(--red);flex:0 0 3px;}
+  .sec-cab .sec-ic{width:26px;height:26px;flex:0 0 26px;color:var(--text-dim);
+    display:flex;align-items:center;justify-content:center;}
+  .sec-cab .sec-ic svg{width:19px;height:19px;}
+  .sec-cab b{display:block;font-size:.95rem;line-height:1.2;}
+  .sec-cab span{font-size:.75rem;color:var(--text-dim);}
+
+  .rej{display:grid;gap:14px;}
+  .rej.r-4{grid-template-columns:repeat(4,1fr);}
+  .rej.r-2-1{grid-template-columns:3fr 1fr;}
+  .rej.r-fecha{grid-template-columns:auto 1fr;align-items:end;margin-top:14px;}
+  @media(max-width:900px){.rej.r-4{grid-template-columns:repeat(2,1fr);}
+    .rej.r-2-1,.rej.r-fecha{grid-template-columns:1fr;}}
+  @media(max-width:560px){.rej.r-4{grid-template-columns:1fr;}}
+
+  .campo-f label{display:block;font-size:.76rem;font-weight:600;color:var(--text);margin-bottom:6px;}
+  .req{color:var(--red);font-style:normal;font-weight:700;}
+  .caja-f{position:relative;}
+  .caja-f .ic-f{position:absolute;left:11px;top:50%;transform:translateY(-50%);
+    width:17px;height:17px;color:var(--text-dim);pointer-events:none;}
+  .caja-f.con-ic input,.caja-f.con-ic select{padding-left:36px;}
+  .caja-f input,.caja-f select,.caja-f textarea{height:42px;border-radius:9px;background:#fff;}
+  .caja-f textarea{height:auto;min-height:96px;padding:10px 12px;}
+  .caja-f input[type=date]{padding-right:10px;}
+  /* El contador vive dentro del campo, como en la referencia: colgado debajo
+     empujaba la fila siguiente y descuadraba la rejilla. */
+  .cuenta{position:absolute;right:12px;top:50%;transform:translateY(-50%);
+    font-size:.7rem;color:#aab0b8;pointer-events:none;background:#fff;padding-left:6px;}
+  .cuenta.abajo{top:auto;bottom:10px;transform:none;}
+  .caja-f input#nTexto{padding-right:62px;}
+  .punto-pr{position:absolute;right:34px;top:50%;transform:translateY(-50%);
+    width:8px;height:8px;border-radius:50%;pointer-events:none;}
+
+  .plegar{background:none;border:none;color:var(--red);font-family:inherit;font-size:.82rem;
+    font-weight:700;cursor:pointer;padding:4px 0 14px;display:inline-flex;align-items:center;gap:7px;}
+  .plegar .mas-ic{display:inline-flex;align-items:center;justify-content:center;
+    width:18px;height:18px;border-radius:5px;background:#fdeceb;font-size:.9rem;line-height:1;}
+
+  .pie-form{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    border-top:1px solid var(--border);padding-top:16px;margin-top:4px;}
+  .pie-form .btn{display:inline-flex;align-items:center;gap:8px;}
+  .pie-form .btn svg{width:16px;height:16px;}
+  .btn.grande{padding:12px 24px;font-size:.88rem;min-height:46px;}
   .plegar{background:none;border:none;color:var(--red);font-family:inherit;font-size:.8rem;
     font-weight:700;cursor:pointer;padding:12px 0 0;}
 
@@ -205,6 +262,7 @@
   .modal .pie{display:flex;gap:9px;justify-content:flex-end;margin-top:6px;}
   .aviso-campo{font-size:.74rem;color:var(--bad);margin-top:5px;display:none;}
   .aviso-campo.ver{display:block;}
+  .caja-f input.falta,.caja-f select.falta{border-color:var(--bad);background:var(--bad-bg);}
 
   .nota{font-size:.76rem;color:var(--text-dim);line-height:1.5;background:var(--warn-bg);
     border:1px solid #f0e2b0;border-radius:9px;padding:11px 13px;margin-bottom:16px;}
@@ -282,51 +340,205 @@
 
   <!-- =================== REGISTRAR =================== -->
   <section id="viewRegistrar" style="display:none;">
-    <div class="pag-tit">
+
+    <div class="form-cab">
+      <span class="form-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 3.5h6a1 1 0 0 1 1 1V6H8V4.5a1 1 0 0 1 1-1z"/>
+          <path d="M16 5h2a1.5 1.5 0 0 1 1.5 1.5V19A1.5 1.5 0 0 1 18 20.5H6A1.5 1.5 0 0 1 4.5 19V6.5A1.5 1.5 0 0 1 6 5h2"/>
+          <path d="M12 10v6M9 13h6"/>
+        </svg>
+      </span>
       <div>
         <h1>Registrar pendiente</h1>
-        <div class="sub">Lo mínimo son tres campos. El resto se puede completar después.</div>
+        <div class="sub">Anota el compromiso, asígnalo y ponle fecha. Lo demás es opcional.</div>
       </div>
     </div>
 
-    <div class="panel">
-      <div class="rapido">
-        <div class="campo qué"><label for="nTexto">¿Qué quedó pendiente?</label>
-          <input type="text" id="nTexto" placeholder="Ej.: cambiar rodamiento de la prensa 3"></div>
-        <div class="campo"><label for="nArea">Área responsable</label>
-          <select id="nArea"></select></div>
-        <div class="campo" style="flex:0 0 130px;"><label for="nPrioridad">Prioridad</label>
-          <select id="nPrioridad">
-            <option>Alta</option><option selected>Media</option><option>Baja</option>
-          </select></div>
-        <div class="campo"><label for="nFecha">Fecha de compromiso</label>
-          <input type="date" id="nFecha">
-          <div class="atajos" data-para="nFecha"></div></div>
-        <div class="campo" style="flex:0 0 auto;">
-          <button class="btn primario" id="btnGuardar">Guardar pendiente</button></div>
+    <!-- Lo que se dice en voz alta en la reunión. Si esto tarda, el que
+         dirige vuelve al papel en el punto tres. -->
+    <div class="sec">
+      <div class="sec-cab"><i class="pin"></i>
+        <span class="sec-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16.5 4.5l3 3L8 19l-4 1 1-4z"/><path d="M14.5 6.5l3 3"/></svg></span>
+        <div><b>El compromiso</b><span>Qué se acordó y para cuándo</span></div>
       </div>
 
-      <button class="plegar" id="btnMas">+ Agregar máquina, tema y demás</button>
-
-      <div class="mas-campos" id="masCampos" style="display:none;">
-        <div><label for="nPersona">Responsable (persona)</label>
-          <input type="text" id="nPersona" placeholder="opcional"></div>
-        <div><label for="nLinea">Línea</label>
-          <select id="nLinea">
-            <option value="">—</option><option>Machetes</option><option>Cuchillas</option>
-            <option>Limas</option><option>Palas</option><option>Planta / servicios</option>
-          </select></div>
-        <div><label for="nMaquina">Máquina o puesto</label>
-          <select id="nMaquina"><option value="">—</option></select></div>
-        <div><label for="nTema">Tema</label>
-          <input type="text" id="nTema" list="temas" placeholder="opcional">
-          <datalist id="temas"></datalist></div>
-        <div><label for="nMant">¿Requiere mantenimiento?</label>
-          <select id="nMant"><option>No</option><option>Sí</option></select></div>
-        <div><label for="nOT">N.º de orden de trabajo</label>
-          <input type="text" id="nOT" placeholder="si ya existe"></div>
+      <div class="rej r-2-1">
+        <div class="campo-f">
+          <label for="nTexto">¿Qué quedó pendiente? <i class="req">*</i></label>
+          <div class="caja-f">
+            <input type="text" id="nTexto" maxlength="200"
+                   placeholder="Ej.: cambiar rodamiento de la prensa 3">
+            <span class="cuenta" id="cuentaTexto">0 / 200</span>
+          </div>
+        </div>
+        <div class="campo-f">
+          <label for="nPrioridad">Prioridad <i class="req">*</i></label>
+          <div class="caja-f con-ic">
+            <svg class="ic-f" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 21V4"/><path d="M6 4.5h9l-1.6 3.2L15 11H6z"/></svg>
+            <select id="nPrioridad">
+              <option>Alta</option><option selected>Media</option><option>Baja</option>
+            </select>
+            <span class="punto-pr" id="puntoPr"></span>
+          </div>
+        </div>
       </div>
-      <div class="aviso-campo" id="avisoNuevo"></div>
+
+      <div class="rej r-fecha">
+        <div class="campo-f">
+          <label for="nFecha">Fecha de compromiso <i class="req">*</i></label>
+          <div class="caja-f con-ic">
+            <svg class="ic-f" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17"/>
+              <path d="M8 3.5v3M16 3.5v3"/></svg>
+            <input type="date" id="nFecha">
+          </div>
+        </div>
+        <div class="campo-f">
+          <label>&nbsp;</label>
+          <div class="atajos" data-para="nFecha"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Asignación obligatoria: un pendiente sin dueño con nombre propio no
+         lo hace nadie, y en la reunión siguiente nadie se da por aludido. -->
+    <div class="sec">
+      <div class="sec-cab"><i class="pin"></i>
+        <span class="sec-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/>
+          <path d="M16 5.6a3.2 3.2 0 0 1 0 5.8"/><path d="M17.5 14.6a5.5 5.5 0 0 1 3 4.9"/></svg></span>
+        <div><b>Asignación</b><span>El área responde, la persona hace</span></div>
+      </div>
+      <div class="rej r-4">
+        <div class="campo-f">
+          <label for="nArea">Área responsable <i class="req">*</i></label>
+          <div class="caja-f con-ic">
+            <svg class="ic-f" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 20.5V6.5l7-3v17"/><path d="M11 10.5l8 2.5v7.5"/>
+              <path d="M2.5 20.5h19"/><path d="M7 9v.01M7 13v.01M7 17v.01M15 16v.01"/></svg>
+            <select id="nArea"></select>
+          </div>
+        </div>
+        <div class="campo-f">
+          <label for="nPersona">Responsable <i class="req">*</i></label>
+          <div class="caja-f con-ic">
+            <svg class="ic-f" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg>
+            <input type="text" id="nPersona" list="personas" placeholder="Quién lo hace">
+            <datalist id="personas"></datalist>
+          </div>
+        </div>
+        <div class="campo-f">
+          <label for="nLinea">Línea</label>
+          <div class="caja-f con-ic">
+            <svg class="ic-f" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3.5l8.5 4.3L12 12 3.5 7.8z"/><path d="M3.5 12.2L12 16.5l8.5-4.3"/>
+              <path d="M3.5 16.4L12 20.7l8.5-4.3"/></svg>
+            <select id="nLinea">
+              <option value="">Sin línea</option><option>Machetes</option><option>Cuchillas</option>
+              <option>Limas</option><option>Palas</option><option>Planta / servicios</option>
+            </select>
+          </div>
+        </div>
+        <div class="campo-f">
+          <label for="nMaquina">Equipo o máquina</label>
+          <div class="caja-f con-ic">
+            <svg class="ic-f" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 3.5v2.2M12 18.3v2.2M20.5 12h-2.2M5.7 12H3.5M18 6l-1.6 1.6M7.6 16.4 6 18M18 18l-1.6-1.6M7.6 7.6 6 6"/></svg>
+            <select id="nMaquina"><option value="">Sin máquina</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="plegar" id="btnMas">
+      <span class="mas-ic">+</span> Agregar tema, mantenimiento y observaciones</button>
+
+    <div id="masCampos" style="display:none;">
+      <div class="sec">
+        <div class="sec-cab"><i class="pin"></i>
+          <span class="sec-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15.5 7.5a4 4 0 0 1-5.3 3.8L6 15.5a2 2 0 1 0 2.8 2.8l4.2-4.2a4 4 0 0 1 4.7-5.9l-2.6 2.6 2.1 2.1 2.6-2.6a4 4 0 0 1-4.3 2.7"/></svg></span>
+          <div><b>Seguimiento</b><span>Para agrupar y para el taller</span></div>
+        </div>
+        <div class="rej r-4">
+          <div class="campo-f">
+            <label for="nTema">Tema</label>
+            <div class="caja-f con-ic">
+              <svg class="ic-f" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 4.5h12v16l-6-4-6 4z"/></svg>
+              <input type="text" id="nTema" list="temas" placeholder="Ej.: bajo ratio de machetes">
+              <datalist id="temas"></datalist>
+            </div>
+          </div>
+          <div class="campo-f">
+            <label for="nMant">¿Requiere mantenimiento?</label>
+            <div class="caja-f con-ic">
+              <svg class="ic-f" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 4.2a4.6 4.6 0 0 0-5.6 5.9L4 15.5a2.1 2.1 0 1 0 3 3l5.4-5.4a4.6 4.6 0 0 0 5.9-5.6l-2.7 2.7-2.3-2.3z"/></svg>
+              <select id="nMant"><option>No</option><option>Sí</option></select>
+            </div>
+          </div>
+          <div class="campo-f">
+            <label for="nOT">N.º de orden de trabajo</label>
+            <div class="caja-f con-ic">
+              <svg class="ic-f" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 10.5V5.5a1.5 1.5 0 0 1 1.5-1.5h5l9 9-6.5 6.5-9-9z"/>
+                <circle cx="8" cy="8" r="1.1"/></svg>
+              <input type="text" id="nOT" placeholder="Ej.: OT-4821">
+            </div>
+          </div>
+          <div></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-cab"><i class="pin"></i>
+          <span class="sec-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 3.5h7l5 5v12H6z"/><path d="M13 3.5v5h5"/><path d="M9 13h6M9 16.5h6"/></svg></span>
+          <div><b>Observaciones</b><span>La causa, el alcance o lo que se acordó</span></div>
+        </div>
+        <div class="campo-f">
+          <div class="caja-f">
+            <textarea id="nObs" maxlength="500"
+              placeholder="Información adicional: causa, alcance, qué se acordó…"></textarea>
+            <span class="cuenta abajo" id="cuentaObs">0 / 500</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="aviso-campo" id="avisoNuevo"></div>
+
+    <div class="pie-form">
+      <button class="btn" id="btnLimpiar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+          stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        Limpiar</button>
+      <button class="btn primario grande" id="btnGuardar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 4.5h11L19.5 8v11.5a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-14a1 1 0 0 1 1-1z"/>
+          <path d="M8 4.5v5h7v-5M8 20.5v-6h8v6"/></svg>
+        Registrar pendiente</button>
     </div>
   </section>
 
@@ -428,7 +640,7 @@
       son un problema mal planteado que hay que volver a discutir.
    ====================================================================== */
 
-const APP_VERSION = "2026-11-24-proto3";
+const APP_VERSION = "2026-11-24-proto5";
 
 /* Las ocho áreas de la respuesta rápida. El orden es el de la reunión. */
 const AREAS = ["Producción","Mantenimiento","Calidad","Planeación",
@@ -773,13 +985,44 @@ function montarRegistrar(){
   const sa = document.getElementById("nArea");
   sa.innerHTML = AREAS.map(a=>`<option>${esc(a)}</option>`).join("");
   document.getElementById("nMaquina").innerHTML =
-    `<option value="">—</option>` + MAQUINAS.map(m=>`<option>${esc(m)}</option>`).join("");
-  document.getElementById("nFecha").value = "";
-  pintarAtajos();
+    `<option value="">Sin máquina</option>` + MAQUINAS.map(m=>`<option>${esc(m)}</option>`).join("");
+  limpiarFormulario();
   refrescarTemas();
+  refrescarPersonas();
+  montarContadores();
   ["fArea","gArea"].forEach(id=>{
     document.getElementById(id).innerHTML =
       `<option value="">Todas las áreas</option>` + AREAS.map(a=>`<option>${esc(a)}</option>`).join("");
+  });
+}
+/* La lista de responsables se construye sola con los nombres ya usados: no
+   hay que mantener un maestro de personas para que el campo deje de ser texto
+   suelto y se empiece a escribir «Joe Smith» siempre igual. */
+function refrescarPersonas(){
+  const n = [...new Set(TAREAS.map(x=>x.persona).filter(Boolean))].sort();
+  document.getElementById("personas").innerHTML = n.map(x=>`<option value="${esc(x)}">`).join("");
+}
+const COLOR_PRIO = {Alta:"#e2001a", Media:"#f2b90b", Baja:"#2d7ff9"};
+function pintarPuntoPrioridad(){
+  const sel = document.getElementById("nPrioridad"), p = document.getElementById("puntoPr");
+  if(sel && p) p.style.background = COLOR_PRIO[sel.value] || "transparent";
+}
+function limpiarFormulario(){
+  ["nTexto","nPersona","nTema","nOT","nObs","nFecha"].forEach(id=>document.getElementById(id).value="");
+  ["nMaquina","nLinea"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("nPrioridad").value = "Media";
+  document.getElementById("nMant").value = "No";
+  ["nTexto","nPersona","nFecha"].forEach(id=>document.getElementById(id).classList.remove("falta"));
+  document.getElementById("avisoNuevo").classList.remove("ver");
+  pintarPuntoPrioridad(); pintarAtajos(); montarContadores();
+}
+function montarContadores(){
+  [["nTexto","cuentaTexto",200],["nObs","cuentaObs",500]].forEach(([campo,salida,tope])=>{
+    const c = document.getElementById(campo), o = document.getElementById(salida);
+    if(!c || !o) return;
+    const pinta = ()=>{ o.textContent = c.value.length + " / " + tope;
+      o.style.color = c.value.length >= tope ? "var(--bad)" : ""; };
+    c.addEventListener("input", pinta); pinta();
   });
 }
 function refrescarTemas(){
@@ -788,29 +1031,39 @@ function refrescarTemas(){
 }
 
 function guardarNuevo(){
-  const texto = document.getElementById("nTexto").value.trim();
-  const fecha = document.getElementById("nFecha").value;
+  const texto   = document.getElementById("nTexto").value.trim();
+  const fecha   = document.getElementById("nFecha").value;
+  const persona = document.getElementById("nPersona").value.trim();
   const av = document.getElementById("avisoNuevo");
-  if(!texto || !fecha){
+  /* El responsable es obligatorio a propósito: un pendiente a nombre de un
+     área entera no lo hace nadie, y en la reunión siguiente nadie se da por
+     aludido. Con nombre propio, alguien tiene que contestar. */
+  if(!texto || !fecha || !persona){
     av.textContent = !texto
       ? "Falta escribir qué quedó pendiente."
-      : "Falta la fecha de compromiso: en una reunión diaria, un pendiente sin fecha nunca se revisa.";
+      : !persona
+        ? "Falta el responsable: sin un nombre propio, el pendiente no es de nadie."
+        : "Falta la fecha de compromiso: en una reunión diaria, un pendiente sin fecha nunca se revisa.";
+    [["nTexto",!texto],["nPersona",!persona],["nFecha",!fecha]].forEach(([id,mal])=>
+      document.getElementById(id).classList.toggle("falta", !!mal));
     av.classList.add("ver");
     return;
   }
   av.classList.remove("ver");
+  ["nTexto","nPersona","nFecha"].forEach(id=>document.getElementById(id).classList.remove("falta"));
   const t = {
     id:"RR-"+Date.now().toString(36).toUpperCase(),
     creado: hoyISO(), creadoPor:"Andrés Henao",
     texto: texto,
     area: document.getElementById("nArea").value,
-    persona: document.getElementById("nPersona").value.trim(),
+    persona: persona,
     linea: document.getElementById("nLinea").value,
     maquina: document.getElementById("nMaquina").value,
     tema: document.getElementById("nTema").value.trim(),
     prioridad: document.getElementById("nPrioridad").value,
     mantenimiento: document.getElementById("nMant").value,
     ot: document.getElementById("nOT").value.trim(),
+    observaciones: document.getElementById("nObs").value.trim(),
     /* La original se congela aquí y no se vuelve a tocar nunca. */
     fechaOriginal: fecha,
     fechaCompromiso: fecha,
@@ -818,12 +1071,13 @@ function guardarNuevo(){
   };
   TAREAS.unshift(t);
   guardar();
-  ["nTexto","nPersona","nTema","nOT"].forEach(id=>document.getElementById(id).value="");
+  ["nTexto","nPersona","nTema","nOT","nObs"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("nMaquina").value = "";
   document.getElementById("nLinea").value = "";
-  document.getElementById("nFecha").value = "";
-  pintarAtajos();
+  limpiarFormulario();
   refrescarTemas();
+  refrescarPersonas();
+  montarContadores();
   renderHoy();
   document.getElementById("nTexto").focus();
   av.textContent = "Guardado: «"+texto.slice(0,50)+"». Puedes seguir anotando.";
@@ -923,6 +1177,7 @@ function verDetalle(id){
             `<option${x===(t.prioridad||"Media")?" selected":""}>${x}</option>`).join("")}
         </select></td></tr>
       <tr><td>Mantenimiento</td><td style="text-align:right;">${esc(t.mantenimiento)}${t.ot?" · "+esc(t.ot):""}</td></tr>
+      ${t.observaciones?`<tr><td colspan="2" style="color:var(--text-dim);">${esc(t.observaciones)}</td></tr>`:""}
       <tr><td>Registrada</td><td style="text-align:right;">${fCorta(t.creado)} por ${esc(t.creadoPor)}</td></tr>
       <tr><td>Fecha prometida</td><td style="text-align:right;"><b>${fCorta(t.fechaOriginal)}</b></td></tr>
       <tr><td>Fecha vigente</td><td style="text-align:right;"><b>${fCorta(t.fechaCompromiso)}</b></td></tr>
@@ -1316,13 +1571,16 @@ Object.keys(VISTAS).forEach(k=>
 
 document.getElementById("btnActa").addEventListener("click", generarActa);
 document.getElementById("btnGuardar").addEventListener("click", guardarNuevo);
+document.getElementById("btnLimpiar").addEventListener("click", limpiarFormulario);
+document.getElementById("nPrioridad").addEventListener("change", pintarPuntoPrioridad);
+pintarPuntoPrioridad();
 document.getElementById("nTexto").addEventListener("keydown", e=>{ if(e.key==="Enter") guardarNuevo(); });
 document.getElementById("btnMas").addEventListener("click", ()=>{
   const c = document.getElementById("masCampos");
   const ver = c.style.display === "none";
   c.style.display = ver ? "" : "none";
   document.getElementById("btnMas").textContent =
-    ver ? "− Ocultar los campos extra" : "+ Agregar máquina, tema y demás";
+    ver ? "− Ocultar los campos extra" : "+ Agregar responsable, máquina y detalle";
 });
 ["fArea","fPrioridad","fEstado"].forEach(id=>
   document.getElementById(id).addEventListener("change", renderHoy));
