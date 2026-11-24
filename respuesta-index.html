@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Respuesta Rápida — Bellota</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    /* Mismos tokens que Control de Proceso y Control de Desperdicio: un solo
+       sistema de color para las tres apps del portal. */
+    --red:#e2001a; --red-dark:#c81d2e;
+    --bg:#f3f4f6; --panel:#fff; --border:#e3e5e9;
+    --text:#1c1f24; --text-dim:#6b7280;
+    --ok:#1f9d55; --ok-bg:#e8f8ef;
+    --warn:#f2b90b; --warn-text:#92660a; --warn-bg:#fff8e1;
+    --bad:#c81d2e; --bad-bg:#fdeaea;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+  header{background:var(--red);color:#fff;padding:14px 20px;position:sticky;top:0;z-index:40;}
+  @media(max-width:1100px){.titles{display:none;}}
+  .header-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand img{height:34px;width:auto;}
+  .titles{border-left:1px solid rgba(255,255,255,.4);padding-left:14px;}
+  .titles h1{margin:0;font-size:1.05rem;font-weight:700;}
+  .titles .sub{font-size:.78rem;opacity:.85;}
+  nav.tabs{display:flex;gap:6px;background:rgba(255,255,255,.15);border-radius:8px;padding:3px;
+    max-width:100%;overflow-x:auto;scrollbar-width:none;}
+  nav.tabs::-webkit-scrollbar{display:none;}
+  nav.tabs button{border:none;background:transparent;color:#fff;padding:7px 14px;border-radius:6px;
+    font-size:.85rem;font-weight:600;cursor:pointer;opacity:.85;white-space:nowrap;flex:0 0 auto;
+    font-family:inherit;}
+  nav.tabs button.active{background:#fff;color:var(--red);opacity:1;}
+
+  main{max-width:1250px;margin:0 auto;padding:20px 20px 110px 20px;}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:18px 20px;margin-bottom:16px;}
+  label{display:block;font-size:.78rem;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
+  select,input[type=text],input[type=date],textarea{
+    width:100%;padding:8px 10px;font-size:.88rem;background:#fff;border:1px solid var(--border);
+    border-radius:7px;color:var(--text);font-family:inherit;height:38px;}
+  textarea{height:auto;min-height:70px;padding-top:8px;}
+  select{appearance:none;-webkit-appearance:none;padding-right:32px;cursor:pointer;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.4' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat:no-repeat;background-position:right 10px center;background-size:16px;}
+  select:focus,input:focus,textarea:focus{outline:2px solid var(--red);}
+
+  .pag-tit{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+    flex-wrap:wrap;margin-bottom:16px;}
+  .pag-tit h1{margin:0;font-size:1.5rem;font-weight:800;color:var(--red);letter-spacing:-.01em;}
+  .pag-tit .sub{font-size:.84rem;color:var(--text-dim);margin-top:3px;}
+
+  .btn{border:1px solid var(--border);background:#fff;border-radius:8px;padding:9px 15px;
+    font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;color:var(--text);min-height:38px;}
+  .btn:hover{border-color:var(--red);color:var(--red);}
+  .btn.primario{background:var(--red);border-color:var(--red);color:#fff;}
+  .btn.primario:hover{background:var(--red-dark);color:#fff;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  @media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr);}}
+  .kpi{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
+  .kpi>span{font-size:.74rem;color:var(--text-dim);font-weight:600;}
+  .kpi b{display:block;font-size:1.8rem;font-weight:800;margin-top:4px;line-height:1.1;}
+  .kpi small{display:block;font-size:.7rem;color:var(--text-dim);margin-top:3px;}
+  .kpi.malo b{color:var(--bad);} .kpi.bueno b{color:var(--ok);} .kpi.aviso b{color:var(--warn-text);}
+
+  /* ---- lista de pendientes ---- */
+  .grupo-tit{display:flex;align-items:center;gap:9px;margin:22px 0 9px;font-size:.78rem;
+    font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--text-dim);}
+  .grupo-tit .cuenta{background:var(--border);color:var(--text);border-radius:999px;
+    padding:1px 9px;font-size:.72rem;}
+  .grupo-tit.rojo{color:var(--bad);} .grupo-tit.rojo .cuenta{background:var(--bad-bg);color:var(--bad);}
+  .grupo-tit.amb{color:var(--warn-text);} .grupo-tit.amb .cuenta{background:var(--warn-bg);color:var(--warn-text);}
+
+  .tarea{background:#fff;border:1px solid var(--border);border-left:4px solid var(--border);
+    border-radius:10px;padding:13px 15px;margin-bottom:9px;display:flex;gap:14px;
+    align-items:flex-start;flex-wrap:wrap;}
+  .tarea.vencida{border-left-color:var(--bad);}
+  .tarea.hoy{border-left-color:var(--warn);}
+  .tarea.entiempo{border-left-color:var(--ok);}
+  .tarea.cerrada{border-left-color:var(--ok);opacity:.72;}
+  .tarea.cancelada{border-left-color:var(--text-dim);opacity:.6;}
+  .tarea .cuerpo{flex:1 1 340px;min-width:0;}
+  .tarea .qué{font-size:.93rem;font-weight:600;line-height:1.35;}
+  .tarea .meta{margin-top:6px;display:flex;gap:7px;flex-wrap:wrap;align-items:center;
+    font-size:.74rem;color:var(--text-dim);}
+  .tarea .acciones{display:flex;gap:7px;flex-wrap:wrap;align-items:center;}
+  .tarea .acciones .btn{padding:7px 12px;font-size:.76rem;min-height:34px;}
+
+  .chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:2px 10px;
+    font-size:.71rem;font-weight:700;background:#f1f3f5;color:var(--text-dim);white-space:nowrap;}
+  .chip.area{background:#eef2ff;color:#3949ab;}
+  .chip.mant{background:var(--warn-bg);color:var(--warn-text);}
+  .chip.alta{background:var(--bad-bg);color:var(--bad);}
+  .chip.fecha{background:#fff;border:1px solid var(--border);color:var(--text);}
+  .chip.pospuesta{background:var(--bad-bg);color:var(--bad);}
+  .chip.ok{background:var(--ok-bg);color:var(--ok);}
+
+  .filtros{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
+  .filtros .campo{flex:0 0 190px;}
+  .filtros .campo.ancho{flex:1 1 260px;}
+  @media(max-width:700px){.filtros .campo,.filtros .campo.ancho{flex:1 1 100%;}}
+
+  .empty{padding:26px;text-align:center;color:var(--text-dim);font-size:.86rem;}
+
+  /* ---- registro rápido ---- */
+  .rapido{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
+  .rapido .campo{flex:0 0 180px;}
+  .rapido .campo.qué{flex:1 1 380px;}
+  @media(max-width:760px){.rapido .campo,.rapido .campo.qué{flex:1 1 100%;}}
+  .mas-campos{border-top:1px solid var(--border);margin-top:16px;padding-top:16px;
+    display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  @media(max-width:900px){.mas-campos{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:560px){.mas-campos{grid-template-columns:1fr;}}
+  /* En una tableta, pelearse con el calendario nativo cuesta más que la
+     propia reunión. Cuatro atajos cubren casi todo lo que se acuerda. */
+  .atajos{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;}
+  .atajos button{border:1px solid var(--border);background:#fff;border-radius:999px;
+    padding:4px 11px;font-family:inherit;font-size:.74rem;font-weight:700;
+    color:var(--text-dim);cursor:pointer;min-height:28px;}
+  .atajos button:hover{border-color:var(--red);color:var(--red);}
+  .atajos button.on{background:var(--red);border-color:var(--red);color:#fff;}
+  .plegar{background:none;border:none;color:var(--red);font-family:inherit;font-size:.8rem;
+    font-weight:700;cursor:pointer;padding:12px 0 0;}
+
+  /* ---- Gantt ---- */
+  .gantt{width:100%;border-collapse:collapse;table-layout:fixed;}
+  .gantt th{font-size:.7rem;color:var(--text-dim);font-weight:700;text-align:left;
+    padding:0 6px 8px;border-bottom:1px solid var(--border);}
+  .gantt td{padding:5px 6px;vertical-align:middle;border-bottom:1px solid #f3f4f6;}
+  .gantt td.nom{font-size:.8rem;width:34%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .gantt td.pista{position:relative;height:28px;}
+  .gantt .barra{position:absolute;top:8px;height:12px;border-radius:6px;background:var(--ok);min-width:5px;}
+  .gantt .barra.vencida{background:var(--bad);}
+  .gantt .barra.hoy{background:var(--warn);}
+  .gantt .barra.cerrada{background:#9aa3ad;}
+  .gantt .hito{position:absolute;top:5px;width:2px;height:18px;background:rgba(0,0,0,.28);}
+  .gantt .hoyln{position:absolute;top:0;bottom:0;width:2px;background:var(--red);opacity:.55;}
+  .gantt-cab{position:relative;height:18px;}
+  .gantt-cab span{position:absolute;font-size:.66rem;color:var(--text-dim);transform:translateX(-50%);}
+  .gantt-grupo td{background:#f7f8fa;font-size:.72rem;font-weight:800;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--text-dim);padding:7px 6px;}
+
+  .section-title{display:flex;align-items:center;gap:11px;margin-bottom:14px;}
+  .section-title h2{margin:0;font-size:.95rem;font-weight:800;color:var(--red);letter-spacing:.02em;}
+  .section-title .sub-sec{font-size:.76rem;color:var(--text-dim);display:block;margin-top:1px;}
+  .chart-box{position:relative;height:300px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:980px){.grid2{grid-template-columns:1fr;}}
+
+  table.simple{width:100%;border-collapse:collapse;}
+  table.simple td,table.simple th{padding:8px 6px;border-bottom:1px solid var(--border);font-size:.83rem;}
+  table.simple th{font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;text-align:left;}
+  table.simple td.num{text-align:right;font-weight:700;width:90px;}
+  table.simple td.mal{color:var(--bad);} table.simple td.bien{color:var(--ok);}
+
+  /* ---- modal ---- */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;
+    justify-content:center;z-index:60;padding:18px;}
+  .modal.abierto{display:flex;}
+  .modal .caja{background:#fff;border-radius:var(--radius);padding:22px;max-width:520px;width:100%;
+    max-height:90vh;overflow:auto;}
+  .modal h3{margin:0 0 4px;font-size:1.1rem;}
+  .modal .ctx{font-size:.82rem;color:var(--text-dim);margin-bottom:16px;line-height:1.4;}
+  .modal .campo{margin-bottom:13px;}
+  .modal .pie{display:flex;gap:9px;justify-content:flex-end;margin-top:6px;}
+  .aviso-campo{font-size:.74rem;color:var(--bad);margin-top:5px;display:none;}
+  .aviso-campo.ver{display:block;}
+
+  .nota{font-size:.76rem;color:var(--text-dim);line-height:1.5;background:var(--warn-bg);
+    border:1px solid #f0e2b0;border-radius:9px;padding:11px 13px;margin-bottom:16px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div class="brand">
+      <img src="data:image/png;base64,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" alt="Bellota">
+      <div class="titles">
+        <h1>Respuesta Rápida</h1>
+        <div class="sub">Pendientes de la reunión diaria</div>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button id="tabHoy" class="active">Pendientes</button>
+      <button id="tabRegistrar">Registrar</button>
+      <button id="tabGantt">Deslizamiento</button>
+      <button id="tabIndic">Indicadores</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="nota" id="notaProto">
+    <b>Prototipo para revisar.</b> Los datos de ejemplo viven solo en esta tableta y se pueden borrar
+    sin consecuencias. Todavía no escribe en ninguna hoja compartida: eso se conecta cuando apruebes
+    las pantallas.
+  </div>
+
+  <!-- =================== PENDIENTES =================== -->
+  <section id="viewHoy">
+    <div class="pag-tit">
+      <div>
+        <h1>Pendientes</h1>
+        <div class="sub" id="hoyResumen"></div>
+      </div>
+      <div><button class="btn" id="btnActa">Acta de hoy (PDF)</button></div>
+    </div>
+
+    <div class="panel"><div class="kpis" id="hoyKpis"></div></div>
+
+    <div class="panel">
+      <div class="filtros">
+        <div class="campo"><label for="fArea">Área responsable</label>
+          <select id="fArea"><option value="">Todas las áreas</option></select></div>
+        <div class="campo"><label for="fEstado">Mostrar</label>
+          <select id="fEstado">
+            <option value="abiertas">Solo abiertas</option>
+            <option value="todas">Todas, con cerradas</option>
+            <option value="vencidas">Solo vencidas</option>
+            <option value="cerradas">Solo cerradas y canceladas</option>
+          </select></div>
+        <div class="campo ancho"><label for="fTexto">Buscar</label>
+          <input type="text" id="fTexto" placeholder="texto, máquina, tema o responsable…"></div>
+      </div>
+    </div>
+
+    <div id="listaPend"></div>
+  </section>
+
+  <!-- =================== REGISTRAR =================== -->
+  <section id="viewRegistrar" style="display:none;">
+    <div class="pag-tit">
+      <div>
+        <h1>Registrar pendiente</h1>
+        <div class="sub">Lo mínimo son tres campos. El resto se puede completar después.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="rapido">
+        <div class="campo qué"><label for="nTexto">¿Qué quedó pendiente?</label>
+          <input type="text" id="nTexto" placeholder="Ej.: cambiar rodamiento de la prensa 3"></div>
+        <div class="campo"><label for="nArea">Área responsable</label>
+          <select id="nArea"></select></div>
+        <div class="campo"><label for="nFecha">Fecha de compromiso</label>
+          <input type="date" id="nFecha">
+          <div class="atajos" data-para="nFecha"></div></div>
+        <div class="campo" style="flex:0 0 auto;">
+          <button class="btn primario" id="btnGuardar">Guardar pendiente</button></div>
+      </div>
+
+      <button class="plegar" id="btnMas">+ Agregar máquina, tema y demás</button>
+
+      <div class="mas-campos" id="masCampos" style="display:none;">
+        <div><label for="nPersona">Responsable (persona)</label>
+          <input type="text" id="nPersona" placeholder="opcional"></div>
+        <div><label for="nLinea">Línea</label>
+          <select id="nLinea">
+            <option value="">—</option><option>Machetes</option><option>Cuchillas</option>
+            <option>Limas</option><option>Palas</option><option>Planta / servicios</option>
+          </select></div>
+        <div><label for="nMaquina">Máquina o puesto</label>
+          <select id="nMaquina"><option value="">—</option></select></div>
+        <div><label for="nTema">Tema</label>
+          <input type="text" id="nTema" list="temas" placeholder="opcional">
+          <datalist id="temas"></datalist></div>
+        <div><label for="nPrioridad">Prioridad</label>
+          <select id="nPrioridad"><option>Media</option><option>Alta</option><option>Baja</option></select></div>
+        <div><label for="nMant">¿Requiere mantenimiento?</label>
+          <select id="nMant"><option>No</option><option>Sí</option></select></div>
+        <div><label for="nOT">N.º de orden de trabajo</label>
+          <input type="text" id="nOT" placeholder="si ya existe"></div>
+      </div>
+      <div class="aviso-campo" id="avisoNuevo"></div>
+    </div>
+  </section>
+
+  <!-- =================== GANTT =================== -->
+  <section id="viewGantt" style="display:none;">
+    <div class="pag-tit">
+      <div>
+        <h1>Deslizamiento</h1>
+        <div class="sub">Cada barra va de la fecha que se prometió a la que rige hoy: el largo
+          <b>es</b> lo que se ha corrido. Un punto es algo que nunca se aplazó.</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="filtros">
+        <div class="campo"><label for="gArea">Área responsable</label>
+          <select id="gArea"><option value="">Todas las áreas</option></select></div>
+        <div class="campo"><label for="gVer">Mostrar</label>
+          <select id="gVer">
+            <option value="abiertas">Solo abiertas</option>
+            <option value="todas">Abiertas y cerradas</option>
+          </select></div>
+      </div>
+    </div>
+    <div class="panel" id="panelGantt"></div>
+  </section>
+
+  <!-- =================== INDICADORES =================== -->
+  <section id="viewIndic" style="display:none;">
+    <div class="pag-tit">
+      <div>
+        <h1>Indicadores</h1>
+        <div class="sub">Si entran más pendientes de los que se cierran, la reunión está generando deuda.</div>
+      </div>
+    </div>
+    <div id="indicContenido"></div>
+  </section>
+</main>
+
+<!-- =================== MODALES =================== -->
+<div class="modal" id="mPosponer"><div class="caja">
+  <h3>Posponer</h3>
+  <div class="ctx" id="ctxPosponer"></div>
+  <div class="campo"><label for="pFecha">Nueva fecha de compromiso</label>
+    <input type="date" id="pFecha">
+    <div class="atajos" data-para="pFecha"></div></div>
+  <div class="campo"><label for="pMotivo">¿Por qué se pospone? (obligatorio)</label>
+    <textarea id="pMotivo" placeholder="Qué lo impidió y qué cambia para que ahora sí se cumpla"></textarea>
+    <div class="aviso-campo" id="avisoPosponer">Hay que escribir el motivo: sin él, aplazar no cuesta nada y la fecha se corre sola cada semana.</div></div>
+  <div class="pie">
+    <button class="btn" data-cerrar="mPosponer">Cancelar</button>
+    <button class="btn primario" id="okPosponer">Posponer</button></div>
+</div></div>
+
+<div class="modal" id="mCerrar"><div class="caja">
+  <h3>Cerrar pendiente</h3>
+  <div class="ctx" id="ctxCerrar"></div>
+  <div class="campo"><label for="cObs">¿Qué se hizo? (obligatorio)</label>
+    <textarea id="cObs" placeholder="La evidencia de que quedó resuelto"></textarea>
+    <div class="aviso-campo" id="avisoCerrar">Hay que escribir qué se hizo.</div></div>
+  <div class="pie">
+    <button class="btn" data-cerrar="mCerrar">Cancelar</button>
+    <button class="btn primario" id="okCerrar">Cerrar como cumplida</button></div>
+</div></div>
+
+<div class="modal" id="mCancelar"><div class="caja">
+  <h3>Cancelar pendiente</h3>
+  <div class="ctx" id="ctxCancelar"></div>
+  <div class="campo"><label for="xMotivo">¿Por qué ya no aplica? (obligatorio)</label>
+    <textarea id="xMotivo" placeholder="Por qué se da de baja sin hacerse"></textarea>
+    <div class="aviso-campo" id="avisoCancelar">Hay que escribir el motivo.</div></div>
+  <div class="pie">
+    <button class="btn" data-cerrar="mCancelar">Volver</button>
+    <button class="btn primario" id="okCancelar">Cancelar pendiente</button></div>
+</div></div>
+
+<div class="modal" id="mDetalle"><div class="caja">
+  <h3 id="ttDetalle">Detalle</h3>
+  <div id="cuerpoDetalle"></div>
+  <div class="pie"><button class="btn" data-cerrar="mDetalle">Cerrar</button></div>
+</div></div>
+
+<script>
+/* ======================================================================
+   RESPUESTA RÁPIDA — prototipo
+
+   Tres decisiones sostienen todo lo demás:
+
+   1. El estado NO se digita. Solo se escriben el cierre y la cancelación;
+      vencida / vence hoy / en tiempo salen de comparar la fecha de
+      compromiso con hoy. Si «pendiente» fuera algo que alguien marca, en un
+      mes todo diría pendiente y el tablero mentiría.
+
+   2. La fecha original nunca cambia. El cumplimiento se mide contra ella,
+      no contra la vigente: si se midiera contra la vigente, aplazar borraría
+      el incumplimiento y el indicador siempre saldría bonito.
+
+   3. Aplazar deja rastro. Cada posposición guarda de qué fecha a qué fecha,
+      el motivo, quién y cuándo. Tres aplazamientos no son una tarea atrasada:
+      son un problema mal planteado que hay que volver a discutir.
+   ====================================================================== */
+
+const APP_VERSION = "2026-11-24-proto2";
+
+/* Las ocho áreas de la respuesta rápida. El orden es el de la reunión. */
+const AREAS = ["Producción","Mantenimiento","Calidad","Planeación",
+               "Mejora continua","Ambiental","Estandarización","Proyectos"];
+
+/* Mientras no esté conectada la hoja, la lista de máquinas es una copia de
+   la de Control de Desperdicio para poder probar. Al conectar, se lee de allá
+   y esta copia desaparece. */
+const MAQUINAS = [
+  "Prensa 1","Prensa 2","Prensa 3","Horno de temple","Horno de revenido",
+  "Laminadora","Troqueladora","Biseladora 1","Biseladora 2","Lijadora",
+  "Canaladora 1","Canaladora 2","Perforadora de anilla","Cabina de pintura",
+  "Granalladora","Empacadora","Compresor","Montacargas"
+];
+
+const DIAS_POR_VENCER = 3;      // cuántos días antes empieza a avisar
+const PLAZO_DEFECTO   = 7;      // compromiso por defecto al registrar
+
+/* ---------------- utilidades de fecha ---------------- */
+function hoyISO(){
+  const d = new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function sumarDias(iso, n){
+  const d = new Date(iso+"T12:00:00");
+  d.setDate(d.getDate()+n);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function diasEntre(a, b){
+  return Math.round((new Date(b+"T12:00:00") - new Date(a+"T12:00:00"))/86400000);
+}
+function fCorta(iso){
+  if(!iso) return "—";
+  const m = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  return Number(iso.slice(8))+" "+m[Number(iso.slice(5,7))-1];
+}
+function esc(s){
+  return String(s==null?"":s).replace(/[&<>"']/g, c=>
+    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+/* ---------------- almacenamiento ---------------- */
+const CLAVE = "rr_pendientes";
+let TAREAS = [];
+function cargar(){
+  try{ TAREAS = JSON.parse(localStorage.getItem(CLAVE) || "null") || null; }
+  catch(e){ TAREAS = null; }
+  if(!TAREAS){ TAREAS = demo(); guardar(); }
+}
+function guardar(){
+  try{ localStorage.setItem(CLAVE, JSON.stringify(TAREAS)); }catch(e){}
+}
+function porId(id){ return TAREAS.find(t=>t.id===id); }
+
+/* ---------------- el estado, calculado ---------------- */
+function estadoDe(t){
+  if(t.cierre && t.cierre.resultado === "cancelada") return "cancelada";
+  if(t.cierre) return "cerrada";
+  const d = diasEntre(hoyISO(), t.fechaCompromiso);
+  if(d < 0)  return "vencida";
+  if(d === 0) return "hoy";
+  if(d <= DIAS_POR_VENCER) return "porvencer";
+  return "entiempo";
+}
+const ETIQUETA = {vencida:"Vencida", hoy:"Vence hoy", porvencer:"Por vencer",
+                  entiempo:"En tiempo", cerrada:"Cumplida", cancelada:"Cancelada"};
+
+/* ¿Se cumplió en la fecha que se prometió, o en una aplazada? Esta es la
+   pregunta que mide de verdad, y por eso mira la fecha ORIGINAL. */
+function cumplioEnFecha(t){
+  if(!t.cierre || t.cierre.resultado !== "cumplida") return null;
+  return t.cierre.fecha <= t.fechaOriginal;
+}
+function nAplazos(t){ return (t.aplazamientos||[]).length; }
+
+/* ---------------- datos de ejemplo ---------------- */
+function demo(){
+  const h = hoyISO();
+  const mk = (o)=> Object.assign({
+    id:"RR-"+Math.random().toString(36).slice(2,8).toUpperCase(),
+    creado:h, creadoPor:"Andrés Henao", persona:"", linea:"", maquina:"",
+    tema:"", prioridad:"Media", mantenimiento:"No", ot:"",
+    aplazamientos:[], cierre:null
+  }, o, {fechaOriginal: o.fechaOriginal || o.fechaCompromiso});
+  return [
+    mk({texto:"Cambiar rodamiento de la prensa 3, está golpeando al bajar",
+        area:"Mantenimiento", maquina:"Prensa 3", linea:"Machetes", prioridad:"Alta",
+        mantenimiento:"Sí", ot:"OT-4821", tema:"Bajo ratio de machetes",
+        creado:sumarDias(h,-21), fechaOriginal:sumarDias(h,-14), fechaCompromiso:sumarDias(h,-3),
+        aplazamientos:[
+          {de:sumarDias(h,-14), a:sumarDias(h,-7), motivo:"No llegó el repuesto del proveedor",
+           quien:"Andrés Henao", cuando:sumarDias(h,-14)},
+          {de:sumarDias(h,-7), a:sumarDias(h,-3), motivo:"La línea no se pudo parar, pedido urgente",
+           quien:"Andrés Henao", cuando:sumarDias(h,-7)}]}),
+    mk({texto:"Definir el rango de temperatura de revenido para la referencia 352425",
+        area:"Calidad", linea:"Cuchillas", tema:"Validación 352425",
+        creado:sumarDias(h,-9), fechaCompromiso:sumarDias(h,-1)}),
+    mk({texto:"Reponer la señalización del pasillo de empaque",
+        area:"Ambiental", linea:"Planta / servicios", prioridad:"Baja",
+        creado:sumarDias(h,-5), fechaCompromiso:h}),
+    mk({texto:"Subir la hoja estándar de biselado al portal",
+        area:"Estandarización", linea:"Machetes", tema:"HET",
+        creado:sumarDias(h,-4), fechaCompromiso:sumarDias(h,2)}),
+    mk({texto:"Programar el corte de fleje para cubrir el faltante de la semana",
+        area:"Planeación", linea:"Cuchillas", prioridad:"Alta",
+        creado:sumarDias(h,-2), fechaCompromiso:sumarDias(h,4)}),
+    mk({texto:"Revisar fuga de aire en el compresor",
+        area:"Mantenimiento", maquina:"Compresor", linea:"Planta / servicios",
+        mantenimiento:"Sí", creado:sumarDias(h,-2), fechaCompromiso:sumarDias(h,9)}),
+    mk({texto:"Capacitar al turno 3 en el registro de desperdicio",
+        area:"Mejora continua", creado:sumarDias(h,-30), fechaOriginal:sumarDias(h,-20),
+        fechaCompromiso:sumarDias(h,-20),
+        cierre:{resultado:"cumplida", observacion:"Se hizo el 14, asistieron los 6 del turno",
+                quien:"Andrés Henao", fecha:sumarDias(h,-19)}}),
+    mk({texto:"Cotizar la báscula nueva para empaque de limas",
+        area:"Proyectos", linea:"Limas", creado:sumarDias(h,-26),
+        fechaOriginal:sumarDias(h,-16), fechaCompromiso:sumarDias(h,-16),
+        cierre:{resultado:"cumplida", observacion:"Tres cotizaciones enviadas a compras",
+                quien:"Andrés Henao", fecha:sumarDias(h,-16)}}),
+    mk({texto:"Cambiar la guarda de la canaladora 2",
+        area:"Mantenimiento", maquina:"Canaladora 2", linea:"Machetes", mantenimiento:"Sí",
+        creado:sumarDias(h,-34), fechaOriginal:sumarDias(h,-27), fechaCompromiso:sumarDias(h,-6),
+        aplazamientos:[
+          {de:sumarDias(h,-27), a:sumarDias(h,-20), motivo:"Falta material",
+           quien:"Andrés Henao", cuando:sumarDias(h,-27)},
+          {de:sumarDias(h,-20), a:sumarDias(h,-13), motivo:"Mecánico incapacitado",
+           quien:"Andrés Henao", cuando:sumarDias(h,-20)},
+          {de:sumarDias(h,-13), a:sumarDias(h,-6), motivo:"Se priorizó la prensa 3",
+           quien:"Andrés Henao", cuando:sumarDias(h,-13)}],
+        cierre:{resultado:"cumplida", observacion:"Guarda instalada y verificada",
+                quien:"Andrés Henao", fecha:sumarDias(h,-5)}}),
+    mk({texto:"Comprar el software de balanceo de línea",
+        area:"Proyectos", creado:sumarDias(h,-40), fechaOriginal:sumarDias(h,-25),
+        fechaCompromiso:sumarDias(h,-25),
+        cierre:{resultado:"cancelada", observacion:"Se descartó, no hay presupuesto este año",
+                quien:"Andrés Henao", fecha:sumarDias(h,-24)}})
+  ];
+}
+
+/* ====================================================================
+   PANTALLA DE PENDIENTES
+   ==================================================================== */
+const ORDEN = {vencida:0, hoy:1, porvencer:2, entiempo:3, cerrada:4, cancelada:5};
+
+function tareasFiltradas(){
+  const area = document.getElementById("fArea").value;
+  const modo = document.getElementById("fEstado").value;
+  const q = document.getElementById("fTexto").value.trim().toLowerCase();
+  return TAREAS.filter(t=>{
+    const e = estadoDe(t);
+    if(area && t.area !== area) return false;
+    if(modo === "abiertas"  && t.cierre) return false;
+    if(modo === "vencidas"  && e !== "vencida") return false;
+    if(modo === "cerradas"  && !t.cierre) return false;
+    if(q){
+      const heno = [t.texto,t.maquina,t.tema,t.persona,t.area,t.linea,t.ot].join(" ").toLowerCase();
+      if(heno.indexOf(q) === -1) return false;
+    }
+    return true;
+  }).sort((a,b)=>
+    (ORDEN[estadoDe(a)] - ORDEN[estadoDe(b)]) ||
+    a.fechaCompromiso.localeCompare(b.fechaCompromiso));
+}
+
+function filaTarea(t){
+  const e = estadoDe(t);
+  const cls = (e==="vencida") ? "vencida" : (e==="hoy"||e==="porvencer") ? "hoy"
+            : (e==="cerrada") ? "cerrada" : (e==="cancelada") ? "cancelada" : "entiempo";
+  const d = diasEntre(hoyISO(), t.fechaCompromiso);
+  const cuando = t.cierre
+    ? (t.cierre.resultado==="cumplida"
+        ? "cerrada el "+fCorta(t.cierre.fecha) + (cumplioEnFecha(t) ? "" : " · fuera de fecha")
+        : "cancelada el "+fCorta(t.cierre.fecha))
+    : (e==="vencida" ? "venció hace "+Math.abs(d)+" día(s)"
+      : e==="hoy" ? "vence hoy" : "faltan "+d+" día(s)");
+  const ap = nAplazos(t);
+  return `<div class="tarea ${cls}">
+    <div class="cuerpo">
+      <div class="qué">${esc(t.texto)}</div>
+      <div class="meta">
+        <span class="chip area">${esc(t.area)}</span>
+        <span class="chip fecha">${fCorta(t.fechaCompromiso)} · ${esc(cuando)}</span>
+        ${t.maquina ? `<span class="chip">${esc(t.maquina)}</span>` : ""}
+        ${t.persona ? `<span class="chip">${esc(t.persona)}</span>` : ""}
+        ${t.tema ? `<span class="chip">${esc(t.tema)}</span>` : ""}
+        ${t.prioridad==="Alta" ? `<span class="chip alta">Prioridad alta</span>` : ""}
+        ${t.mantenimiento==="Sí" ? `<span class="chip mant">Mantenimiento${t.ot?" · "+esc(t.ot):""}</span>` : ""}
+        ${ap ? `<span class="chip pospuesta">pospuesta ${ap} ${ap===1?"vez":"veces"}</span>` : ""}
+        ${t.cierre && t.cierre.resultado==="cumplida" && cumplioEnFecha(t)
+            ? `<span class="chip ok">en la fecha prometida</span>` : ""}
+      </div>
+    </div>
+    <div class="acciones">
+      <button class="btn" data-ver="${t.id}">Ver</button>
+      ${t.cierre ? `<button class="btn" data-reabrir="${t.id}">Reabrir</button>` : `
+        <button class="btn" data-posponer="${t.id}">Posponer</button>
+        <button class="btn" data-cancelar="${t.id}">No aplica</button>
+        <button class="btn primario" data-cerrar-t="${t.id}">Cerrar</button>`}
+    </div>
+  </div>`;
+}
+
+function renderHoy(){
+  const todas = TAREAS.filter(t=>!t.cierre);
+  const venc = todas.filter(t=>estadoDe(t)==="vencida").length;
+  const hoy  = todas.filter(t=>estadoDe(t)==="hoy").length;
+  const sem  = todas.filter(t=>{const d=diasEntre(hoyISO(),t.fechaCompromiso); return d>0 && d<=7;}).length;
+  const rein = todas.filter(t=>nAplazos(t)>=3).length;
+
+  document.getElementById("hoyResumen").innerHTML =
+    `${todas.length} pendiente(s) abierto(s) · hoy es ${fCorta(hoyISO())}`;
+
+  document.getElementById("hoyKpis").innerHTML = `
+    <div class="kpi ${venc?"malo":"bueno"}"><span>Vencidas</span><b>${venc}</b>
+      <small>${venc? "pasaron su fecha y siguen abiertas" : "ninguna, al día"}</small></div>
+    <div class="kpi ${hoy?"aviso":""}"><span>Vencen hoy</span><b>${hoy}</b>
+      <small>hay que resolverlas o posponerlas</small></div>
+    <div class="kpi"><span>Esta semana</span><b>${sem}</b>
+      <small>vencen en los próximos 7 días</small></div>
+    <div class="kpi ${rein?"malo":""}"><span>Pospuestas 3+ veces</span><b>${rein}</b>
+      <small>${rein? "no son tareas: son problemas mal planteados" : "ninguna se está rodando"}</small></div>`;
+
+  const lista = tareasFiltradas();
+  const box = document.getElementById("listaPend");
+  if(!lista.length){
+    box.innerHTML = `<div class="panel"><div class="empty">No hay pendientes con ese filtro.</div></div>`;
+    return;
+  }
+  const grupos = [
+    {k:"vencida",  t:"Vencidas", c:"rojo"},
+    {k:"hoy",      t:"Vencen hoy", c:"amb"},
+    {k:"porvencer",t:"Próximos días", c:"amb"},
+    {k:"entiempo", t:"Más adelante", c:""},
+    {k:"cerrada",  t:"Cumplidas", c:""},
+    {k:"cancelada",t:"Canceladas", c:""}
+  ];
+  box.innerHTML = grupos.map(g=>{
+    const ts = lista.filter(t=>estadoDe(t)===g.k);
+    if(!ts.length) return "";
+    return `<div class="grupo-tit ${g.c}">${esc(g.t)}<span class="cuenta">${ts.length}</span></div>`
+         + ts.map(filaTarea).join("");
+  }).join("");
+}
+
+/* ====================================================================
+   REGISTRAR
+   ==================================================================== */
+function montarRegistrar(){
+  const sa = document.getElementById("nArea");
+  sa.innerHTML = AREAS.map(a=>`<option>${esc(a)}</option>`).join("");
+  document.getElementById("nMaquina").innerHTML =
+    `<option value="">—</option>` + MAQUINAS.map(m=>`<option>${esc(m)}</option>`).join("");
+  document.getElementById("nFecha").value = "";
+  pintarAtajos();
+  refrescarTemas();
+  ["fArea","gArea"].forEach(id=>{
+    document.getElementById(id).innerHTML =
+      `<option value="">Todas las áreas</option>` + AREAS.map(a=>`<option>${esc(a)}</option>`).join("");
+  });
+}
+function refrescarTemas(){
+  const t = [...new Set(TAREAS.map(x=>x.tema).filter(Boolean))].sort();
+  document.getElementById("temas").innerHTML = t.map(x=>`<option value="${esc(x)}">`).join("");
+}
+
+function guardarNuevo(){
+  const texto = document.getElementById("nTexto").value.trim();
+  const fecha = document.getElementById("nFecha").value;
+  const av = document.getElementById("avisoNuevo");
+  if(!texto || !fecha){
+    av.textContent = !texto
+      ? "Falta escribir qué quedó pendiente."
+      : "Falta la fecha de compromiso: en una reunión diaria, un pendiente sin fecha nunca se revisa.";
+    av.classList.add("ver");
+    return;
+  }
+  av.classList.remove("ver");
+  const t = {
+    id:"RR-"+Date.now().toString(36).toUpperCase(),
+    creado: hoyISO(), creadoPor:"Andrés Henao",
+    texto: texto,
+    area: document.getElementById("nArea").value,
+    persona: document.getElementById("nPersona").value.trim(),
+    linea: document.getElementById("nLinea").value,
+    maquina: document.getElementById("nMaquina").value,
+    tema: document.getElementById("nTema").value.trim(),
+    prioridad: document.getElementById("nPrioridad").value,
+    mantenimiento: document.getElementById("nMant").value,
+    ot: document.getElementById("nOT").value.trim(),
+    /* La original se congela aquí y no se vuelve a tocar nunca. */
+    fechaOriginal: fecha,
+    fechaCompromiso: fecha,
+    aplazamientos: [], cierre: null
+  };
+  TAREAS.unshift(t);
+  guardar();
+  ["nTexto","nPersona","nTema","nOT"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("nMaquina").value = "";
+  document.getElementById("nLinea").value = "";
+  document.getElementById("nFecha").value = "";
+  pintarAtajos();
+  refrescarTemas();
+  renderHoy();
+  document.getElementById("nTexto").focus();
+  av.textContent = "Guardado: «"+texto.slice(0,50)+"». Puedes seguir anotando.";
+  av.style.color = "var(--ok)";
+  av.classList.add("ver");
+  setTimeout(()=>{ av.classList.remove("ver"); av.style.color=""; }, 3500);
+}
+
+/* ====================================================================
+   MODALES
+   ==================================================================== */
+let OBJETIVO = null;
+function abrirModal(id){ document.getElementById(id).classList.add("abierto"); }
+function cerrarModal(id){ document.getElementById(id).classList.remove("abierto"); }
+
+function pedirPosponer(id){
+  const t = porId(id); if(!t) return;
+  OBJETIVO = id;
+  document.getElementById("ctxPosponer").innerHTML =
+    `<b>${esc(t.texto)}</b><br>Vence el ${fCorta(t.fechaCompromiso)}.`
+    + (nAplazos(t) ? ` Ya se ha pospuesto <b>${nAplazos(t)}</b> ${nAplazos(t)===1?"vez":"veces"};
+        la fecha que se prometió era el ${fCorta(t.fechaOriginal)}.` : "");
+  document.getElementById("pFecha").value = "";
+  pintarAtajos();
+  document.getElementById("pMotivo").value = "";
+  document.getElementById("avisoPosponer").classList.remove("ver");
+  abrirModal("mPosponer");
+}
+function hacerPosponer(){
+  const t = porId(OBJETIVO); if(!t) return;
+  const f = document.getElementById("pFecha").value;
+  const m = document.getElementById("pMotivo").value.trim();
+  if(!f || m.length < 5){ document.getElementById("avisoPosponer").classList.add("ver"); return; }
+  t.aplazamientos.push({de:t.fechaCompromiso, a:f, motivo:m,
+                        quien:"Andrés Henao", cuando:hoyISO()});
+  t.fechaCompromiso = f;      /* la original se queda como estaba */
+  guardar(); cerrarModal("mPosponer"); renderHoy();
+}
+
+function pedirCerrar(id){
+  const t = porId(id); if(!t) return;
+  OBJETIVO = id;
+  const tarde = diasEntre(t.fechaOriginal, hoyISO());
+  document.getElementById("ctxCerrar").innerHTML =
+    `<b>${esc(t.texto)}</b><br>Se prometió para el ${fCorta(t.fechaOriginal)}.`
+    + (tarde > 0 ? ` Va <b>${tarde} día(s)</b> tarde contra esa fecha.` : ` Va en fecha.`);
+  document.getElementById("cObs").value = "";
+  document.getElementById("avisoCerrar").classList.remove("ver");
+  abrirModal("mCerrar");
+}
+function hacerCerrar(){
+  const t = porId(OBJETIVO); if(!t) return;
+  const o = document.getElementById("cObs").value.trim();
+  if(o.length < 5){ document.getElementById("avisoCerrar").classList.add("ver"); return; }
+  t.cierre = {resultado:"cumplida", observacion:o, quien:"Andrés Henao", fecha:hoyISO()};
+  guardar(); cerrarModal("mCerrar"); renderHoy();
+}
+
+function pedirCancelar(id){
+  const t = porId(id); if(!t) return;
+  OBJETIVO = id;
+  document.getElementById("ctxCancelar").innerHTML = `<b>${esc(t.texto)}</b><br>
+    Cancelar no es cumplir: queda registrada aparte y no cuenta como cumplimiento.`;
+  document.getElementById("xMotivo").value = "";
+  document.getElementById("avisoCancelar").classList.remove("ver");
+  abrirModal("mCancelar");
+}
+function hacerCancelar(){
+  const t = porId(OBJETIVO); if(!t) return;
+  const o = document.getElementById("xMotivo").value.trim();
+  if(o.length < 5){ document.getElementById("avisoCancelar").classList.add("ver"); return; }
+  t.cierre = {resultado:"cancelada", observacion:o, quien:"Andrés Henao", fecha:hoyISO()};
+  guardar(); cerrarModal("mCancelar"); renderHoy();
+}
+
+function reabrir(id){
+  const t = porId(id); if(!t) return;
+  t.cierre = null;
+  guardar(); renderHoy();
+}
+
+function verDetalle(id){
+  const t = porId(id); if(!t) return;
+  const ap = t.aplazamientos || [];
+  document.getElementById("ttDetalle").textContent = t.id;
+  document.getElementById("cuerpoDetalle").innerHTML = `
+    <div class="ctx"><b>${esc(t.texto)}</b></div>
+    <table class="simple"><tbody>
+      <tr><td>Área</td><td class="num" style="width:auto;text-align:right;">${esc(t.area)}</td></tr>
+      ${t.persona?`<tr><td>Responsable</td><td style="text-align:right;">${esc(t.persona)}</td></tr>`:""}
+      ${t.linea?`<tr><td>Línea</td><td style="text-align:right;">${esc(t.linea)}</td></tr>`:""}
+      ${t.maquina?`<tr><td>Máquina</td><td style="text-align:right;">${esc(t.maquina)}</td></tr>`:""}
+      ${t.tema?`<tr><td>Tema</td><td style="text-align:right;">${esc(t.tema)}</td></tr>`:""}
+      <tr><td>Prioridad</td><td style="text-align:right;">${esc(t.prioridad)}</td></tr>
+      <tr><td>Mantenimiento</td><td style="text-align:right;">${esc(t.mantenimiento)}${t.ot?" · "+esc(t.ot):""}</td></tr>
+      <tr><td>Registrada</td><td style="text-align:right;">${fCorta(t.creado)} por ${esc(t.creadoPor)}</td></tr>
+      <tr><td>Fecha prometida</td><td style="text-align:right;"><b>${fCorta(t.fechaOriginal)}</b></td></tr>
+      <tr><td>Fecha vigente</td><td style="text-align:right;"><b>${fCorta(t.fechaCompromiso)}</b></td></tr>
+    </tbody></table>
+    ${ap.length ? `<div class="grupo-tit rojo" style="margin-top:18px;">Aplazamientos
+        <span class="cuenta">${ap.length}</span></div>
+      <table class="simple"><tbody>${ap.map(a=>`
+        <tr><td>${fCorta(a.de)} → <b>${fCorta(a.a)}</b><br>
+          <span style="color:var(--text-dim);font-size:.78rem;">${esc(a.motivo)}</span></td>
+          <td style="text-align:right;color:var(--text-dim);font-size:.76rem;white-space:nowrap;">
+          ${esc(a.quien)}<br>${fCorta(a.cuando)}</td></tr>`).join("")}
+      </tbody></table>` : `<div class="empty" style="padding:14px;">Nunca se ha pospuesto.</div>`}
+    ${t.cierre ? `<div class="grupo-tit" style="margin-top:18px;">
+        ${t.cierre.resultado==="cumplida"?"Cierre":"Cancelación"}</div>
+      <table class="simple"><tbody><tr>
+        <td>${esc(t.cierre.observacion)}</td>
+        <td style="text-align:right;color:var(--text-dim);font-size:.76rem;white-space:nowrap;">
+        ${esc(t.cierre.quien)}<br>${fCorta(t.cierre.fecha)}</td></tr></tbody></table>` : ""}`;
+  abrirModal("mDetalle");
+}
+
+/* ====================================================================
+   DESLIZAMIENTO (el «Gantt» que sí dice algo)
+
+   Un Gantt clásico de sesenta tareas de un día es un código de barras. Aquí
+   la barra va de la fecha prometida a la vigente, así que su largo ES el
+   deslizamiento; cada marca vertical es un aplazamiento, y la raya roja es
+   hoy. Lo que nunca se aplazó se ve como un punto: ruido cero.
+   ==================================================================== */
+function renderGantt(){
+  const area = document.getElementById("gArea").value;
+  const ver  = document.getElementById("gVer").value;
+  const ts = TAREAS.filter(t=>{
+    if(area && t.area !== area) return false;
+    if(ver === "abiertas" && t.cierre) return false;
+    return true;
+  });
+  const box = document.getElementById("panelGantt");
+  if(!ts.length){ box.innerHTML = `<div class="empty">No hay pendientes con ese filtro.</div>`; return; }
+
+  /* La ventana abarca desde lo más viejo prometido hasta lo más lejos
+     comprometido, con hoy siempre dentro. */
+  const fechas = [];
+  ts.forEach(t=>{ fechas.push(t.fechaOriginal, t.fechaCompromiso);
+                  if(t.cierre) fechas.push(t.cierre.fecha); });
+  fechas.push(hoyISO());
+  const ini = fechas.reduce((a,b)=> a<b?a:b);
+  const fin = fechas.reduce((a,b)=> a>b?a:b);
+  const span = Math.max(1, diasEntre(ini, fin));
+  const pos = iso => (diasEntre(ini, iso) / span) * 100;
+
+  /* Marcas de mes en la cabecera: con semanas se llena de texto. */
+  const marcas = [];
+  let f = ini.slice(0,8)+"01";
+  for(let i=0;i<24;i++){
+    if(f >= ini && f <= fin) marcas.push(f);
+    const d = new Date(f+"T12:00:00"); d.setMonth(d.getMonth()+1);
+    f = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-01";
+    if(f > fin) break;
+  }
+
+  const porArea = {};
+  ts.forEach(t=>{ (porArea[t.area] = porArea[t.area] || []).push(t); });
+  const areas = Object.keys(porArea).sort((a,b)=> AREAS.indexOf(a) - AREAS.indexOf(b));
+
+  box.innerHTML = `
+    <table class="gantt">
+      <thead><tr><th>Pendiente</th><th>
+        <div class="gantt-cab">${marcas.map(m=>
+          `<span style="left:${pos(m).toFixed(2)}%">${fCorta(m)}</span>`).join("")}</div>
+      </th></tr></thead>
+      <tbody>
+      ${areas.map(a=>`
+        <tr class="gantt-grupo"><td colspan="2">${esc(a)} · ${porArea[a].length}</td></tr>
+        ${porArea[a].sort((x,y)=>x.fechaCompromiso.localeCompare(y.fechaCompromiso)).map(t=>{
+          const e = estadoDe(t);
+          const cls = t.cierre ? "cerrada" : e==="vencida" ? "vencida"
+                    : (e==="hoy"||e==="porvencer") ? "hoy" : "";
+          const desde = Math.min(pos(t.fechaOriginal), pos(t.fechaCompromiso));
+          const hasta = Math.max(pos(t.fechaOriginal), pos(t.fechaCompromiso));
+          return `<tr>
+            <td class="nom" title="${esc(t.texto)}">${esc(t.texto)}</td>
+            <td class="pista">
+              <div class="hoyln" style="left:${pos(hoyISO()).toFixed(2)}%"></div>
+              <div class="barra ${cls}" style="left:${desde.toFixed(2)}%;
+                   width:${Math.max(0.6, hasta-desde).toFixed(2)}%"
+                   title="prometida ${fCorta(t.fechaOriginal)} → vigente ${fCorta(t.fechaCompromiso)}"></div>
+              ${(t.aplazamientos||[]).map(a=>
+                `<div class="hito" style="left:${pos(a.a).toFixed(2)}%"></div>`).join("")}
+            </td></tr>`;
+        }).join("")}`).join("")}
+      </tbody>
+    </table>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:.74rem;color:var(--text-dim);margin-top:14px;">
+      <span>Barra larga = se ha corrido mucho</span>
+      <span>Marca vertical = un aplazamiento</span>
+      <span>Raya roja = hoy</span>
+    </div>`;
+}
+
+/* ====================================================================
+   INDICADORES
+   ==================================================================== */
+let chEntradas = null, chAreas = null;
+function lunesDe(iso){
+  const d = new Date(iso+"T12:00:00");
+  const w = (d.getDay()+6)%7;
+  d.setDate(d.getDate()-w);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+
+function renderIndic(){
+  const h = hoyISO();
+  /* Cumplimiento por área: de lo que YA debía estar listo, cuánto se cerró
+     dentro de la fecha prometida. Contra la original, nunca contra la vigente. */
+  const filas = AREAS.map(a=>{
+    const suyas = TAREAS.filter(t=>t.area===a && t.cierre && t.cierre.resultado==="cumplida");
+    const exigibles = TAREAS.filter(t=>t.area===a &&
+      (t.cierre ? t.cierre.resultado==="cumplida" : t.fechaOriginal < h));
+    const enFecha = suyas.filter(cumplioEnFecha).length;
+    const abiertas = TAREAS.filter(t=>t.area===a && !t.cierre);
+    const vencidas = abiertas.filter(t=>estadoDe(t)==="vencida").length;
+    const edad = abiertas.length
+      ? Math.round(abiertas.reduce((s,t)=>s+diasEntre(t.creado,h),0)/abiertas.length) : 0;
+    return {a, pct: exigibles.length ? enFecha/exigibles.length*100 : null,
+            enFecha, exigibles: exigibles.length, abiertas: abiertas.length, vencidas, edad};
+  }).filter(f=> f.exigibles || f.abiertas);
+
+  /* Entradas contra cierres por semana: el pulso del ritual. */
+  const semanas = [];
+  for(let i=7;i>=0;i--) semanas.push(lunesDe(sumarDias(h, -i*7)));
+  const entran = semanas.map(s=> TAREAS.filter(t=> lunesDe(t.creado)===s).length);
+  const cierran = semanas.map(s=> TAREAS.filter(t=> t.cierre && lunesDe(t.cierre.fecha)===s).length);
+  const deuda = entran.reduce((a,b)=>a+b,0) - cierran.reduce((a,b)=>a+b,0);
+
+  const abiertas = TAREAS.filter(t=>!t.cierre);
+  const porMaq = {};
+  abiertas.forEach(t=>{ if(t.maquina) porMaq[t.maquina]=(porMaq[t.maquina]||0)+1; });
+  const maqs = Object.entries(porMaq).sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+  document.getElementById("indicContenido").innerHTML = `
+    <div class="panel"><div class="kpis">
+      <div class="kpi ${deuda>0?"malo":"bueno"}"><span>Deuda de 8 semanas</span>
+        <b>${deuda>0?"+":""}${deuda}</b>
+        <small>${deuda>0 ? "entran más de las que se cierran" : "se cierra al ritmo que entra"}</small></div>
+      <div class="kpi"><span>Abiertas</span><b>${abiertas.length}</b>
+        <small>edad promedio ${abiertas.length?Math.round(abiertas.reduce((s,t)=>s+diasEntre(t.creado,h),0)/abiertas.length):0} día(s)</small></div>
+      <div class="kpi ${abiertas.filter(t=>estadoDe(t)==="vencida").length?"malo":"bueno"}">
+        <span>Vencidas</span><b>${abiertas.filter(t=>estadoDe(t)==="vencida").length}</b>
+        <small>abiertas con la fecha pasada</small></div>
+      <div class="kpi"><span>Aplazamientos</span>
+        <b>${TAREAS.reduce((s,t)=>s+nAplazos(t),0)}</b>
+        <small>en total, sobre ${TAREAS.length} pendiente(s)</small></div>
+    </div></div>
+
+    <div class="panel">
+      <div class="section-title"><div><h2>ENTRADAS CONTRA CIERRES</h2>
+        <span class="sub-sec">por semana · si la barra que entra es más alta, la reunión acumula deuda</span></div></div>
+      <div class="chart-box"><canvas id="cvEntradas"></canvas></div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <div class="section-title"><div><h2>CUMPLIMIENTO POR ÁREA</h2>
+          <span class="sub-sec">cerradas dentro de la fecha prometida, no de la aplazada</span></div></div>
+        <table class="simple">
+          <thead><tr><th>Área</th><th style="text-align:right;">En fecha</th>
+            <th style="text-align:right;">Abiertas</th><th style="text-align:right;">Edad</th></tr></thead>
+          <tbody>${filas.map(f=>`<tr>
+            <td>${esc(f.a)}</td>
+            <td class="num ${f.pct==null?"":f.pct>=80?"bien":f.pct<50?"mal":""}">${
+              f.pct==null ? "—" : f.pct.toFixed(0)+"%"}
+              <br><span style="font-weight:400;font-size:.72rem;color:var(--text-dim);">
+              ${f.enFecha}/${f.exigibles}</span></td>
+            <td class="num ${f.vencidas?"mal":""}">${f.abiertas}${
+              f.vencidas?`<br><span style="font-weight:400;font-size:.72rem;">${f.vencidas} vencida(s)</span>`:""}</td>
+            <td class="num">${f.abiertas? f.edad+" d" : "—"}</td></tr>`).join("")}
+          </tbody></table>
+      </div>
+      <div class="panel">
+        <div class="section-title"><div><h2>MÁQUINAS CON MÁS PENDIENTES</h2>
+          <span class="sub-sec">abiertos, de todas las áreas</span></div></div>
+        ${maqs.length ? `<table class="simple"><tbody>${maqs.map(([m,n])=>
+          `<tr><td>${esc(m)}</td><td class="num">${n}</td></tr>`).join("")}</tbody></table>`
+          : `<div class="empty">Ningún pendiente abierto tiene máquina anotada.</div>`}
+      </div>
+    </div>`;
+
+  if(typeof Chart === "undefined") return;
+  if(chEntradas){ chEntradas.destroy(); chEntradas = null; }
+  chEntradas = new Chart(document.getElementById("cvEntradas").getContext("2d"), {
+    type:"bar",
+    data:{labels: semanas.map(s=>fCorta(s)),
+      datasets:[
+        {label:"Entran", data:entran, backgroundColor:"#E2001A", borderWidth:0},
+        {label:"Se cierran", data:cierran, backgroundColor:"#15733f", borderWidth:0}]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:"bottom", labels:{boxWidth:10, font:{size:11}}}},
+      scales:{x:{grid:{display:false}, ticks:{font:{size:10}}},
+              y:{beginAtZero:true, ticks:{precision:0, font:{size:10}},
+                 title:{display:true, text:"pendientes"}}}}
+  });
+}
+
+
+/* ====================================================================
+   ATAJOS DE FECHA
+
+   La respuesta rápida es diaria, así que el primer atajo es la reunión de
+   mañana. Pero una reunión diaria no significa que todo se haga mañana:
+   cambiar un rodamiento toma una semana. Por eso la fecha NO viene puesta.
+   Un valor por defecto se queda tal cual en la mitad de los registros, y
+   entonces o todo aparece vencido al día siguiente (si el defecto era
+   mañana) o nada se revisa a tiempo (si era una semana). Elegirla cuesta un
+   toque y es el único dato que la reunión sí acuerda en voz alta.
+   ==================================================================== */
+function proximoHabil(desde, saltos){
+  /* El domingo no hay reunión; el sábado en planta sí se trabaja. */
+  let f = desde;
+  for(let i=0;i<saltos;i++){
+    do { f = sumarDias(f, 1); } while(new Date(f+"T12:00:00").getDay() === 0);
+  }
+  return f;
+}
+function viernesDeEstaSemana(){
+  const h = hoyISO();
+  const d = new Date(h+"T12:00:00").getDay();   // 0 dom … 5 vie
+  const faltan = (5 - (d===0?7:d));
+  return faltan > 0 ? sumarDias(h, faltan) : proximoHabil(h, 1);
+}
+function atajosFecha(){
+  /* Según el día de la semana, «en 3 días» y «esta semana» pueden caer en la
+     misma fecha: dos botones iguales solo gastan espacio. */
+  const crudos = [
+    {t:"Mañana",      f: proximoHabil(hoyISO(), 1)},
+    {t:"En 3 días",   f: proximoHabil(hoyISO(), 3)},
+    {t:"Esta semana", f: viernesDeEstaSemana()},
+    {t:"En 2 semanas",f: proximoHabil(hoyISO(), 12)}
+  ];
+  const vistos = new Set();
+  return crudos.filter(a=> !vistos.has(a.f) && vistos.add(a.f));
+}
+function pintarAtajos(){
+  document.querySelectorAll(".atajos").forEach(caja=>{
+    const campo = document.getElementById(caja.dataset.para);
+    caja.innerHTML = atajosFecha().map(a=>
+      `<button type="button" data-f="${a.f}"${campo && campo.value===a.f?' class="on"':''}>${
+        esc(a.t)} · ${fCorta(a.f)}</button>`).join("");
+  });
+}
+document.addEventListener("click", e=>{
+  const b = e.target.closest(".atajos button"); if(!b) return;
+  const caja = b.closest(".atajos");
+  const campo = document.getElementById(caja.dataset.para);
+  if(campo){ campo.value = b.dataset.f; }
+  caja.querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");
+});
+["nFecha","pFecha"].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener("change", pintarAtajos);
+});
+
+/* ====================================================================
+   ACTA DE LA REUNIÓN
+
+   Lo que se manda por correo al terminar. No es el listado completo: es lo
+   que PASÓ hoy —lo que entró, lo que se cerró, lo que se aplazó y con qué
+   excusa— y, al final, lo que sigue vencido. Esa última lista es la que
+   hace que la gente conteste el correo.
+   ==================================================================== */
+function generarActa(){
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert("No se pudo cargar el generador de PDF. Revisa la conexión y vuelve a intentar.");
+    return;
+  }
+  const h = hoyISO();
+  const doc = new window.jspdf.jsPDF({unit:"pt", format:"letter"});
+  const M = 48, ANCHO = 612 - M*2;
+  let y = M;
+
+  const nuevos   = TAREAS.filter(t=> t.creado === h);
+  const cerrados = TAREAS.filter(t=> t.cierre && t.cierre.fecha === h);
+  const movidos  = TAREAS.filter(t=> (t.aplazamientos||[]).some(a=> a.cuando === h));
+  const vencidos = TAREAS.filter(t=> !t.cierre && estadoDe(t) === "vencida")
+                         .sort((a,b)=> a.fechaCompromiso.localeCompare(b.fechaCompromiso));
+
+  function salto(alto){
+    if(y + alto > 792 - M){ doc.addPage(); y = M; }
+  }
+  function titulo(txt, n){
+    salto(40); y += 10;
+    doc.setFillColor(226,0,26); doc.rect(M, y, ANCHO, 20, "F");
+    doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(9.5);
+    doc.text(txt.toUpperCase() + (n!=null ? "   ("+n+")" : ""), M+8, y+14);
+    y += 30; doc.setTextColor(28,31,36);
+  }
+  function parrafo(txt, negrita, sangria){
+    doc.setFont("helvetica", negrita?"bold":"normal"); doc.setFontSize(9.5);
+    const lineas = doc.splitTextToSize(txt, ANCHO - (sangria||0));
+    salto(lineas.length*12 + 4);
+    doc.text(lineas, M + (sangria||0), y);
+    y += lineas.length*12 + 2;
+  }
+  function vacio(txt){
+    doc.setFont("helvetica","italic"); doc.setFontSize(9);
+    doc.setTextColor(107,114,128);
+    salto(16); doc.text(txt, M+8, y); y += 16;
+    doc.setTextColor(28,31,36);
+  }
+  function item(t, extra){
+    salto(34);
+    parrafo("• " + t.texto, true, 8);
+    const meta = [t.area, t.maquina, t.persona,
+                  "compromiso " + fCorta(t.fechaCompromiso)].filter(Boolean).join("  ·  ");
+    doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(107,114,128);
+    doc.text(meta, M+16, y); y += 12;
+    doc.setTextColor(28,31,36);
+    if(extra) parrafo(extra, false, 16);
+    y += 4;
+  }
+
+  /* Cabecera */
+  doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(226,0,26);
+  doc.text("Acta de respuesta rápida", M, y+4);
+  doc.setTextColor(28,31,36); doc.setFontSize(10); doc.setFont("helvetica","normal");
+  y += 22;
+  doc.text("Bellota Colombia S.A.S. · Manizales · " + fCorta(h) + " de " + h.slice(0,4), M, y);
+  y += 10;
+  doc.setDrawColor(227,229,233); doc.line(M, y, M+ANCHO, y);
+  y += 6;
+
+  titulo("Pendientes nuevos", nuevos.length);
+  nuevos.length ? nuevos.forEach(t=>item(t)) : vacio("Hoy no se abrió ningún pendiente.");
+
+  titulo("Cerrados hoy", cerrados.length);
+  cerrados.length
+    ? cerrados.forEach(t=> item(t, (t.cierre.resultado==="cumplida" ? "Cumplida: " : "Cancelada: ")
+        + t.cierre.observacion
+        + (t.cierre.resultado==="cumplida" && !cumplioEnFecha(t)
+            ? "  (fuera de la fecha prometida, " + fCorta(t.fechaOriginal) + ")" : "")))
+    : vacio("Hoy no se cerró ningún pendiente.");
+
+  titulo("Aplazados hoy", movidos.length);
+  movidos.length
+    ? movidos.forEach(t=>{
+        const a = (t.aplazamientos||[]).filter(x=>x.cuando===h).pop();
+        item(t, "De " + fCorta(a.de) + " a " + fCorta(a.a) + ". Motivo: " + a.motivo
+                + "   ·   van " + nAplazos(t) + " aplazamiento(s) sobre la fecha prometida "
+                + fCorta(t.fechaOriginal));
+      })
+    : vacio("Hoy no se aplazó nada.");
+
+  titulo("Siguen vencidos", vencidos.length);
+  vencidos.length
+    ? vencidos.forEach(t=> item(t, "Venció hace " + Math.abs(diasEntre(h, t.fechaCompromiso))
+        + " día(s)" + (nAplazos(t) ? "  ·  pospuesto " + nAplazos(t) + (nAplazos(t)===1?" vez":" veces") : "")))
+    : vacio("No hay pendientes vencidos. ");
+
+  /* Pie en todas las páginas */
+  const n = doc.internal.getNumberOfPages();
+  for(let i=1;i<=n;i++){
+    doc.setPage(i);
+    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(107,114,128);
+    doc.text("Respuesta Rápida · generada el " + fCorta(h) + " · página " + i + " de " + n,
+             M, 792 - 28);
+  }
+  doc.save("Acta respuesta rapida " + h + ".pdf");
+}
+
+/* ====================================================================
+   NAVEGACIÓN Y CABLEADO
+   ==================================================================== */
+const VISTAS = {
+  hoy:       {tab:"tabHoy",       view:"viewHoy",       render:renderHoy},
+  registrar: {tab:"tabRegistrar", view:"viewRegistrar", render:()=>document.getElementById("nTexto").focus()},
+  gantt:     {tab:"tabGantt",     view:"viewGantt",     render:renderGantt},
+  indic:     {tab:"tabIndic",     view:"viewIndic",     render:renderIndic}
+};
+function irAVista(k){
+  Object.values(VISTAS).forEach(v=>{
+    document.getElementById(v.view).style.display = "none";
+    document.getElementById(v.tab).classList.remove("active");
+  });
+  document.getElementById(VISTAS[k].view).style.display = "";
+  document.getElementById(VISTAS[k].tab).classList.add("active");
+  VISTAS[k].render();
+}
+Object.keys(VISTAS).forEach(k=>
+  document.getElementById(VISTAS[k].tab).addEventListener("click", ()=>irAVista(k)));
+
+document.getElementById("btnActa").addEventListener("click", generarActa);
+document.getElementById("btnGuardar").addEventListener("click", guardarNuevo);
+document.getElementById("nTexto").addEventListener("keydown", e=>{ if(e.key==="Enter") guardarNuevo(); });
+document.getElementById("btnMas").addEventListener("click", ()=>{
+  const c = document.getElementById("masCampos");
+  const ver = c.style.display === "none";
+  c.style.display = ver ? "" : "none";
+  document.getElementById("btnMas").textContent =
+    ver ? "− Ocultar los campos extra" : "+ Agregar máquina, tema y demás";
+});
+["fArea","fEstado"].forEach(id=>document.getElementById(id).addEventListener("change", renderHoy));
+document.getElementById("fTexto").addEventListener("input", renderHoy);
+["gArea","gVer"].forEach(id=>document.getElementById(id).addEventListener("change", renderGantt));
+
+/* Un solo oyente para toda la lista: las filas se redibujan enteras y
+   colgarles un oyente a cada botón los iría acumulando. */
+document.addEventListener("click", e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  if(b.dataset.cerrar)   return cerrarModal(b.dataset.cerrar);
+  if(b.dataset.posponer) return pedirPosponer(b.dataset.posponer);
+  if(b.dataset.cancelar) return pedirCancelar(b.dataset.cancelar);
+  if(b.dataset["cerrarT"]) return pedirCerrar(b.dataset["cerrarT"]);
+  if(b.dataset.reabrir)  return reabrir(b.dataset.reabrir);
+  if(b.dataset.ver)      return verDetalle(b.dataset.ver);
+});
+document.getElementById("okPosponer").addEventListener("click", hacerPosponer);
+document.getElementById("okCerrar").addEventListener("click", hacerCerrar);
+document.getElementById("okCancelar").addEventListener("click", hacerCancelar);
+document.querySelectorAll(".modal").forEach(m=>
+  m.addEventListener("click", e=>{ if(e.target===m) m.classList.remove("abierto"); }));
+
+cargar();
+montarRegistrar();
+pintarAtajos();
+renderHoy();
+</script>
+</body>
+</html>
