@@ -168,6 +168,53 @@
   .pr-fila .nm{flex:1 1 auto;font-weight:600;}
   .pr-fila b{font-size:1rem;color:var(--c);}
 
+  /* ---- MÁQUINAS CON PENDIENTES ----
+     La dona dice cuántos equipos hay en cada banda; la tabla, cuáles. La
+     cabecera oscura separa los encabezados de las filas de color, que si no
+     se confunden con una fila más. */
+  #cajaMaquinas{padding:0;overflow:hidden;}
+  .maq-cab{display:flex;align-items:center;gap:13px;padding:16px 20px;
+    border-bottom:1px solid var(--border);}
+  .maq-ic{width:42px;height:42px;flex:0 0 42px;border-radius:11px;background:var(--red);
+    color:#fff;display:flex;align-items:center;justify-content:center;}
+  .maq-ic svg{width:22px;height:22px;}
+  .maq-cab b{display:block;font-size:1.02rem;}
+  .maq-cab>div>span{font-size:.77rem;color:var(--text-dim);}
+  .pastilla-urg,.pastilla-ok{margin-left:auto;border-radius:999px;padding:7px 15px;
+    font-size:.8rem;font-weight:800;white-space:nowrap;}
+  .pastilla-urg{background:var(--bad-bg);color:var(--bad);border:1px solid #f3c2c2;}
+  .pastilla-ok{background:var(--ok-bg);color:var(--ok);border:1px solid #bfe6cf;}
+
+  .maq-cuerpo{display:flex;gap:22px;align-items:center;padding:18px 20px;flex-wrap:wrap;}
+  .maq-dona{display:flex;align-items:center;gap:16px;flex:0 0 auto;}
+  .maq-leyenda{display:flex;flex-direction:column;gap:9px;font-size:.82rem;color:var(--text-dim);}
+  .maq-leyenda span{display:flex;align-items:center;gap:8px;white-space:nowrap;}
+  .maq-leyenda i{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none;}
+  .maq-leyenda b{color:var(--c);}
+
+  .maq-tabla-caja{flex:1 1 440px;min-width:0;overflow-x:auto;border-radius:10px;
+    border:1px solid var(--border);}
+  .maq-tabla{width:100%;border-collapse:collapse;font-size:.82rem;}
+  .maq-tabla thead th{background:#262b31;color:#fff;font-size:.68rem;font-weight:700;
+    letter-spacing:.04em;text-transform:uppercase;text-align:left;padding:10px 12px;
+    white-space:nowrap;}
+  .maq-tabla td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  .maq-tabla tr:last-child td{border-bottom:none;}
+  .maq-tabla tr.b-urgente td{background:var(--bad-bg);}
+  .maq-tabla tr.b-seguimiento td{background:var(--warn-bg);}
+  .maq-tabla tr.b-aldia td{background:var(--ok-bg);}
+  .maq-tabla .mi{display:inline-flex;vertical-align:-3px;margin-right:6px;}
+  .maq-tabla .mi svg{width:15px;height:15px;}
+  .maq-tabla td.nom{font-weight:700;white-space:nowrap;}
+  .maq-tabla td.dias{font-weight:800;white-space:nowrap;}
+  .maq-tabla td.pend{white-space:nowrap;color:var(--text-dim);}
+  .maq-tabla td.pend em{font-style:normal;display:block;font-size:.7rem;margin-left:21px;}
+  .maq-tabla td.viejo{color:var(--text-dim);max-width:1px;width:34%;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .maq-tabla td.estado{text-align:right;white-space:nowrap;}
+  .maq-tabla .sello{display:inline-block;color:#fff;border-radius:7px;padding:4px 11px;
+    font-size:.68rem;font-weight:800;letter-spacing:.03em;}
+
   .barra-filtros{display:flex;gap:14px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;}
   .barra-filtros .filtros{flex:1 1 auto;}
   .conmutador{display:flex;background:#eef0f3;border-radius:9px;padding:3px;flex:0 0 auto;}
@@ -701,7 +748,7 @@
       son un problema mal planteado que hay que volver a discutir.
    ====================================================================== */
 
-const APP_VERSION = "2026-11-25-kanban";
+const APP_VERSION = "2026-11-25-maqpanel";
 
 /* Las ocho áreas de la respuesta rápida. El orden es el de la reunión. */
 const AREAS = ["Producción","Mantenimiento","Calidad","Planeación",
@@ -895,10 +942,25 @@ function maquinasPendientes(){
                               dias:0, masViejo:null, linea:t.linea||""};
     g.abiertos++;
     if(estadoDe(t) === "vencida") g.vencidos++;
+    /* Sin el «o si no hay ninguno», una máquina cuyo único pendiente se abrió
+       hoy —edad 0— se quedaba sin texto, porque 0 nunca es mayor que 0. */
     const edad = diasEntre(t.creado, h);
-    if(edad > g.dias){ g.dias = edad; g.masViejo = t; }
+    if(!g.masViejo || edad > g.dias){ g.dias = Math.max(g.dias, edad); g.masViejo = t; }
   });
   return Object.values(m).sort((a,b)=> b.dias - a.dias || b.abiertos - a.abiertos);
+}
+
+/* Tres bandas, no dos. Una máquina con algo abierto desde ayer no es urgente
+   todavía, pero tampoco está al día: nombrarla «en seguimiento» es lo que
+   evita que llegue al rojo sin que nadie la haya mirado. */
+const BANDAS = {
+  urgente:     {t:"Urgentes",       c:"#e2001a", sello:"URGENTE"},
+  seguimiento: {t:"En seguimiento", c:"#f2b90b", sello:"SEGUIMIENTO"},
+  aldia:       {t:"Al día",         c:"#1f9d55", sello:"AL DÍA"}
+};
+function bandaDe(dias){
+  if(dias >= DIAS_MAQUINA_URGENTE) return "urgente";
+  return dias > 0 ? "seguimiento" : "aldia";
 }
 
 function repartoPorArea(){
@@ -1021,7 +1083,7 @@ function filaTarea(t){
   </div>`;
 }
 
-let chEstado = null;
+let chEstado = null, chMaquinas = null;
 function renderHoy(){
   const h = hoyISO();
   const abiertas = TAREAS.filter(t=>!t.cierre);
@@ -1096,29 +1158,57 @@ function renderHoy(){
       <span class="pt"></span><span class="nm">${x.p}</span><b>${x.n}</b></div>`).join("")}`;
 
   /* --- Máquinas --- */
-  const maqs = maquinasPendientes();
-  const urgentes = maqs.filter(m=> m.dias >= DIAS_MAQUINA_URGENTE);
+  const maqs = maquinasPendientes().map(m=> Object.assign({}, m, {banda: bandaDe(m.dias)}));
+  const cuenta = k => maqs.filter(m=>m.banda===k).length;
+  const ordenB = {urgente:0, seguimiento:1, aldia:2};
+  maqs.sort((a,b)=> ordenB[a.banda]-ordenB[b.banda] || b.dias-a.dias);
   const caja = document.getElementById("cajaMaquinas");
   caja.style.display = maqs.length ? "" : "none";
+  const IC_MAQ = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+    stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="10" rx="2"/>
+    <path d="M7 8V6h7l3 2"/><circle cx="7.5" cy="18.5" r="1.6"/><circle cx="16.5" cy="18.5" r="1.6"/></svg>`;
+  const IC_CAL = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+    stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/>
+    <path d="M3.5 9.5h17M8 3.5v3M16 3.5v3"/></svg>`;
+  const IC_DOC = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+    stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h8l4 4v13H6z"/>
+    <path d="M14 3.5v4h4M9 12h6M9 15.5h4"/></svg>`;
+
   if(maqs.length) caja.innerHTML = `
-    <div class="section-title"><div>
-      <h2>MÁQUINAS CON PENDIENTES</h2>
-      <span class="sub-sec">en rojo, las que llevan ${DIAS_MAQUINA_URGENTE} días o más
-        con algo sin resolver</span></div>
-      ${urgentes.length ? `<span class="chip urg" style="margin-left:auto;">${
-        urgentes.length} urgente${urgentes.length===1?"":"s"}</span>` : ""}</div>
-    <table class="simple tmaq"><thead><tr>
-      <th>Máquina</th><th>Lleva</th><th>Abiertos</th><th>El más viejo</th><th></th>
-    </tr></thead><tbody>
-    ${urgentes.concat(maqs.filter(m=>m.dias<DIAS_MAQUINA_URGENTE)).map(m=>`
-      <tr class="${m.dias>=DIAS_MAQUINA_URGENTE?"urg":""}">
-        <td><b>${esc(m.maquina)}</b>${m.linea?`<br><span class="sutil">${esc(m.linea)}</span>`:""}</td>
-        <td class="num">${m.dias} día${m.dias===1?"":"s"}</td>
-        <td class="num">${m.abiertos}${m.vencidos?`<br><span class="sutil">${m.vencidos} vencido(s)</span>`:""}</td>
-        <td class="viejo">${esc(m.masViejo ? m.masViejo.texto : "—")}</td>
-        <td class="num">${m.dias>=DIAS_MAQUINA_URGENTE
-            ? `<span class="chip urg">URGENTE</span>` : ""}</td></tr>`).join("")}
-    </tbody></table>`;
+    <div class="maq-cab">
+      <span class="maq-ic">${IC_MAQ}</span>
+      <div><b>Máquinas con pendientes</b>
+        <span>En rojo, las que llevan ${DIAS_MAQUINA_URGENTE} días o más sin resolver</span></div>
+      ${cuenta("urgente") ? `<span class="pastilla-urg">&#9888; ${cuenta("urgente")} urgente${
+        cuenta("urgente")===1?"":"s"}</span>` : `<span class="pastilla-ok">&#10003; ninguna urgente</span>`}
+    </div>
+    <div class="maq-cuerpo">
+      <div class="maq-dona">
+        <div class="dona"><canvas id="cvMaquinas"></canvas>
+          <div class="dona-centro"><b>${maqs.length}</b><span>máquina${maqs.length===1?"":"s"}</span></div></div>
+        <div class="maq-leyenda">${Object.keys(BANDAS).map(k=>
+          `<span style="--c:${BANDAS[k].c}"><i></i>${BANDAS[k].t}: <b>${cuenta(k)}</b></span>`).join("")}</div>
+      </div>
+      <div class="maq-tabla-caja">
+        <table class="maq-tabla"><thead><tr>
+          <th>Máquina</th><th>Línea</th><th>Días sin resolver</th>
+          <th>Pendientes</th><th>Más antiguo</th><th>Estado</th>
+        </tr></thead><tbody>
+        ${maqs.map(m=>{
+          const B = BANDAS[m.banda];
+          return `<tr class="b-${m.banda}">
+            <td class="nom"><span class="mi" style="color:${B.c}">${IC_MAQ}</span>${esc(m.maquina)}</td>
+            <td>${m.linea?`<span class="chip">${esc(m.linea)}</span>`:"—"}</td>
+            <td class="dias" style="color:${B.c}"><span class="mi">${IC_CAL}</span>${m.dias} día${m.dias===1?"":"s"}</td>
+            <td class="pend"><span class="mi">${IC_DOC}</span>${m.abiertos}${
+              m.vencidos?`<em>(${m.vencidos} vencido${m.vencidos===1?"":"s"})</em>`:""}</td>
+            <td class="viejo">${esc(m.masViejo ? m.masViejo.texto : "—")}</td>
+            <td class="estado"><span class="sello" style="background:${B.c}">${B.sello}</span></td>
+          </tr>`;
+        }).join("")}
+        </tbody></table>
+      </div>
+    </div>`;
 
   /* --- Kanban o lista --- */
   const lista = tareasFiltradas();
@@ -1139,8 +1229,18 @@ function renderHoy(){
       : `<div class="panel"><div class="empty">No hay pendientes con ese filtro.</div></div>`;
   }
 
-  /* La dona se dibuja al final, cuando su lienzo ya está en la página. */
+  /* Las donas se dibujan al final, cuando su lienzo ya está en la página. */
   if(typeof Chart !== "undefined"){
+    if(chMaquinas){ chMaquinas.destroy(); chMaquinas = null; }
+    const cvM = document.getElementById("cvMaquinas");
+    if(cvM) chMaquinas = new Chart(cvM.getContext("2d"), {
+      type:"doughnut",
+      data:{labels:Object.keys(BANDAS).map(k=>BANDAS[k].t),
+        datasets:[{data:Object.keys(BANDAS).map(cuenta),
+                   backgroundColor:Object.keys(BANDAS).map(k=>BANDAS[k].c),
+                   borderWidth:0, cutout:"74%"}]},
+      options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}}
+    });
     if(chEstado){ chEstado.destroy(); chEstado = null; }
     const cv = document.getElementById("cvEstado");
     if(cv) chEstado = new Chart(cv.getContext("2d"), {
