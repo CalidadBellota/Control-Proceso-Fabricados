@@ -226,43 +226,86 @@
      Las columnas son ETAPAS, que alguien mueve a mano. El borde de la tarjeta
      es el VENCIMIENTO, que se calcula: por eso una tarjeta puede estar en
      proceso y roja a la vez, que es justo lo que hay que ver. */
-  .kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:start;}
-  @media(max-width:1100px){.kanban{grid-template-columns:repeat(2,1fr);}}
-  @media(max-width:620px){.kanban{grid-template-columns:1fr;}}
-  .kcol{background:color-mix(in srgb, var(--c) 6%, #fff);
-    border:1px solid color-mix(in srgb, var(--c) 22%, var(--border));
-    border-radius:var(--radius);padding:12px;}
-  .kcol-cab{display:flex;align-items:center;gap:8px;font-size:.82rem;font-weight:800;
-    margin-bottom:11px;color:var(--text);}
-  .kcol-cab .pt{width:9px;height:9px;border-radius:50%;background:var(--c);flex:none;}
-  .kcol-cab .kn{margin-left:auto;background:#fff;border:1px solid var(--border);
-    border-radius:999px;padding:1px 9px;font-size:.72rem;color:var(--text-dim);}
-  .kcol-body{display:flex;flex-direction:column;gap:9px;}
-  .kvacio{font-size:.76rem;color:var(--text-dim);text-align:center;padding:16px 0;}
+  .kan-cab{display:flex;align-items:center;gap:13px;margin:6px 0 16px;}
+  .kan-ic{width:42px;height:42px;flex:0 0 42px;border-radius:11px;background:#eef0f3;
+    color:var(--text);display:flex;align-items:center;justify-content:center;}
+  .kan-ic svg{width:22px;height:22px;}
+  .kan-cab b{display:block;font-size:1.08rem;}
+  .kan-cab>div>span{font-size:.78rem;color:var(--text-dim);}
+  .kan-ojo{margin-left:auto;display:inline-flex;align-items:center;gap:8px;cursor:pointer;
+    border:1px solid var(--border);background:#fff;color:var(--text-dim);border-radius:999px;
+    padding:9px 16px;font-family:inherit;font-size:.82rem;font-weight:700;}
+  .kan-ojo svg{width:17px;height:17px;}
+  .kan-ojo.on{background:var(--ok-bg);border-color:#bfe6cf;color:var(--ok);}
+
+  .kanban{display:grid;gap:14px;align-items:start;}
+  .kanban.n-4{grid-template-columns:repeat(4,1fr);}
+  .kanban.n-3{grid-template-columns:repeat(3,1fr);}
+  @media(max-width:1100px){.kanban.n-4,.kanban.n-3{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:620px){.kanban.n-4,.kanban.n-3{grid-template-columns:1fr;}}
+  .kcol{background:color-mix(in srgb, var(--c) 5%, #fff);
+    border:1px solid color-mix(in srgb, var(--c) 18%, var(--border));
+    border-radius:var(--radius);padding:0 0 12px;overflow:hidden;}
+  /* Cabecera maciza de color: a dos metros, en la pantalla de la sala, se
+     distingue la columna sin leer el texto. */
+  .kcol-cab{display:flex;align-items:center;gap:11px;background:var(--c);color:#fff;
+    padding:13px 15px;margin-bottom:12px;}
+  .kcol-ic{width:26px;height:26px;flex:0 0 26px;display:flex;align-items:center;justify-content:center;}
+  .kcol-ic svg{width:21px;height:21px;}
+  .kcol-cab b{display:block;font-size:1rem;font-weight:800;line-height:1.15;}
+  .kcol-cab>div>span{font-size:.72rem;opacity:.9;}
+  .kcol-cab .kn{margin-left:auto;background:#fff;color:var(--c);border-radius:999px;
+    min-width:28px;text-align:center;padding:2px 9px;font-size:.82rem;font-weight:800;}
+  .kcol-body{display:flex;flex-direction:column;gap:10px;padding:0 12px;}
+  .kvacio{font-size:.76rem;color:var(--text-dim);text-align:center;padding:18px 0;}
 
   .kcard{background:#fff;border:1px solid var(--border);border-left:4px solid var(--border);
-    border-radius:10px;padding:11px 12px;}
+    border-radius:10px;padding:12px 13px;box-shadow:0 1px 2px rgba(0,0,0,.04);}
   .kcard.u-vencida{border-left-color:var(--bad);}
   .kcard.u-hoy,.kcard.u-porvencer{border-left-color:var(--warn);}
   .kcard.u-entiempo{border-left-color:#2d7ff9;}
   .kcard.u-cerrada{border-left-color:var(--ok);}
   .kcard.u-cancelada{border-left-color:var(--text-dim);opacity:.65;}
   .kcard-top{display:flex;gap:6px;align-items:flex-start;}
-  .kcard-tit{flex:1 1 auto;font-size:.84rem;font-weight:600;line-height:1.35;}
+  .kcard-tit{flex:1 1 auto;font-size:.88rem;font-weight:700;line-height:1.35;}
   .kmenu{border:none;background:none;cursor:pointer;color:var(--text-dim);
-    font-size:1rem;line-height:1;padding:0 2px;font-family:inherit;}
-  .kchips{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;}
-  .kchips .chip{font-size:.66rem;padding:2px 8px;}
-  .kpie{display:flex;justify-content:space-between;gap:8px;margin-top:9px;
-    font-size:.71rem;color:var(--text-dim);}
-  .kfecha.vencida{color:var(--bad);font-weight:700;}
-  .kfecha.hoy{color:var(--warn-text);font-weight:700;}
-  .kacc{display:flex;gap:5px;margin-top:10px;border-top:1px solid var(--border);padding-top:9px;}
-  .mini{border:1px solid var(--border);background:#fff;border-radius:7px;padding:5px 9px;
-    font-family:inherit;font-size:.71rem;font-weight:700;cursor:pointer;color:var(--text-dim);}
-  .mini:hover{border-color:var(--red);color:var(--red);}
-  .mini.av{margin-left:auto;}
-  .mini.ok{margin-left:auto;border-color:var(--ok);color:var(--ok);}
+    font-size:1.05rem;line-height:1;padding:0 2px;font-family:inherit;}
+  .kchips{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px;}
+  .kchips .chip{font-size:.68rem;padding:3px 9px;}
+
+  .kdato{display:flex;align-items:center;gap:6px;margin-top:11px;
+    font-size:.75rem;color:var(--text-dim);}
+  .kdato svg{width:14px;height:14px;flex:none;}
+  .kdato b{color:var(--text);}
+  .kdato-der{margin-left:auto;}
+  .kdato.vencida,.kdato-der.vencida{color:var(--bad);font-weight:700;}
+  .kdato.hoy,.kdato-der.hoy,.kdato.porvencer,.kdato-der.porvencer{color:var(--warn-text);font-weight:700;}
+
+  .kbar{height:7px;border-radius:999px;background:#e9ecef;margin-top:7px;overflow:hidden;}
+  .kbar i{display:block;height:100%;background:#2d7ff9;border-radius:999px;transition:width .15s;}
+  /* El deslizador va justo sobre la barra y casi invisible: se arrastra con el
+     dedo sin ocupar una fila más en una tarjeta que ya está llena. */
+  .kslider{-webkit-appearance:none;appearance:none;width:100%;height:18px;margin:-13px 0 0;
+    background:transparent;position:relative;cursor:pointer;}
+  .kslider::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+    background:#fff;border:2.5px solid #2d7ff9;box-shadow:0 1px 3px rgba(0,0,0,.25);}
+  .kslider::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:#fff;
+    border:2.5px solid #2d7ff9;box-shadow:0 1px 3px rgba(0,0,0,.25);}
+  .kslider:focus{outline:none;}
+
+  .kfila{display:flex;gap:7px;align-items:center;margin-top:11px;}
+  .kbtn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    border:1px solid var(--border);background:#fff;border-radius:8px;padding:8px 12px;
+    font-family:inherit;font-size:.76rem;font-weight:700;cursor:pointer;color:var(--text-dim);
+    white-space:nowrap;min-height:36px;}
+  .kbtn svg{width:14px;height:14px;}
+  .kbtn:hover{border-color:var(--red);color:var(--red);}
+  .kbtn.ancho{flex:1 1 auto;}
+  .kbtn.borde-rojo{margin-left:auto;border-color:#f3c2c2;color:var(--red);background:#fff;}
+  .kbtn.borde-rojo:hover{background:var(--red);color:#fff;border-color:var(--red);}
+  .kbtn.verde{background:var(--ok);border-color:var(--ok);color:#fff;}
+  .kbtn.verde:hover{background:#17804a;border-color:#17804a;color:#fff;}
+
   .chip.etapa{background:color-mix(in srgb, var(--c) 14%, #fff);color:var(--c);}
 
   .filtros{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
@@ -748,7 +791,7 @@
       son un problema mal planteado que hay que volver a discutir.
    ====================================================================== */
 
-const APP_VERSION = "2026-11-25-maqpanel";
+const APP_VERSION = "2026-11-25-tablero2";
 
 /* Las ocho áreas de la respuesta rápida. El orden es el de la reunión. */
 const AREAS = ["Producción","Mantenimiento","Calidad","Planeación",
@@ -905,11 +948,27 @@ function demo(){
    tarjeta es del vencimiento. Son dos preguntas y se contestan aparte.
    ==================================================================== */
 const ETAPAS = [
-  {k:"porhacer",  t:"Por hacer",     c:"#e2001a"},
-  {k:"enproceso", t:"En proceso",    c:"#f2b90b"},
-  {k:"validacion",t:"En validación", c:"#2d7ff9"},
-  {k:"completadas",t:"Completadas",  c:"#1f9d55"}
+  {k:"porhacer",   t:"Por hacer",     c:"#e2001a", sub:"Pendientes por iniciar",
+   ic:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+     stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/>
+     <path d="M9 3h6v3H9zM9 11h6M9 15h4"/></svg>`},
+  {k:"enproceso",  t:"En proceso",    c:"#ef9a00", sub:"En ejecución",
+   ic:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+     stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/>
+     <path d="M12 3.5v2.2M12 18.3v2.2M20.5 12h-2.2M5.7 12H3.5M18 6l-1.6 1.6M7.6 16.4 6 18M18 18l-1.6-1.6M7.6 7.6 6 6"/></svg>`},
+  {k:"validacion", t:"En validación", c:"#1366e0", sub:"En revisión o con evidencias",
+   ic:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+     stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>`},
+  {k:"completadas",t:"Completadas",   c:"#1f9d55", sub:"Cerradas y canceladas",
+   ic:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+     stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/>
+     <path d="M8.5 12.3l2.5 2.5 4.5-5"/></svg>`}
 ];
+/* El tablero abre con las tres columnas vivas. Lo completado no es trabajo
+   pendiente: ocupa un cuarto del ancho para contar lo que ya no hay que
+   discutir, y en la reunión lo que importa es lo que falta. Queda a un toque
+   del botón para cuando alguien pregunte qué se cerró. */
+let VER_COMPLETADAS = false;
 function etapaDe(t){
   if(t.cierre) return t.cierre.resultado === "cancelada" ? "cancelada" : "completadas";
   return t.etapa || "porhacer";
@@ -917,7 +976,24 @@ function etapaDe(t){
 function moverEtapa(id, hacia){
   const t = porId(id); if(!t || t.cierre) return;
   t.etapa = hacia;
+  /* Al entrar a proceso se abre el avance; al entrar a validación se marca
+     desde cuándo lleva ahí, que es el dato que delata lo que se atasca
+     esperando que alguien lo revise. */
+  if(hacia === "enproceso" && t.avance == null) t.avance = 10;
+  if(hacia === "validacion") t.desdeValidacion = hoyISO();
+  if(hacia === "porhacer"){ t.avance = null; t.desdeValidacion = null; }
   guardar(); renderHoy();
+}
+function fijarAvance(id, v){
+  const t = porId(id); if(!t || t.cierre) return;
+  t.avance = Math.max(0, Math.min(100, Number(v)||0));
+  guardar();
+  /* Se repinta solo el número y la barra: redibujar el tablero entero en cada
+     arrastre del control haría saltar la tarjeta bajo el dedo. */
+  const c = document.querySelector(`[data-avance="${id}"]`);
+  if(c){ const t2 = c.closest(".kcard");
+    t2.querySelector(".kpct").textContent = t.avance + "%";
+    t2.querySelector(".kbar i").style.width = t.avance + "%"; }
 }
 
 /* ====================================================================
@@ -1023,13 +1099,22 @@ function textoVence(t){
   return d < 0 ? "venció hace "+Math.abs(d)+" d" : d === 0 ? "vence hoy" : fCorta(t.fechaCompromiso);
 }
 
-/* ---- tarjeta del kanban ---- */
+/* ---- tarjeta del kanban ----
+   Cada columna tiene su propio pie, porque lo que se hace con una tarjeta
+   depende de dónde está: la que no ha empezado se inicia, la que va en camino
+   se manda a validar, y la que está en validación se cierra o se devuelve. Un
+   botón genérico de «avanzar» obliga a recordar qué sigue. */
+const IC_CAL_K = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+  stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/>
+  <path d="M3.5 9.5h17M8 3.5v3M16 3.5v3"/></svg>`;
+const IC_RELOJ_K = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+  stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>`;
+
 function tarjetaKanban(t){
   const u = urgenciaDe(t);
+  const et = etapaDe(t);
   const ap = nAplazos(t);
-  const sig = ETAPAS.findIndex(e=>e.k===etapaDe(t));
-  return `<div class="kcard u-${u}">
-    <div class="kcard-top">
+  const cab = `<div class="kcard-top">
       <div class="kcard-tit">${esc(t.texto)}</div>
       <button class="kmenu" data-ver="${t.id}" title="Ver detalle">&#8942;</button>
     </div>
@@ -1038,18 +1123,49 @@ function tarjetaKanban(t){
       <span class="chip p-${esc(String(t.prioridad||"Media").toLowerCase())}">${esc(t.prioridad||"Media")}</span>
       ${t.maquina?`<span class="chip">${esc(t.maquina)}</span>`:""}
       ${ap?`<span class="chip pospuesta">${ap}&#215; pospuesta</span>`:""}
-    </div>
-    <div class="kpie">
-      <span class="kfecha ${u}">${textoVence(t)}</span>
-      <span class="kquien">${esc(t.persona||"—")}</span>
-    </div>
-    ${t.cierre ? "" : `<div class="kacc">
-      ${sig > 0 ? `<button class="mini" data-etapa="${t.id}|${ETAPAS[sig-1].k}" title="Devolver">&#8592;</button>` : ""}
-      <button class="mini" data-posponer="${t.id}">Posponer</button>
-      ${sig < 2 ? `<button class="mini av" data-etapa="${t.id}|${ETAPAS[sig+1].k}" title="Avanzar">&#8594;</button>`
-                : `<button class="mini ok" data-cerrar-t="${t.id}">Cerrar</button>`}
-    </div>`}
-  </div>`;
+    </div>`;
+
+  let pie = "";
+  if(et === "porhacer"){
+    pie = `<div class="kfila">
+        <span class="kdato ${u}">${IC_CAL_K}${esc(textoVence(t))}</span>
+        <button class="kbtn borde-rojo" data-etapa="${t.id}|enproceso">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5l11 7-11 7z"/></svg>Iniciar</button>
+      </div>`;
+  } else if(et === "enproceso"){
+    const av = t.avance == null ? 0 : t.avance;
+    pie = `<div class="kdato">${IC_RELOJ_K}En proceso · <b class="kpct">${av}%</b>
+        <span class="kdato-der ${u}">${esc(textoVence(t))}</span></div>
+      <div class="kbar"><i style="width:${av}%"></i></div>
+      <input type="range" class="kslider" min="0" max="100" step="10" value="${av}"
+             data-avance="${t.id}" aria-label="Avance">
+      <div class="kfila">
+        <button class="kbtn" data-etapa="${t.id}|porhacer" title="Devolver">&#8592;</button>
+        <button class="kbtn ancho" data-etapa="${t.id}|validacion">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h14M13 7l5 5-5 5"/></svg>
+          Enviar a validación</button>
+      </div>`;
+  } else if(et === "validacion"){
+    pie = `<div class="kdato">${IC_CAL_K}En validación desde ${fCorta(t.desdeValidacion || t.creado)}
+        <span class="kdato-der ${u}">${esc(textoVence(t))}</span></div>
+      <div class="kfila">
+        <button class="kbtn" data-etapa="${t.id}|enproceso">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H6M11 7l-5 5 5 5"/></svg>
+          Regresar</button>
+        <button class="kbtn verde ancho" data-cerrar-t="${t.id}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>
+          Cerrar</button>
+      </div>`;
+  } else {
+    pie = `<div class="kfila">
+        <span class="kdato ${u}">${IC_CAL_K}${esc(textoVence(t))}</span>
+        <button class="kbtn" data-reabrir="${t.id}">Reabrir</button>
+      </div>`;
+  }
+  return `<div class="kcard u-${u}">${cab}${pie}</div>`;
 }
 
 function filaTarea(t){
@@ -1214,15 +1330,35 @@ function renderHoy(){
   const lista = tareasFiltradas();
   const box = document.getElementById("listaPend");
   if(VISTA_PEND === "kanban"){
-    box.innerHTML = `<div class="kanban">${ETAPAS.map(e=>{
-      const ts = lista.filter(t=> etapaDe(t) === e.k);
-      return `<div class="kcol" style="--c:${e.c}">
-        <div class="kcol-cab"><span class="pt"></span>${esc(e.t)}
-          <span class="kn">${ts.length}</span></div>
-        <div class="kcol-body">${ts.length
-          ? ts.map(tarjetaKanban).join("")
-          : `<div class="kvacio">Nada aquí</div>`}</div></div>`;
-    }).join("")}</div>`;
+    const cols = ETAPAS.filter(e=> e.k !== "completadas" || VER_COMPLETADAS);
+    const nComp = lista.filter(t=> etapaDe(t) === "completadas").length;
+    box.innerHTML = `
+      <div class="kan-cab">
+        <span class="kan-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 11h6M9 15h4"/></svg></span>
+        <div><b>Seguimiento de actividades</b>
+          <span>Compromisos y acciones de la reunión</span></div>
+        <button class="kan-ojo ${VER_COMPLETADAS?"on":""}" id="verComp">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round"><path d="M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/>
+            <circle cx="12" cy="12" r="2.6"/></svg>
+          ${VER_COMPLETADAS ? "Ocultar" : "Ver"} completadas (${nComp})</button>
+      </div>
+      <div class="kanban n-${cols.length}">${cols.map(e=>{
+        const ts = lista.filter(t=> etapaDe(t) === e.k);
+        return `<div class="kcol" style="--c:${e.c}">
+          <div class="kcol-cab">
+            <span class="kcol-ic">${e.ic}</span>
+            <div><b>${esc(e.t)}</b><span>${esc(e.sub)}</span></div>
+            <span class="kn">${ts.length}</span>
+          </div>
+          <div class="kcol-body">${ts.length
+            ? ts.map(tarjetaKanban).join("")
+            : `<div class="kvacio">Nada aquí</div>`}</div></div>`;
+      }).join("")}</div>`;
+    const bo = document.getElementById("verComp");
+    if(bo) bo.addEventListener("click", ()=>{ VER_COMPLETADAS = !VER_COMPLETADAS; renderHoy(); });
   } else {
     box.innerHTML = lista.length
       ? lista.map(filaTarea).join("")
@@ -1929,6 +2065,10 @@ document.addEventListener("change", e=>{
   const t = porId(sel.dataset.id); if(!t) return;
   t.prioridad = sel.value;
   guardar(); renderHoy();
+});
+document.addEventListener("input", e=>{
+  const sl = e.target.closest(".kslider"); if(!sl) return;
+  fijarAvance(sl.dataset.avance, sl.value);
 });
 document.getElementById("okPosponer").addEventListener("click", hacerPosponer);
 document.getElementById("okCerrar").addEventListener("click", hacerCerrar);
