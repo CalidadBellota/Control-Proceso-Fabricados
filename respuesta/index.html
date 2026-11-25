@@ -135,6 +135,89 @@
   .barra-fila .pista i.mal{background:var(--bad);}
   .barra-fila .val{flex:0 0 28px;text-align:right;font-weight:700;}
 
+  /* ---- panel de mando de pendientes ---- */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+  @media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr);}}
+  .kpi-ic{background:#fff;border:1px solid var(--border);border-radius:var(--radius);
+    padding:14px 16px;display:flex;align-items:center;gap:13px;}
+  .kpi-ic .ic-box{width:40px;height:40px;flex:0 0 40px;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;}
+  .kpi-ic .ic-box svg{width:21px;height:21px;}
+  .kpi-ic span{font-size:.74rem;color:var(--text-dim);font-weight:600;display:block;}
+  .kpi-ic b{display:block;font-size:1.7rem;font-weight:800;line-height:1.1;}
+  .kpi-ic small{display:block;font-size:.68rem;color:var(--text-dim);}
+
+  .grid-tres{display:grid;grid-template-columns:1fr 1.2fr .8fr;gap:16px;}
+  @media(max-width:1050px){.grid-tres{grid-template-columns:1fr;}}
+
+  .dona-fila{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+  .dona{position:relative;width:130px;height:130px;flex:0 0 130px;}
+  .dona-centro{position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;pointer-events:none;}
+  .dona-centro b{font-size:1.4rem;font-weight:800;line-height:1;}
+  .dona-centro span{font-size:.66rem;color:var(--text-dim);}
+  .dona-leyenda{display:flex;flex-direction:column;gap:7px;font-size:.78rem;}
+  .dona-leyenda span{display:flex;align-items:center;gap:7px;color:var(--text-dim);}
+  .dona-leyenda i{width:9px;height:9px;border-radius:50%;flex:none;}
+  .dona-leyenda b{color:var(--text);margin-left:auto;padding-left:10px;}
+  .dona-leyenda em{font-style:normal;font-size:.72rem;width:34px;text-align:right;}
+
+  .pr-fila{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;
+    margin-bottom:8px;background:color-mix(in srgb, var(--c) 9%, #fff);font-size:.84rem;}
+  .pr-fila .pt{width:9px;height:9px;border-radius:50%;background:var(--c);flex:none;}
+  .pr-fila .nm{flex:1 1 auto;font-weight:600;}
+  .pr-fila b{font-size:1rem;color:var(--c);}
+
+  .barra-filtros{display:flex;gap:14px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;}
+  .barra-filtros .filtros{flex:1 1 auto;}
+  .conmutador{display:flex;background:#eef0f3;border-radius:9px;padding:3px;flex:0 0 auto;}
+  .conmutador button{border:none;background:transparent;font-family:inherit;font-size:.8rem;
+    font-weight:700;padding:8px 16px;border-radius:7px;cursor:pointer;color:var(--text-dim);}
+  .conmutador button.on{background:var(--red);color:#fff;}
+
+  /* ---- kanban ----
+     Las columnas son ETAPAS, que alguien mueve a mano. El borde de la tarjeta
+     es el VENCIMIENTO, que se calcula: por eso una tarjeta puede estar en
+     proceso y roja a la vez, que es justo lo que hay que ver. */
+  .kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:start;}
+  @media(max-width:1100px){.kanban{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:620px){.kanban{grid-template-columns:1fr;}}
+  .kcol{background:color-mix(in srgb, var(--c) 6%, #fff);
+    border:1px solid color-mix(in srgb, var(--c) 22%, var(--border));
+    border-radius:var(--radius);padding:12px;}
+  .kcol-cab{display:flex;align-items:center;gap:8px;font-size:.82rem;font-weight:800;
+    margin-bottom:11px;color:var(--text);}
+  .kcol-cab .pt{width:9px;height:9px;border-radius:50%;background:var(--c);flex:none;}
+  .kcol-cab .kn{margin-left:auto;background:#fff;border:1px solid var(--border);
+    border-radius:999px;padding:1px 9px;font-size:.72rem;color:var(--text-dim);}
+  .kcol-body{display:flex;flex-direction:column;gap:9px;}
+  .kvacio{font-size:.76rem;color:var(--text-dim);text-align:center;padding:16px 0;}
+
+  .kcard{background:#fff;border:1px solid var(--border);border-left:4px solid var(--border);
+    border-radius:10px;padding:11px 12px;}
+  .kcard.u-vencida{border-left-color:var(--bad);}
+  .kcard.u-hoy,.kcard.u-porvencer{border-left-color:var(--warn);}
+  .kcard.u-entiempo{border-left-color:#2d7ff9;}
+  .kcard.u-cerrada{border-left-color:var(--ok);}
+  .kcard.u-cancelada{border-left-color:var(--text-dim);opacity:.65;}
+  .kcard-top{display:flex;gap:6px;align-items:flex-start;}
+  .kcard-tit{flex:1 1 auto;font-size:.84rem;font-weight:600;line-height:1.35;}
+  .kmenu{border:none;background:none;cursor:pointer;color:var(--text-dim);
+    font-size:1rem;line-height:1;padding:0 2px;font-family:inherit;}
+  .kchips{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;}
+  .kchips .chip{font-size:.66rem;padding:2px 8px;}
+  .kpie{display:flex;justify-content:space-between;gap:8px;margin-top:9px;
+    font-size:.71rem;color:var(--text-dim);}
+  .kfecha.vencida{color:var(--bad);font-weight:700;}
+  .kfecha.hoy{color:var(--warn-text);font-weight:700;}
+  .kacc{display:flex;gap:5px;margin-top:10px;border-top:1px solid var(--border);padding-top:9px;}
+  .mini{border:1px solid var(--border);background:#fff;border-radius:7px;padding:5px 9px;
+    font-family:inherit;font-size:.71rem;font-weight:700;cursor:pointer;color:var(--text-dim);}
+  .mini:hover{border-color:var(--red);color:var(--red);}
+  .mini.av{margin-left:auto;}
+  .mini.ok{margin-left:auto;border-color:var(--ok);color:var(--ok);}
+  .chip.etapa{background:color-mix(in srgb, var(--c) 14%, #fff);color:var(--c);}
+
   .filtros{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
   .filtros .campo{flex:0 0 190px;}
   .filtros .campo.ancho{flex:1 1 260px;}
@@ -190,6 +273,7 @@
 
   .campo-f label{display:block;font-size:.76rem;font-weight:600;color:var(--text);margin-bottom:6px;}
   .req{color:var(--red);font-style:normal;font-weight:700;}
+  .pista-campo{display:block;font-size:.71rem;color:var(--text-dim);margin-top:5px;}
   .caja-f{position:relative;}
   .caja-f .ic-f{position:absolute;left:11px;top:50%;transform:translateY(-50%);
     width:17px;height:17px;color:var(--text-dim);pointer-events:none;}
@@ -305,33 +389,37 @@
       <div><button class="btn" id="btnActa">Acta de hoy (PDF)</button></div>
     </div>
 
-    <div class="panel">
-      <div class="kpis" id="hoyKpis"></div>
-      <div id="barraPrioridad" class="pr-bloque"></div>
-    </div>
+    <div class="kpis" id="hoyKpis"></div>
 
-    <div class="grid-mando">
-      <div class="panel" id="cajaMaquinas"></div>
+    <div class="grid-tres">
+      <div class="panel" id="cajaEstado"></div>
       <div class="panel" id="cajaAreas"></div>
+      <div class="panel" id="cajaPrioridad"></div>
     </div>
 
-    <div class="panel">
+    <div class="panel" id="cajaMaquinas"></div>
+
+    <div class="panel barra-filtros">
       <div class="filtros">
-        <div class="campo"><label for="fArea">Área responsable</label>
+        <div class="campo"><label for="fArea">Área</label>
           <select id="fArea"><option value="">Todas las áreas</option></select></div>
+        <div class="campo"><label for="fVence">Vencimiento</label>
+          <select id="fVence">
+            <option value="">Cualquier fecha</option>
+            <option value="vencidas">Ya vencidas</option>
+            <option value="hoy">Vencen hoy</option>
+            <option value="semana">Esta semana</option>
+          </select></div>
         <div class="campo"><label for="fPrioridad">Prioridad</label>
           <select id="fPrioridad">
             <option value="">Todas</option><option>Alta</option>
             <option>Media</option><option>Baja</option></select></div>
-        <div class="campo"><label for="fEstado">Mostrar</label>
-          <select id="fEstado">
-            <option value="abiertas">Solo abiertas</option>
-            <option value="todas">Todas, con cerradas</option>
-            <option value="vencidas">Solo vencidas</option>
-            <option value="cerradas">Solo cerradas y canceladas</option>
-          </select></div>
         <div class="campo ancho"><label for="fTexto">Buscar</label>
-          <input type="text" id="fTexto" placeholder="texto, máquina, tema o responsable…"></div>
+          <input type="text" id="fTexto" placeholder="texto, máquina o responsable…"></div>
+      </div>
+      <div class="conmutador" id="conmVista">
+        <button type="button" data-v="kanban" class="on">Kanban</button>
+        <button type="button" data-v="lista">Lista</button>
       </div>
     </div>
 
@@ -371,7 +459,7 @@
           <label for="nTexto">¿Qué quedó pendiente? <i class="req">*</i></label>
           <div class="caja-f">
             <input type="text" id="nTexto" maxlength="200"
-                   placeholder="Ej.: cambiar rodamiento de la prensa 3">
+                   placeholder="Ej.: cambiar rodamiento del troquelado 5">
             <span class="cuenta" id="cuentaTexto">0 / 200</span>
           </div>
         </div>
@@ -460,55 +548,28 @@
               <path d="M12 3.5v2.2M12 18.3v2.2M20.5 12h-2.2M5.7 12H3.5M18 6l-1.6 1.6M7.6 16.4 6 18M18 18l-1.6-1.6M7.6 7.6 6 6"/></svg>
             <select id="nMaquina"><option value="">Sin máquina</option></select>
           </div>
+          <span class="pista-campo" id="avisoMaquina">Elige la línea para ver sus equipos.</span>
+        </div>
+      </div>
+      <div class="rej r-4" id="cajaOtroEquipo" style="display:none;margin-top:14px;">
+        <div class="campo-f" style="grid-column:span 2;">
+          <label for="nMaquinaOtra">¿Qué equipo?</label>
+          <div class="caja-f con-ic">
+            <svg class="ic-f" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3.5" y="7" width="17" height="12" rx="2"/><path d="M8 7V5h8v2"/></svg>
+            <input type="text" id="nMaquinaOtra" list="otrosEquipos"
+                   placeholder="Ej.: montacargas 2, compresor de planta">
+            <datalist id="otrosEquipos"></datalist>
+          </div>
         </div>
       </div>
     </div>
 
     <button class="plegar" id="btnMas">
-      <span class="mas-ic">+</span> Agregar tema, mantenimiento y observaciones</button>
+      <span class="mas-ic">+</span> Agregar observaciones</button>
 
     <div id="masCampos" style="display:none;">
-      <div class="sec">
-        <div class="sec-cab"><i class="pin"></i>
-          <span class="sec-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M15.5 7.5a4 4 0 0 1-5.3 3.8L6 15.5a2 2 0 1 0 2.8 2.8l4.2-4.2a4 4 0 0 1 4.7-5.9l-2.6 2.6 2.1 2.1 2.6-2.6a4 4 0 0 1-4.3 2.7"/></svg></span>
-          <div><b>Seguimiento</b><span>Para agrupar y para el taller</span></div>
-        </div>
-        <div class="rej r-4">
-          <div class="campo-f">
-            <label for="nTema">Tema</label>
-            <div class="caja-f con-ic">
-              <svg class="ic-f" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M6 4.5h12v16l-6-4-6 4z"/></svg>
-              <input type="text" id="nTema" list="temas" placeholder="Ej.: bajo ratio de machetes">
-              <datalist id="temas"></datalist>
-            </div>
-          </div>
-          <div class="campo-f">
-            <label for="nMant">¿Requiere mantenimiento?</label>
-            <div class="caja-f con-ic">
-              <svg class="ic-f" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M15 4.2a4.6 4.6 0 0 0-5.6 5.9L4 15.5a2.1 2.1 0 1 0 3 3l5.4-5.4a4.6 4.6 0 0 0 5.9-5.6l-2.7 2.7-2.3-2.3z"/></svg>
-              <select id="nMant"><option>No</option><option>Sí</option></select>
-            </div>
-          </div>
-          <div class="campo-f">
-            <label for="nOT">N.º de orden de trabajo</label>
-            <div class="caja-f con-ic">
-              <svg class="ic-f" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 10.5V5.5a1.5 1.5 0 0 1 1.5-1.5h5l9 9-6.5 6.5-9-9z"/>
-                <circle cx="8" cy="8" r="1.1"/></svg>
-              <input type="text" id="nOT" placeholder="Ej.: OT-4821">
-            </div>
-          </div>
-          <div></div>
-        </div>
-      </div>
-
       <div class="sec">
         <div class="sec-cab"><i class="pin"></i>
           <span class="sec-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -640,21 +701,24 @@
       son un problema mal planteado que hay que volver a discutir.
    ====================================================================== */
 
-const APP_VERSION = "2026-11-24-proto5";
+const APP_VERSION = "2026-11-25-kanban";
 
 /* Las ocho áreas de la respuesta rápida. El orden es el de la reunión. */
 const AREAS = ["Producción","Mantenimiento","Calidad","Planeación",
                "Mejora continua","Ambiental","Estandarización","Proyectos"];
 
-/* Mientras no esté conectada la hoja, la lista de máquinas es una copia de
-   la de Control de Desperdicio para poder probar. Al conectar, se lee de allá
-   y esta copia desaparece. */
-const MAQUINAS = [
-  "Prensa 1","Prensa 2","Prensa 3","Horno de temple","Horno de revenido",
-  "Laminadora","Troqueladora","Biseladora 1","Biseladora 2","Lijadora",
-  "Canaladora 1","Canaladora 2","Perforadora de anilla","Cabina de pintura",
-  "Granalladora","Empacadora","Compresor","Montacargas"
-];
+/* Las máquinas, copiadas del catálogo de Control de Desperdicio. Van por
+   línea y por proceso porque los nombres SE REPITEN entre líneas: «Empaque 1»
+   existe en machetes, cuchillas y palas, y «Punzonadora 1» en esas mismas
+   tres. Una lista plana haría que un pendiente de empaque no dijera de qué
+   línea es, y el cuadro de máquinas urgentes sumaría en una sola fila lo de
+   tres líneas distintas. Por eso primero se elige la línea. */
+const ESTRUCTURA = {"Machetes": {"Corte": ["Corte 1", "Corte 2", "Tronzado 1"], "Laminación": ["Laminación 1", "Laminación 2", "Laminación 3"], "Troquelado": ["Troquelado 2", "Troquelado 5", "Troquelado 6", "Troquelado 7"], "Punzonado": ["Punzonadora 1"], "Temple": ["Temple 1", "Temple 2", "Temple 4"], "Revenido": ["Revenido 1", "Revenido 3"], "Enderezado": ["Enderezado 1", "Enderezado 2"], "Lijado": ["Lijado 2", "Lijado 3", "Lijado 5"], "Biselado": ["Biselado manual 2", "Biselado manual 3", "Biselado manual 4", "Biselado manual 5"], "Canalado": ["Canalado 1", "Canalado 2"], "Sellado": ["Selladora Temple 1", "Selladora Temple 4", "Selladora por Fricción"], "Lacado": ["Lacado 1"], "Remachado": ["Remachado 1", "Remachado 2", "Remachado 3", "Remachado 4", "Remachado 5", "Remachado 6", "Remachado 7"], "Empaque": ["Empaque 1"]}, "Cuchillas": {"Corte": ["Corte 1", "Corte 2", "Corte láser"], "Troquelado": ["Troquelado 3", "Troquelado 4"], "Punzonado": ["Punzonadora 1"], "Temple": ["Temple 3", "Temple 4"], "Revenido": ["Revenido 1", "Revenido 3"], "Enderezado": ["Enderezado", "Enderezado 2", "Enderezado 3"], "Lijado": ["Lijado 4", "Lijado 5"], "Biselado": ["Biseladora 1", "Biseladora 2", "Biseladora 3", "Biseladora 4", "Biseladora 5"], "Sellado": ["Selladora 1"], "Pintura": ["Pintura 1"], "Lacado": ["Lacado 1"], "Empaque": ["Empaque 1", "Empaque 2", "Empaque 3"], "Reproceso": ["Reproceso 1"], "Otros": ["Galgueado"]}, "Limas": {"Forja": ["Forja 1"], "Rectificado": ["Rectificado 1", "Rectificado 2", "Rectificado 4", "Rectificado 5"], "Raspado": ["Raspado 1", "Raspado 2", "Raspado 3"], "Picado": ["Picado en J2 - 1", "Picado en J2 - 2", "Picado en J3 - 1", "Picado en J3 - 2", "Picado en automática 2", "Picado en automática 3", "Picado en automática 4", "Picado en automática 5"], "Enderezado": ["Enderezado 1", "Enderezado 2", "Enderezado 3"], "Temple": ["Temple eléctrico 1"], "Control": ["Empaque 2"]}, "Palas": {"Sellado y punzonado": ["Perforado de Anilla", "Perforado y sellado", "Punzonadora 1"], "Estampado": ["Estampado"], "Hidrotemple": ["Hidrotemple 1"], "Revenido": ["Revenido palas 1"], "Granallado": ["Granallado"], "Pintura": ["Pintura"], "Empaque": ["Empaque 1", "Empaque 2"]}};
+
+/* Lo que no es de producción —montacargas, compresores, servicios— todavía no
+   está en ningún catálogo, así que se escribe a mano con «Otro equipo». */
+const OTRO_EQUIPO = "__otro__";
+function procesosDeLinea(linea){ return ESTRUCTURA[linea] || null; }
 
 const DIAS_POR_VENCER = 3;      // cuántos días antes empieza a avisar
 const PLAZO_DEFECTO   = 7;      // compromiso por defecto al registrar
@@ -727,8 +791,8 @@ function demo(){
     aplazamientos:[], cierre:null
   }, o, {fechaOriginal: o.fechaOriginal || o.fechaCompromiso});
   return [
-    mk({texto:"Cambiar rodamiento de la prensa 3, está golpeando al bajar",
-        area:"Mantenimiento", maquina:"Prensa 3", linea:"Machetes", prioridad:"Alta",
+    mk({texto:"Cambiar rodamiento del troquelado 5, está golpeando al bajar",
+        area:"Mantenimiento", persona:"Carlos Vargas", maquina:"Troquelado 5", linea:"Machetes", prioridad:"Alta",
         mantenimiento:"Sí", ot:"OT-4821", tema:"Bajo ratio de machetes",
         creado:sumarDias(h,-21), fechaOriginal:sumarDias(h,-14), fechaCompromiso:sumarDias(h,-3),
         aplazamientos:[
@@ -737,32 +801,32 @@ function demo(){
           {de:sumarDias(h,-7), a:sumarDias(h,-3), motivo:"La línea no se pudo parar, pedido urgente",
            quien:"Andrés Henao", cuando:sumarDias(h,-7)}]}),
     mk({texto:"Definir el rango de temperatura de revenido para la referencia 352425",
-        area:"Calidad", linea:"Cuchillas", tema:"Validación 352425",
+        area:"Calidad", persona:"Iván Vargas", linea:"Cuchillas",
         creado:sumarDias(h,-9), fechaCompromiso:sumarDias(h,-1)}),
     mk({texto:"Reponer la señalización del pasillo de empaque",
-        area:"Ambiental", linea:"Planta / servicios", prioridad:"Baja",
+        area:"Ambiental", persona:"Juan Rodríguez", linea:"Planta / servicios", prioridad:"Baja",
         creado:sumarDias(h,-5), fechaCompromiso:h}),
     mk({texto:"Subir la hoja estándar de biselado al portal",
-        area:"Estandarización", linea:"Machetes", tema:"HET",
-        creado:sumarDias(h,-4), fechaCompromiso:sumarDias(h,2)}),
+        area:"Estandarización", persona:"Andrés Henao", linea:"Machetes",
+        creado:sumarDias(h,-4), fechaCompromiso:sumarDias(h,2), etapa:"enproceso"}),
     mk({texto:"Programar el corte de fleje para cubrir el faltante de la semana",
-        area:"Planeación", linea:"Cuchillas", prioridad:"Alta",
-        creado:sumarDias(h,-2), fechaCompromiso:sumarDias(h,4)}),
-    mk({texto:"Revisar fuga de aire en el compresor",
-        area:"Mantenimiento", maquina:"Compresor", linea:"Planta / servicios",
+        area:"Planeación", persona:"Sebastián Fadul", linea:"Cuchillas",
+        creado:sumarDias(h,-2), fechaCompromiso:sumarDias(h,4), etapa:"validacion"}),
+    mk({texto:"Revisar fuga de aire en el compresor de planta",
+        area:"Mantenimiento", persona:"Carlos Sánchez", maquina:"Compresor de planta", linea:"Planta / servicios",
         mantenimiento:"Sí", creado:sumarDias(h,-2), fechaCompromiso:sumarDias(h,9)}),
     mk({texto:"Capacitar al turno 3 en el registro de desperdicio",
-        area:"Mejora continua", creado:sumarDias(h,-30), fechaOriginal:sumarDias(h,-20),
+        area:"Mejora continua", persona:"Andrés Henao", creado:sumarDias(h,-30), fechaOriginal:sumarDias(h,-20),
         fechaCompromiso:sumarDias(h,-20),
         cierre:{resultado:"cumplida", observacion:"Se hizo el 14, asistieron los 6 del turno",
                 quien:"Andrés Henao", fecha:sumarDias(h,-19)}}),
     mk({texto:"Cotizar la báscula nueva para empaque de limas",
-        area:"Proyectos", linea:"Limas", creado:sumarDias(h,-26),
+        area:"Proyectos", persona:"Juan Rodríguez", linea:"Limas", creado:sumarDias(h,-26),
         fechaOriginal:sumarDias(h,-16), fechaCompromiso:sumarDias(h,-16),
         cierre:{resultado:"cumplida", observacion:"Tres cotizaciones enviadas a compras",
                 quien:"Andrés Henao", fecha:sumarDias(h,-16)}}),
-    mk({texto:"Cambiar la guarda de la canaladora 2",
-        area:"Mantenimiento", maquina:"Canaladora 2", linea:"Machetes", mantenimiento:"Sí",
+    mk({texto:"Cambiar la guarda del canalado 2",
+        area:"Mantenimiento", persona:"Carlos Vargas", maquina:"Canalado 2", linea:"Machetes", mantenimiento:"Sí",
         creado:sumarDias(h,-34), fechaOriginal:sumarDias(h,-27), fechaCompromiso:sumarDias(h,-6),
         aplazamientos:[
           {de:sumarDias(h,-27), a:sumarDias(h,-20), motivo:"Falta material",
@@ -774,11 +838,39 @@ function demo(){
         cierre:{resultado:"cumplida", observacion:"Guarda instalada y verificada",
                 quien:"Andrés Henao", fecha:sumarDias(h,-5)}}),
     mk({texto:"Comprar el software de balanceo de línea",
-        area:"Proyectos", creado:sumarDias(h,-40), fechaOriginal:sumarDias(h,-25),
+        area:"Proyectos", persona:"Sebastián Fadul", creado:sumarDias(h,-40), fechaOriginal:sumarDias(h,-25),
         fechaCompromiso:sumarDias(h,-25),
         cierre:{resultado:"cancelada", observacion:"Se descartó, no hay presupuesto este año",
                 quien:"Andrés Henao", fecha:sumarDias(h,-24)}})
   ];
+}
+
+/* ====================================================================
+   DOS COSAS DISTINTAS: LA ETAPA Y EL VENCIMIENTO
+
+   La etapa —por hacer, en proceso, en validación— la mueve una persona,
+   porque sólo ella sabe cuánto ha avanzado. El vencimiento, en cambio, se
+   calcula de la fecha y nadie lo digita: así una tarjeta puede estar «en
+   proceso» Y vencida al mismo tiempo, que es la situación que hay que ver y
+   la que un tablero de estados escritos a mano esconde.
+
+   Por eso las columnas del kanban son de etapa, y el borde rojo de la
+   tarjeta es del vencimiento. Son dos preguntas y se contestan aparte.
+   ==================================================================== */
+const ETAPAS = [
+  {k:"porhacer",  t:"Por hacer",     c:"#e2001a"},
+  {k:"enproceso", t:"En proceso",    c:"#f2b90b"},
+  {k:"validacion",t:"En validación", c:"#2d7ff9"},
+  {k:"completadas",t:"Completadas",  c:"#1f9d55"}
+];
+function etapaDe(t){
+  if(t.cierre) return t.cierre.resultado === "cancelada" ? "cancelada" : "completadas";
+  return t.etapa || "porhacer";
+}
+function moverEtapa(id, hacia){
+  const t = porId(id); if(!t || t.cierre) return;
+  t.etapa = hacia;
+  guardar(); renderHoy();
 }
 
 /* ====================================================================
@@ -796,8 +888,11 @@ function maquinasPendientes(){
   const h = hoyISO();
   const m = {};
   TAREAS.filter(t=> !t.cierre && String(t.maquina||"").trim()).forEach(t=>{
-    const k = t.maquina.trim();
-    const g = m[k] = m[k] || {maquina:k, abiertos:0, vencidos:0, dias:0, masViejo:null, linea:t.linea||""};
+    /* La clave lleva la línea: «Empaque 1» de machetes y «Empaque 1» de palas
+       son dos equipos distintos y no pueden caer en la misma fila. */
+    const k = (t.linea||"—") + "|" + t.maquina.trim();
+    const g = m[k] = m[k] || {maquina:t.maquina.trim(), abiertos:0, vencidos:0,
+                              dias:0, masViejo:null, linea:t.linea||""};
     g.abiertos++;
     if(estadoDe(t) === "vencida") g.vencidos++;
     const edad = diasEntre(t.creado, h);
@@ -825,53 +920,93 @@ function repartoPrioridad(){
    ==================================================================== */
 const ORDEN = {vencida:0, hoy:1, porvencer:2, entiempo:3, cerrada:4, cancelada:5};
 
+let VISTA_PEND = "kanban";
+
 function tareasFiltradas(){
   const area = document.getElementById("fArea").value;
   const prio = document.getElementById("fPrioridad").value;
-  const modo = document.getElementById("fEstado").value;
+  const venc = document.getElementById("fVence").value;
   const q = document.getElementById("fTexto").value.trim().toLowerCase();
+  const h = hoyISO();
   return TAREAS.filter(t=>{
-    const e = estadoDe(t);
     if(area && t.area !== area) return false;
     if(prio && String(t.prioridad||"Media") !== prio) return false;
-    if(modo === "abiertas"  && t.cierre) return false;
-    if(modo === "vencidas"  && e !== "vencida") return false;
-    if(modo === "cerradas"  && !t.cierre) return false;
+    if(venc){
+      if(t.cierre) return false;
+      const d = diasEntre(h, t.fechaCompromiso);
+      if(venc === "vencidas" && d >= 0) return false;
+      if(venc === "hoy"      && d !== 0) return false;
+      if(venc === "semana"   && (d < 0 || d > 7)) return false;
+    }
     if(q){
-      const heno = [t.texto,t.maquina,t.tema,t.persona,t.area,t.linea,t.ot].join(" ").toLowerCase();
+      const heno = [t.texto,t.maquina,t.persona,t.area,t.linea].join(" ").toLowerCase();
       if(heno.indexOf(q) === -1) return false;
     }
     return true;
-  }).sort((a,b)=>
-    (ORDEN[estadoDe(a)] - ORDEN[estadoDe(b)]) ||
-    a.fechaCompromiso.localeCompare(b.fechaCompromiso));
+  }).sort((a,b)=> a.fechaCompromiso.localeCompare(b.fechaCompromiso));
+}
+
+/* El vencimiento, que es lo que decide el color del borde. */
+function urgenciaDe(t){
+  if(t.cierre) return t.cierre.resultado === "cancelada" ? "cancelada" : "cerrada";
+  const d = diasEntre(hoyISO(), t.fechaCompromiso);
+  if(d < 0)  return "vencida";
+  if(d === 0) return "hoy";
+  if(d <= DIAS_POR_VENCER) return "porvencer";
+  return "entiempo";
+}
+function textoVence(t){
+  if(t.cierre) return (t.cierre.resultado==="cumplida" ? "cerrada " : "cancelada ") + fCorta(t.cierre.fecha);
+  const d = diasEntre(hoyISO(), t.fechaCompromiso);
+  return d < 0 ? "venció hace "+Math.abs(d)+" d" : d === 0 ? "vence hoy" : fCorta(t.fechaCompromiso);
+}
+
+/* ---- tarjeta del kanban ---- */
+function tarjetaKanban(t){
+  const u = urgenciaDe(t);
+  const ap = nAplazos(t);
+  const sig = ETAPAS.findIndex(e=>e.k===etapaDe(t));
+  return `<div class="kcard u-${u}">
+    <div class="kcard-top">
+      <div class="kcard-tit">${esc(t.texto)}</div>
+      <button class="kmenu" data-ver="${t.id}" title="Ver detalle">&#8942;</button>
+    </div>
+    <div class="kchips">
+      <span class="chip area">${esc(t.area)}</span>
+      <span class="chip p-${esc(String(t.prioridad||"Media").toLowerCase())}">${esc(t.prioridad||"Media")}</span>
+      ${t.maquina?`<span class="chip">${esc(t.maquina)}</span>`:""}
+      ${ap?`<span class="chip pospuesta">${ap}&#215; pospuesta</span>`:""}
+    </div>
+    <div class="kpie">
+      <span class="kfecha ${u}">${textoVence(t)}</span>
+      <span class="kquien">${esc(t.persona||"—")}</span>
+    </div>
+    ${t.cierre ? "" : `<div class="kacc">
+      ${sig > 0 ? `<button class="mini" data-etapa="${t.id}|${ETAPAS[sig-1].k}" title="Devolver">&#8592;</button>` : ""}
+      <button class="mini" data-posponer="${t.id}">Posponer</button>
+      ${sig < 2 ? `<button class="mini av" data-etapa="${t.id}|${ETAPAS[sig+1].k}" title="Avanzar">&#8594;</button>`
+                : `<button class="mini ok" data-cerrar-t="${t.id}">Cerrar</button>`}
+    </div>`}
+  </div>`;
 }
 
 function filaTarea(t){
-  const e = estadoDe(t);
-  const cls = (e==="vencida") ? "vencida" : (e==="hoy"||e==="porvencer") ? "hoy"
-            : (e==="cerrada") ? "cerrada" : (e==="cancelada") ? "cancelada" : "entiempo";
-  const d = diasEntre(hoyISO(), t.fechaCompromiso);
-  const cuando = t.cierre
-    ? (t.cierre.resultado==="cumplida"
-        ? "cerrada el "+fCorta(t.cierre.fecha) + (cumplioEnFecha(t) ? "" : " · fuera de fecha")
-        : "cancelada el "+fCorta(t.cierre.fecha))
-    : (e==="vencida" ? "venció hace "+Math.abs(d)+" día(s)"
-      : e==="hoy" ? "vence hoy" : "faltan "+d+" día(s)");
+  const u = urgenciaDe(t);
+  const cls = (u==="vencida") ? "vencida" : (u==="hoy"||u==="porvencer") ? "hoy"
+            : (u==="cerrada") ? "cerrada" : (u==="cancelada") ? "cancelada" : "entiempo";
+  const et = ETAPAS.find(e=>e.k===etapaDe(t));
   const ap = nAplazos(t);
   return `<div class="tarea ${cls}">
     <div class="cuerpo">
       <div class="qué">${esc(t.texto)}</div>
       <div class="meta">
         <span class="chip area">${esc(t.area)}</span>
-        <span class="chip fecha">${fCorta(t.fechaCompromiso)} · ${esc(cuando)}</span>
-        ${t.maquina ? `<span class="chip">${esc(t.maquina)}</span>` : ""}
-        ${t.persona ? `<span class="chip">${esc(t.persona)}</span>` : ""}
-        ${t.tema ? `<span class="chip">${esc(t.tema)}</span>` : ""}
-        <span class="chip p-${esc(String(t.prioridad||"Media").toLowerCase())}">${
-          esc(t.prioridad||"Media")}</span>
-        ${t.mantenimiento==="Sí" ? `<span class="chip mant">Mantenimiento${t.ot?" · "+esc(t.ot):""}</span>` : ""}
-        ${ap ? `<span class="chip pospuesta">pospuesta ${ap} ${ap===1?"vez":"veces"}</span>` : ""}
+        ${et?`<span class="chip etapa" style="--c:${et.c}">${esc(et.t)}</span>`:""}
+        <span class="chip fecha">${fCorta(t.fechaCompromiso)} · ${esc(textoVence(t))}</span>
+        <span class="chip p-${esc(String(t.prioridad||"Media").toLowerCase())}">${esc(t.prioridad||"Media")}</span>
+        ${t.maquina?`<span class="chip">${esc(t.maquina)}</span>`:""}
+        ${t.persona?`<span class="chip">${esc(t.persona)}</span>`:""}
+        ${ap?`<span class="chip pospuesta">pospuesta ${ap} ${ap===1?"vez":"veces"}</span>`:""}
         ${t.cierre && t.cierre.resultado==="cumplida" && cumplioEnFecha(t)
             ? `<span class="chip ok">en la fecha prometida</span>` : ""}
       </div>
@@ -886,58 +1021,63 @@ function filaTarea(t){
   </div>`;
 }
 
+let chEstado = null;
 function renderHoy(){
-  const todas = TAREAS.filter(t=>!t.cierre);
-  const venc = todas.filter(t=>estadoDe(t)==="vencida").length;
-  const hoy  = todas.filter(t=>estadoDe(t)==="hoy").length;
-  const sem  = todas.filter(t=>{const d=diasEntre(hoyISO(),t.fechaCompromiso); return d>0 && d<=7;}).length;
-  const rein = todas.filter(t=>nAplazos(t)>=3).length;
+  const h = hoyISO();
+  const abiertas = TAREAS.filter(t=>!t.cierre);
+  const porEtapa = k => abiertas.filter(t=>etapaDe(t)===k).length;
+  const venc = abiertas.filter(t=>urgenciaDe(t)==="vencida").length;
+  const hoyCerr = TAREAS.filter(t=>t.cierre && t.cierre.fecha===h).length;
 
   document.getElementById("hoyResumen").innerHTML =
-    `${todas.length} pendiente(s) abierto(s) · hoy es ${fCorta(hoyISO())}`;
+    `${abiertas.length} pendiente(s) abierto(s) · hoy es ${fCorta(h)}`;
 
-  /* Barra de prioridad al estilo del tablero que pediste: de un vistazo se
-     ve si lo abierto es todo alta o si está repartido. */
-  const pr = repartoPrioridad();
-  const totPr = pr.reduce((a,b)=>a+b.n,0) || 1;
-  const COLOR_PR = {Alta:"#E2001A", Media:"#f2b90b", Baja:"#2d7ff9"};
-  document.getElementById("barraPrioridad").innerHTML = `
-    <div class="pr-barra">${pr.filter(x=>x.n).map(x=>
-      `<i style="width:${(x.n/totPr*100).toFixed(1)}%;background:${COLOR_PR[x.p]}"
-          title="${x.p}: ${x.n}"></i>`).join("")}</div>
-    <div class="pr-leyenda">${pr.map(x=>
-      `<span><i style="background:${COLOR_PR[x.p]}"></i>${x.p} <b>${x.n}</b></span>`).join("")}</div>`;
+  const IC = {
+    lista:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+      stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/>
+      <path d="M9 3.5h6v2.5H9zM9 11h6M9 15h4"/></svg>`,
+    reloj:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+      stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>`,
+    ok:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+      stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/>
+      <path d="M8.5 12.3l2.5 2.5 4.5-5"/></svg>`,
+    cal:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+      stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/>
+      <path d="M3.5 9.5h17M8 3.5v3M16 3.5v3"/></svg>`
+  };
+  const tarjeta = (ic, col, et, n, pie) => `
+    <div class="kpi-ic">
+      <span class="ic-box" style="background:${col}1a;color:${col}">${ic}</span>
+      <div><span>${et}</span><b>${n}</b><small>${pie}</small></div>
+    </div>`;
+  document.getElementById("hoyKpis").innerHTML =
+    tarjeta(IC.lista,"#2d7ff9","Por hacer", porEtapa("porhacer"), "todavía sin empezar") +
+    tarjeta(IC.reloj,"#f2b90b","En proceso", porEtapa("enproceso")+porEtapa("validacion"), "en marcha o en validación") +
+    tarjeta(IC.ok,"#1f9d55","Cerradas hoy", hoyCerr, "cumplidas o canceladas") +
+    tarjeta(IC.cal,"#e2001a","Vencidas", venc, venc?"pasaron su fecha":"ninguna, al día");
 
-  /* Máquinas con algo pendiente hace días */
-  const maqs = maquinasPendientes();
-  const urgentes = maqs.filter(m=> m.dias >= DIAS_MAQUINA_URGENTE);
-  const resto   = maqs.filter(m=> m.dias <  DIAS_MAQUINA_URGENTE);
-  document.getElementById("cajaMaquinas").innerHTML = `
-    <div class="section-title"><div>
-      <h2>MÁQUINAS CON PENDIENTES</h2>
-      <span class="sub-sec">en rojo, las que llevan ${DIAS_MAQUINA_URGENTE} días o más
-        con algo sin resolver</span></div>
-      ${urgentes.length ? `<span class="chip urg" style="margin-left:auto;">${
-        urgentes.length} urgente${urgentes.length===1?"":"s"}</span>` : ""}</div>
-    ${maqs.length ? `<table class="simple tmaq"><thead><tr>
-        <th>Máquina</th><th>Lleva</th><th>Abiertos</th><th>El más viejo</th><th></th>
-      </tr></thead><tbody>
-      ${urgentes.concat(resto).map(m=>`<tr class="${m.dias>=DIAS_MAQUINA_URGENTE?"urg":""}">
-        <td><b>${esc(m.maquina)}</b>${m.linea?`<br><span class="sutil">${esc(m.linea)}</span>`:""}</td>
-        <td class="num">${m.dias} día${m.dias===1?"":"s"}</td>
-        <td class="num">${m.abiertos}${m.vencidos?`<br><span class="sutil">${m.vencidos} vencido(s)</span>`:""}</td>
-        <td class="viejo">${esc(m.masViejo ? m.masViejo.texto : "—")}</td>
-        <td class="num">${m.dias>=DIAS_MAQUINA_URGENTE
-            ? `<span class="chip urg">URGENTE</span>` : ""}</td></tr>`).join("")}
-      </tbody></table>`
-      : `<div class="empty">Ninguna máquina tiene pendientes abiertos.</div>`}`;
+  /* --- Estado, en dona --- */
+  const reparto = ETAPAS.map(e=>({...e, n: e.k==="completadas"
+    ? TAREAS.filter(t=>t.cierre && t.cierre.resultado==="cumplida").length
+    : porEtapa(e.k)}));
+  const totE = reparto.reduce((a,b)=>a+b.n,0) || 1;
+  document.getElementById("cajaEstado").innerHTML = `
+    <div class="section-title"><div><h2>ESTADO</h2>
+      <span class="sub-sec">en qué va cada pendiente</span></div></div>
+    <div class="dona-fila">
+      <div class="dona"><canvas id="cvEstado"></canvas>
+        <div class="dona-centro"><b>${totE}</b><span>total</span></div></div>
+      <div class="dona-leyenda">${reparto.map(e=>
+        `<span><i style="background:${e.c}"></i>${e.t}
+          <b>${e.n}</b> <em>${Math.round(e.n/totE*100)}%</em></span>`).join("")}</div>
+    </div>`;
 
-  /* Carga por área, en barras simples */
+  /* --- Por área --- */
   const areas = repartoPorArea();
   const maxA = Math.max(1, ...areas.map(a=>a.n));
   document.getElementById("cajaAreas").innerHTML = `
-    <div class="section-title"><div><h2>CARGA POR ÁREA</h2>
-      <span class="sub-sec">pendientes abiertos · la parte roja son los vencidos</span></div></div>
+    <div class="section-title"><div><h2>POR ÁREA</h2>
+      <span class="sub-sec">abiertos · en rojo los vencidos</span></div></div>
     ${areas.length ? areas.map(a=>`
       <div class="barra-fila">
         <span class="et">${esc(a.area)}</span>
@@ -946,36 +1086,72 @@ function renderHoy(){
         <span class="val">${a.n}</span>
       </div>`).join("") : `<div class="empty">No hay pendientes abiertos.</div>`}`;
 
-  document.getElementById("hoyKpis").innerHTML = `
-    <div class="kpi ${venc?"malo":"bueno"}"><span>Vencidas</span><b>${venc}</b>
-      <small>${venc? "pasaron su fecha y siguen abiertas" : "ninguna, al día"}</small></div>
-    <div class="kpi ${hoy?"aviso":""}"><span>Vencen hoy</span><b>${hoy}</b>
-      <small>hay que resolverlas o posponerlas</small></div>
-    <div class="kpi"><span>Esta semana</span><b>${sem}</b>
-      <small>vencen en los próximos 7 días</small></div>
-    <div class="kpi ${rein?"malo":""}"><span>Pospuestas 3+ veces</span><b>${rein}</b>
-      <small>${rein? "no son tareas: son problemas mal planteados" : "ninguna se está rodando"}</small></div>`;
+  /* --- Prioridad --- */
+  const pr = repartoPrioridad();
+  const COLOR_PR = {Alta:"#e2001a", Media:"#f2b90b", Baja:"#1f9d55"};
+  document.getElementById("cajaPrioridad").innerHTML = `
+    <div class="section-title"><div><h2>PRIORIDAD</h2>
+      <span class="sub-sec">de lo que sigue abierto</span></div></div>
+    ${pr.map(x=>`<div class="pr-fila" style="--c:${COLOR_PR[x.p]}">
+      <span class="pt"></span><span class="nm">${x.p}</span><b>${x.n}</b></div>`).join("")}`;
 
+  /* --- Máquinas --- */
+  const maqs = maquinasPendientes();
+  const urgentes = maqs.filter(m=> m.dias >= DIAS_MAQUINA_URGENTE);
+  const caja = document.getElementById("cajaMaquinas");
+  caja.style.display = maqs.length ? "" : "none";
+  if(maqs.length) caja.innerHTML = `
+    <div class="section-title"><div>
+      <h2>MÁQUINAS CON PENDIENTES</h2>
+      <span class="sub-sec">en rojo, las que llevan ${DIAS_MAQUINA_URGENTE} días o más
+        con algo sin resolver</span></div>
+      ${urgentes.length ? `<span class="chip urg" style="margin-left:auto;">${
+        urgentes.length} urgente${urgentes.length===1?"":"s"}</span>` : ""}</div>
+    <table class="simple tmaq"><thead><tr>
+      <th>Máquina</th><th>Lleva</th><th>Abiertos</th><th>El más viejo</th><th></th>
+    </tr></thead><tbody>
+    ${urgentes.concat(maqs.filter(m=>m.dias<DIAS_MAQUINA_URGENTE)).map(m=>`
+      <tr class="${m.dias>=DIAS_MAQUINA_URGENTE?"urg":""}">
+        <td><b>${esc(m.maquina)}</b>${m.linea?`<br><span class="sutil">${esc(m.linea)}</span>`:""}</td>
+        <td class="num">${m.dias} día${m.dias===1?"":"s"}</td>
+        <td class="num">${m.abiertos}${m.vencidos?`<br><span class="sutil">${m.vencidos} vencido(s)</span>`:""}</td>
+        <td class="viejo">${esc(m.masViejo ? m.masViejo.texto : "—")}</td>
+        <td class="num">${m.dias>=DIAS_MAQUINA_URGENTE
+            ? `<span class="chip urg">URGENTE</span>` : ""}</td></tr>`).join("")}
+    </tbody></table>`;
+
+  /* --- Kanban o lista --- */
   const lista = tareasFiltradas();
   const box = document.getElementById("listaPend");
-  if(!lista.length){
-    box.innerHTML = `<div class="panel"><div class="empty">No hay pendientes con ese filtro.</div></div>`;
-    return;
+  if(VISTA_PEND === "kanban"){
+    box.innerHTML = `<div class="kanban">${ETAPAS.map(e=>{
+      const ts = lista.filter(t=> etapaDe(t) === e.k);
+      return `<div class="kcol" style="--c:${e.c}">
+        <div class="kcol-cab"><span class="pt"></span>${esc(e.t)}
+          <span class="kn">${ts.length}</span></div>
+        <div class="kcol-body">${ts.length
+          ? ts.map(tarjetaKanban).join("")
+          : `<div class="kvacio">Nada aquí</div>`}</div></div>`;
+    }).join("")}</div>`;
+  } else {
+    box.innerHTML = lista.length
+      ? lista.map(filaTarea).join("")
+      : `<div class="panel"><div class="empty">No hay pendientes con ese filtro.</div></div>`;
   }
-  const grupos = [
-    {k:"vencida",  t:"Vencidas", c:"rojo"},
-    {k:"hoy",      t:"Vencen hoy", c:"amb"},
-    {k:"porvencer",t:"Próximos días", c:"amb"},
-    {k:"entiempo", t:"Más adelante", c:""},
-    {k:"cerrada",  t:"Cumplidas", c:""},
-    {k:"cancelada",t:"Canceladas", c:""}
-  ];
-  box.innerHTML = grupos.map(g=>{
-    const ts = lista.filter(t=>estadoDe(t)===g.k);
-    if(!ts.length) return "";
-    return `<div class="grupo-tit ${g.c}">${esc(g.t)}<span class="cuenta">${ts.length}</span></div>`
-         + ts.map(filaTarea).join("");
-  }).join("");
+
+  /* La dona se dibuja al final, cuando su lienzo ya está en la página. */
+  if(typeof Chart !== "undefined"){
+    if(chEstado){ chEstado.destroy(); chEstado = null; }
+    const cv = document.getElementById("cvEstado");
+    if(cv) chEstado = new Chart(cv.getContext("2d"), {
+      type:"doughnut",
+      data:{labels:reparto.map(e=>e.t),
+        datasets:[{data:reparto.map(e=>e.n), backgroundColor:reparto.map(e=>e.c),
+                   borderWidth:0, cutout:"72%"}]},
+      options:{responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}}}
+    });
+  }
 }
 
 /* ====================================================================
@@ -984,11 +1160,11 @@ function renderHoy(){
 function montarRegistrar(){
   const sa = document.getElementById("nArea");
   sa.innerHTML = AREAS.map(a=>`<option>${esc(a)}</option>`).join("");
-  document.getElementById("nMaquina").innerHTML =
-    `<option value="">Sin máquina</option>` + MAQUINAS.map(m=>`<option>${esc(m)}</option>`).join("");
+  refrescarMaquinas();
   limpiarFormulario();
   refrescarTemas();
   refrescarPersonas();
+  refrescarOtrosEquipos();
   montarContadores();
   ["fArea","gArea"].forEach(id=>{
     document.getElementById(id).innerHTML =
@@ -1008,10 +1184,11 @@ function pintarPuntoPrioridad(){
   if(sel && p) p.style.background = COLOR_PRIO[sel.value] || "transparent";
 }
 function limpiarFormulario(){
-  ["nTexto","nPersona","nTema","nOT","nObs","nFecha"].forEach(id=>document.getElementById(id).value="");
-  ["nMaquina","nLinea"].forEach(id=>document.getElementById(id).value="");
+  ["nTexto","nPersona","nObs","nFecha","nMaquinaOtra"]
+    .forEach(id=>document.getElementById(id).value="");
+  document.getElementById("nLinea").value = "";
+  refrescarMaquinas();
   document.getElementById("nPrioridad").value = "Media";
-  document.getElementById("nMant").value = "No";
   ["nTexto","nPersona","nFecha"].forEach(id=>document.getElementById(id).classList.remove("falta"));
   document.getElementById("avisoNuevo").classList.remove("ver");
   pintarPuntoPrioridad(); pintarAtajos(); montarContadores();
@@ -1025,10 +1202,52 @@ function montarContadores(){
     c.addEventListener("input", pinta); pinta();
   });
 }
-function refrescarTemas(){
-  const t = [...new Set(TAREAS.map(x=>x.tema).filter(Boolean))].sort();
-  document.getElementById("temas").innerHTML = t.map(x=>`<option value="${esc(x)}">`).join("");
+/* La lista de máquinas cambia con la línea, y va agrupada por proceso: así
+   se busca como se piensa en planta («biselado… biseladora 3») y no entre
+   ochenta nombres sueltos en orden alfabético. */
+function refrescarMaquinas(){
+  const linea = document.getElementById("nLinea").value;
+  const sel   = document.getElementById("nMaquina");
+  const antes = sel.value;
+  const procs = procesosDeLinea(linea);
+  let html = `<option value="">Sin máquina</option>`;
+  if(procs){
+    html += Object.keys(procs).map(pr=>
+      `<optgroup label="${esc(pr)}">` +
+      procs[pr].map(m=>`<option>${esc(m)}</option>`).join("") + `</optgroup>`).join("");
+  }
+  html += `<option value="${OTRO_EQUIPO}">Otro equipo (escribir)…</option>`;
+  sel.innerHTML = html;
+  sel.value = [...sel.options].some(o=>o.value===antes) ? antes : "";
+  /* Sin línea no hay catálogo que ofrecer: queda el camino de escribirlo. */
+  const aviso = document.getElementById("avisoMaquina");
+  if(aviso) aviso.style.display = (!linea) ? "" : "none";
+  mostrarOtroEquipo();
 }
+function mostrarOtroEquipo(){
+  const sel = document.getElementById("nMaquina");
+  const caja = document.getElementById("cajaOtroEquipo");
+  if(!caja) return;
+  const ver = sel.value === OTRO_EQUIPO;
+  caja.style.display = ver ? "" : "none";
+  if(ver) document.getElementById("nMaquinaOtra").focus();
+}
+/* Lo que de verdad se guarda en el campo máquina. */
+function maquinaElegida(){
+  const sel = document.getElementById("nMaquina").value;
+  if(sel === OTRO_EQUIPO) return document.getElementById("nMaquinaOtra").value.trim();
+  return sel;
+}
+function refrescarOtrosEquipos(){
+  const dentro = new Set();
+  Object.values(ESTRUCTURA).forEach(procs=>
+    Object.values(procs).forEach(ms=> ms.forEach(x=>dentro.add(x))));
+  const fuera = [...new Set(TAREAS.map(t=>String(t.maquina||"").trim())
+    .filter(x=> x && !dentro.has(x)))].sort();
+  const dl = document.getElementById("otrosEquipos");
+  if(dl) dl.innerHTML = fuera.map(x=>`<option value="${esc(x)}">`).join("");
+}
+function refrescarTemas(){ /* el campo Tema se quitó del registro */ }
 
 function guardarNuevo(){
   const texto   = document.getElementById("nTexto").value.trim();
@@ -1058,25 +1277,24 @@ function guardarNuevo(){
     area: document.getElementById("nArea").value,
     persona: persona,
     linea: document.getElementById("nLinea").value,
-    maquina: document.getElementById("nMaquina").value,
-    tema: document.getElementById("nTema").value.trim(),
+    maquina: maquinaElegida(),
     prioridad: document.getElementById("nPrioridad").value,
-    mantenimiento: document.getElementById("nMant").value,
-    ot: document.getElementById("nOT").value.trim(),
     observaciones: document.getElementById("nObs").value.trim(),
     /* La original se congela aquí y no se vuelve a tocar nunca. */
     fechaOriginal: fecha,
     fechaCompromiso: fecha,
+    etapa: "porhacer",
     aplazamientos: [], cierre: null
   };
   TAREAS.unshift(t);
   guardar();
-  ["nTexto","nPersona","nTema","nOT","nObs"].forEach(id=>document.getElementById(id).value="");
+  ["nTexto","nPersona","nObs"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("nMaquina").value = "";
   document.getElementById("nLinea").value = "";
   limpiarFormulario();
   refrescarTemas();
   refrescarPersonas();
+  refrescarOtrosEquipos();
   montarContadores();
   renderHoy();
   document.getElementById("nTexto").focus();
@@ -1170,13 +1388,11 @@ function verDetalle(id){
       ${t.persona?`<tr><td>Responsable</td><td style="text-align:right;">${esc(t.persona)}</td></tr>`:""}
       ${t.linea?`<tr><td>Línea</td><td style="text-align:right;">${esc(t.linea)}</td></tr>`:""}
       ${t.maquina?`<tr><td>Máquina</td><td style="text-align:right;">${esc(t.maquina)}</td></tr>`:""}
-      ${t.tema?`<tr><td>Tema</td><td style="text-align:right;">${esc(t.tema)}</td></tr>`:""}
       <tr><td>Prioridad</td><td style="text-align:right;">
         <select class="sel-prio" data-id="${esc(t.id)}" style="width:120px;display:inline-block;height:32px;">
           ${["Alta","Media","Baja"].map(x=>
             `<option${x===(t.prioridad||"Media")?" selected":""}>${x}</option>`).join("")}
         </select></td></tr>
-      <tr><td>Mantenimiento</td><td style="text-align:right;">${esc(t.mantenimiento)}${t.ot?" · "+esc(t.ot):""}</td></tr>
       ${t.observaciones?`<tr><td colspan="2" style="color:var(--text-dim);">${esc(t.observaciones)}</td></tr>`:""}
       <tr><td>Registrada</td><td style="text-align:right;">${fCorta(t.creado)} por ${esc(t.creadoPor)}</td></tr>
       <tr><td>Fecha prometida</td><td style="text-align:right;"><b>${fCorta(t.fechaOriginal)}</b></td></tr>
@@ -1573,6 +1789,8 @@ document.getElementById("btnActa").addEventListener("click", generarActa);
 document.getElementById("btnGuardar").addEventListener("click", guardarNuevo);
 document.getElementById("btnLimpiar").addEventListener("click", limpiarFormulario);
 document.getElementById("nPrioridad").addEventListener("change", pintarPuntoPrioridad);
+document.getElementById("nLinea").addEventListener("change", refrescarMaquinas);
+document.getElementById("nMaquina").addEventListener("change", mostrarOtroEquipo);
 pintarPuntoPrioridad();
 document.getElementById("nTexto").addEventListener("keydown", e=>{ if(e.key==="Enter") guardarNuevo(); });
 document.getElementById("btnMas").addEventListener("click", ()=>{
@@ -1580,10 +1798,17 @@ document.getElementById("btnMas").addEventListener("click", ()=>{
   const ver = c.style.display === "none";
   c.style.display = ver ? "" : "none";
   document.getElementById("btnMas").textContent =
-    ver ? "− Ocultar los campos extra" : "+ Agregar responsable, máquina y detalle";
+    ver ? "− Ocultar observaciones" : "+ Agregar observaciones";
 });
-["fArea","fPrioridad","fEstado"].forEach(id=>
+["fArea","fPrioridad","fVence"].forEach(id=>
   document.getElementById(id).addEventListener("change", renderHoy));
+document.getElementById("conmVista").querySelectorAll("[data-v]").forEach(b=>
+  b.addEventListener("click", ()=>{
+    document.getElementById("conmVista").querySelectorAll("[data-v]")
+      .forEach(x=>x.classList.toggle("on", x===b));
+    VISTA_PEND = b.dataset.v;
+    renderHoy();
+  }));
 document.getElementById("fTexto").addEventListener("input", renderHoy);
 ["gArea","gVer"].forEach(id=>document.getElementById(id).addEventListener("change", renderGantt));
 
@@ -1596,6 +1821,7 @@ document.addEventListener("click", e=>{
   if(b.dataset.cancelar) return pedirCancelar(b.dataset.cancelar);
   if(b.dataset["cerrarT"]) return pedirCerrar(b.dataset["cerrarT"]);
   if(b.dataset.reabrir)  return reabrir(b.dataset.reabrir);
+  if(b.dataset.etapa){ const [id,k] = b.dataset.etapa.split("|"); return moverEtapa(id,k); }
   if(b.dataset.ver)      return verDetalle(b.dataset.ver);
 });
 document.addEventListener("change", e=>{
